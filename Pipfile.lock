@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "51e52941d073b4db2c02aebcb2ba1b66f6d3cee0ba254e79de06953b2454b1f2"
+            "sha256": "b13f56691f9745301ea356fe35dd9af1b8888d6a4b8732260846b6e7503bb738"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -31,6 +31,13 @@
             "markers": "python_version >= '3.5'",
             "version": "==5.0.7"
         },
+        "future": {
+            "hashes": [
+                "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"
+            ],
+            "markers": "python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "version": "==0.18.2"
+        },
         "ipython": {
             "hashes": [
                 "sha256:9c900332d4c5a6de534b4befeeb7de44ad0cc42e8327fa41b7685abde58cec74",
@@ -53,6 +60,11 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==0.18.0"
+        },
+        "liegroups": {
+            "editable": true,
+            "git": "https://github.com/utiasSTARS/liegroups.git",
+            "ref": "fe1d376b7d33809dec78724b456f01833507c305"
         },
         "numpy": {
             "hashes": [
