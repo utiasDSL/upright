@@ -4,8 +4,6 @@ import time
 from liegroups import SO3
 import pybullet_data
 
-import IPython
-
 
 SIM_DT = 0.001
 
@@ -18,22 +16,26 @@ UR10_JOINT_NAMES = [
     "ur10_arm_wrist_3_joint",
 ]
 
+BASE_HOME = [0, 0, 0.5*np.pi]
 UR10_HOME = [0.0, -2.3562, -1.5708, -2.3562, -1.5708, 1.5708]
+ROBOT_HOME = BASE_HOME + UR10_HOME
 
 
 class SimulatedRobot:
     def __init__(self, position=(0, 0, 0), orientation=(0, 0, 0, 1), joint_angles=None):
-        self.robot = pyb.loadURDF(
+        # NOTE: passing the flag URDF_MERGE_FIXED_LINKS is good for performance
+        # but messes up the origins of the merged links, so this is not
+        # recommended
+        self.uid = pyb.loadURDF(
             "assets/urdf/mm.urdf",
             position,
             orientation,
-            flags=pyb.URDF_MERGE_FIXED_LINKS,
         )
 
         # build a dict of all joints, keyed by name
         self.joints = {}
-        for i in range(pyb.getNumJoints(self.robot)):
-            info = pyb.getJointInfo(self.robot, i)
+        for i in range(pyb.getNumJoints(self.uid)):
+            info = pyb.getJointInfo(self.uid, i)
             name = info[1].decode("utf-8")
             self.joints[name] = info
 
@@ -48,12 +50,24 @@ class SimulatedRobot:
             joint_angles = UR10_HOME
 
         for idx, angle in zip(self.ur10_joint_indices, joint_angles):
-            pyb.resetJointState(self.robot, idx, angle)
+            pyb.resetJointState(self.uid, idx, angle)
+
+    def reset_joint_configuration(self, q):
+        """Reset the robot to a particular configuration.
+
+        It is best not to do this during a simulation, as this overrides are
+        dynamic effects.
+        """
+        base_pos = [q[0], q[1], 0]
+        base_orn = pyb.getQuaternionFromEuler([0, 0, q[2]])
+        pyb.resetBasePositionAndOrientation(self.uid, base_pos, base_orn)
+        for idx, angle in zip(self.ur10_joint_indices, q[3:]):
+            pyb.resetJointState(self.uid, idx, angle)
 
     def _command_arm_velocity(self, ua):
         """Command arm joint velocities."""
         pyb.setJointMotorControlArray(
-            self.robot,
+            self.uid,
             self.ur10_joint_indices,
             controlMode=pyb.VELOCITY_CONTROL,
             targetVelocities=ua,
@@ -65,10 +79,13 @@ class SimulatedRobot:
         The input ub = [vx, vy, wz] is in body coordinates.
         """
         # map from body coordinates to world coordinates for pybullet
-        C_wb = SO3.rotz(ub[2])
+        pose, _ = self._base_state()
+        yaw = pose[2]
+        C_wb = SO3.rotz(yaw)
+
         linear = C_wb.dot([ub[0], ub[1], 0])
         angular = [0, 0, ub[2]]
-        pyb.resetBaseVelocity(self.robot, linear, angular)
+        pyb.resetBaseVelocity(self.uid, linear, angular)
 
     def command_velocity(self, u):
         """Command the velocity of the robot's joints."""
@@ -81,8 +98,8 @@ class SimulatedRobot:
         Returns a tuple (q, v), where q is the 3-dim 2D pose of the base and
         v is the 3-dim twist of joint velocities.
         """
-        position, quaternion = pyb.getBasePositionAndOrientation(self.robot)
-        linear_vel, angular_vel = pyb.getBaseVelocity(self.robot)
+        position, quaternion = pyb.getBasePositionAndOrientation(self.uid)
+        linear_vel, angular_vel = pyb.getBaseVelocity(self.uid)
 
         yaw = pyb.getEulerFromQuaternion(quaternion)[2]
         pose2d = [position[0], position[1], yaw]
@@ -96,7 +113,7 @@ class SimulatedRobot:
         Returns a tuple (q, v), where q is the 6-dim array of joint angles and
         v is the 6-dim array of joint velocities.
         """
-        states = pyb.getJointStates(self.robot, self.ur10_joint_indices)
+        states = pyb.getJointStates(self.uid, self.ur10_joint_indices)
         ur10_positions = [state[0] for state in states]
         ur10_velocities = [state[1] for state in states]
         return ur10_positions, ur10_velocities
@@ -111,12 +128,70 @@ class SimulatedRobot:
         qa, va = self._arm_state()
         return np.concatenate((qb, qa)), np.concatenate((vb, va))
 
-    def jacobian(self, q):
-        pass
+    def jacobian(self, q=None):
+        """Get the end effector Jacobian at the current configuration."""
+        # Don't allow querying of arbitrary configurations, because the pose in
+        # the world (i.e. base pose) cannot be specified.
+
+        if q is None:
+            q, _ = self.joint_states()
+        z = [0.0] * 6
+        qa = list(q[3:])
+
+        # Link index (of the tool, in this case) is the same as the joint
+        tool_idx = self.joints["tool0_tcp_fixed_joint"][0]
+        tool_offset = [0, 0, 0]
+
+        # Only actuated joints are used for computing the Jacobian (i.e. just
+        # the arm)
+        Jv, Jw = pyb.calculateJacobian(self.uid, tool_idx, tool_offset, qa, z, z)
+
+        # combine, reorder, and remove columns for base z, roll, and pitch (the
+        # full 6-DOF of the base is included in pybullet's Jacobian, but we
+        # don't want all of it)
+        J = np.vstack((Jv, Jw))
+        J = np.hstack((J[:, 3:5], J[:, 2, np.newaxis], J[:, 6:]))
+
+        # pybullet calculates the Jacobian w.r.t. the base link, so we need to
+        # rotate everything but the first two columns into the world frame
+        # (note first two columns are constant)
+        yaw = q[2]
+        C_wb = SO3.rotz(yaw)
+        R = np.kron(np.eye(2), C_wb.as_matrix())
+        J = np.hstack((J[:, :2], R @ J[:, 2:]))
+
+        return J
+
+
+def debug_frame(size, obj_uid, link_index):
+    """Attach at a frame to a link for debugging purposes."""
+    pyb.addUserDebugLine(
+        [0, 0, 0],
+        [size, 0, 0],
+        lineColorRGB=[1, 0, 0],
+        parentObjectUniqueId=obj_uid,
+        parentLinkIndex=link_index,
+    )
+    pyb.addUserDebugLine(
+        [0, 0, 0],
+        [0, size, 0],
+        lineColorRGB=[0, 1, 0],
+        parentObjectUniqueId=obj_uid,
+        parentLinkIndex=link_index,
+    )
+    pyb.addUserDebugLine(
+        [0, 0, 0],
+        [0, 0, size],
+        lineColorRGB=[0, 0, 1],
+        parentObjectUniqueId=obj_uid,
+        parentLinkIndex=link_index,
+    )
 
 
 def main():
-    clid = pyb.connect(pyb.GUI)
+    np.set_printoptions(precision=3, suppress=True)
+
+    pyb.connect(pyb.GUI)
 
     # NOTE: Coulomb friction cone is the default, but this can be disabled to
     # use a considerably faster linearized pyramid model, which isn't much less
@@ -129,6 +204,7 @@ def main():
 
     # robot
     mm = SimulatedRobot()
+    mm.reset_joint_configuration(ROBOT_HOME)
 
     pyb.setGravity(0, 0, -9.81)
     pyb.setTimeStep(SIM_DT)
@@ -137,10 +213,9 @@ def main():
 
     # simulation loop
     while True:
+        # open-loop command
         u = [0.1, 0, 0, 0.1, 0, 0, 0, 0, 0]
         mm.command_velocity(u)
-        q, v = mm.joint_states()
-        IPython.embed()
 
         pyb.stepSimulation()
 
