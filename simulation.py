@@ -4,6 +4,8 @@ import time
 from liegroups import SO3
 import pybullet_data
 
+import IPython
+
 
 SIM_DT = 0.001
 
@@ -16,13 +18,14 @@ UR10_JOINT_NAMES = [
     "ur10_arm_wrist_3_joint",
 ]
 
-BASE_HOME = [0, 0, 0.5*np.pi]
-UR10_HOME = [0.0, -2.3562, -1.5708, -2.3562, -1.5708, 1.5708]
-ROBOT_HOME = BASE_HOME + UR10_HOME
+BASE_HOME = [0, 0, 0]
+UR10_HOME_STANDARD = [0.0, -2.3562, -1.5708, -2.3562, -1.5708, 1.5708]
+UR10_HOME_TRAY_BALANCE = [0.0, -2.3562, -1.5708, -0.7854, -1.5708, 1.5708]
+ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
 
 
 class SimulatedRobot:
-    def __init__(self, position=(0, 0, 0), orientation=(0, 0, 0, 1), joint_angles=None):
+    def __init__(self, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
         # NOTE: passing the flag URDF_MERGE_FIXED_LINKS is good for performance
         # but messes up the origins of the merged links, so this is not
         # recommended
@@ -46,11 +49,11 @@ class SimulatedRobot:
             self.ur10_joint_indices.append(idx)
 
         # set the UR10 to the home position
-        if joint_angles is None:
-            joint_angles = UR10_HOME
-
-        for idx, angle in zip(self.ur10_joint_indices, joint_angles):
-            pyb.resetJointState(self.uid, idx, angle)
+        # if joint_angles is None:
+        #     joint_angles = UR10_HOME
+        #
+        # for idx, angle in zip(self.ur10_joint_indices, joint_angles):
+        #     pyb.resetJointState(self.uid, idx, angle)
 
     def reset_joint_configuration(self, q):
         """Reset the robot to a particular configuration.
@@ -206,16 +209,21 @@ def main():
     mm = SimulatedRobot()
     mm.reset_joint_configuration(ROBOT_HOME)
 
+    # TODO: add friction via pyb.changeDynamics, since it cannot be specified
+    # in the URDF
+
     pyb.setGravity(0, 0, -9.81)
     pyb.setTimeStep(SIM_DT)
 
     t = 0
 
+    IPython.embed()
+
     # simulation loop
     while True:
         # open-loop command
-        u = [0.1, 0, 0, 0.1, 0, 0, 0, 0, 0]
-        mm.command_velocity(u)
+        # u = [0.1, 0, 0, 0.1, 0, 0, 0, 0, 0]
+        # mm.command_velocity(u)
 
         pyb.stepSimulation()
 
