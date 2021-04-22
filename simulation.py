@@ -1,3 +1,19 @@
+"""Tray balancing simulation in pybullet."""
+
+# Friction
+# ========
+# Bullet calculates friction between two objects by multiplying the
+# coefficients of friction for each object*. To deal with this, I set the the
+# coefficient for the EE to 1, and then vary the object value to achieve the
+# desired result.
+#
+# Coulomb friction cone is the default, but this can be disabled to use a
+# considerably faster linearized pyramid model, which apparently isn't much
+# less accurate, using:
+# pyb.setPhysicsEngineParameter(enableConeFriction=0)
+#
+# *see https://pybullet.org/Bullet/BulletFull/btManifoldResult_8cpp_source.html
+
 import numpy as np
 import pybullet as pyb
 import time
@@ -18,17 +34,22 @@ UR10_JOINT_NAMES = [
     "ur10_arm_wrist_3_joint",
 ]
 
+TOOL_JOINT_NAME = "tool0_tcp_fixed_joint"
+
 BASE_HOME = [0, 0, 0]
 UR10_HOME_STANDARD = [0.0, -2.3562, -1.5708, -2.3562, -1.5708, 1.5708]
 UR10_HOME_TRAY_BALANCE = [0.0, -2.3562, -1.5708, -0.7854, -1.5708, 1.5708]
 ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
+
+MU_LATERAL = 0.5
 
 
 class SimulatedRobot:
     def __init__(self, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
         # NOTE: passing the flag URDF_MERGE_FIXED_LINKS is good for performance
         # but messes up the origins of the merged links, so this is not
-        # recommended
+        # recommended. Instead, if performance is an issue, consider using the
+        # base_simple.urdf model instead of the Ridgeback.
         self.uid = pyb.loadURDF(
             "assets/urdf/mm.urdf",
             position,
@@ -48,12 +69,11 @@ class SimulatedRobot:
             idx = self.joints[name][0]
             self.ur10_joint_indices.append(idx)
 
-        # set the UR10 to the home position
-        # if joint_angles is None:
-        #     joint_angles = UR10_HOME
-        #
-        # for idx, angle in zip(self.ur10_joint_indices, joint_angles):
-        #     pyb.resetJointState(self.uid, idx, angle)
+        # Link index (of the tool, in this case) is the same as the joint
+        self.tool_idx = self.joints[TOOL_JOINT_NAME][0]
+
+        # TODO may need to also set spinningFriction
+        pyb.changeDynamics(self.uid, self.tool_idx, lateralFriction=1.0)
 
     def reset_joint_configuration(self, q):
         """Reset the robot to a particular configuration.
@@ -131,6 +151,17 @@ class SimulatedRobot:
         qa, va = self._arm_state()
         return np.concatenate((qb, qa)), np.concatenate((vb, va))
 
+    def link_pose(self, link_idx=None):
+        """Get the pose of a particular link in the world frame.
+
+        If no link_idx is provided, defaults to that of the tool.
+        """
+        if link_idx is None:
+            link_idx = self.tool_idx
+        state = pyb.getLinkState(self.uid, link_idx, computeForwardKinematics=True)
+        pos, orn = state[0], state[1]
+        return np.array(pos), np.array(orn)
+
     def jacobian(self, q=None):
         """Get the end effector Jacobian at the current configuration."""
         # Don't allow querying of arbitrary configurations, because the pose in
@@ -141,13 +172,10 @@ class SimulatedRobot:
         z = [0.0] * 6
         qa = list(q[3:])
 
-        # Link index (of the tool, in this case) is the same as the joint
-        tool_idx = self.joints["tool0_tcp_fixed_joint"][0]
-        tool_offset = [0, 0, 0]
-
         # Only actuated joints are used for computing the Jacobian (i.e. just
         # the arm)
-        Jv, Jw = pyb.calculateJacobian(self.uid, tool_idx, tool_offset, qa, z, z)
+        tool_offset = [0, 0, 0]
+        Jv, Jw = pyb.calculateJacobian(self.uid, self.tool_idx, tool_offset, qa, z, z)
 
         # combine, reorder, and remove columns for base z, roll, and pitch (the
         # full 6-DOF of the base is included in pybullet's Jacobian, but we
@@ -191,35 +219,73 @@ def debug_frame(size, obj_uid, link_index):
     )
 
 
+class Tray:
+    def __init__(self, mass=0.5, radius=0.25, height=0.01):
+
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_CYLINDER,
+            radius=radius,
+            height=height,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_CYLINDER,
+            radius=radius,
+            length=height,
+            rgbaColor=[0, 0, 1, 1],
+        )
+        self.uid = pyb.createMultiBody(
+            baseMass=mass,
+            baseCollisionShapeIndex=collision_uid,
+            baseVisualShapeIndex=visual_uid,
+            basePosition=[0, 0, 2],
+            baseOrientation=[0, 0, 0, 1],
+        )
+
+        # set friction
+        pyb.changeDynamics(self.uid, -1, lateralFriction=MU_LATERAL)
+
+    def get_pose(self):
+        pos, orn = pyb.getBasePositionAndOrientation(self.uid)
+        return np.array(pos), np.array(orn)
+
+    def reset_pose(self, position=None, orientation=None):
+        current_pos, current_orn = self.get_pose()
+        if position is None:
+            position = current_pos
+        if orientation is None:
+            orientation = current_orn
+        pyb.resetBasePositionAndOrientation(self.uid, list(position), list(orientation))
+
+
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
     pyb.connect(pyb.GUI)
 
-    # NOTE: Coulomb friction cone is the default, but this can be disabled to
-    # use a considerably faster linearized pyramid model, which isn't much less
-    # accurate.
-    # pyb.setPhysicsEngineParameter(enableConeFriction=0)
-
-    # ground plane
-    pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
-    pyb.loadURDF("plane.urdf", [0, 0, 0])
-
-    # robot
-    mm = SimulatedRobot()
-    mm.reset_joint_configuration(ROBOT_HOME)
-
-    # TODO: add friction via pyb.changeDynamics, since it cannot be specified
-    # in the URDF
-
     pyb.setGravity(0, 0, -9.81)
     pyb.setTimeStep(SIM_DT)
 
+    # setup ground plane
+    pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
+    pyb.loadURDF("plane.urdf", [0, 0, 0])
+
+    # setup robot
+    mm = SimulatedRobot()
+    mm.reset_joint_configuration(ROBOT_HOME)
+
+    # simulate briefly to let the robot settle down after being positioned
     t = 0
+    while t < 1.0:
+        pyb.stepSimulation()
+        t += SIM_DT
 
-    IPython.embed()
+    # setup tray
+    tray = Tray()
+    ee_pos, _ = mm.link_pose()
+    tray.reset_pose(position=ee_pos + [0, 0, 0.1])
 
-    # simulation loop
+    # main simulation loop
+    t = 0
     while True:
         # open-loop command
         # u = [0.1, 0, 0, 0.1, 0, 0, 0, 0, 0]
