@@ -467,6 +467,7 @@
     <limit effort="54.0" lower="-6.28318530718" upper="6.28318530718" velocity="3.2"/>
     <dynamics damping="0.0" friction="0.0"/>
   </joint>
+
   <link name="ur10_arm_wrist_1_link">
     <visual>
       <geometry>
@@ -487,6 +488,7 @@
       <inertia ixx="0.0051082479567" ixy="0.0" ixz="0.0" iyy="0.0051082479567" iyz="0.0" izz="0.0055125"/>
     </inertial>
   </link>
+
   <joint name="ur10_arm_wrist_2_joint" type="revolute">
     <parent link="ur10_arm_wrist_1_link"/>
     <child link="ur10_arm_wrist_2_link"/>
@@ -495,6 +497,7 @@
     <limit effort="54.0" lower="-6.28318530718" upper="6.28318530718" velocity="3.2"/>
     <dynamics damping="0.0" friction="0.0"/>
   </joint>
+
   <link name="ur10_arm_wrist_2_link">
     <visual>
       <geometry>
@@ -515,6 +518,7 @@
       <inertia ixx="0.0051082479567" ixy="0.0" ixz="0.0" iyy="0.0051082479567" iyz="0.0" izz="0.0055125"/>
     </inertial>
   </link>
+
   <joint name="ur10_arm_wrist_3_joint" type="revolute">
     <parent link="ur10_arm_wrist_2_link"/>
     <child link="ur10_arm_wrist_3_link"/>
@@ -523,6 +527,7 @@
     <limit effort="54.0" lower="-6.28318530718" upper="6.28318530718" velocity="3.2"/>
     <dynamics damping="0.0" friction="0.0"/>
   </joint>
+
   <link name="ur10_arm_wrist_3_link">
     <visual>
       <geometry>
@@ -606,7 +611,8 @@
 <!-- h = 0.08660254037844387 -->
 <!-- r = 0.17320508075688773 -->
 
-  <!-- z forward, x up, y right -->
+  <!-- Custom tool for tray balancing -->
+  <!-- Frame: z forward, x up, y right -->
   <link name="thing_tool">
     <visual>
       <origin rpy="0 0 0" xyz="0.1732 0 0"/>

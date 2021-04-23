@@ -37,11 +37,27 @@ UR10_JOINT_NAMES = [
 TOOL_JOINT_NAME = "tool0_tcp_fixed_joint"
 
 BASE_HOME = [0, 0, 0]
-UR10_HOME_STANDARD = [0.0, -2.3562, -1.5708, -2.3562, -1.5708, 1.5708]
-UR10_HOME_TRAY_BALANCE = [0.0, -2.3562, -1.5708, -0.7854, -1.5708, 1.5708]
+UR10_HOME_STANDARD = [
+    0.0,
+    -0.75 * np.pi,
+    -0.5 * np.pi,
+    -0.75 * np.pi,
+    -0.5 * np.pi,
+    0.5 * np.pi,
+]
+UR10_HOME_TRAY_BALANCE = [
+    0.0,
+    -0.75 * np.pi,
+    -0.5 * np.pi,
+    -0.25 * np.pi,
+    -0.5 * np.pi,
+    0.5 * np.pi,
+]
 ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
 
 MU_LATERAL = 0.5
+
+# NOTE: add +0.1 to 4th arm joint (wrist 1)
 
 
 class SimulatedRobot:
@@ -75,17 +91,23 @@ class SimulatedRobot:
         # TODO may need to also set spinningFriction
         pyb.changeDynamics(self.uid, self.tool_idx, lateralFriction=1.0)
 
+    def reset_base_pose(self, qb):
+        base_pos = [qb[0], qb[1], 0]
+        base_orn = pyb.getQuaternionFromEuler([0, 0, qb[2]])
+        pyb.resetBasePositionAndOrientation(self.uid, base_pos, base_orn)
+
+    def reset_arm_joints(self, qa):
+        for idx, angle in zip(self.ur10_joint_indices, qa):
+            pyb.resetJointState(self.uid, idx, angle)
+
     def reset_joint_configuration(self, q):
         """Reset the robot to a particular configuration.
 
         It is best not to do this during a simulation, as this overrides are
         dynamic effects.
         """
-        base_pos = [q[0], q[1], 0]
-        base_orn = pyb.getQuaternionFromEuler([0, 0, q[2]])
-        pyb.resetBasePositionAndOrientation(self.uid, base_pos, base_orn)
-        for idx, angle in zip(self.ur10_joint_indices, q[3:]):
-            pyb.resetJointState(self.uid, idx, angle)
+        self.reset_base_pose(q[:3])
+        self.reset_arm_joints(q[3:])
 
     def _command_arm_velocity(self, ua):
         """Command arm joint velocities."""
@@ -279,10 +301,13 @@ def main():
         pyb.stepSimulation()
         t += SIM_DT
 
+    # arm gets bumped by the above settling, so we reset it again
+    mm.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
+
     # setup tray
     tray = Tray()
     ee_pos, _ = mm.link_pose()
-    tray.reset_pose(position=ee_pos + [0, 0, 0.1])
+    tray.reset_pose(position=ee_pos + [0, 0, 0.05])
 
     # main simulation loop
     t = 0
