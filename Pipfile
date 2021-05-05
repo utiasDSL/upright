@@ -8,6 +8,9 @@ numpy = "*"
 pybullet = "*"
 ipython = "*"
 liegroups = {editable = true, ref = "master", git = "https://github.com/utiasSTARS/liegroups.git"}
+matplotlib = "*"
+cython = "*"
+scipy = "*"
 
 [dev-packages]
 
