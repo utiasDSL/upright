@@ -20,60 +20,10 @@ import numpy as np
 import pybullet as pyb
 import pybullet_data
 
-import sqp
-
 import IPython
 
 
 SIM_DT = 0.001
-MU_LATERAL = 0.5
-
-
-# TODO: we need to get the forward kinematics for the robot in terms jax can
-# understand, then autodiff to get everything else---will likely be slow
-# let's start with a severely restricted planar model:
-#   base x, ur10_arm_shoulder_lift_joint, ur10_arm_elbow_joint, ur10_arm_wrist_1_joint
-# this should make it about the same complexity as the mm2d approach
-#
-# we can further restrict the tray to be stuck in the 2D plane via a constraint
-
-
-class Tray:
-    def __init__(self, mass=0.5, radius=0.25, height=0.01):
-
-        collision_uid = pyb.createCollisionShape(
-            shapeType=pyb.GEOM_CYLINDER,
-            radius=radius,
-            height=height,
-        )
-        visual_uid = pyb.createVisualShape(
-            shapeType=pyb.GEOM_CYLINDER,
-            radius=radius,
-            length=height,
-            rgbaColor=[0, 0, 1, 1],
-        )
-        self.uid = pyb.createMultiBody(
-            baseMass=mass,
-            baseCollisionShapeIndex=collision_uid,
-            baseVisualShapeIndex=visual_uid,
-            basePosition=[0, 0, 2],
-            baseOrientation=[0, 0, 0, 1],
-        )
-
-        # set friction
-        pyb.changeDynamics(self.uid, -1, lateralFriction=MU_LATERAL)
-
-    def get_pose(self):
-        pos, orn = pyb.getBasePositionAndOrientation(self.uid)
-        return np.array(pos), np.array(orn)
-
-    def reset_pose(self, position=None, orientation=None):
-        current_pos, current_orn = self.get_pose()
-        if position is None:
-            position = current_pos
-        if orientation is None:
-            orientation = current_orn
-        pyb.resetBasePositionAndOrientation(self.uid, list(position), list(orientation))
 
 
 def main():

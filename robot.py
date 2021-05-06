@@ -14,26 +14,6 @@ UR10_JOINT_NAMES = [
 
 TOOL_JOINT_NAME = "tool0_tcp_fixed_joint"
 
-BASE_HOME = [0, 0, 0]
-UR10_HOME_STANDARD = [
-    0.0,
-    -0.75 * np.pi,
-    -0.5 * np.pi,
-    -0.75 * np.pi,
-    -0.5 * np.pi,
-    0.5 * np.pi,
-]
-UR10_HOME_TRAY_BALANCE = [
-    0.0,
-    -0.75 * np.pi,
-    -0.5 * np.pi,
-    -0.25 * np.pi,
-    -0.5 * np.pi,
-    0.5 * np.pi,
-]
-ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
-
-
 
 class SimulatedRobot:
     def __init__(self, position=(0, 0, 0), orientation=(0, 0, 0, 1)):

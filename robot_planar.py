@@ -3,10 +3,10 @@ import jax
 import jax.numpy as jnp
 from scipy.linalg import expm
 
-from robot import SimulatedRobot, ROBOT_HOME
+from robot import SimulatedRobot
 
 
-def dhtf(q, a, d, α):
+def dhtf(q, a, d, α, np=jnp):
     """Constuct a transformation matrix from D-H parameters."""
     cα = np.cos(α)
     sα = np.sin(α)
@@ -41,16 +41,20 @@ def zoh(A, B, dt):
 class SimulatedPlanarRobot(SimulatedRobot):
     """Planar robot restricted to 4 of 9 DOFs, in the x-z plane."""
 
-    def __init__(self, dt, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
+    def __init__(self, dt, qd, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
         super().__init__(position, orientation)
         self.dt = dt
 
-        self.input_mask = np.array([1, 0, 0, 0, 1, 1, 1, 0, 0])
+        self.input_mask = np.array([1, 0, 0, 0, 1, 1, 1, 0, 0]).astype(bool)
         self.ni = np.sum(self.input_mask)
         self.nz = len(self.input_mask) - self.ni
 
-        self.qd = np.array(ROBOT_HOME)
+        self.qd = qd
         self.K = np.eye(self.nz)
+
+    def joint_states(self):
+        q, v = super().joint_states()
+        return q[self.input_mask], v[self.input_mask]
 
     def command_velocity(self, u):
         """Command the velocity of the robot's joints.
@@ -62,7 +66,7 @@ class SimulatedPlanarRobot(SimulatedRobot):
         u9[self.input_mask] = u
 
         # ignored joints have feedback to keep them at desired position
-        q, _ = self.joint_states()
+        q, _ = super().joint_states()
         Δq = self.qd - q
         u9[~self.input_mask] = self.K @ Δq[~self.input_mask]
 
@@ -71,7 +75,7 @@ class SimulatedPlanarRobot(SimulatedRobot):
     def command_acceleration(self, cmd_acc):
         """Command acceleration of the robot's joints."""
         _, v = self.joint_states()
-        self.cmd_vel = v[self.input_mask]
+        self.cmd_vel = v
         self.cmd_acc = cmd_acc
 
     def step(self):
@@ -81,7 +85,7 @@ class SimulatedPlanarRobot(SimulatedRobot):
 
 
 class PlanarRobotModel:
-    def __init__(self, dt):
+    def __init__(self, dt, qd):
         self.dt = dt
         self.ni = 4
 
@@ -92,11 +96,9 @@ class PlanarRobotModel:
         # compute discretized matrices assuming zero-order hold
         self.Ad, self.Bd = zoh(A, B, dt)
 
-        self._init_kinematics()
+        self._init_kinematics(qd)
 
-    def _init_kinematics(self):
-        qd = np.array(ROBOT_HOME)
-
+    def _init_kinematics(self, qd):
         px = 0.27
         py = 0.01
         pz = 0.653
@@ -138,11 +140,12 @@ class PlanarRobotModel:
         x = T_w_tool[0, 3]
         z = T_w_tool[2, 3]
 
+        # TODO not sure why positive angle works
         # angle is negative pitch since y-axis points into the plane
         # see: https://github.com/utiasSTARS/liegroups/blob/master/liegroups/numpy/so3.py#L310
-        pitch = np.arctan2(-T_w_tool[2, 0],
-                           np.sqrt(T_w_tool[0, 0]**2 + T_w_tool[1, 0]**2))
-        θ = -pitch
+        pitch = jnp.arctan2(-T_w_tool[2, 0],
+                            jnp.sqrt(T_w_tool[0, 0]**2 + T_w_tool[1, 0]**2))
+        θ = pitch
 
         return jnp.array([x, z, θ])
 

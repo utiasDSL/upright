@@ -1,3 +1,4 @@
+import numpy as np
 import pybullet as pyb
 
 
@@ -24,3 +25,11 @@ def debug_frame(size, obj_uid, link_index):
         parentObjectUniqueId=obj_uid,
         parentLinkIndex=link_index,
     )
+
+
+def rotation_matrix(θ, np=np):
+    """2D rotation matrix: rotates points counter-clockwise."""
+    c = np.cos(θ)
+    s = np.sin(θ)
+    return np.array([[c, -s],
+                     [s,  c]])

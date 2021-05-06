@@ -11,6 +11,8 @@ liegroups = {editable = true, ref = "master", git = "https://github.com/utiasSTA
 matplotlib = "*"
 cython = "*"
 scipy = "*"
+jax = "*"
+jaxlib = "*"
 
 [dev-packages]
 
