@@ -31,6 +31,12 @@ class Tray:
         pos, orn = pyb.getBasePositionAndOrientation(self.uid)
         return np.array(pos), np.array(orn)
 
+    def get_pose_planar(self):
+        """Pose in the vertical x-z plane."""
+        pos, orn = self.get_pose()
+        pitch = pyb.getEulerFromQuaternion(orn)[1]
+        return np.array([pos[0], pos[2], pitch])  # x, y, pitch
+
     def reset_pose(self, position=None, orientation=None):
         current_pos, current_orn = self.get_pose()
         if position is None:

@@ -46,10 +46,7 @@ PLANAR_VEL_LIM = np.array(ROBOT_VEL_LIM)[INPUT_MASK]
 
 
 # robot parameters
-L1 = 1
-L2 = 1
-VEL_LIM = 1
-ACC_LIM = 8
+ACC_LIM = 8  # TODO
 
 GRAVITY = 9.81
 
@@ -304,6 +301,12 @@ def setup_sim():
     return robot, tray
 
 
+def calc_p_te_e(P_ew_w, P_tw_w):
+    θ_ew = P_ew_w[2]
+    R_we = rotation_matrix(θ_ew)
+    return R_we.T @ (P_tw_w[:2] - P_ew_w[:2])
+
+
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
@@ -313,11 +316,19 @@ def main():
     N = int(DURATION / SIM_DT) + 1
     N_record = int(DURATION / (SIM_DT * RECORD_PERIOD))
 
-    p_te_e = np.array([0, 0.05 + TRAY_H])  # TODO not correct; should get from sim
-
     # simulation objects and model
     robot, tray = setup_sim()
     model = PlanarRobotModel(MPC_DT, ROBOT_HOME)
+
+    # state of joints
+    q0, dq0 = robot.joint_states()
+    X_q = np.concatenate((q0, np.zeros_like(dq0)))
+
+    P_ew_w = model.tool_pose(X_q)
+    P_tw_w = tray.get_pose_planar()
+    p_te_e = calc_p_te_e(P_ew_w, P_tw_w)
+
+    # construct the tray balance problem
     problem = TrayBalanceOptimization(model, p_te_e)
 
     ts = RECORD_PERIOD * SIM_DT * np.arange(N_record)
@@ -332,17 +343,12 @@ def main():
 
     p_te_es[0, :] = p_te_e
 
-    # state of joints
-    q0, dq0 = robot.joint_states()
-    X_q = np.concatenate((q0, np.zeros_like(dq0)))
-
     P_ew_w = model.tool_pose(X_q)
     V_ew_w = model.tool_velocity(X_q)
     P_ew_ws[0, :] = P_ew_w
     V_ew_ws[0, :] = V_ew_w
 
     # reference trajectory
-    # TODO still need to deal with this
     setpoints = np.array([[1, -0.5], [2, -0.5], [3, 0.5]]) + P_ew_w[:2]
     setpoint_idx = 0
     trajectory = trajectories.Point(setpoints[setpoint_idx, :])
@@ -389,14 +395,7 @@ def main():
             a_ee = model.tool_acceleration(X_q, u)
             ineq_cons[idx, :] = np.array(problem.ineq_constraints(X_ee, a_ee))
 
-            # TODO this needs to be redone
-            # tray position is (ideally) a constant offset from EE frame
-            # θ_ew = P_ew_w[2]
-            # R_we = rotation_matrix(θ_ew)
-            # P_tw_w = np.array(
-            #     [tray.body.position.x, tray.body.position.y, tray.body.angle]
-            # )
-
+            P_tw_w = tray.get_pose_planar()
             pd, _, _ = trajectory.sample(t, flatten=False)
 
             # record
@@ -405,8 +404,8 @@ def main():
             P_ew_wds[idx, :2] = pd
             P_ew_ws[idx, :] = P_ew_w
             V_ew_ws[idx, :] = V_ew_w
-            # P_tw_ws[idx, :] = P_tw_w
-            # p_te_es[idx, :] = R_we.T @ (P_tw_w[:2] - P_ew_w[:2])
+            P_tw_ws[idx, :] = P_tw_w
+            p_te_es[idx, :] = calc_p_te_e(P_ew_w, P_tw_w)
 
         if np.linalg.norm(pd - P_ew_w[:2]) < 0.01:
             print("Position within 1 cm.")
