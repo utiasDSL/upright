@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 """Baseline tray balancing formulation."""
+from functools import partial
+
 import jax.numpy as jnp
 import jax
 import numpy as np
@@ -10,7 +12,7 @@ import pybullet_data
 from mm2d import trajectory as trajectories
 
 import sqp
-from util import rotation_matrix
+from util import rotation_matrix, skew1
 from tray import Tray
 from robot_planar import SimulatedPlanarRobot, PlanarRobotModel
 
@@ -69,32 +71,197 @@ CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 10.0  # duration of trajectory (s)
 
-ns_ee = 6  # num EE states
-ns_q = 8  # num joint states
-ni = 4  # num inputs
-nc_eq = 0
-nc_ineq = 7  # num inequality constraints
-nv = ni  # num opt vars
-nc = nc_eq + nc_ineq  # num constraints
 
-# MPC weights
-Q = np.diag([0, 0, 0, 0, 0.01, 0.01, 0.01, 0.01])
-W = np.diag([1, 1, 1, 0, 0, 0])
-R = 0.01 * np.eye(ni)
-V = MPC_DT * np.eye(ni)
+class TrayBalanceOptimization:
+    def __init__(self, model, p_te_e):
+        self.model = model
+        self.p_te_e = p_te_e
 
-# lifted weight matrices
-Ibar = np.eye(MPC_STEPS)
-Qbar = np.kron(Ibar, Q)
-Wbar = np.kron(Ibar, W)
-Rbar = np.kron(Ibar, R)
+        self.nv = model.ni  # number of optimization variables per MPC step
+        self.nc_eq = 0      # number of equality constraints
+        self.nc_ineq = 7    # number of inequality constraints
+        self.nc = self.nc_eq + self.nc_ineq
 
-# velocity constraint matrix
-Vbar = np.kron(np.tril(np.ones((MPC_STEPS, MPC_STEPS))), V)
+        self.ns_q = 2 * model.ni  # dimension of joint state
+        self.ns_ee = 6            # dimension of EE (Cartesian) states
 
+        # MPC weights
+        Q = np.diag([0, 0, 0, 0, 0.01, 0.01, 0.01, 0.01])
+        W = np.diag([1, 1, 1, 0, 0, 0])
+        R = 0.01 * np.eye(self.nv)
+        V = MPC_DT * np.eye(self.nv)
 
-def skew1(x):
-    return np.array([[0, -x], [x, 0]])
+        # lifted weight matrices
+        Ibar = np.eye(MPC_STEPS)
+        self.Qbar = np.kron(Ibar, Q)
+        self.Wbar = np.kron(Ibar, W)
+        self.Rbar = np.kron(Ibar, R)
+
+        # velocity constraint matrix
+        self.Vbar = np.kron(np.tril(np.ones((MPC_STEPS, MPC_STEPS))), V)
+
+        self.err_jac = jax.jit(jax.jacfwd(self.error_unrolled, argnums=2))
+        self.joint_state_jac = jax.jit(jax.jacfwd(self.joint_state_unrolled, argnums=1))
+
+    @partial(jax.jit, static_argnums=(0,))
+    def joint_state_unrolled(self, X_q_0, ubar):
+        """Unroll the joint state of the robot over the time horizon."""
+
+        def state_func(X_q, u):
+            X_q = self.model.simulate(X_q, u)
+            return X_q, X_q
+
+        u = ubar.reshape((MPC_STEPS, self.model.ni))
+        _, X_q_bar = jax.lax.scan(state_func, X_q_0, u)
+        return X_q_bar.flatten()
+
+    @partial(jax.jit, static_argnums=(0,))
+    def error_unrolled(self, X_q_0, X_ee_d, var):
+        """Unroll the pose error over the time horizon."""
+        X_ee_d0 = X_ee_d[:self.ns_ee]
+
+        def error_func(X_q, u):
+            X_q = self.model.simulate(X_q, u)
+            X_ee = self.model.tool_state(X_q)
+            e = X_ee_d0 - X_ee  # TODO this is assuming setpoint
+            return X_q, e
+
+        u = var.reshape((MPC_STEPS, self.model.ni))
+        X_q, ebar = jax.lax.scan(error_func, X_q_0, u)
+        return ebar.flatten()
+
+    @partial(jax.jit, static_argnums=(0,))
+    def ineq_constraints(self, X_ee, a_ee, jnp=jnp):
+        """Calculate inequality constraints for a single timestep."""
+        θ_ew, dθ_ew = X_ee[2], X_ee[5]
+        a_ew_w, ddθ_ew = a_ee[:2], a_ee[2]
+        # R_ew = jnp.array([[ jnp.cos(θ_ew), jnp.sin(θ_ew)],
+        #                   [-jnp.sin(θ_ew), jnp.cos(θ_ew)]])
+        R_ew = rotation_matrix(-θ_ew, np=jnp)
+        S1 = skew1(1)
+        g = jnp.array([0, GRAVITY])
+
+        α1, α2 = (
+            TRAY_MASS * R_ew @ (a_ew_w + g)
+            + TRAY_MASS * (ddθ_ew * S1 - dθ_ew ** 2 * jnp.eye(2)) @ self.p_te_e
+        )
+        α3 = TRAY_INERTIA * ddθ_ew
+
+        # NOTE: this is written to be >= 0
+        # h1 = TRAY_MU*α2 - jnp.abs(α1)
+        h1a = TRAY_MU * α2 + α1
+        h1b = TRAY_MU * α2 - α1
+        h2 = α2
+        # h2 = 1
+
+        w1 = TRAY_W
+        w2 = TRAY_W
+        h3a = α3 + w1 * α2 + TRAY_H * α1
+        h3b = α3 + w1 * α2 - TRAY_H * α1
+        # h3a = 1
+        # h3b = 1
+
+        h4a = -α3 + w2 * α2 + TRAY_H * α1
+        h4b = -α3 + w2 * α2 - TRAY_H * α1
+        # h4a = 1
+        # h4b = 1
+
+        return jnp.array([h1a, h1b, h2, h3a, h3b, h4a, h4b])
+
+    @partial(jax.jit, static_argnums=(0,))
+    def ineq_constraints_unrolled(self, X_q_0, X_ee_d, var):
+        """Unroll the inequality constraints over the time horizon."""
+
+        def ineq_func(X_q, u):
+
+            # we actually two sets of constraints for each timestep: one at the
+            # start and one at the end
+            # at the start of the timestep, we need to ensure the new inputs
+            # satisfy constraints
+            X_ee = self.model.tool_state(X_q)
+            a_ee = self.model.tool_acceleration(X_q, u)
+            ineq_con1 = self.ineq_constraints(X_ee, a_ee)
+
+            X_q = self.model.simulate(X_q, u)
+
+            # at the end of the timestep, we need to make sure that the robot
+            # ends up in a state where constraints are still satisfied given
+            # the input
+            X_ee = self.model.tool_state(X_q)
+            a_ee = self.model.tool_acceleration(X_q, u)
+            ineq_con2 = self.ineq_constraints(X_ee, a_ee)
+
+            return X_q, jnp.concatenate((ineq_con1, ineq_con2))
+
+        u = var.reshape((MPC_STEPS, self.model.ni))
+        X_q, ineq_con = jax.lax.scan(ineq_func, X_q_0, u)
+        return ineq_con.flatten()
+
+    @partial(jax.jit, static_argnums=(0,))
+    def obj_hess_jac(self, X_q_0, X_ee_d, var):
+        """Calculate objective Hessian and Jacobian."""
+        u = var
+
+        e = self.error_unrolled(X_q_0, X_ee_d, u)
+        dedu = self.err_jac(X_q_0, X_ee_d, u)
+
+        x = self.joint_state_unrolled(X_q_0, u)
+        dxdu = self.joint_state_jac(X_q_0, u)
+
+        # Function
+        f = e.T @ self.Wbar @ e + x.T @ self.Qbar @ x + u.T @ self.Rbar @ u
+
+        # Jacobian
+        g = e.T @ self.Wbar @ dedu + x.T @ self.Qbar @ dxdu + u.T @ self.Rbar
+
+        # (Approximate) Hessian
+        H = dedu.T @ self.Wbar @ dedu + dxdu.T @ self.Qbar @ dxdu + self.Rbar
+
+        return f, g, H
+
+    @partial(jax.jit, static_argnums=(0,))
+    def vel_ineq_constraints(self, X_q_0, X_ee_d, var):
+        """Inequality constraints on joint velocity."""
+        dq0 = X_q_0[self.model.ni:]
+        return self.Vbar @ var + jnp.tile(dq0, MPC_STEPS)
+
+    @partial(jax.jit, static_argnums=(0,))
+    def vel_ineq_jacobian(self, X_q_0, X_ee_d, var):
+        """Jacobian of joint velocity constraints."""
+        return self.Vbar
+
+    @partial(jax.jit, static_argnums=(0,))
+    def con_fun(self, X_q_0, X_ee_d, var):
+        """Combined constraint function."""
+        con1 = self.vel_ineq_constraints(X_q_0, X_ee_d, var)
+        con2 = self.ineq_constraints_unrolled(X_q_0, X_ee_d, var)
+        return jnp.concatenate((con1, con2))
+
+    @partial(jax.jit, static_argnums=(0,))
+    def con_jac(self, X_q_0, X_ee_d, var):
+        """Combined constraint Jacobian."""
+        J1 = self.vel_ineq_jacobian(X_q_0, X_ee_d, var)
+        J2 = jax.jacfwd(self.ineq_constraints_unrolled, argnums=2)(X_q_0, X_ee_d, var)
+        return jnp.vstack((J1, J2))
+
+    def bounds(self):
+        """Compute bounds for the problem."""
+        lb_acc = -ACC_LIM * np.ones(MPC_STEPS * self.nv)
+        ub_acc = ACC_LIM * np.ones(MPC_STEPS * self.nv)
+        return sqp.Bounds(lb_acc, ub_acc)
+
+    def constraints(self):
+        """Compute the constraints for the problem."""
+        lb_vel = np.tile(-PLANAR_VEL_LIM, MPC_STEPS)
+        ub_vel = np.tile(PLANAR_VEL_LIM, MPC_STEPS)
+
+        lb_physics = np.zeros(MPC_STEPS * self.nc * 2)
+        ub_physics = np.infty * np.ones(MPC_STEPS * self.nc * 2)
+
+        con_lb = np.concatenate((lb_vel, lb_physics))
+        con_ub = np.concatenate((ub_vel, ub_physics))
+
+        return sqp.Constraints(self.con_fun, self.con_jac, con_lb, con_ub)
 
 
 def settle_sim(duration):
@@ -146,28 +313,24 @@ def main():
     N = int(DURATION / SIM_DT) + 1
     N_record = int(DURATION / (SIM_DT * RECORD_PERIOD))
 
-    p_te_e = np.array([0, 0.05 + TRAY_H])
+    p_te_e = np.array([0, 0.05 + TRAY_H])  # TODO not correct; should get from sim
+
+    # simulation objects and model
+    robot, tray = setup_sim()
+    model = PlanarRobotModel(MPC_DT, ROBOT_HOME)
+    problem = TrayBalanceOptimization(model, p_te_e)
 
     ts = RECORD_PERIOD * SIM_DT * np.arange(N_record)
-    us = np.zeros((N_record, ni))
+    us = np.zeros((N_record, model.ni))
     P_ew_ws = np.zeros((N_record, 3))
     P_ew_wds = np.zeros((N_record, 3))
     V_ew_ws = np.zeros((N_record, 3))
     P_tw_ws = np.zeros((N_record, 3))
     p_te_es = np.zeros((N_record, 2))
-    X_qs = np.zeros((N_record, ns_q))
-    ineq_cons = np.zeros((N_record, nc_ineq))
+    X_qs = np.zeros((N_record, problem.ns_q))
+    ineq_cons = np.zeros((N_record, problem.nc_ineq))
 
     p_te_es[0, :] = p_te_e
-
-    # simulation objects and model
-    robot, tray = setup_sim()
-    model = PlanarRobotModel(MPC_DT, ROBOT_HOME)
-
-    # q, v = robot.joint_states()
-    # print(model.tool_pose(q))
-    # IPython.embed()
-    # return
 
     # state of joints
     q0, dq0 = robot.joint_states()
@@ -184,168 +347,13 @@ def main():
     setpoint_idx = 0
     trajectory = trajectories.Point(setpoints[setpoint_idx, :])
 
-    def joint_state_unrolled(X_q_0, ubar):
-        """Unroll the joint state of the robot over the time horizon."""
-
-        def state_func(X_q, u):
-            X_q = model.simulate(X_q, u)
-            return X_q, X_q
-
-        u = ubar.reshape((MPC_STEPS, ni))
-        _, X_q_bar = jax.lax.scan(state_func, X_q_0, u)
-        return X_q_bar.flatten()
-
-    def error_unrolled(X_q_0, X_ee_d, var):
-        """Unroll the pose error over the time horizon."""
-        X_ee_d0 = X_ee_d[:ns_ee]
-
-        def error_func(X_q, u):
-            X_q = model.simulate(X_q, u)
-            X_ee = model.tool_state(X_q)
-            e = X_ee_d0 - X_ee  # TODO this is assuming setpoint
-            return X_q, e
-
-        u = var.reshape((MPC_STEPS, ni))
-        X_q, ebar = jax.lax.scan(error_func, X_q_0, u)
-        return ebar.flatten()
-
-    def ineq_constraints(X_ee, a_ee, jnp=jnp):
-        """Calculate inequality constraints for a single timestep."""
-        θ_ew, dθ_ew = X_ee[2], X_ee[5]
-        a_ew_w, ddθ_ew = a_ee[:2], a_ee[2]
-        # R_ew = jnp.array([[ jnp.cos(θ_ew), jnp.sin(θ_ew)],
-        #                   [-jnp.sin(θ_ew), jnp.cos(θ_ew)]])
-        R_ew = rotation_matrix(-θ_ew, np=jnp)
-        S1 = skew1(1)
-        g = jnp.array([0, GRAVITY])
-
-        α1, α2 = (
-            TRAY_MASS * R_ew @ (a_ew_w + g)
-            + TRAY_MASS * (ddθ_ew * S1 - dθ_ew ** 2 * jnp.eye(2)) @ p_te_e
-        )
-        α3 = TRAY_INERTIA * ddθ_ew
-
-        # NOTE: this is written to be >= 0
-        # h1 = TRAY_MU*α2 - jnp.abs(α1)
-        h1a = TRAY_MU * α2 + α1
-        h1b = TRAY_MU * α2 - α1
-        h2 = α2
-        # h2 = 1
-
-        w1 = TRAY_W
-        w2 = TRAY_W
-        h3a = α3 + w1 * α2 + TRAY_H * α1
-        h3b = α3 + w1 * α2 - TRAY_H * α1
-        # h3a = 1
-        # h3b = 1
-
-        h4a = -α3 + w2 * α2 + TRAY_H * α1
-        h4b = -α3 + w2 * α2 - TRAY_H * α1
-        # h4a = 1
-        # h4b = 1
-
-        return jnp.array([h1a, h1b, h2, h3a, h3b, h4a, h4b])
-
-    def ineq_constraints_unrolled(X_q_0, X_ee_d, var):
-        """Unroll the inequality constraints over the time horizon."""
-
-        def ineq_func(X_q, u):
-
-            # we actually two sets of constraints for each timestep: one at the
-            # start and one at the end
-            # at the start of the timestep, we need to ensure the new inputs
-            # satisfy constraints
-            X_ee = model.tool_state(X_q)
-            a_ee = model.tool_acceleration(X_q, u)
-            ineq_con1 = ineq_constraints(X_ee, a_ee)
-
-            X_q = model.simulate(X_q, u)
-
-            # at the end of the timestep, we need to make sure that the robot
-            # ends up in a state where constraints are still satisfied given
-            # the input
-            X_ee = model.tool_state(X_q)
-            a_ee = model.tool_acceleration(X_q, u)
-            ineq_con2 = ineq_constraints(X_ee, a_ee)
-
-            return X_q, jnp.concatenate((ineq_con1, ineq_con2))
-
-        u = var.reshape((MPC_STEPS, ni))
-        X_q, ineq_con = jax.lax.scan(ineq_func, X_q_0, u)
-        return ineq_con.flatten()
-
-    err_jac = jax.jit(jax.jacfwd(error_unrolled, argnums=2))
-    joint_state_jac = jax.jit(jax.jacfwd(joint_state_unrolled, argnums=1))
-
-    @jax.jit
-    def obj_hess_jac(X_q_0, X_ee_d, var):
-        """Calculate objective Hessian and Jacobian."""
-        u = var
-
-        e = error_unrolled(X_q_0, X_ee_d, u)
-        dedu = err_jac(X_q_0, X_ee_d, u)
-
-        x = joint_state_unrolled(X_q_0, u)
-        dxdu = joint_state_jac(X_q_0, u)
-
-        # Function
-        f = e.T @ Wbar @ e + x.T @ Qbar @ x + u.T @ Rbar @ u
-
-        # Jacobian
-        g = e.T @ Wbar @ dedu + x.T @ Qbar @ dxdu + u.T @ Rbar
-
-        # (Approximate) Hessian
-        H = dedu.T @ Wbar @ dedu + dxdu.T @ Qbar @ dxdu + Rbar
-
-        return f, g, H
-
-    def vel_ineq_constraints(X_q_0, X_ee_d, var):
-        """Inequality constraints on joint velocity."""
-        dq0 = X_q_0[ni:]
-        return Vbar @ var + jnp.tile(dq0, MPC_STEPS)
-
-    def vel_ineq_jacobian(X_q_0, X_ee_d, var):
-        """Jacobian of joint velocity constraints."""
-        return Vbar
-
-    @jax.jit
-    def con_fun(X_q_0, X_ee_d, var):
-        """Combined constraint function."""
-        con1 = vel_ineq_constraints(X_q_0, X_ee_d, var)
-        con2 = ineq_constraints_unrolled(X_q_0, X_ee_d, var)
-        return jnp.concatenate((con1, con2))
-
-    @jax.jit
-    def con_jac(X_q_0, X_ee_d, var):
-        """Combined constraint Jacobian."""
-        J1 = vel_ineq_jacobian(X_q_0, X_ee_d, var)
-        J2 = jax.jacfwd(ineq_constraints_unrolled, argnums=2)(X_q_0, X_ee_d, var)
-        return jnp.vstack((J1, J2))
-
     # Construct the SQP controller
-    # lb_vel = -VEL_LIM * np.ones(MPC_STEPS * ni)
-    # ub_vel = VEL_LIM * np.ones(MPC_STEPS * ni)
-    lb_vel = np.tile(-PLANAR_VEL_LIM, MPC_STEPS)
-    ub_vel = np.tile(PLANAR_VEL_LIM, MPC_STEPS)
-
-    lb_physics = np.zeros(MPC_STEPS * nc * 2)
-    ub_physics = np.infty * np.ones(MPC_STEPS * nc * 2)
-
-    con_lb = np.concatenate((lb_vel, lb_physics))
-    con_ub = np.concatenate((ub_vel, ub_physics))
-
-    constraints = sqp.Constraints(con_fun, con_jac, con_lb, con_ub)
-
-    lb_acc = -ACC_LIM * np.ones(MPC_STEPS * nv)
-    ub_acc = ACC_LIM * np.ones(MPC_STEPS * nv)
-    bounds = sqp.Bounds(lb_acc, ub_acc)
-
     controller = sqp.SQP(
-        nv * MPC_STEPS,
-        2 * nc * MPC_STEPS,
-        obj_hess_jac,
-        constraints,
-        bounds,
+        problem.nv * MPC_STEPS,
+        2 * problem.nc * MPC_STEPS,
+        problem.obj_hess_jac,
+        problem.constraints(),
+        problem.bounds(),
         num_wsr=300,
         num_iter=SQP_ITER,
         verbose=True,
@@ -363,7 +371,7 @@ def main():
             # -0.5*np.pi*np.ones((MPC_STEPS, 1))
 
             var = controller.solve(X_q, X_ee_d)
-            u = var[:ni]  # joint acceleration input
+            u = var[:model.ni]  # joint acceleration input
             robot.command_acceleration(u)
 
         # step simulation forward
@@ -379,7 +387,7 @@ def main():
             # NOTE: calculating these quantities is fairly expensive
             X_ee = model.tool_state(X_q)
             a_ee = model.tool_acceleration(X_q, u)
-            ineq_cons[idx, :] = ineq_constraints(X_ee, a_ee, jnp=np)
+            ineq_cons[idx, :] = np.array(problem.ineq_constraints(X_ee, a_ee))
 
             # TODO this needs to be redone
             # tray position is (ideally) a constant offset from EE frame
@@ -440,7 +448,7 @@ def main():
     plt.title("$p^{te}_e$ error")
 
     plt.figure()
-    for j in range(nc_ineq):
+    for j in range(problem.nc_ineq):
         plt.plot(ts[:idx], ineq_cons[:idx, j], label=f"$h_{j+1}$")
     # plt.plot(ts[:N], ineq_cons[:, 1], label='$h_2$')
     # plt.plot(ts[:N], ineq_cons[:, 2], label='$h_3$')

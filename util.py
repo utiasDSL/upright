@@ -33,3 +33,8 @@ def rotation_matrix(θ, np=np):
     s = np.sin(θ)
     return np.array([[c, -s],
                      [s,  c]])
+
+
+def skew1(x):
+    """2D skew-symmetric operator."""
+    return np.array([[0, -x], [x, 0]])
