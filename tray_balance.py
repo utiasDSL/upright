@@ -36,6 +36,12 @@ UR10_HOME_TRAY_BALANCE = [
 ]
 ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
 
+INPUT_MASK = np.array([True, False, False, False, True, True, True, False, False])
+BASE_VEL_LIM = [1, 1, 2]
+ARM_VEL_LIM = [2.16, 2.16, 3.15, 3.2, 3.2, 3.2]
+ROBOT_VEL_LIM = BASE_VEL_LIM + ARM_VEL_LIM
+PLANAR_VEL_LIM = np.array(ROBOT_VEL_LIM)[INPUT_MASK]
+
 
 # robot parameters
 L1 = 1
@@ -49,8 +55,8 @@ GRAVITY = 9.81
 TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
-TRAY_W = 0.1  # TODO this isn't correct now
-TRAY_H = 0.01  # 0.5
+TRAY_W = 0.085
+TRAY_H = 0.5  # 0.01  # 0.5
 TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
 
 # simulation parameters
@@ -124,7 +130,7 @@ def setup_sim():
     # TODO we want to add a constraint to the tray
     tray = Tray(mass=TRAY_MASS, radius=TRAY_RADIUS, height=2 * TRAY_H, mu=TRAY_MU)
     ee_pos, _ = robot.link_pose()
-    tray.reset_pose(position=ee_pos + [0, 0, 0.05])
+    tray.reset_pose(position=ee_pos + [0, 0, TRAY_H + 0.05])
 
     settle_sim(1.0)
 
@@ -317,8 +323,10 @@ def main():
         return jnp.vstack((J1, J2))
 
     # Construct the SQP controller
-    lb_vel = -VEL_LIM * np.ones(MPC_STEPS * ni)
-    ub_vel = VEL_LIM * np.ones(MPC_STEPS * ni)
+    # lb_vel = -VEL_LIM * np.ones(MPC_STEPS * ni)
+    # ub_vel = VEL_LIM * np.ones(MPC_STEPS * ni)
+    lb_vel = np.tile(-PLANAR_VEL_LIM, MPC_STEPS)
+    ub_vel = np.tile(PLANAR_VEL_LIM, MPC_STEPS)
 
     lb_physics = np.zeros(MPC_STEPS * nc * 2)
     ub_physics = np.infty * np.ones(MPC_STEPS * nc * 2)
