@@ -140,15 +140,15 @@ class SQP_qpOASES(object):
 
         self.benchmark = Benchmark()
 
-    def _lookahead(self, x0, xd, var):
+    def _lookahead(self, x0, Pd, Vd, var):
         """Generate lifted matrices proprogating the state N timesteps into the
            future."""
-        f, g, H = self.obj_func(x0, xd, var)
+        f, g, H = self.obj_func(x0, Pd, Vd, var)
         H = np.array(H, dtype=np.float64)
         g = np.array(g, dtype=np.float64)
 
-        A = np.array(self.constraints.jac(x0, xd, var), dtype=np.float64)
-        a = np.array(self.constraints.fun(x0, xd, var), dtype=np.float64)
+        A = np.array(self.constraints.jac(x0, Pd, Vd, var), dtype=np.float64)
+        a = np.array(self.constraints.fun(x0, Pd, Vd, var), dtype=np.float64)
         lbA = np.array(self.constraints.lb - a, dtype=np.float64)
         ubA = np.array(self.constraints.ub - a, dtype=np.float64)
 
@@ -157,7 +157,7 @@ class SQP_qpOASES(object):
 
         return H, g, A, lbA, ubA, lb, ub
 
-    def _step(self, x0, xd, var, direction):
+    def _step(self, x0, Pd, Vd, var, direction):
         """Take a step in the direction."""
         # _, df, _ = self.obj_func(x0, xd, var)
         #
@@ -169,11 +169,11 @@ class SQP_qpOASES(object):
         # return var + t * direction
         return var + direction
 
-    def _iterate(self, x0, xd, var):
+    def _iterate(self, x0, Pd, Vd, var):
         delta = np.zeros(self.nv)
 
         # Initial opt problem.
-        H, g, A, lbA, ubA, lb, ub = self._lookahead(x0, xd, var)
+        H, g, A, lbA, ubA, lb, ub = self._lookahead(x0, Pd, Vd, var)
         if not self.qp_initialized:
             self.qp.init(H, g, A, lb, ub, lbA, ubA, np.array([self.num_wsr]))
             self.qp_initialized = True
@@ -183,27 +183,27 @@ class SQP_qpOASES(object):
             self.benchmark.end()
         self.qp.getPrimalSolution(delta)
 
-        var = self._step(x0, xd, var, delta)
+        var = self._step(x0, Pd, Vd, var, delta)
 
         # Remaining sequence is hotstarted from the first.
         for i in range(self.num_iter - 1):
-            H, g, A, lbA, ubA, lb, ub = self._lookahead(x0, xd, var)
+            H, g, A, lbA, ubA, lb, ub = self._lookahead(x0, Pd, Vd, var)
             self.benchmark.start()
             self.qp.hotstart(H, g, A, lb, ub, lbA, ubA, np.array([self.num_wsr]))
             self.benchmark.end()
             self.qp.getPrimalSolution(delta)
-            var = self._step(x0, xd, var, delta)
+            var = self._step(x0, Pd, Vd, var, delta)
 
         return var
 
-    def solve(self, x0, xd):
+    def solve(self, x0, Pd, Vd):
         """Solve the MPC problem at current state x0 given desired trajectory
            xd."""
         # initialize decision variables
         var = np.zeros(self.nv)
 
         # iterate to final solution
-        var = self._iterate(x0, xd, var)
+        var = self._iterate(x0, Pd, Vd, var)
 
         # return first optimal input
         return var

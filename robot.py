@@ -1,6 +1,14 @@
 import numpy as np
+import jax
+import jax.numpy as jnp
+from jax.scipy.linalg import block_diag
 import pybullet as pyb
 from liegroups import SO3
+import jaxlie
+
+from util import dhtf, rot2d
+
+# TODO ideally we wouldn't be using both jaxlie and liegroups
 
 
 UR10_JOINT_NAMES = [
@@ -14,9 +22,21 @@ UR10_JOINT_NAMES = [
 
 TOOL_JOINT_NAME = "tool0_tcp_fixed_joint"
 
+# DH parameters
+PX = 0.27
+PY = 0.01
+PZ = 0.653
+D1 = 0.1273
+A2 = -0.612
+A3 = -0.5723
+D4 = 0.163941
+D5 = 0.1157
+D6 = 0.0922
+D7 = 0.290
+
 
 class SimulatedRobot:
-    def __init__(self, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
+    def __init__(self, dt, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
         # NOTE: passing the flag URDF_MERGE_FIXED_LINKS is good for performance
         # but messes up the origins of the merged links, so this is not
         # recommended. Instead, if performance is an issue, consider using the
@@ -26,6 +46,8 @@ class SimulatedRobot:
             position,
             orientation,
         )
+
+        self.dt = dt
 
         # build a dict of all joints, keyed by name
         self.joints = {}
@@ -91,6 +113,17 @@ class SimulatedRobot:
         """Command the velocity of the robot's joints."""
         self._command_base_velocity(u[:3])
         self._command_arm_velocity(u[3:])
+
+    def command_acceleration(self, cmd_acc):
+        """Command acceleration of the robot's joints."""
+        _, v = self.joint_states()
+        self.cmd_vel = v
+        self.cmd_acc = cmd_acc
+
+    def step(self):
+        """One step of the physics engine."""
+        self.cmd_vel += self.dt * self.cmd_acc
+        self.command_velocity(self.cmd_vel)
 
     def _base_state(self):
         """Get the state of the base.
@@ -169,3 +202,99 @@ class SimulatedRobot:
         J = np.hstack((J[:, :2], R @ J[:, 2:]))
 
         return J
+
+
+class RobotModel:
+    def __init__(self, dt, qd):
+        self.dt = dt
+        self.ni = 9
+
+        # auto-diff to get Jacobian
+        # TODO this is analytic rather than geometric at the moment
+        self.jacobian = jax.jit(jax.jacrev(lambda x: self.tool_pose(x).log()))
+        self.dJdq = jax.jit(jax.jacfwd(self.jacobian))
+
+    def tool_pose(self, q):
+        T_w_xb = dhtf(np.pi / 2, 0, 0, np.pi / 2)
+
+        T_xb = dhtf(np.pi / 2, 0, q[0], np.pi / 2)
+        T_yb = dhtf(np.pi / 2, 0, q[1], np.pi / 2)
+        T_θb = dhtf(q[2], 0, 0, 0)
+
+        T_θb_θ1 = dhtf(0, PX, PZ, -np.pi / 2) @ dhtf(0, 0, PY, np.pi / 2)
+
+        T_θ1 = dhtf(q[3], 0, D1, np.pi / 2)
+        T_θ2 = dhtf(q[4], A2, 0, 0)
+        T_θ3 = dhtf(q[5], A3, 0, 0)
+        T_θ4 = dhtf(q[6], 0, D4, np.pi / 2)
+        T_θ5 = dhtf(q[7], 0, D5, -np.pi / 2)
+        T_θ6 = dhtf(q[8], 0, D6, 0)
+
+        T_θ6_tool = dhtf(0, 0, D7, 0)
+
+        T_w_tool = (
+            T_w_xb
+            @ T_xb
+            @ T_yb
+            @ T_θb
+            @ T_θb_θ1
+            @ T_θ1
+            @ T_θ2
+            @ T_θ3
+            @ T_θ4
+            @ T_θ5
+            @ T_θ6
+            @ T_θ6_tool
+        )
+
+        return jaxlie.SE3.from_matrix(T_w_tool)
+
+    def tool_velocity(self, x):
+        """Calculate velocity at the tool with given joint state.
+
+        x = [q, dq] is the joint state.
+        """
+        q, dq = x[:self.ni], x[self.ni:]
+        return self.jacobian(q) @ dq
+
+    def tool_acceleration(self, x, u):
+        """Calculate acceleration at the tool with given joint state.
+
+        x = [q, dq] is the joint state.
+        """
+        q, dq = x[:self.ni], x[self.ni:]
+        return self.jacobian(q) @ u + dq @ self.dJdq(q) @ dq
+
+    # def tool_state(self, x):
+    #     """Calculate the state [p, v] of the tool."""
+    #     # TODO this is more complicated now that pose is SE(3): here I use the
+    #     # log map, but not sure if this is ideal
+    #     # TODO it would probably be better to take the error first then log map
+    #     return jnp.concatenate((self.tool_pose(x).log(), self.tool_velocity(x)))
+
+    # def tool_state_error(self, x, Td, Vd):
+    #     """Error in tool state.
+    #
+    #     x: joint state (q, dq)
+    #     Td: desired EE pose
+    #     Vd: desired EE twist
+    #
+    #     Returns 
+    #     """
+    #     T = self.tool_pose(x)
+    #     V = self.tool_velocity(x)
+
+    def tangent(self, x, u):
+        """Tangent vector dx = f(x, u)."""
+        B = block_diag(rot2d(x[2], np=jnp), jnp.eye(7))
+        return jnp.concatenate((x[self.ni:], B @ u))
+
+    def simulate(self, x, u):
+        """Forward simulate the model."""
+        # TODO not sure if I can somehow use RK4 for part and not for
+        # all---we'd have to split base and arm
+        k1 = self.tangent(x, u)
+        k2 = self.tangent(x + self.dt * k1 / 2, u)
+        k3 = self.tangent(x + self.dt * k2 / 2, u)
+        k4 = self.tangent(x + self.dt * k3)
+        return x + self.dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6

@@ -1,49 +1,16 @@
 import numpy as np
 import jax
 import jax.numpy as jnp
-from scipy.linalg import expm
 
+from util import dhtf, zoh
 from robot import SimulatedRobot
-
-
-def dhtf(q, a, d, α, np=jnp):
-    """Constuct a transformation matrix from D-H parameters."""
-    cα = np.cos(α)
-    sα = np.sin(α)
-    cq = np.cos(q)
-    sq = np.sin(q)
-    return np.array([
-        [cq, -sq*cα,  sq*sα, a*cq],
-        [sq,  cq*cα, -cq*sα, a*sq],
-        [0,      sα,     cα,    d],
-        [0,       0,      0,   1]])
-
-
-def zoh(A, B, dt):
-    """Compute discretized system matrices assuming zero-order hold on input."""
-    ra, ca = A.shape
-    rb, cb = B.shape
-
-    assert ra == ca  # A is square
-    assert ra == rb  # B has same number of rows as A
-
-    ch = ca + cb
-    rh = ch
-
-    H = np.block([[A, B], [np.zeros((rh - ra, ch))]])
-    Hd = expm(dt * H)
-    Ad = Hd[:ra, :ca]
-    Bd = Hd[:rb, ca:ca+cb]
-
-    return Ad, Bd
 
 
 class SimulatedPlanarRobot(SimulatedRobot):
     """Planar robot restricted to 4 of 9 DOFs, in the x-z plane."""
 
     def __init__(self, dt, qd, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
-        super().__init__(position, orientation)
-        self.dt = dt
+        super().__init__(dt, position, orientation)
 
         self.input_mask = np.array([1, 0, 0, 0, 1, 1, 1, 0, 0]).astype(bool)
         self.ni = np.sum(self.input_mask)
@@ -72,22 +39,12 @@ class SimulatedPlanarRobot(SimulatedRobot):
 
         super().command_velocity(u9)
 
-    def command_acceleration(self, cmd_acc):
-        """Command acceleration of the robot's joints."""
-        _, v = self.joint_states()
-        self.cmd_vel = v
-        self.cmd_acc = cmd_acc
-
-    def step(self):
-        """One step of the physics engine."""
-        self.cmd_vel += self.dt * self.cmd_acc
-        self.command_velocity(self.cmd_vel)
-
 
 class PlanarRobotModel:
     def __init__(self, dt, qd):
         self.dt = dt
         self.ni = 4
+        self.qd = qd
 
         Z = np.zeros((self.ni, self.ni))
         A = np.block([[Z, np.eye(self.ni)], [Z, Z]])

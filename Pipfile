@@ -13,6 +13,7 @@ cython = "*"
 scipy = "*"
 jax = "*"
 jaxlib = "*"
+jaxlie = "*"
 
 [dev-packages]
 

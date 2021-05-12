@@ -55,7 +55,7 @@ TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_W = 0.085
-TRAY_H = 0.5  # 0.01  # 0.5
+TRAY_H = 0.01  # 0.5
 TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
 
 # simulation parameters
@@ -75,12 +75,12 @@ class TrayBalanceOptimization:
         self.p_te_e = p_te_e
 
         self.nv = model.ni  # number of optimization variables per MPC step
-        self.nc_eq = 0      # number of equality constraints
-        self.nc_ineq = 7    # number of inequality constraints
+        self.nc_eq = 0  # number of equality constraints
+        self.nc_ineq = 7  # number of inequality constraints
         self.nc = self.nc_eq + self.nc_ineq
 
         self.ns_q = 2 * model.ni  # dimension of joint state
-        self.ns_ee = 6            # dimension of EE (Cartesian) states
+        self.ns_ee = 6  # dimension of EE (Cartesian) states
 
         # MPC weights
         Q = np.diag([0, 0, 0, 0, 0.01, 0.01, 0.01, 0.01])
@@ -115,7 +115,7 @@ class TrayBalanceOptimization:
     @partial(jax.jit, static_argnums=(0,))
     def error_unrolled(self, X_q_0, X_ee_d, var):
         """Unroll the pose error over the time horizon."""
-        X_ee_d0 = X_ee_d[:self.ns_ee]
+        X_ee_d0 = X_ee_d[: self.ns_ee]
 
         def error_func(X_q, u):
             X_q = self.model.simulate(X_q, u)
@@ -219,7 +219,7 @@ class TrayBalanceOptimization:
     @partial(jax.jit, static_argnums=(0,))
     def vel_ineq_constraints(self, X_q_0, X_ee_d, var):
         """Inequality constraints on joint velocity."""
-        dq0 = X_q_0[self.model.ni:]
+        dq0 = X_q_0[self.model.ni :]
         return self.Vbar @ var + jnp.tile(dq0, MPC_STEPS)
 
     @partial(jax.jit, static_argnums=(0,))
@@ -275,6 +275,15 @@ def setup_sim():
 
     pyb.setGravity(0, 0, -GRAVITY)
     pyb.setTimeStep(SIM_DT)
+
+    pyb.resetDebugVisualizerCamera(
+        cameraDistance=4.6,
+        cameraYaw=5.2,
+        cameraPitch=-27,
+        cameraTargetPosition=[1.18, 0.11, 0.05],
+    )
+    pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
+    pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, "tray.mp4")
 
     # setup ground plane
     pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -377,7 +386,7 @@ def main():
             # -0.5*np.pi*np.ones((MPC_STEPS, 1))
 
             var = controller.solve(X_q, X_ee_d)
-            u = var[:model.ni]  # joint acceleration input
+            u = var[: model.ni]  # joint acceleration input
             robot.command_acceleration(u)
 
         # step simulation forward
