@@ -1,6 +1,7 @@
 import numpy as np
 import pybullet as pyb
 import jax.numpy as jnp
+from jaxlie import SO3
 from scipy.linalg import expm
 
 
@@ -37,9 +38,38 @@ def rot2d(θ, np=np):
                      [s,  c]])
 
 
+def pose_to_pos_quat(P):
+    return P[:3], P[3:]
+
+
+def pose_from_pos_quat(r, Q):
+    return jnp.concatenate((r, Q))
+
+
+def pose_error(Pd, P):
+    rd, Qd = pose_to_pos_quat(Pd)
+    Cd = SO3.from_quaternion_xyzw(Qd)
+
+    r, Q = pose_to_pos_quat(P)
+    C = SO3.from_quaternion_xyzw(Q)
+
+    r_err = rd - r
+    Q_err = Cd.multiply(C.inverse()).as_quaternion_xyzw()
+    return jnp.concatenate((r_err, Q_err[:3]))  # exclude w term
+
+
+def pitch_from_quat(Q):
+    return SO3.from_quaternion_xyzw(Q).compute_pitch_radians()
+
+
 def skew1(x):
     """2D skew-symmetric operator."""
     return np.array([[0, -x], [x, 0]])
+
+
+def skew3(x, np=jnp):
+    """3D skew-symmetric operator."""
+    return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], ]])
 
 
 def dhtf(q, a, d, α, np=jnp):

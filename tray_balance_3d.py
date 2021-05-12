@@ -11,7 +11,8 @@ import pybullet as pyb
 import pybullet_data
 
 import sqp
-from util import rot2d, skew1
+import util
+from util import rot2d, skew1, pose_error, pose_to_pos_quat, pose_from_pos_quat
 from tray import Tray
 from robot import SimulatedRobot, RobotModel
 
@@ -112,20 +113,20 @@ class TrayBalanceOptimization:
         return X_q_bar.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
-    def error_unrolled(self, X_q_0, T_ee_d, V_ee_d, var):
+    def error_unrolled(self, X_q_0, P_ee_d, V_ee_d, var):
         """Unroll the pose error over the time horizon."""
-        T_ee_d_inv = T_ee_d.inverse()
+        # r_ew_w_d, Q_we_d = P_ee_d[:3], P_ee_d[3:]
+        # T_ee_d_inv = T_ee_d.inverse()
 
         def error_func(X_q, u):
             X_q = self.model.simulate(X_q, u)
-            r_ew_w, Q_we = self.model.tool_pose(X_q)  # TODO pos quat
+            P_we = self.model.tool_pose(X_q)
             V_ee = self.model.tool_velocity(X_q)
 
-            # TODO error calculation
-            T_err = T_ee_d_inv.multiply(T_ee)
+            pose_err = pose_error(P_ee_d, P_we)
             V_err = V_ee_d - V_ee
 
-            e = jnp.concatenate((T_err.log(), V_err))
+            e = jnp.concatenate((pose_err, V_err))
             return X_q, e
 
         u = var.reshape((MPC_STEPS, self.model.ni))
@@ -133,13 +134,14 @@ class TrayBalanceOptimization:
         return ebar.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
-    def ineq_constraints(self, T_ee, V_ee, a_ee, jnp=jnp):
+    def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp):
         """Calculate inequality constraints for a single timestep."""
-        # TODO need to extract these from pose and twist
-        # θ_ew, dθ_ew = X_ee[2], X_ee[5]
-        θ_ew = T_ee.rotation().compute_pitch_radians()
-        dθ_ew = V_ee[5]  # pitch
-        a_ew_w, ddθ_ew = a_ee[:2], a_ee[2]
+        _, Q_we = pose_to_pos_quat(P_we)
+        θ_ew = util.pitch_from_quat(Q_we)
+        dθ_ew = V_ew_w[5]  # pitch
+        a_ew_w = jnp.array([A_ew_w[0], A_ew_w[2]])
+        ddθ_ew = A_ew_w[5]
+
         R_ew = rot2d(-θ_ew, np=jnp)
         S1 = skew1(1)
         g = jnp.array([0, GRAVITY])
@@ -172,7 +174,7 @@ class TrayBalanceOptimization:
         return jnp.array([h1a, h1b, h2, h3a, h3b, h4a, h4b])
 
     @partial(jax.jit, static_argnums=(0,))
-    def ineq_constraints_unrolled(self, X_q_0, T_ee_d, V_ee_d, var):
+    def ineq_constraints_unrolled(self, X_q_0, P_we_d, V_ew_w_d, var):
         """Unroll the inequality constraints over the time horizon."""
 
         def ineq_func(X_q, u):
@@ -181,20 +183,20 @@ class TrayBalanceOptimization:
             # start and one at the end
             # at the start of the timestep, we need to ensure the new inputs
             # satisfy constraints
-            T_ee = self.model.tool_pose(X_q)
+            P_we = self.model.tool_pose(X_q)
             V_ee = self.model.tool_velocity(X_q)
             a_ee = self.model.tool_acceleration(X_q, u)
-            ineq_con1 = self.ineq_constraints(T_ee, V_ee, a_ee)
+            ineq_con1 = self.ineq_constraints(P_we, V_ee, a_ee)
 
             X_q = self.model.simulate(X_q, u)
 
             # at the end of the timestep, we need to make sure that the robot
             # ends up in a state where constraints are still satisfied given
             # the input
-            T_ee = self.model.tool_pose(X_q)
+            P_we = self.model.tool_pose(X_q)
             V_ee = self.model.tool_velocity(X_q)
             a_ee = self.model.tool_acceleration(X_q, u)
-            ineq_con2 = self.ineq_constraints(T_ee, V_ee, a_ee)
+            ineq_con2 = self.ineq_constraints(P_we, V_ee, a_ee)
 
             return X_q, jnp.concatenate((ineq_con1, ineq_con2))
 
@@ -203,12 +205,12 @@ class TrayBalanceOptimization:
         return ineq_con.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
-    def obj_hess_jac(self, X_q_0, T_ee_d, V_ee_d, var):
+    def obj_hess_jac(self, X_q_0, P_we_d, V_ew_w_d, var):
         """Calculate objective Hessian and Jacobian."""
         u = var
 
-        e = self.error_unrolled(X_q_0, T_ee_d, V_ee_d, u)
-        dedu = self.err_jac(X_q_0, T_ee_d, V_ee_d, u)
+        e = self.error_unrolled(X_q_0, P_we_d, V_ew_w_d, u)
+        dedu = self.err_jac(X_q_0, P_we_d, V_ew_w_d, u)
 
         x = self.joint_state_unrolled(X_q_0, u)
         dxdu = self.joint_state_jac(X_q_0, u)
@@ -225,28 +227,28 @@ class TrayBalanceOptimization:
         return f, g, H
 
     @partial(jax.jit, static_argnums=(0,))
-    def vel_ineq_constraints(self, X_q_0, T_ee_d, V_ee_d, var):
+    def vel_ineq_constraints(self, X_q_0, P_we_d, V_ew_w_d, var):
         """Inequality constraints on joint velocity."""
         dq0 = X_q_0[self.model.ni :]
         return self.Vbar @ var + jnp.tile(dq0, MPC_STEPS)
 
     @partial(jax.jit, static_argnums=(0,))
-    def vel_ineq_jacobian(self, X_q_0, T_ee_d, V_ee_d, var):
+    def vel_ineq_jacobian(self, X_q_0, P_we_d, V_ew_w_d, var):
         """Jacobian of joint velocity constraints."""
         return self.Vbar
 
     @partial(jax.jit, static_argnums=(0,))
-    def con_fun(self, X_q_0, X_ee_d, var):
+    def con_fun(self, X_q_0, P_we_d, V_ew_w_d, var):
         """Combined constraint function."""
-        con1 = self.vel_ineq_constraints(X_q_0, X_ee_d, var)
-        con2 = self.ineq_constraints_unrolled(X_q_0, X_ee_d, var)
+        con1 = self.vel_ineq_constraints(X_q_0, P_we_d, V_ew_w_d, var)
+        con2 = self.ineq_constraints_unrolled(X_q_0, P_we_d, V_ew_w_d, var)
         return jnp.concatenate((con1, con2))
 
     @partial(jax.jit, static_argnums=(0,))
-    def con_jac(self, X_q_0, X_ee_d, var):
+    def con_jac(self, X_q_0, P_we_d, V_ew_w_d, var):
         """Combined constraint Jacobian."""
-        J1 = self.vel_ineq_jacobian(X_q_0, X_ee_d, var)
-        J2 = jax.jacfwd(self.ineq_constraints_unrolled, argnums=2)(X_q_0, X_ee_d, var)
+        J1 = self.vel_ineq_jacobian(X_q_0, P_we_d, V_ew_w_d, var)
+        J2 = jax.jacfwd(self.ineq_constraints_unrolled, argnums=2)(X_q_0, P_we_d, V_ew_w_d, var)
         return jnp.vstack((J1, J2))
 
     def bounds(self):
@@ -320,9 +322,10 @@ def setup_sim():
     return robot, tray
 
 
-def calc_p_te_e(T_we, T_wt):
-    r_te_w = T_wt.translation() - T_we.translation()
-    return T_we.rotation() @ r_te_w
+def calc_r_te_e(P_we, r_tw_w):
+    r_ew_w, Q_we = pose_to_pos_quat(P_we)
+    r_te_w = r_tw_w - r_ew_w
+    return SO3.from_quaternion_xyzw(Q_we) @ r_te_w
 
 
 def main():
@@ -342,13 +345,14 @@ def main():
     q0, dq0 = robot.joint_states()
     X_q = np.concatenate((q0, np.zeros_like(dq0)))
 
-    T_we = model.tool_pose(X_q)
+    P_we = model.tool_pose(X_q)
+    r_ew_w, Q_we = pose_to_pos_quat(P_we)
     V_ew_w = model.tool_velocity(X_q)
-    T_wt = tray.get_pose()
-    p_te_e = calc_p_te_e(T_we, T_wt)
+    r_tw_w, _ = tray.get_pose()
+    r_te_e = calc_r_te_e(P_we, r_tw_w)
 
     # construct the tray balance problem
-    problem = TrayBalanceOptimization(model, p_te_e)
+    problem = TrayBalanceOptimization(model, r_te_e)
 
     ts = RECORD_PERIOD * SIM_DT * np.arange(N_record)
     us = np.zeros((N_record, model.ni))
@@ -360,12 +364,12 @@ def main():
     X_qs = np.zeros((N_record, problem.ns_q))
     ineq_cons = np.zeros((N_record, problem.nc_ineq))
 
-    p_te_es[0, :] = p_te_e
-    p_ew_ws[0, :] = T_we.translation()
+    p_te_es[0, :] = r_te_e
+    p_ew_ws[0, :] = r_ew_w
     V_ew_ws[0, :] = V_ew_w
 
     # reference trajectory
-    setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + T_we.translation()
+    setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
     setpoint_idx = 0
     # trajectory = trajectories.Point(setpoints[setpoint_idx, :])
 
@@ -406,22 +410,22 @@ def main():
             V_ew_w = model.tool_velocity(X_q)
 
             # NOTE: calculating these quantities is fairly expensive
-            T_we = model.tool_pose(X_q)
+            P_we = model.tool_pose(X_q)
             V_ew_w = model.tool_velocity(X_q)
-            a_ew_w = model.tool_acceleration(X_q, u)
-            ineq_cons[idx, :] = np.array(problem.ineq_constraints(T_we, V_ew_w, a_ew_w))
+            A_ew_w = model.tool_acceleration(X_q, u)
+            ineq_cons[idx, :] = np.array(problem.ineq_constraints(P_we, V_ew_w, A_ew_w))
 
-            p_tw_w, Q_wt = tray.get_pose()
+            r_tw_w, Q_wt = tray.get_pose()
             r_ew_w_d = setpoints[setpoint_idx, :]
 
             # record
             us[idx, :] = u
             X_qs[idx, :] = X_q
             p_ew_wds[idx, :] = r_ew_w_d
-            p_ew_ws[idx, :] = T_we.translation()
+            p_ew_ws[idx, :] = pose_to_pos_quat(P_we)[0]
             V_ew_ws[idx, :] = V_ew_w
-            p_tw_ws[idx, :] = p_tw_w
-            p_te_es[idx, :] = calc_p_te_e(T_we, T_wt)
+            p_tw_ws[idx, :] = r_tw_w
+            p_te_es[idx, :] = calc_r_te_e(P_we, r_tw_w)
 
         if np.linalg.norm(r_ew_w_d - T_we.translation()) < 0.01:
             print("Position within 1 cm.")

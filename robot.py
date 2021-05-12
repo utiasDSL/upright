@@ -6,7 +6,7 @@ import pybullet as pyb
 from liegroups import SO3
 import jaxlie
 
-from util import dhtf, rot2d
+from util import dhtf, rot2d, pose_from_pos_quat, pose_to_pos_quat, skew3
 
 # TODO ideally we wouldn't be using both jaxlie and liegroups
 
@@ -211,8 +211,21 @@ class RobotModel:
 
         # auto-diff to get Jacobian
         # TODO this is analytic rather than geometric at the moment
-        self.jacobian = jax.jit(jax.jacrev(lambda x: self.tool_pose(x).log()))
+        self.analytic_jacobian = jax.jit(jax.jacrev(self.tool_pose))
         self.dJdq = jax.jit(jax.jacfwd(self.jacobian))
+
+    def jacobian(self, q):
+        """Compute geometric Jacobian."""
+        P = self.tool_pose(q)
+        Ja = self.analytic_jacobian(q)
+
+        _, Q = pose_to_pos_quat(P)
+        ε, η = Q[:3], Q[3]
+        H = jnp.hstack((skew3(ε) + η * jnp.eye(3), -ε[:, None]))
+
+        # map from analytic to geometric Jacobian
+        E = block_diag(jnp.eye(3), 2 * H)
+        return E @ Ja
 
     def tool_pose(self, q):
         T_w_xb = dhtf(np.pi / 2, 0, 0, np.pi / 2)
@@ -247,7 +260,11 @@ class RobotModel:
             @ T_θ6_tool
         )
 
-        return jaxlie.SE3.from_matrix(T_w_tool)
+        # TODO this should be position and quaternion
+        T = jaxlie.SE3.from_matrix(T_w_tool)
+        r = T.translation()
+        Q = T.rotation().as_quaternion_xyzw()
+        return pose_from_pos_quat(r, Q)
 
     def tool_velocity(self, x):
         """Calculate velocity at the tool with given joint state.
