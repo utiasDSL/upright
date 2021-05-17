@@ -204,64 +204,100 @@ class SimulatedRobot:
         return J
 
 
+class KinematicChain:
+    """All transforms on the robot kinematic chain for a given configuration."""
+
+    T_w_b = dhtf(np.pi / 2, 0, 0, np.pi / 2)
+    T_θb_θ1 = dhtf(0, PX, PZ, -np.pi / 2) @ dhtf(0, 0, PY, np.pi / 2)
+    T_θ6_tool = dhtf(0, 0, D7, 0)
+
+    def __init__(self, q):
+        self.T_xb = dhtf(np.pi / 2, 0, q[0], np.pi / 2)
+        self.T_yb = dhtf(np.pi / 2, 0, q[1], np.pi / 2)
+        self.T_θb = dhtf(q[2], 0, 0, 0)
+
+        self.T_θ1 = dhtf(q[3], 0, D1, np.pi / 2)
+        self.T_θ2 = dhtf(q[4], A2, 0, 0)
+        self.T_θ3 = dhtf(q[5], A3, 0, 0)
+        self.T_θ4 = dhtf(q[6], 0, D4, np.pi / 2)
+        self.T_θ5 = dhtf(q[7], 0, D5, -np.pi / 2)
+        self.T_θ6 = dhtf(q[8], 0, D6, 0)
+
+        self.T_w_xb = self.T_w_b @ self.T_xb
+        self.T_w_yb = self.T_w_xb @ self.T_yb
+        self.T_w_θb = self.T_w_yb @ self.T_θb
+
+        self.T_w_θ1 = self.T_w_θb @ self.T_θb_θ1 @ self.T_θ1
+        self.T_w_θ2 = self.T_w_θ1 @ self.T_θ2
+        self.T_w_θ3 = self.T_w_θ2 @ self.T_θ3
+        self.T_w_θ4 = self.T_w_θ3 @ self.T_θ4
+        self.T_w_θ5 = self.T_w_θ4 @ self.T_θ5
+        self.T_w_θ6 = self.T_w_θ5 @ self.T_θ6
+
+        self.T_w_tool = self.T_w_θ6 @ self.T_θ6_tool
+
+
 class RobotModel:
     def __init__(self, dt, qd):
         self.dt = dt
         self.ni = 9
 
-        # auto-diff to get Jacobian
-        # TODO this is analytic rather than geometric at the moment
-        self.analytic_jacobian = jax.jit(jax.jacrev(self.tool_pose))
         self.dJdq = jax.jit(jax.jacfwd(self.jacobian))
 
     def jacobian(self, q):
         """Compute geometric Jacobian."""
-        P = self.tool_pose(q)
-        Ja = self.analytic_jacobian(q)
 
-        _, Q = pose_to_pos_quat(P)
-        ε, η = Q[:3], Q[3]
-        H = jnp.hstack((skew3(ε) + η * jnp.eye(3), -ε[:, None]))
+        def rotation(T):
+            return T[:3, :3]
 
-        # map from analytic to geometric Jacobian
-        E = block_diag(jnp.eye(3), 2 * H)
-        return E @ Ja
+        def translation(T):
+            return T[:3, 3]
+
+        chain = KinematicChain(q)
+        z0 = jnp.array([0, 0, 1])  # Unit vector along z-axis
+
+        # axis for each joint's angular velocity is the z-axis of the previous
+        # transform
+        z_xb = rotation(chain.T_w_xb) @ z0
+        z_yb = rotation(chain.T_w_yb) @ z0
+        z_θb = rotation(chain.T_w_θb) @ z0
+        z_θ1 = rotation(chain.T_w_θ1) @ z0
+        z_θ2 = rotation(chain.T_w_θ2) @ z0
+        z_θ3 = rotation(chain.T_w_θ3) @ z0
+        z_θ4 = rotation(chain.T_w_θ4) @ z0
+        z_θ5 = rotation(chain.T_w_θ5) @ z0
+        z_θ6 = rotation(chain.T_w_θ6) @ z0
+
+        # Angular Jacobian
+        # joints xb and yb are prismatic, and so cause no angular velocity.
+        Jo = jnp.vstack((
+            jnp.zeros(3), jnp.zeros(3), z_θb, z_θ1, z_θ2, z_θ3, z_θ4, z_θ5, z_θ6
+        )).T
+
+        # Linear Jacobian
+        pe = translation(chain.T_w_tool)
+        Jp = jnp.vstack((
+            z_xb,
+            z_yb,
+            jnp.cross(z_θb, pe - translation(chain.T_w_θb)),
+            jnp.cross(z_θ1, pe - translation(chain.T_w_θ1)),
+            jnp.cross(z_θ2, pe - translation(chain.T_w_θ2)),
+            jnp.cross(z_θ3, pe - translation(chain.T_w_θ3)),
+            jnp.cross(z_θ4, pe - translation(chain.T_w_θ4)),
+            jnp.cross(z_θ5, pe - translation(chain.T_w_θ5)),
+            jnp.cross(z_θ6, pe - translation(chain.T_w_θ6)),
+        )).T
+
+        # Full Jacobian
+        return jnp.vstack((Jp, Jo))
+
+    def tool_pose_matrix(self, q):
+        """Tool pose as 4x4 homogeneous transformation matrix."""
+        return KinematicChain(q).T_w_tool
 
     def tool_pose(self, q):
-        T_w_xb = dhtf(np.pi / 2, 0, 0, np.pi / 2)
-
-        T_xb = dhtf(np.pi / 2, 0, q[0], np.pi / 2)
-        T_yb = dhtf(np.pi / 2, 0, q[1], np.pi / 2)
-        T_θb = dhtf(q[2], 0, 0, 0)
-
-        T_θb_θ1 = dhtf(0, PX, PZ, -np.pi / 2) @ dhtf(0, 0, PY, np.pi / 2)
-
-        T_θ1 = dhtf(q[3], 0, D1, np.pi / 2)
-        T_θ2 = dhtf(q[4], A2, 0, 0)
-        T_θ3 = dhtf(q[5], A3, 0, 0)
-        T_θ4 = dhtf(q[6], 0, D4, np.pi / 2)
-        T_θ5 = dhtf(q[7], 0, D5, -np.pi / 2)
-        T_θ6 = dhtf(q[8], 0, D6, 0)
-
-        T_θ6_tool = dhtf(0, 0, D7, 0)
-
-        T_w_tool = (
-            T_w_xb
-            @ T_xb
-            @ T_yb
-            @ T_θb
-            @ T_θb_θ1
-            @ T_θ1
-            @ T_θ2
-            @ T_θ3
-            @ T_θ4
-            @ T_θ5
-            @ T_θ6
-            @ T_θ6_tool
-        )
-
-        # TODO this should be position and quaternion
-        T = jaxlie.SE3.from_matrix(T_w_tool)
+        """Tool pose as position and quaternion."""
+        T = jaxlie.SE3.from_matrix(self.tool_pose_matrix(q))
         r = T.translation()
         Q = T.rotation().as_quaternion_xyzw()
         return pose_from_pos_quat(r, Q)
@@ -271,7 +307,10 @@ class RobotModel:
 
         x = [q, dq] is the joint state.
         """
-        q, dq = x[:self.ni], x[self.ni:]
+        q, dq = x[: self.ni], x[self.ni :]
+        J = self.jacobian(q)
+        # print(J.shape)
+        # print(dq.shape)
         return self.jacobian(q) @ dq
 
     def tool_acceleration(self, x, u):
@@ -279,32 +318,13 @@ class RobotModel:
 
         x = [q, dq] is the joint state.
         """
-        q, dq = x[:self.ni], x[self.ni:]
+        q, dq = x[: self.ni], x[self.ni :]
         return self.jacobian(q) @ u + dq @ self.dJdq(q) @ dq
-
-    # def tool_state(self, x):
-    #     """Calculate the state [p, v] of the tool."""
-    #     # TODO this is more complicated now that pose is SE(3): here I use the
-    #     # log map, but not sure if this is ideal
-    #     # TODO it would probably be better to take the error first then log map
-    #     return jnp.concatenate((self.tool_pose(x).log(), self.tool_velocity(x)))
-
-    # def tool_state_error(self, x, Td, Vd):
-    #     """Error in tool state.
-    #
-    #     x: joint state (q, dq)
-    #     Td: desired EE pose
-    #     Vd: desired EE twist
-    #
-    #     Returns 
-    #     """
-    #     T = self.tool_pose(x)
-    #     V = self.tool_velocity(x)
 
     def tangent(self, x, u):
         """Tangent vector dx = f(x, u)."""
         B = block_diag(rot2d(x[2], np=jnp), jnp.eye(7))
-        return jnp.concatenate((x[self.ni:], B @ u))
+        return jnp.concatenate((x[self.ni :], B @ u))
 
     def simulate(self, x, u):
         """Forward simulate the model."""
@@ -313,5 +333,5 @@ class RobotModel:
         k1 = self.tangent(x, u)
         k2 = self.tangent(x + self.dt * k1 / 2, u)
         k3 = self.tangent(x + self.dt * k2 / 2, u)
-        k4 = self.tangent(x + self.dt * k3)
+        k4 = self.tangent(x + self.dt * k3, u)
         return x + self.dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
