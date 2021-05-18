@@ -41,8 +41,8 @@ ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
 INPUT_MASK = np.array([True, False, False, False, True, True, True, False, False])
 BASE_VEL_LIM = [1, 1, 2]
 ARM_VEL_LIM = [2.16, 2.16, 3.15, 3.2, 3.2, 3.2]
-ROBOT_VEL_LIM = BASE_VEL_LIM + ARM_VEL_LIM
-PLANAR_VEL_LIM = np.array(ROBOT_VEL_LIM)[INPUT_MASK]
+ROBOT_VEL_LIM = np.array(BASE_VEL_LIM + ARM_VEL_LIM)
+PLANAR_VEL_LIM = ROBOT_VEL_LIM[INPUT_MASK]
 
 
 # robot parameters
@@ -83,8 +83,10 @@ class TrayBalanceOptimization:
         self.ns_ee = 12  # dimension of EE (Cartesian) states
 
         # MPC weights
-        Q = np.diag([0, 0, 0, 0, 0.01, 0.01, 0.01, 0.01])
-        W = np.diag([1, 1, 1, 0, 0, 0])
+        Q = np.diag(
+            np.concatenate((np.zeros(model.ni), 0.01 * np.ones(model.ni)))
+        )  # joint state error
+        W = np.diag(np.concatenate((np.ones(6), np.zeros(6))))  # Cartesian state error
         R = 0.01 * np.eye(self.nv)
         V = MPC_DT * np.eye(self.nv)
 
@@ -97,7 +99,7 @@ class TrayBalanceOptimization:
         # velocity constraint matrix
         self.Vbar = np.kron(np.tril(np.ones((MPC_STEPS, MPC_STEPS))), V)
 
-        self.err_jac = jax.jit(jax.jacfwd(self.error_unrolled, argnums=2))
+        self.err_jac = jax.jit(jax.jacfwd(self.error_unrolled, argnums=3))
         self.joint_state_jac = jax.jit(jax.jacfwd(self.joint_state_unrolled, argnums=1))
 
     @partial(jax.jit, static_argnums=(0,))
@@ -113,17 +115,15 @@ class TrayBalanceOptimization:
         return X_q_bar.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
-    def error_unrolled(self, X_q_0, P_ee_d, V_ee_d, var):
+    def error_unrolled(self, X_q_0, P_we_d, V_ee_d, var):
         """Unroll the pose error over the time horizon."""
-        # r_ew_w_d, Q_we_d = P_ee_d[:3], P_ee_d[3:]
-        # T_ee_d_inv = T_ee_d.inverse()
 
         def error_func(X_q, u):
             X_q = self.model.simulate(X_q, u)
             P_we = self.model.tool_pose(X_q)
             V_ee = self.model.tool_velocity(X_q)
 
-            pose_err = pose_error(P_ee_d, P_we)
+            pose_err = pose_error(P_we_d, P_we)
             V_err = V_ee_d - V_ee
 
             e = jnp.concatenate((pose_err, V_err))
@@ -248,7 +248,9 @@ class TrayBalanceOptimization:
     def con_jac(self, X_q_0, P_we_d, V_ew_w_d, var):
         """Combined constraint Jacobian."""
         J1 = self.vel_ineq_jacobian(X_q_0, P_we_d, V_ew_w_d, var)
-        J2 = jax.jacfwd(self.ineq_constraints_unrolled, argnums=2)(X_q_0, P_we_d, V_ew_w_d, var)
+        J2 = jax.jacfwd(self.ineq_constraints_unrolled, argnums=3)(
+            X_q_0, P_we_d, V_ew_w_d, var
+        )
         return jnp.vstack((J1, J2))
 
     def bounds(self):
@@ -259,8 +261,8 @@ class TrayBalanceOptimization:
 
     def constraints(self):
         """Compute the constraints for the problem."""
-        lb_vel = np.tile(-PLANAR_VEL_LIM, MPC_STEPS)
-        ub_vel = np.tile(PLANAR_VEL_LIM, MPC_STEPS)
+        lb_vel = np.tile(-ROBOT_VEL_LIM, MPC_STEPS)
+        ub_vel = np.tile(ROBOT_VEL_LIM, MPC_STEPS)
 
         lb_physics = np.zeros(MPC_STEPS * self.nc * 2)
         ub_physics = np.infty * np.ones(MPC_STEPS * self.nc * 2)
@@ -387,15 +389,15 @@ def main():
     )
 
     for i in range(N - 1):
-        t = i * SIM_DT
+        # t = i * SIM_DT
 
         if i % CTRL_PERIOD == 0:
             r_ew_w_d = setpoints[setpoint_idx, :]
             Cd = SO3.identity()
-            T_ee_d = SE3.from_rotation_and_translation(Cd, r_ew_w_d)
-            V_ee_d = jnp.zeros(6)
+            P_we_d = pose_from_pos_quat(r_ew_w_d, Cd.as_quaternion_xyzw())
+            V_we_d = jnp.zeros(6)
 
-            var = controller.solve(X_q, T_ee_d, V_ee_d)
+            var = controller.solve(X_q, P_we_d, V_we_d)
             u = var[: model.ni]  # joint acceleration input
             robot.command_acceleration(u)
 
@@ -406,7 +408,7 @@ def main():
 
         if i % RECORD_PERIOD == 0:
             idx = i // RECORD_PERIOD
-            T_we = model.tool_pose(X_q)
+            P_we = model.tool_pose(X_q)
             V_ew_w = model.tool_velocity(X_q)
 
             # NOTE: calculating these quantities is fairly expensive
@@ -427,7 +429,7 @@ def main():
             p_tw_ws[idx, :] = r_tw_w
             p_te_es[idx, :] = calc_r_te_e(P_we, r_tw_w)
 
-        if np.linalg.norm(r_ew_w_d - T_we.translation()) < 0.01:
+        if np.linalg.norm(r_ew_w_d - P_we[:3]) < 0.01:
             print("Position within 1 cm.")
             setpoint_idx += 1
             if setpoint_idx >= setpoints.shape[0]:
@@ -454,8 +456,8 @@ def main():
     plt.title("End effector position")
 
     plt.figure()
-    plt.plot(ts[:idx], p_te_e[0] - p_te_es[:idx, 0], label="$x$", color="b")
-    plt.plot(ts[:idx], p_te_e[2] - p_te_es[:idx, 2], label="$z$", color="r")
+    plt.plot(ts[:idx], r_te_e[0] - p_te_es[:idx, 0], label="$x$", color="b")
+    plt.plot(ts[:idx], r_te_e[2] - p_te_es[:idx, 2], label="$z$", color="r")
     plt.grid()
     plt.legend()
     plt.xlabel("Time (s)")

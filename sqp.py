@@ -149,7 +149,7 @@ class SQP_qpOASES(object):
 
         A = np.array(self.constraints.jac(x0, Pd, Vd, var), dtype=np.float64)
         a = np.array(self.constraints.fun(x0, Pd, Vd, var), dtype=np.float64)
-        lbA = np.array(self.constraints.lb - a, dtype=np.float64)
+        lbA = np.array(self.constraints.lb - a, dtype=np.float64)  # TODO somehow this is wrong shape: lb is (180,), a is (230,)
         ubA = np.array(self.constraints.ub - a, dtype=np.float64)
 
         lb = np.array(self.bounds.lb - var, dtype=np.float64)
