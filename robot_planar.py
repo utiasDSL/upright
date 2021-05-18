@@ -122,9 +122,9 @@ class PlanarRobotModel:
         q, dq = x[:self.ni], x[self.ni:]
         return self.jacobian(q) @ u + dq @ self.dJdq(q) @ dq
 
-    def tool_state(self, x):
-        """Calculate the state [p, v] of the tool."""
-        return jnp.concatenate((self.tool_pose(x), self.tool_velocity(x)))
+    # def tool_state(self, x):
+    #     """Calculate the state [p, v] of the tool."""
+    #     return jnp.concatenate((self.tool_pose(x), self.tool_velocity(x)))
 
     def simulate(self, x, u):
         """Forward simulate the model."""

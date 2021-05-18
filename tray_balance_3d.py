@@ -297,7 +297,7 @@ def setup_sim():
 
     # get rid of extra parts of the GUI
     pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
-    # pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, "tray.mp4")
+    pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, "tray3d.mp4")
 
     # setup ground plane
     pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -353,6 +353,9 @@ def main():
     r_tw_w, _ = tray.get_pose()
     r_te_e = calc_r_te_e(P_we, r_tw_w)
 
+    # desired quaternion: same as the starting orientation
+    _, Qd = pose_to_pos_quat(P_we)
+
     # construct the tray balance problem
     problem = TrayBalanceOptimization(model, r_te_e)
 
@@ -393,8 +396,7 @@ def main():
 
         if i % CTRL_PERIOD == 0:
             r_ew_w_d = setpoints[setpoint_idx, :]
-            Cd = SO3.identity()
-            P_we_d = pose_from_pos_quat(r_ew_w_d, Cd.as_quaternion_xyzw())
+            P_we_d = pose_from_pos_quat(r_ew_w_d, Qd)
             V_we_d = jnp.zeros(6)
 
             var = controller.solve(X_q, P_we_d, V_we_d)
@@ -475,8 +477,11 @@ def main():
     plt.title("Inequality constraints")
 
     plt.figure()
-    for j in range(problem.ni):
-        plt.plot(ts[:idx], us[:idx, i], label=f"$u_{j+1}$")
+    for j in range(model.ni):
+        # TODO: size or indexing of us is wrong:
+        # >    plt.plot(ts[:idx], us[:idx, i], label=f"$u_{j+1}$")
+        # > IndexError: index 8100 is out of bounds for axis 1 with size 9
+        plt.plot(ts[:idx], us[:idx, j], label=f"$u_{j+1}$")
     plt.grid()
     plt.legend()
     plt.xlabel("Time (s)")
