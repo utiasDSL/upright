@@ -313,10 +313,10 @@ def setup_sim():
     return robot, tray
 
 
-def calc_p_te_e(P_ew_w, P_tw_w):
-    θ_ew = P_ew_w[2]
+def calc_p_te_e(P_we, P_wt):
+    θ_ew = P_we[2]
     R_we = rot2d(θ_ew)
-    return R_we.T @ (P_tw_w[:2] - P_ew_w[:2])
+    return R_we.T @ (P_wt[:2] - P_we[:2])
 
 
 def main():
@@ -336,19 +336,19 @@ def main():
     q0, dq0 = robot.joint_states()
     X_q = np.concatenate((q0, np.zeros_like(dq0)))
 
-    P_ew_w = model.tool_pose(X_q)
-    P_tw_w = tray.get_pose_planar()
-    p_te_e = calc_p_te_e(P_ew_w, P_tw_w)
+    P_we = model.tool_pose(X_q)
+    P_wt = tray.get_pose_planar()
+    p_te_e = calc_p_te_e(P_we, P_wt)
 
     # construct the tray balance problem
     problem = TrayBalanceOptimization(model, p_te_e)
 
     ts = RECORD_PERIOD * SIM_DT * np.arange(N_record)
     us = np.zeros((N_record, model.ni))
-    P_ew_ws = np.zeros((N_record, 3))
-    P_ew_wds = np.zeros((N_record, 3))
+    P_wes = np.zeros((N_record, 3))
+    P_we_ds = np.zeros((N_record, 3))
     V_ew_ws = np.zeros((N_record, 3))
-    P_tw_ws = np.zeros((N_record, 3))
+    P_wts = np.zeros((N_record, 3))
     p_te_es = np.zeros((N_record, 2))
     X_qs = np.zeros((N_record, problem.ns_q))
     ineq_cons = np.zeros((N_record, problem.nc_ineq))
@@ -357,11 +357,11 @@ def main():
 
     P_we = model.tool_pose(X_q)
     V_ew_w = model.tool_velocity(X_q)
-    P_ew_ws[0, :] = P_we
+    P_wes[0, :] = P_we
     V_ew_ws[0, :] = V_ew_w
 
     # reference trajectory
-    setpoints = np.array([[1, -0.5, 0], [2, -0.5, 0], [3, 0.5, 0]]) + P_ew_w
+    setpoints = np.array([[1, -0.5, 0], [2, -0.5, 0], [3, 0.5, 0]]) + P_we
     setpoint_idx = 0
 
     # Construct the SQP controller
@@ -408,11 +408,11 @@ def main():
             # record
             us[idx, :] = u
             X_qs[idx, :] = X_q
-            P_ew_wds[idx, :] = P_we_d
-            P_ew_ws[idx, :] = P_we
+            P_we_ds[idx, :] = P_we_d
+            P_wes[idx, :] = P_we
             V_ew_ws[idx, :] = V_ew_w
-            P_tw_ws[idx, :] = P_wt
-            p_te_es[idx, :] = calc_p_te_e(P_ew_w, P_tw_w)
+            P_wts[idx, :] = P_wt
+            p_te_es[idx, :] = calc_p_te_e(P_we, P_wt)
 
         if np.linalg.norm(P_we_d[:2] - P_we[:2]) < 0.01:
             print("Position within 1 cm.")
@@ -430,12 +430,12 @@ def main():
     idx = i // RECORD_PERIOD
 
     plt.figure()
-    plt.plot(ts[1:idx], P_ew_wds[1:idx, 0], label="$x_d$", color="b", linestyle="--")
-    plt.plot(ts[1:idx], P_ew_wds[1:idx, 1], label="$y_d$", color="r", linestyle="--")
-    plt.plot(ts[1:idx], P_ew_ws[1:idx, 0], label="$x$", color="b")
-    plt.plot(ts[1:idx], P_ew_ws[1:idx, 1], label="$y$", color="r")
-    # plt.plot(ts[:i], P_tw_ws[:i, 0],  label='$t_x$')
-    # plt.plot(ts[:i], P_tw_ws[:i, 1],  label='$t_y$')
+    plt.plot(ts[1:idx], P_we_ds[1:idx, 0], label="$x_d$", color="b", linestyle="--")
+    plt.plot(ts[1:idx], P_we_ds[1:idx, 1], label="$y_d$", color="r", linestyle="--")
+    plt.plot(ts[1:idx], P_wes[1:idx, 0], label="$x$", color="b")
+    plt.plot(ts[1:idx], P_wes[1:idx, 1], label="$y$", color="r")
+    # plt.plot(ts[:i], P_wts[:i, 0],  label='$t_x$')
+    # plt.plot(ts[:i], P_wts[:i, 1],  label='$t_y$')
     plt.grid()
     plt.legend()
     plt.xlabel("Time (s)")
