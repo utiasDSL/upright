@@ -42,7 +42,7 @@ class SimulatedRobot:
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
         self.uid = pyb.loadURDF(
-            "assets/urdf/mm.urdf",
+            "../assets/urdf/mm.urdf",
             position,
             orientation,
         )

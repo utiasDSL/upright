@@ -364,8 +364,6 @@ def main():
     )
 
     for i in range(N - 1):
-        # t = i * SIM_DT
-
         if i % CTRL_PERIOD == 0:
             r_ew_w_d = setpoints[setpoint_idx, :]
             P_we_d = pose_from_pos_quat(r_ew_w_d, Qd)
