@@ -376,7 +376,6 @@ def main():
     # reference trajectory
     setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
     setpoint_idx = 0
-    # trajectory = trajectories.Point(setpoints[setpoint_idx, :])
 
     # Construct the SQP controller
     controller = sqp.SQP(
@@ -478,9 +477,6 @@ def main():
 
     plt.figure()
     for j in range(model.ni):
-        # TODO: size or indexing of us is wrong:
-        # >    plt.plot(ts[:idx], us[:idx, i], label=f"$u_{j+1}$")
-        # > IndexError: index 8100 is out of bounds for axis 1 with size 9
         plt.plot(ts[:idx], us[:idx, j], label=f"$u_{j+1}$")
     plt.grid()
     plt.legend()
