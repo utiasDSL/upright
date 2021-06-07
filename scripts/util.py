@@ -59,7 +59,24 @@ def pose_error(Pd, P):
 
 
 def pitch_from_quat(Q):
+    """Get pitch from a quaternion."""
     return SO3.from_quaternion_xyzw(Q).compute_pitch_radians()
+
+
+def quat_from_axis_angle(a):
+    """Compute quaternion from an axis-angle."""
+    angle = np.linalg.norm(a)
+    axis = a / angle
+    c = np.cos(angle / 2)
+    s = np.sin(angle / 2)
+    return np.append(axis * s, c)
+
+
+def quat_multiply(q0, q1):
+    """Hamilton product of two quaternions."""
+    ε0, w0 = q0[:3], q0[3]
+    ε1, w1 = q1[:3], q1[3]
+    return np.append(w0 * ε1 + w1 * ε0 + skew3(ε0) @ ε1, w0 * w1 - ε0 @ ε1)
 
 
 def skew1(x):

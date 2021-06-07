@@ -14,7 +14,7 @@ import sqp
 import util
 from util import rot2d, skew1, pose_error, pose_to_pos_quat, pose_from_pos_quat
 from tray import Tray
-from robot import SimulatedRobot, RobotModel
+from end_effector import EndEffector
 
 import IPython
 
@@ -297,7 +297,9 @@ def setup_sim():
 
     # get rid of extra parts of the GUI
     pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
-    pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, "tray3d.mp4")
+
+    # record video
+    # pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, "no_robot.mp4")
 
     # setup ground plane
     pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -309,19 +311,20 @@ def setup_sim():
     # TODO want just an EE
 
     # simulate briefly to let the robot settle down after being positioned
-    settle_sim(1.0)
+    # settle_sim(1.0)
 
     # arm gets bumped by the above settling, so we reset it again
     # robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
+    ee = EndEffector(position=(0, 0, 1))
 
     # setup tray
     tray = Tray(mass=TRAY_MASS, radius=TRAY_RADIUS, height=2 * TRAY_H, mu=TRAY_MU)
-    ee_pos, _ = robot.link_pose()
+    ee_pos, _ = ee.get_pose()
     tray.reset_pose(position=ee_pos + [0, 0, TRAY_H + 0.05])
 
     settle_sim(1.0)
 
-    return robot, tray
+    return ee, tray
 
 
 def calc_r_te_e(P_we, r_tw_w):
@@ -340,7 +343,19 @@ def main():
     N_record = int(DURATION / (SIM_DT * RECORD_PERIOD))
 
     # simulation objects and model
-    robot, tray = setup_sim()
+    ee, tray = setup_sim()
+
+    import time
+    t = 0
+    while t < 1.0:
+        pyb.resetBaseVelocity(ee.uid, [0.2, 0, 0], [0, 0, 0])
+        pyb.stepSimulation()
+        time.sleep(SIM_DT)
+        t += SIM_DT
+
+    IPython.embed()
+    return
+
     model = RobotModel(MPC_DT, ROBOT_HOME)
 
     # state of joints
