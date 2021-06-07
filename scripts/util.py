@@ -65,7 +65,10 @@ def pitch_from_quat(Q):
 
 def quat_from_axis_angle(a, np=np):
     """Compute quaternion from an axis-angle."""
+    # NOTE: this is not written for jax: use jaxlie instead
     angle = np.linalg.norm(a)
+    if np.isclose(angle, 0):
+        return np.array([0, 0, 0, 1])
     axis = a / angle
     c = np.cos(angle / 2)
     s = np.sin(angle / 2)

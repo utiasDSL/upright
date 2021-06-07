@@ -56,16 +56,16 @@ class TrayBalanceOptimizationEE:
         self.nc = self.nc_eq + self.nc_ineq
 
         # MPC weights
-        # Q = np.diag(
-        #     np.concatenate((np.zeros(model.ni), 0.01 * np.ones(model.ni)))
-        # )  # joint state error
+        Q = np.diag(
+            np.concatenate((np.zeros(7), 0.01 * np.ones(model.ni)))
+        )  # joint state error
         W = np.diag(np.concatenate((np.ones(6), np.zeros(6))))  # Cartesian state error
         R = 0.01 * np.eye(self.nv)
         V = MPC_DT * np.eye(self.nv)
 
         # lifted weight matrices
         Ibar = np.eye(MPC_STEPS)
-        # self.Qbar = np.kron(Ibar, Q)
+        self.Qbar = np.kron(Ibar, Q)
         self.Wbar = np.kron(Ibar, W)
         self.Rbar = np.kron(Ibar, R)
 
@@ -73,6 +73,19 @@ class TrayBalanceOptimizationEE:
         self.Vbar = np.kron(np.tril(np.ones((MPC_STEPS, MPC_STEPS))), V)
 
         self.err_jac = jax.jit(jax.jacfwd(self.error_unrolled, argnums=3))
+        self.state_jac = jax.jit(jax.jacfwd(self.state_unrolled, argnums=1))
+
+    @partial(jax.jit, static_argnums=(0,))
+    def state_unrolled(self, X0, ubar):
+        """Unroll the joint state of the robot over the time horizon."""
+
+        def state_func(X, u):
+            X = self.model.simulate(X, u)
+            return X, X
+
+        u = ubar.reshape((MPC_STEPS, self.model.ni))
+        _, Xbar = jax.lax.scan(state_func, X0, u)
+        return Xbar.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
     def error_unrolled(self, X0, P_we_d, V_ee_d, var):
@@ -168,14 +181,17 @@ class TrayBalanceOptimizationEE:
         e = self.error_unrolled(X0, P_we_d, V_ew_w_d, u)
         dedu = self.err_jac(X0, P_we_d, V_ew_w_d, u)
 
+        x = self.state_unrolled(X0, u)
+        dxdu = self.state_jac(X0, u)
+
         # Function
-        f = e.T @ self.Wbar @ e + u.T @ self.Rbar @ u
+        f = e.T @ self.Wbar @ e + x.T @ self.Qbar @ x + u.T @ self.Rbar @ u
 
         # Jacobian
-        g = e.T @ self.Wbar @ dedu + u.T @ self.Rbar
+        g = e.T @ self.Wbar @ dedu + x.T @ self.Qbar @ dxdu + u.T @ self.Rbar
 
         # (Approximate) Hessian
-        H = dedu.T @ self.Wbar @ dedu + self.Rbar
+        H = dedu.T @ self.Wbar @ dedu + dxdu.T @ self.Qbar @ dxdu + self.Rbar
 
         return f, g, H
 

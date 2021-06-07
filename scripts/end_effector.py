@@ -1,7 +1,8 @@
 import numpy as np
 import jax.numpy as jnp
 import pybullet as pyb
-from util import quat_multiply, quat_from_axis_angle, zoh
+from jaxlie import SO3
+from util import zoh
 
 
 COLOR = (1, 0, 0, 1)
@@ -121,7 +122,13 @@ class EndEffectorModel:
         # which is essentially midpoint rule
         ωf = ω0 + self.dt * α
         aa = 0.5 * self.dt * (ω0 + ωf)
-        Δq = quat_from_axis_angle(aa, np=jnp)
-        qf = quat_multiply(Δq, q0, np=jnp)
+
+        R0 = SO3.from_quaternion_xyzw(q0)
+        ΔR = SO3.exp(aa)
+        qf = ΔR.multiply(R0).as_quaternion_xyzw()
+
+        # The above is equivalent to (but safer than, and written for jax):
+        # Δq = quat_from_axis_angle(aa, np=jnp)
+        # qf = quat_multiply(Δq, q0, np=jnp)
 
         return jnp.concatenate((rf, qf, vf, ωf))
