@@ -61,20 +61,14 @@ class EndEffector:
             orientation = current_orn
         pyb.resetBasePositionAndOrientation(self.uid, list(position), list(orientation))
 
-    # def state(self):
-    #     """Get the state of the EE.
-    #
-    #     Returns a tuple (P, v), where q is the 3-dim 2D pose of the base and
-    #     v is the 3-dim twist of joint velocities.
-    #     """
-    #     position, quaternion = pyb.getBasePositionAndOrientation(self.uid)
-    #     linear_vel, angular_vel = pyb.getBaseVelocity(self.uid)
-    #
-    #     yaw = pyb.getEulerFromQuaternion(quaternion)[2]
-    #     pose2d = [position[0], position[1], yaw]
-    #     twist2d = [linear_vel[0], linear_vel[1], angular_vel[2]]
-    #
-    #     return pose2d, twist2d
+    def get_velocity(self):
+        v, ω = pyb.getBaseVelocity(self.uid)
+        return v, ω
+
+    def get_state(self):
+        p, q = self.get_pose()
+        v, ω = self.get_velocity()
+        return np.concatenate((p, q, v, ω))
 
     def command_velocity(self, V):
         """Command the EE velocity twist."""
