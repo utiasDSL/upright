@@ -63,23 +63,23 @@ def pitch_from_quat(Q):
     return SO3.from_quaternion_xyzw(Q).compute_pitch_radians()
 
 
-def quat_from_axis_angle(a, np=np):
-    """Compute quaternion from an axis-angle."""
-    # NOTE: this is not written for jax: use jaxlie instead
-    angle = np.linalg.norm(a)
-    if np.isclose(angle, 0):
-        return np.array([0, 0, 0, 1])
-    axis = a / angle
-    c = np.cos(angle / 2)
-    s = np.sin(angle / 2)
-    return np.append(axis * s, c)
-
-
-def quat_multiply(q0, q1, np=np):
-    """Hamilton product of two quaternions."""
-    ε0, w0 = q0[:3], q0[3]
-    ε1, w1 = q1[:3], q1[3]
-    return np.append(w0 * ε1 + w1 * ε0 + skew3(ε0) @ ε1, w0 * w1 - ε0 @ ε1)
+# def quat_from_axis_angle(a, np=np):
+#     """Compute quaternion from an axis-angle."""
+#     # NOTE: this is not written for jax: use jaxlie instead
+#     angle = np.linalg.norm(a)
+#     if np.isclose(angle, 0):
+#         return np.array([0, 0, 0, 1])
+#     axis = a / angle
+#     c = np.cos(angle / 2)
+#     s = np.sin(angle / 2)
+#     return np.append(axis * s, c)
+#
+#
+# def quat_multiply(q0, q1, np=np):
+#     """Hamilton product of two quaternions."""
+#     ε0, w0 = q0[:3], q0[3]
+#     ε1, w1 = q1[:3], q1[3]
+#     return np.append(w0 * ε1 + w1 * ε0 + skew3(ε0) @ ε1, w0 * w1 - ε0 @ ε1)
 
 
 def skew1(x):

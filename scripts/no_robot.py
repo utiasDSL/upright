@@ -346,7 +346,8 @@ def main():
     ω_ew_ws[0, :] = ω_ew_w
 
     # reference trajectory
-    setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
+    # setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
+    setpoints = np.array([[0, 2, 0]]) + r_ew_w
     setpoint_idx = 0
 
     # Construct the SQP controller
@@ -384,11 +385,9 @@ def main():
             r_ew_w, Q_we = ee.get_pose()
             v_ew_w, ω_ew_w = ee.get_velocity()
 
-            # NOTE: calculating these quantities is fairly expensive
-            # P_we = model.tool_pose(X_q)
-            # V_ew_w = model.tool_velocity(X_q)
-            # A_ew_w = model.tool_acceleration(X_q, u)
-            # ineq_cons[idx, :] = np.array(problem.ineq_constraints(P_we, V_ew_w, A_ew_w))
+            x = ee.get_state()
+            P_we, V_ew_w = x[:7], x[7:]
+            ineq_cons[idx, :] = np.array(problem.ineq_constraints(P_we, V_ew_w, u))
 
             r_tw_w, Q_wt = tray.get_pose()
             r_ew_w_d = setpoints[setpoint_idx, :]
@@ -413,7 +412,7 @@ def main():
 
     controller.benchmark.print_stats()
 
-    print(np.min(ineq_cons))
+    print(f"Min constraint value = {np.min(ineq_cons)}")
 
     idx = i // RECORD_PERIOD
 
@@ -449,9 +448,6 @@ def main():
 
     plt.figure()
     for j in range(model.ni):
-        # TODO: size or indexing of us is wrong:
-        # >    plt.plot(ts[:idx], us[:idx, i], label=f"$u_{j+1}$")
-        # > IndexError: index 8100 is out of bounds for axis 1 with size 9
         plt.plot(ts[:idx], us[:idx, j], label=f"$u_{j+1}$")
     plt.grid()
     plt.legend()
