@@ -63,7 +63,7 @@ def pitch_from_quat(Q):
     return SO3.from_quaternion_xyzw(Q).compute_pitch_radians()
 
 
-def quat_from_axis_angle(a):
+def quat_from_axis_angle(a, np=np):
     """Compute quaternion from an axis-angle."""
     angle = np.linalg.norm(a)
     axis = a / angle
@@ -72,7 +72,7 @@ def quat_from_axis_angle(a):
     return np.append(axis * s, c)
 
 
-def quat_multiply(q0, q1):
+def quat_multiply(q0, q1, np=np):
     """Hamilton product of two quaternions."""
     ε0, w0 = q0[:3], q0[3]
     ε1, w1 = q1[:3], q1[3]
@@ -86,7 +86,7 @@ def skew1(x):
 
 def skew3(x, np=jnp):
     """3D skew-symmetric operator."""
-    return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], ]])
+    return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
 
 
 def dhtf(q, a, d, α, np=jnp):

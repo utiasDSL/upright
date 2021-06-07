@@ -19,13 +19,8 @@ from end_effector import EndEffector, EndEffectorModel
 import IPython
 
 
-# TODO this needs to be written for just the EE
-BASE_VEL_LIM = [1, 1, 2]
-ARM_VEL_LIM = [2.16, 2.16, 3.15, 3.2, 3.2, 3.2]
-ROBOT_VEL_LIM = np.array(BASE_VEL_LIM + ARM_VEL_LIM)
-
-
 # robot parameters
+VEL_LIM = 4
 ACC_LIM = 8  # TODO
 
 GRAVITY = 9.81
@@ -52,14 +47,13 @@ DURATION = 10.0  # duration of trajectory (s)
 class TrayBalanceOptimizationEE:
     def __init__(self, model, r_te_e):
         self.model = model
-        self.r_te_e = r_te_e
+        # self.r_te_e = r_te_e
+        self.r_te_e = np.array([r_te_e[0], r_te_e[2]])  # NOTE
 
         self.nv = model.ni  # number of optimization variables per MPC step
         self.nc_eq = 0  # number of equality constraints
         self.nc_ineq = 7  # number of inequality constraints
         self.nc = self.nc_eq + self.nc_ineq
-
-        self.ns_ee = 12  # dimension of EE (Cartesian) states
 
         # MPC weights
         # Q = np.diag(
@@ -92,15 +86,16 @@ class TrayBalanceOptimizationEE:
             V_err = V_ee_d - V_ew_w
 
             e = jnp.concatenate((pose_err, V_err))
-            return X_q, e
+            return X, e
 
         u = var.reshape((MPC_STEPS, self.model.ni))
-        X_q, ebar = jax.lax.scan(error_func, X0, u)
+        X, ebar = jax.lax.scan(error_func, X0, u)
         return ebar.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp):
         """Calculate inequality constraints for a single timestep."""
+        # TODO this is clearly insufficient as it just handles the plane
         _, Q_we = pose_to_pos_quat(P_we)
         θ_ew = util.pitch_from_quat(Q_we)
         dθ_ew = V_ew_w[5]  # pitch
@@ -113,7 +108,7 @@ class TrayBalanceOptimizationEE:
 
         α1, α2 = (
             TRAY_MASS * R_ew @ (a_ew_w + g)
-            + TRAY_MASS * (ddθ_ew * S1 - dθ_ew ** 2 * jnp.eye(2)) @ self.p_te_e
+            + TRAY_MASS * (ddθ_ew * S1 - dθ_ew ** 2 * jnp.eye(2)) @ self.r_te_e
         )
         α3 = TRAY_INERTIA * ddθ_ew
 
@@ -139,34 +134,30 @@ class TrayBalanceOptimizationEE:
         return jnp.array([h1a, h1b, h2, h3a, h3b, h4a, h4b])
 
     @partial(jax.jit, static_argnums=(0,))
-    def ineq_constraints_unrolled(self, X_q_0, P_we_d, V_ew_w_d, var):
+    def ineq_constraints_unrolled(self, X0, P_we_d, V_ew_w_d, var):
         """Unroll the inequality constraints over the time horizon."""
 
-        def ineq_func(X_q, u):
+        def ineq_func(X, u):
 
             # we actually two sets of constraints for each timestep: one at the
             # start and one at the end
             # at the start of the timestep, we need to ensure the new inputs
             # satisfy constraints
-            P_we = self.model.tool_pose(X_q)
-            V_ee = self.model.tool_velocity(X_q)
-            a_ee = self.model.tool_acceleration(X_q, u)
-            ineq_con1 = self.ineq_constraints(P_we, V_ee, a_ee)
+            P_we, V_ew_w = X[:7], X[7:]
+            ineq_con1 = self.ineq_constraints(P_we, V_ew_w, u)
 
-            X_q = self.model.simulate(X_q, u)
+            X = self.model.simulate(X, u)
 
             # at the end of the timestep, we need to make sure that the robot
             # ends up in a state where constraints are still satisfied given
             # the input
-            P_we = self.model.tool_pose(X_q)
-            V_ee = self.model.tool_velocity(X_q)
-            a_ee = self.model.tool_acceleration(X_q, u)
-            ineq_con2 = self.ineq_constraints(P_we, V_ee, a_ee)
+            P_we, V_ew_w = X[:7], X[7:]
+            ineq_con2 = self.ineq_constraints(P_we, V_ew_w, u)
 
-            return X_q, jnp.concatenate((ineq_con1, ineq_con2))
+            return X, jnp.concatenate((ineq_con1, ineq_con2))
 
         u = var.reshape((MPC_STEPS, self.model.ni))
-        X_q, ineq_con = jax.lax.scan(ineq_func, X_q_0, u)
+        X, ineq_con = jax.lax.scan(ineq_func, X0, u)
         return ineq_con.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
@@ -189,29 +180,29 @@ class TrayBalanceOptimizationEE:
         return f, g, H
 
     @partial(jax.jit, static_argnums=(0,))
-    def vel_ineq_constraints(self, X_q_0, P_we_d, V_ew_w_d, var):
-        """Inequality constraints on joint velocity."""
-        dq0 = X_q_0[self.model.ni :]
-        return self.Vbar @ var + jnp.tile(dq0, MPC_STEPS)
+    def vel_ineq_constraints(self, X0, P_we_d, V_ew_w_d, var):
+        """Inequality constraints on EE velocity."""
+        V0 = X0[7:]
+        return self.Vbar @ var + jnp.tile(V0, MPC_STEPS)
 
     @partial(jax.jit, static_argnums=(0,))
-    def vel_ineq_jacobian(self, X_q_0, P_we_d, V_ew_w_d, var):
+    def vel_ineq_jacobian(self, X0, P_we_d, V_ew_w_d, var):
         """Jacobian of joint velocity constraints."""
         return self.Vbar
 
     @partial(jax.jit, static_argnums=(0,))
-    def con_fun(self, X_q_0, P_we_d, V_ew_w_d, var):
+    def con_fun(self, X0, P_we_d, V_ew_w_d, var):
         """Combined constraint function."""
-        con1 = self.vel_ineq_constraints(X_q_0, P_we_d, V_ew_w_d, var)
-        con2 = self.ineq_constraints_unrolled(X_q_0, P_we_d, V_ew_w_d, var)
+        con1 = self.vel_ineq_constraints(X0, P_we_d, V_ew_w_d, var)
+        con2 = self.ineq_constraints_unrolled(X0, P_we_d, V_ew_w_d, var)
         return jnp.concatenate((con1, con2))
 
     @partial(jax.jit, static_argnums=(0,))
-    def con_jac(self, X_q_0, P_we_d, V_ew_w_d, var):
+    def con_jac(self, X0, P_we_d, V_ew_w_d, var):
         """Combined constraint Jacobian."""
-        J1 = self.vel_ineq_jacobian(X_q_0, P_we_d, V_ew_w_d, var)
+        J1 = self.vel_ineq_jacobian(X0, P_we_d, V_ew_w_d, var)
         J2 = jax.jacfwd(self.ineq_constraints_unrolled, argnums=3)(
-            X_q_0, P_we_d, V_ew_w_d, var
+            X0, P_we_d, V_ew_w_d, var
         )
         return jnp.vstack((J1, J2))
 
@@ -223,8 +214,8 @@ class TrayBalanceOptimizationEE:
 
     def constraints(self):
         """Compute the constraints for the problem."""
-        lb_vel = np.tile(-ROBOT_VEL_LIM, MPC_STEPS)
-        ub_vel = np.tile(ROBOT_VEL_LIM, MPC_STEPS)
+        lb_vel = -VEL_LIM * np.ones(MPC_STEPS * self.nv)
+        ub_vel = VEL_LIM * np.ones(MPC_STEPS * self.nv)
 
         lb_physics = np.zeros(MPC_STEPS * self.nc * 2)
         ub_physics = np.infty * np.ones(MPC_STEPS * self.nc * 2)
@@ -268,7 +259,7 @@ def setup_sim():
     pyb.loadURDF("plane.urdf", [0, 0, 0])
 
     # setup floating end effector
-    ee = EndEffector(position=(0, 0, 1))
+    ee = EndEffector(SIM_DT, position=(0, 0, 1))
 
     # setup tray
     tray = Tray(mass=TRAY_MASS, radius=TRAY_RADIUS, height=2 * TRAY_H, mu=TRAY_MU)
@@ -298,16 +289,16 @@ def main():
     # simulation objects and model
     ee, tray = setup_sim()
 
-    import time
-    t = 0
-    while t < 1.0:
-        pyb.resetBaseVelocity(ee.uid, [0.2, 0, 0], [0, 0, 0])
-        pyb.stepSimulation()
-        time.sleep(SIM_DT)
-        t += SIM_DT
-
-    IPython.embed()
-    return
+    # import time
+    # t = 0
+    # while t < 1.0:
+    #     pyb.resetBaseVelocity(ee.uid, [0.2, 0, 0], [0, 0, 0])
+    #     pyb.stepSimulation()
+    #     time.sleep(SIM_DT)
+    #     t += SIM_DT
+    #
+    # IPython.embed()
+    # return
 
     model = EndEffectorModel(MPC_DT)
 

@@ -1,4 +1,5 @@
 import numpy as np
+import jax.numpy as jnp
 import pybullet as pyb
 from util import quat_multiply, quat_from_axis_angle, zoh
 
@@ -10,8 +11,9 @@ class EndEffector:
     """End effector without a robot."""
 
     def __init__(
-        self, position=(0, 0, 0), orientation=(0, 0, 0, 1), radius=0.03
+        self, dt, position=(0, 0, 0), orientation=(0, 0, 0, 1), radius=0.03
     ):
+        self.dt = dt
 
         # positions of each finger relative to center
         # TODO calculate this directly instead of magic numbers
@@ -76,8 +78,8 @@ class EndEffector:
 
     def command_acceleration(self, A):
         """Command the EE acceleration twist."""
-        _, V = self.joint_states()
-        self.cmd_vel = V
+        v, ω = self.get_velocity()
+        self.cmd_vel = np.concatenate((v, ω))
         self.cmd_acc = A
 
     def step(self):
@@ -90,6 +92,7 @@ class EndEffectorModel:
     """Model of floating end effector"""
     def __init__(self, dt):
         self.dt = dt
+        self.ni = 6
 
         Z = np.zeros((3, 3))
         A = np.block([[Z, np.eye(3)], [Z, Z]])
@@ -110,7 +113,7 @@ class EndEffectorModel:
         a, α = u[:3], u[3:]
 
         # Linear part is integrated analytically (since it is linear!)
-        xp0 = np.concatenate((r0, v0))
+        xp0 = jnp.concatenate((r0, v0))
         xpf = self.Adp @ xp0 + self.Bdp @ a
         rf, vf = xpf[:3], xpf[3:]
 
@@ -118,7 +121,7 @@ class EndEffectorModel:
         # which is essentially midpoint rule
         ωf = ω0 + self.dt * α
         aa = 0.5 * self.dt * (ω0 + ωf)
-        Δq = quat_from_axis_angle(aa)
-        qf = quat_multiply(Δq, q0)
+        Δq = quat_from_axis_angle(aa, np=jnp)
+        qf = quat_multiply(Δq, q0, np=jnp)
 
-        return np.concatenate((rf, qf, vf, ωf))
+        return jnp.concatenate((rf, qf, vf, ωf))
