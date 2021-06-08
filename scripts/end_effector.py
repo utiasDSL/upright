@@ -2,25 +2,39 @@ import numpy as np
 import jax.numpy as jnp
 import pybullet as pyb
 from jaxlie import SO3
-from util import zoh
+from util import zoh, equilateral_triangle_inscribed_radius
 
 
 COLOR = (1, 0, 0, 1)
+
+
+def ee_points(side_length):
+    """Compute points of the end effector fingers."""
+    in_radius = equilateral_triangle_inscribed_radius(side_length)
+    out_radius = 2 * in_radius  # radius of circumscribed circle
+
+    p1 = [out_radius, 0, 0]
+    p2 = [-in_radius, 0.5 * side_length, 0]
+    p3 = [-in_radius, -0.5 * side_length, 0]
+
+    return p1, p2, p3
 
 
 class EndEffector:
     """End effector without a robot."""
 
     def __init__(
-        self, dt, position=(0, 0, 0), orientation=(0, 0, 0, 1), radius=0.03
+        self,
+        dt,
+        position=(0, 0, 0),
+        orientation=(0, 0, 0, 1),
+        side_length=0.3,
+        radius=0.03,
     ):
         self.dt = dt
 
         # positions of each finger relative to center
-        # TODO calculate this directly instead of magic numbers
-        shift1 = [0.1732, 0, 0]
-        shift2 = [-0.0866, 0.15, 0]
-        shift3 = [-0.0866, -0.15, 0]
+        shift1, shift2, shift3 = ee_points(side_length)
 
         collision_uid = pyb.createCollisionShapeArray(
             shapeTypes=[pyb.GEOM_SPHERE, pyb.GEOM_SPHERE, pyb.GEOM_SPHERE],
@@ -91,6 +105,7 @@ class EndEffector:
 
 class EndEffectorModel:
     """Model of floating end effector"""
+
     def __init__(self, dt):
         self.dt = dt
         self.ni = 6

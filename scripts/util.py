@@ -122,3 +122,8 @@ def zoh(A, B, dt):
     Bd = Hd[:rb, ca:ca+cb]
 
     return Ad, Bd
+
+
+def equilateral_triangle_inscribed_radius(side_length):
+    """Compute radius of the inscribed circle of equilateral triangle."""
+    return side_length / (2 * np.sqrt(3))

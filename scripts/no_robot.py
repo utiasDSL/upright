@@ -11,14 +11,23 @@ import pybullet as pyb
 import pybullet_data
 
 import sqp
-from util import skew3, pose_error, pose_to_pos_quat, pose_from_pos_quat
+from util import (
+    skew3,
+    pose_error,
+    pose_to_pos_quat,
+    pose_from_pos_quat,
+    equilateral_triangle_inscribed_radius,
+)
 from tray import Tray
 from end_effector import EndEffector, EndEffectorModel
 
 import IPython
 
 
-# tray motion parameters
+# EE geometry parameters
+EE_SIDE_LENGTH = 0.3
+
+# EE motion parameters
 VEL_LIM = 4
 ACC_LIM = 8
 
@@ -28,8 +37,8 @@ GRAVITY = 9.81
 TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
-TRAY_W = 0.085  # TODO this should probably be more nuanced now
-TRAY_H = 0.5  #0.01  # 0.5
+TRAY_W = equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
+TRAY_H = 0.01  # 0.5
 TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
 
 # simulation parameters
@@ -132,7 +141,7 @@ class TrayBalanceOptimizationEE:
         # TODO: investigate using a linear, absolute value approach (does not
         # require approximation), and see how well that works (can we use less
         # iterations?)
-        h1 = (TRAY_MU*α[2])**2 - (α[0]**2 + α[1]**2)  # friction cone
+        h1 = (TRAY_MU * α[2]) ** 2 - (α[0] ** 2 + α[1] ** 2)  # friction cone
         h2 = α[2]  # α3 >= 0
 
         # w1 = TRAY_W
@@ -274,7 +283,7 @@ def setup_sim():
     pyb.loadURDF("plane.urdf", [0, 0, 0])
 
     # setup floating end effector
-    ee = EndEffector(SIM_DT, position=(0, 0, 1))
+    ee = EndEffector(SIM_DT, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
 
     # setup tray
     tray = Tray(mass=TRAY_MASS, radius=TRAY_RADIUS, height=2 * TRAY_H, mu=TRAY_MU)
