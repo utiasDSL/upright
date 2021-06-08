@@ -28,8 +28,8 @@ GRAVITY = 9.81
 TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
-TRAY_W = 0.085
-TRAY_H = 0.01  # 0.5
+TRAY_W = 0.085  # TODO this should probably be more nuanced now
+TRAY_H = 0.5  #0.01  # 0.5
 TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
 
 # simulation parameters
@@ -47,7 +47,6 @@ class TrayBalanceOptimizationEE:
     def __init__(self, model, r_te_e):
         self.model = model
         self.r_te_e = r_te_e
-        # self.r_te_e = np.array([r_te_e[0], r_te_e[2]])  # NOTE
 
         self.nv = model.ni  # number of optimization variables per MPC step
         self.nc_eq = 0  # number of equality constraints
@@ -133,7 +132,7 @@ class TrayBalanceOptimizationEE:
         # TODO: investigate using a linear, absolute value approach (does not
         # require approximation), and see how well that works (can we use less
         # iterations?)
-        h1 = (TRAY_MU*α[2])**2 - (α[0]**2 + α[1]**2)  # friction cone (linear)
+        h1 = (TRAY_MU*α[2])**2 - (α[0]**2 + α[1]**2)  # friction cone
         h2 = α[2]  # α3 >= 0
 
         # w1 = TRAY_W
@@ -332,16 +331,16 @@ def main():
 
     ts = RECORD_PERIOD * SIM_DT * np.arange(N_record)
     us = np.zeros((N_record, model.ni))
-    p_ew_ws = np.zeros((N_record, 3))
-    p_ew_wds = np.zeros((N_record, 3))
+    r_ew_ws = np.zeros((N_record, 3))
+    r_ew_wds = np.zeros((N_record, 3))
     v_ew_ws = np.zeros((N_record, 3))
     ω_ew_ws = np.zeros((N_record, 3))
     p_tw_ws = np.zeros((N_record, 3))
-    p_te_es = np.zeros((N_record, 3))
+    r_te_es = np.zeros((N_record, 3))
     ineq_cons = np.zeros((N_record, problem.nc_ineq))
 
-    p_te_es[0, :] = r_te_e
-    p_ew_ws[0, :] = r_ew_w
+    r_te_es[0, :] = r_te_e
+    r_ew_ws[0, :] = r_ew_w
     v_ew_ws[0, :] = v_ew_w
     ω_ew_ws[0, :] = ω_ew_w
 
@@ -392,12 +391,12 @@ def main():
 
             # record
             us[idx, :] = u
-            p_ew_wds[idx, :] = r_ew_w_d
-            p_ew_ws[idx, :] = r_ew_w
+            r_ew_wds[idx, :] = r_ew_w_d
+            r_ew_ws[idx, :] = r_ew_w
             v_ew_ws[idx, :] = v_ew_w
             ω_ew_ws[idx, :] = ω_ew_w
             p_tw_ws[idx, :] = r_tw_w
-            p_te_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+            r_te_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
 
         if np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01:
             print("Position within 1 cm.")
@@ -415,10 +414,12 @@ def main():
     idx = i // RECORD_PERIOD
 
     plt.figure()
-    plt.plot(ts[1:idx], p_ew_wds[1:idx, 0], label="$x_d$", color="b", linestyle="--")
-    plt.plot(ts[1:idx], p_ew_wds[1:idx, 2], label="$z_d$", color="r", linestyle="--")
-    plt.plot(ts[1:idx], p_ew_ws[1:idx, 0], label="$x$", color="b")
-    plt.plot(ts[1:idx], p_ew_ws[1:idx, 2], label="$z$", color="r")
+    plt.plot(ts[1:idx], r_ew_wds[1:idx, 0], label="$x_d$", color="r", linestyle="--")
+    plt.plot(ts[1:idx], r_ew_wds[1:idx, 1], label="$y_d$", color="g", linestyle="--")
+    plt.plot(ts[1:idx], r_ew_wds[1:idx, 2], label="$z_d$", color="b", linestyle="--")
+    plt.plot(ts[1:idx], r_ew_ws[1:idx, 0], label="$x$", color="r")
+    plt.plot(ts[1:idx], r_ew_ws[1:idx, 1], label="$y$", color="g")
+    plt.plot(ts[1:idx], r_ew_ws[1:idx, 2], label="$z$", color="b")
     plt.grid()
     plt.legend()
     plt.xlabel("Time (s)")
@@ -426,8 +427,9 @@ def main():
     plt.title("End effector position")
 
     plt.figure()
-    plt.plot(ts[:idx], r_te_e[0] - p_te_es[:idx, 0], label="$x$", color="b")
-    plt.plot(ts[:idx], r_te_e[2] - p_te_es[:idx, 2], label="$z$", color="r")
+    plt.plot(ts[:idx], r_te_e[0] - r_te_es[:idx, 0], label="$x$", color="r")
+    plt.plot(ts[:idx], r_te_e[1] - r_te_es[:idx, 1], label="$y$", color="g")
+    plt.plot(ts[:idx], r_te_e[2] - r_te_es[:idx, 2], label="$z$", color="b")
     plt.grid()
     plt.legend()
     plt.xlabel("Time (s)")
@@ -452,17 +454,6 @@ def main():
     plt.xlabel("Time (s)")
     plt.ylabel("Commanded joint acceleration")
     plt.title("Acceleration commands")
-
-    # plt.figure()
-    # plt.plot(ts[:idx], X_qs[:idx, 4], label=r"$\dot{q}_1$")
-    # plt.plot(ts[:idx], X_qs[:idx, 5], label=r"$\dot{q}_2$")
-    # plt.plot(ts[:idx], X_qs[:idx, 6], label=r"$\dot{q}_3$")
-    # plt.plot(ts[:idx], X_qs[:idx, 7], label=r"$\dot{q}_4$")
-    # plt.grid()
-    # plt.legend()
-    # plt.xlabel("Time (s)")
-    # plt.ylabel("Joint velocities")
-    # plt.title("Joint velocities")
 
     plt.show()
 
