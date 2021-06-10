@@ -14,6 +14,7 @@ scipy = "*"
 jax = "*"
 jaxlib = "*"
 jaxlie = "*"
+osqp = "*"
 
 [dev-packages]
 

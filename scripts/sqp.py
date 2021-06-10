@@ -1,6 +1,6 @@
 import numpy as np
 import qpoases
-# import osqp
+import osqp
 from scipy import sparse
 import time
 
@@ -228,13 +228,13 @@ class SQP_OSQP(object):
 
         self.benchmark = Benchmark()
 
-    def _lookahead(self, x0, xd, var):
+    def _lookahead(self, x0, Pd, Vd, var):
         """Generate lifted matrices proprogating the state N timesteps into the
            future."""
-        f, g, H = self.obj_func(x0, xd, var)
+        f, g, H = self.obj_func(x0, Pd, Vd, var)
 
-        A = self.constraints.jac(x0, xd, var)
-        a = self.constraints.fun(x0, xd, var)
+        A = self.constraints.jac(x0, Pd, Vd, var)
+        a = self.constraints.fun(x0, Pd, Vd, var)
         lbA = np.array(self.constraints.lb - a)
         ubA = np.array(self.constraints.ub - a)
 
@@ -244,11 +244,11 @@ class SQP_OSQP(object):
         H = sparse.triu(np.array(H), format="csc")
         g = np.array(g)
 
-        # there may be some zeros that are always zero, so we use an explicit
-        # sparsity pattern
+        # there may be some zeros that aren't always zero, so we use an
+        # explicit sparsity pattern
         nz_idx = self.constraints.nz_idx
         A1 = sparse.csc_matrix((np.array(A)[nz_idx], nz_idx), shape=A.shape)
-        A2 = sparse.eye(self.nv)
+        A2 = sparse.eye(self.nv)  # bounds
         A = sparse.vstack((A1, A2), format="csc")
 
         # since OSQP does not use separate bounds, we concatenate onto the
@@ -261,9 +261,9 @@ class SQP_OSQP(object):
 
         return H, g, A, lower, upper
 
-    def _iterate(self, x0, xd, var):
+    def _iterate(self, x0, Pd, Vd, var):
         # Initial opt problem.
-        H, g, A, lower, upper = self._lookahead(x0, xd, var)
+        H, g, A, lower, upper = self._lookahead(x0, Pd, Vd, var)
         if not self.qp_initialized:
             self.qp.setup(P=H, q=g, A=A, l=lower, u=upper, verbose=self.verbose)
             self.qp_initialized = True
@@ -277,7 +277,7 @@ class SQP_OSQP(object):
 
         # Remaining sequence is hotstarted from the first.
         for i in range(self.num_iter - 1):
-            H, g, A, lower, upper = self._lookahead(x0, xd, var)
+            H, g, A, lower, upper = self._lookahead(x0, Pd, Vd, var)
             self.benchmark.start()
             self.qp.update(Px=H.data, q=g, Ax=A.data, l=lower, u=upper)
             results = self.qp.solve()
@@ -286,14 +286,14 @@ class SQP_OSQP(object):
 
         return var
 
-    def solve(self, x0, xd):
+    def solve(self, x0, Pd, Vd):
         """Solve the MPC problem at current state x0 given desired trajectory
            xd."""
         # initialize decision variables
         var = np.zeros(self.nv)
 
         # iterate to final solution
-        var = self._iterate(x0, xd, var)
+        var = self._iterate(x0, Pd, Vd, var)
 
         # return first optimal input
         return var

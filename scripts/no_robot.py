@@ -264,7 +264,17 @@ class TrayBalanceOptimizationEE:
         con_lb = np.concatenate((lb_vel, lb_physics))
         con_ub = np.concatenate((ub_vel, ub_physics))
 
-        return sqp.Constraints(self.con_fun, self.con_jac, con_lb, con_ub)
+        # constraint mask for velocity constraints is static
+        vel_con_mask = self.Vbar
+        physics_con_mask = np.kron(np.tril(np.ones((MPC_STEPS, MPC_STEPS))), np.ones((self.nc, self.nv)))
+        con_mask = np.vstack((vel_con_mask, physics_con_mask))
+        con_nz_idx = np.nonzero(con_mask)
+
+        # con_sparsity_mask = np.kron(np.tril(np.ones((MPC_STEPS, MPC_STEPS))), np.ones((nc, nv)))
+        # con_nz_idx = np.nonzero(con_sparsity_mask)
+        # constraints = sqp.Constraints(con_fun, con_jac, con_lb, con_ub, nz_idx=con_nz_idx)
+
+        return sqp.Constraints(self.con_fun, self.con_jac, con_lb, con_ub, nz_idx=con_nz_idx)
 
 
 def settle_sim(duration):
@@ -390,10 +400,10 @@ def main():
         problem.obj_hess_jac,
         problem.constraints(),
         problem.bounds(),
-        num_wsr=300,
+        # num_wsr=300,
         num_iter=SQP_ITER,
         verbose=False,
-        solver="qpoases",
+        solver="osqp",
     )
 
     for i in range(N - 1):
