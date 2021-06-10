@@ -405,7 +405,7 @@ def main():
         problem.bounds(),
         # num_wsr=300,
         num_iter=SQP_ITER,
-        verbose=True,
+        verbose=False,
         solver="osqp",
     )
 
