@@ -130,6 +130,7 @@ class SQP_qpOASES(object):
         self.qp = qpoases.PySQProblem(nv, nc)
         options = qpoases.PyOptions()
         options.setToMPC()
+        # options.setToReliable()
         if verbose:
             options.printLevel = qpoases.PyPrintLevel.MEDIUM
         else:
@@ -159,10 +160,10 @@ class SQP_qpOASES(object):
 
     def _step(self, x0, Pd, Vd, var, direction):
         """Take a step in the direction."""
-        # _, df, _ = self.obj_func(x0, xd, var)
+        # _, df, _ = self.obj_func(x0, Pd, Vd, var)
         #
         # def func(var):
-        #     f, _, _ = self.obj_func(x0, xd, var)
+        #     f, _, _ = self.obj_func(x0, Pd, Vd, var)
         #     return f
         #
         # t = backtrack_line_search(func, df, var, direction, alpha=0.25, beta=0.75)

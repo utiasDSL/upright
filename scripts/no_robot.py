@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Baseline tray balancing formulation."""
 from functools import partial
+import time
 
 import jax.numpy as jnp
 import jax
@@ -17,6 +18,7 @@ from util import (
     pose_to_pos_quat,
     pose_from_pos_quat,
     equilateral_triangle_inscribed_radius,
+    cylinder_inertia_matrix
 )
 from tray import Tray
 from end_effector import EndEffector, EndEffectorModel
@@ -38,13 +40,14 @@ TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_W = equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
-TRAY_H = 0.01  # 0.5
-TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
+TRAY_H = 0.1  #0.01  # 0.5  # height of center of mass from bottom of tray  TODO confusing
+# TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
+TRAY_INERTIA = cylinder_inertia_matrix(TRAY_MASS, TRAY_RADIUS, 2 * TRAY_H)
 
 # simulation parameters
 SIM_DT = 0.001  # simulation timestep (s)
 MPC_DT = 0.1  # lookahead timestep of the controller
-MPC_STEPS = 10  # number of timesteps to lookahead
+MPC_STEPS = 20  # number of timesteps to lookahead
 SQP_ITER = 3  # number of iterations for the SQP solved by the controller
 PLOT_PERIOD = 100  # update plot every PLOT_PERIOD timesteps
 CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
@@ -131,18 +134,32 @@ class TrayBalanceOptimizationEE:
 
         α = TRAY_MASS * C_ew @ (a_ew_w + ddC_we @ self.r_te_e - g)
 
+        # rotational
+        Iw = C_we @ TRAY_INERTIA @ C_we.T
+        β = C_ew @ Sω_ew_w @ Iw @ ω_ew_w + TRAY_INERTIA @ C_ew @ α_ew_w
+        S = np.array([[0, 1], [-1, 0]])
+
+        rz = -TRAY_H
+        r = TRAY_W
+
+        γ = rz * S.T @ α[:2] - β[:2]
+
         # NOTE: these constraints are currently written to be >= 0, in
         # constraint to the notes which have everything <= 0.
 
-        # NOTE: h1 is written so that each side is squared, which is fine
-        # because both sides are positive already. Also note that this
-        # (quadratic) constraint requires a few SQP iterations to get an
-        # accurate approximation---otherwise the tray will be dropped.
-        # TODO: investigate using a linear, absolute value approach (does not
-        # require approximation), and see how well that works (can we use less
-        # iterations?)
-        h1 = (TRAY_MU * α[2]) ** 2 - (α[0] ** 2 + α[1] ** 2)  # friction cone
+        # h1 = (TRAY_MU * α[2])**2 - (α[0]**2 + α[1]**2)  # friction cone
+        # NOTE the addition of a small term in the square root to ensure
+        # derivative is well-defined at 0
+        h1 = TRAY_MU * α[2] - jnp.sqrt(α[0]**2 + α[1]**2 + 0.01)  # friction cone
+
+        # this approximation actually works less well than the correct
+        # quadratic expression above:
+        # h1 = TRAY_MU * α[2] - jnp.abs(α[0]) - jnp.abs(α[1])
         h2 = α[2]  # α3 >= 0
+
+        # h3 = r**2 * α[2]**2 - (γ[0]**2 + γ[1]**2)  #γ @ γ
+        h3 = r * α[2] - jnp.sqrt(γ[0]**2 + γ[1]**2 + 0.01)  #γ @ γ
+        # h3 = 1
 
         # w1 = TRAY_W
         # w2 = TRAY_W
@@ -152,7 +169,7 @@ class TrayBalanceOptimizationEE:
         # h4a = -α3 + w2 * α2 + TRAY_H * α1
         # h4b = -α3 + w2 * α2 - TRAY_H * α1
 
-        return jnp.array([h1, h2, 1, 1, 1, 1, 1])
+        return jnp.array([h1, h2, h3, 1, 1, 1, 1])
 
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints_unrolled(self, X0, P_we_d, V_ew_w_d, var):
@@ -301,6 +318,12 @@ def calc_r_te_e(r_ew_w, Q_we, r_tw_w):
     return SO3.from_quaternion_xyzw(Q_we) @ r_te_w
 
 
+def calc_Q_et(Q_we, Q_wt):
+    SO3_we = SO3.from_quaternion_xyzw(Q_we)
+    SO3_wt = SO3.from_quaternion_xyzw(Q_wt)
+    return SO3_we.inverse().multiply(SO3_wt).as_quaternion_xyzw()
+
+
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
@@ -329,7 +352,7 @@ def main():
     x = ee.get_state()
     r_ew_w, Q_we = ee.get_pose()
     v_ew_w, ω_ew_w = ee.get_velocity()
-    r_tw_w, _ = tray.get_pose()
+    r_tw_w, Q_wt = tray.get_pose()
     r_te_e = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
 
     # desired quaternion: same as the starting orientation
@@ -346,16 +369,18 @@ def main():
     ω_ew_ws = np.zeros((N_record, 3))
     p_tw_ws = np.zeros((N_record, 3))
     r_te_es = np.zeros((N_record, 3))
+    Q_ets = np.zeros((N_record, 4))
     ineq_cons = np.zeros((N_record, problem.nc_ineq))
 
     r_te_es[0, :] = r_te_e
+    Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
     r_ew_ws[0, :] = r_ew_w
     v_ew_ws[0, :] = v_ew_w
     ω_ew_ws[0, :] = ω_ew_w
 
     # reference trajectory
     # setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
-    setpoints = np.array([[0, 2, 0]]) + r_ew_w
+    setpoints = np.array([[2, 0, 0]]) + r_ew_w
     setpoint_idx = 0
 
     # Construct the SQP controller
@@ -367,7 +392,7 @@ def main():
         problem.bounds(),
         num_wsr=300,
         num_iter=SQP_ITER,
-        verbose=True,
+        verbose=False,
         solver="qpoases",
     )
 
@@ -406,6 +431,7 @@ def main():
             ω_ew_ws[idx, :] = ω_ew_w
             p_tw_ws[idx, :] = r_tw_w
             r_te_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+            Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
 
         if np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01:
             print("Position within 1 cm.")
@@ -415,6 +441,8 @@ def main():
 
             # update r_ew_w_d to avoid falling back into this block right away
             r_ew_w_d = setpoints[setpoint_idx, :]
+
+        time.sleep(SIM_DT)
 
     controller.benchmark.print_stats()
 
@@ -436,9 +464,25 @@ def main():
     plt.title("End effector position")
 
     plt.figure()
+    plt.plot(ts[1:idx], v_ew_ws[1:idx, 0], label="$v_x$")
+    plt.plot(ts[1:idx], v_ew_ws[1:idx, 1], label="$v_y$")
+    plt.plot(ts[1:idx], v_ew_ws[1:idx, 2], label="$v_z$")
+    plt.plot(ts[1:idx], ω_ew_ws[1:idx, 0], label="$ω_x$")
+    plt.plot(ts[1:idx], ω_ew_ws[1:idx, 1], label="$ω_y$")
+    plt.plot(ts[1:idx], ω_ew_ws[1:idx, 2], label="$ω_z$")
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time (s)")
+    plt.ylabel("Velocity")
+    plt.title("End effector velocity")
+
+    plt.figure()
     plt.plot(ts[:idx], r_te_e[0] - r_te_es[:idx, 0], label="$x$", color="r")
     plt.plot(ts[:idx], r_te_e[1] - r_te_es[:idx, 1], label="$y$", color="g")
     plt.plot(ts[:idx], r_te_e[2] - r_te_es[:idx, 2], label="$z$", color="b")
+    plt.plot(ts[:idx], Q_ets[:idx, 0], label="$Q_x$")
+    plt.plot(ts[:idx], Q_ets[:idx, 1], label="$Q_y$")
+    plt.plot(ts[:idx], Q_ets[:idx, 2], label="$Q_z$")
     plt.grid()
     plt.legend()
     plt.xlabel("Time (s)")

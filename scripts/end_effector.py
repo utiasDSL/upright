@@ -61,7 +61,9 @@ class EndEffector:
         pyb.changeDynamics(self.uid, -1, lateralFriction=1.0)
 
     def get_pose(self):
-        pos, orn = pyb.getBasePositionAndOrientation(self.uid)
+        # TODO maybe this quaternion is the inverse of what I expect?
+        pos, orn = pyb.getBasePositionAndOrientation(self.uid)  # xyzw
+        # orn = [-orn[0], -orn[1], -orn[2], orn[3]]
         return np.array(pos), np.array(orn)
 
     def get_pose_planar(self):

@@ -127,3 +127,10 @@ def zoh(A, B, dt):
 def equilateral_triangle_inscribed_radius(side_length):
     """Compute radius of the inscribed circle of equilateral triangle."""
     return side_length / (2 * np.sqrt(3))
+
+
+def cylinder_inertia_matrix(m, r, h):
+    """Inertia matrix for cylinder aligned along z-axis."""
+    xx = yy = m * (3 * r**2 + h**2) / 12
+    zz = 0.5 * m * r**2
+    return np.diag([xx, yy, zz])
