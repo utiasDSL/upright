@@ -241,7 +241,12 @@ class SQP_OSQP(object):
         lb = np.array(self.bounds.lb - var)
         ub = np.array(self.bounds.ub - var)
 
-        H = sparse.triu(np.array(H), format="csc")
+        # use mask that assumes H is fully dense, but take only the
+        # upper-triangular part because H is symmetric and thus OSQP only needs
+        # that part
+        H_mask = np.triu(np.ones_like(H))
+        H_nz_idx = np.nonzero(H_mask)
+        H = sparse.csc_matrix((np.array(H)[H_nz_idx], H_nz_idx), shape=H.shape)
         g = np.array(g)
 
         # there may be some zeros that aren't always zero, so we use an
@@ -256,7 +261,7 @@ class SQP_OSQP(object):
         lower = np.concatenate((lbA, lb))
         upper = np.concatenate((ubA, ub))
 
-        # print(f"nnz(N) = {H.nnz}")
+        # print(f"nnz(H) = {H.nnz}")
         # print(f"nnz(A) = {A.nnz}")
 
         return H, g, A, lower, upper

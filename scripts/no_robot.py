@@ -18,7 +18,7 @@ from util import (
     pose_to_pos_quat,
     pose_from_pos_quat,
     equilateral_triangle_inscribed_radius,
-    cylinder_inertia_matrix
+    cylinder_inertia_matrix,
 )
 from tray import Tray
 from end_effector import EndEffector, EndEffectorModel
@@ -40,14 +40,16 @@ TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_W = equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
-TRAY_H = 0.1  #0.01  # 0.5  # height of center of mass from bottom of tray  TODO confusing
+TRAY_H = (
+    0.1  # 0.01  # 0.5  # height of center of mass from bottom of tray  TODO confusing
+)
 # TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
 TRAY_INERTIA = cylinder_inertia_matrix(TRAY_MASS, TRAY_RADIUS, 2 * TRAY_H)
 
 # simulation parameters
 SIM_DT = 0.001  # simulation timestep (s)
 MPC_DT = 0.1  # lookahead timestep of the controller
-MPC_STEPS = 20  # number of timesteps to lookahead
+MPC_STEPS = 10  # number of timesteps to lookahead
 SQP_ITER = 3  # number of iterations for the SQP solved by the controller
 PLOT_PERIOD = 100  # update plot every PLOT_PERIOD timesteps
 CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
@@ -150,7 +152,7 @@ class TrayBalanceOptimizationEE:
         # h1 = (TRAY_MU * α[2])**2 - (α[0]**2 + α[1]**2)  # friction cone
         # NOTE the addition of a small term in the square root to ensure
         # derivative is well-defined at 0
-        h1 = TRAY_MU * α[2] - jnp.sqrt(α[0]**2 + α[1]**2 + 0.01)  # friction cone
+        h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + 0.01)  # friction cone
 
         # this approximation actually works less well than the correct
         # quadratic expression above:
@@ -158,7 +160,7 @@ class TrayBalanceOptimizationEE:
         h2 = α[2]  # α3 >= 0
 
         # h3 = r**2 * α[2]**2 - (γ[0]**2 + γ[1]**2)  #γ @ γ
-        h3 = r * α[2] - jnp.sqrt(γ[0]**2 + γ[1]**2 + 0.01)  #γ @ γ
+        h3 = r * α[2] - jnp.sqrt(γ[0] ** 2 + γ[1] ** 2 + 0.01)  # γ @ γ
         # h3 = 1
 
         # w1 = TRAY_W
@@ -266,15 +268,16 @@ class TrayBalanceOptimizationEE:
 
         # constraint mask for velocity constraints is static
         vel_con_mask = self.Vbar
-        physics_con_mask = np.kron(np.tril(np.ones((MPC_STEPS, MPC_STEPS))), np.ones((self.nc, self.nv)))
+
+        physics_con_mask = np.kron(
+            np.tril(np.ones((MPC_STEPS, MPC_STEPS))), np.ones((2 * self.nc, self.nv))
+        )
         con_mask = np.vstack((vel_con_mask, physics_con_mask))
         con_nz_idx = np.nonzero(con_mask)
 
-        # con_sparsity_mask = np.kron(np.tril(np.ones((MPC_STEPS, MPC_STEPS))), np.ones((nc, nv)))
-        # con_nz_idx = np.nonzero(con_sparsity_mask)
-        # constraints = sqp.Constraints(con_fun, con_jac, con_lb, con_ub, nz_idx=con_nz_idx)
-
-        return sqp.Constraints(self.con_fun, self.con_jac, con_lb, con_ub, nz_idx=con_nz_idx)
+        return sqp.Constraints(
+            self.con_fun, self.con_jac, con_lb, con_ub, nz_idx=con_nz_idx
+        )
 
 
 def settle_sim(duration):
@@ -402,7 +405,7 @@ def main():
         problem.bounds(),
         # num_wsr=300,
         num_iter=SQP_ITER,
-        verbose=False,
+        verbose=True,
         solver="osqp",
     )
 
