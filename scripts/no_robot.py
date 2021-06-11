@@ -41,7 +41,7 @@ TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_W = equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 TRAY_H = (
-    0.1  # 0.01  # 0.5  # height of center of mass from bottom of tray  TODO confusing
+    0.5  # 0.01  # 0.5  # height of center of mass from bottom of tray  TODO confusing
 )
 # TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
 TRAY_INERTIA = cylinder_inertia_matrix(TRAY_MASS, TRAY_RADIUS, 2 * TRAY_H)

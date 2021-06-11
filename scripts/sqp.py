@@ -270,7 +270,7 @@ class SQP_OSQP(object):
         # Initial opt problem.
         H, g, A, lower, upper = self._lookahead(x0, Pd, Vd, var)
         if not self.qp_initialized:
-            self.qp.setup(P=H, q=g, A=A, l=lower, u=upper, verbose=self.verbose, polish=False)
+            self.qp.setup(P=H, q=g, A=A, l=lower, u=upper, verbose=self.verbose, adaptive_rho=False, polish=False)
             self.qp_initialized = True
             results = self.qp.solve()
         else:
