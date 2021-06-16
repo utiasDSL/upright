@@ -409,10 +409,10 @@ def main():
         problem.obj_hess_jac,
         problem.constraints(),
         problem.bounds(),
-        # num_wsr=300,
+        num_wsr=300,
         num_iter=SQP_ITER,
         verbose=False,
-        solver="osqp",
+        solver="qpoases",
     )
 
     for i in range(N - 1):

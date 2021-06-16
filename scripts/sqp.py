@@ -1,12 +1,20 @@
+from functools import partial
+
 import numpy as np
 import qpoases
 import osqp
 from scipy import sparse
 import time
 
+# import jax
+# import jax.numpy as jnp
 
+
+# @partial(jax.jit, static_argnums=(0, 4, 5))
 def backtrack_line_search(f, df, x, dx, alpha, beta):
     """Backtracking line search.
+
+    Find step size t that minimizes f(x) along descent direction dx
 
     Parameters:
         f:  The function to evaluate
@@ -19,14 +27,25 @@ def backtrack_line_search(f, df, x, dx, alpha, beta):
     Typical values for alpha are between 0.01 and 0.3; typical values for beta
     are between 0.1 and 0.8.
 
+    See Convex Optimization by Boyd & Vandenberghe, pg. 464
+
     Returns:
         The step size in (0, 1]
     """
     t = 1
     fx = f(x)
     a = alpha * df @ dx
+
     while f(x + t * dx) > fx + t * a:
-        t = beta * t
+        t = beta * t  # reduce step size
+
+    # def cond_func(t):
+    #     return f(x + t * dx) > fx + t * a
+    #
+    # def body_func(t):
+    #     return beta * t  # reduce step size
+
+    # return jax.lax.while_loop(cond_func, body_func, t)
     return t
 
 
@@ -160,15 +179,20 @@ class SQP_qpOASES(object):
 
     def _step(self, x0, Pd, Vd, var, direction):
         """Take a step in the direction."""
-        # _, df, _ = self.obj_func(x0, Pd, Vd, var)
-        #
-        # def func(var):
-        #     f, _, _ = self.obj_func(x0, Pd, Vd, var)
-        #     return f
-        #
-        # t = backtrack_line_search(func, df, var, direction, alpha=0.25, beta=0.75)
-        # return var + t * direction
-        return var + direction
+        _, df, _ = self.obj_func(x0, Pd, Vd, var)
+
+        def merit_func(var):
+            f, _, _ = self.obj_func(x0, Pd, Vd, var)
+            a = self.constraints.fun(x0, Pd, Vd, var)
+            return f - np.sum(np.minimum(0, a))
+
+        # df = -np.sum(self.constraints.jac(x0, Pd, Vd, var), axis=0)
+
+        # TODO should I be using the derivative of the merit function?
+
+        t = backtrack_line_search(merit_func, df, var, direction, alpha=0.25, beta=0.75)
+        return var + t * direction
+        # return var + direction
 
     def _iterate(self, x0, Pd, Vd, var):
         delta = np.zeros(self.nv)
