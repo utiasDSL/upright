@@ -41,7 +41,7 @@ TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_W = equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 TRAY_H = (
-    0.5  # 0.01  # 0.5  # height of center of mass from bottom of tray  TODO confusing
+    0.1  # 0.5  # height of center of mass from bottom of tray  TODO confusing
 )
 # TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
 TRAY_INERTIA = cylinder_inertia_matrix(TRAY_MASS, TRAY_RADIUS, 2 * TRAY_H)
@@ -118,7 +118,7 @@ class TrayBalanceOptimizationEE:
         return ebar.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
-    def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp):
+    def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp, embed=False):
         """Calculate inequality constraints for a single timestep."""
         _, Q_we = pose_to_pos_quat(P_we)
         ω_ew_w = V_ew_w[3:]
@@ -148,11 +148,23 @@ class TrayBalanceOptimizationEE:
 
         # NOTE: these constraints are currently written to be >= 0, in
         # constraint to the notes which have everything <= 0.
-
-        # h1 = (TRAY_MU * α[2])**2 - (α[0]**2 + α[1]**2)  # friction cone
         # NOTE the addition of a small term in the square root to ensure
         # derivative is well-defined at 0
-        h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + 0.01)  # friction cone
+        ε2 = 0.01
+
+        # h1 = (TRAY_MU * α[2])**2 - (α[0]**2 + α[1]**2)  # friction cone
+        # h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + 0.01)  # friction cone
+
+        # Friction cone with rotational component: this is always a tighter
+        # bound than when the rotational component isn't considered (which
+        # makes sense).
+        # Splitting the absolute value into two constraints appears to be
+        # better numerically for the solver
+        h1a = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2) + β[2] / r
+        h1b = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2) - β[2] / r
+
+        # if embed:
+        #     IPython.embed()
 
         # this approximation actually works less well than the correct
         # quadratic expression above:
@@ -160,18 +172,10 @@ class TrayBalanceOptimizationEE:
         h2 = α[2]  # α3 >= 0
 
         # h3 = r**2 * α[2]**2 - (γ[0]**2 + γ[1]**2)  #γ @ γ
-        h3 = r * α[2] - jnp.sqrt(γ[0] ** 2 + γ[1] ** 2 + 0.01)  # γ @ γ
+        h3 = r * α[2] - jnp.sqrt(γ[0] ** 2 + γ[1] ** 2 + ε2)  # γ @ γ
         # h3 = 1
 
-        # w1 = TRAY_W
-        # w2 = TRAY_W
-        # h3a = α3 + w1 * α2 + TRAY_H * α1
-        # h3b = α3 + w1 * α2 - TRAY_H * α1
-        #
-        # h4a = -α3 + w2 * α2 + TRAY_H * α1
-        # h4b = -α3 + w2 * α2 - TRAY_H * α1
-
-        return jnp.array([h1, h2, h3, 1, 1, 1, 1])
+        return jnp.array([h1a, h1b, h2, h3, 1, 1, 1])
 
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints_unrolled(self, X0, P_we_d, V_ew_w_d, var):
@@ -431,7 +435,7 @@ def main():
 
             x = ee.get_state()
             P_we, V_ew_w = x[:7], x[7:]
-            ineq_cons[idx, :] = np.array(problem.ineq_constraints(P_we, V_ew_w, u))
+            ineq_cons[idx, :] = np.array(problem.ineq_constraints(P_we, V_ew_w, u, embed=True))
 
             r_tw_w, Q_wt = tray.get_pose()
             r_ew_w_d = setpoints[setpoint_idx, :]
