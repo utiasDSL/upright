@@ -19,6 +19,7 @@ from util import (
     pose_from_pos_quat,
     equilateral_triangle_inscribed_radius,
     cylinder_inertia_matrix,
+    quat_multiply,
 )
 from tray import Tray
 from end_effector import EndEffector, EndEffectorModel
@@ -118,7 +119,7 @@ class TrayBalanceOptimizationEE:
         return ebar.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
-    def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp, embed=False):
+    def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp):
         """Calculate inequality constraints for a single timestep."""
         _, Q_we = pose_to_pos_quat(P_we)
         ω_ew_w = V_ew_w[3:]
@@ -163,12 +164,14 @@ class TrayBalanceOptimizationEE:
         h1a = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2) + β[2] / r
         h1b = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2) - β[2] / r
 
-        # if embed:
-        #     IPython.embed()
+        # h1a = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + 0.01)
+        # h1b = 1
 
         # this approximation actually works less well than the correct
         # quadratic expression above:
+        # TODO probably because of the poor gradient info the absolute values
         # h1 = TRAY_MU * α[2] - jnp.abs(α[0]) - jnp.abs(α[1])
+
         h2 = α[2]  # α3 >= 0
 
         # h3 = r**2 * α[2]**2 - (γ[0]**2 + γ[1]**2)  #γ @ γ
@@ -353,17 +356,6 @@ def main():
     # simulation objects and model
     ee, tray = setup_sim()
 
-    # import time
-    # t = 0
-    # while t < 1.0:
-    #     pyb.resetBaseVelocity(ee.uid, [0.2, 0, 0], [0, 0, 0])
-    #     pyb.stepSimulation()
-    #     time.sleep(SIM_DT)
-    #     t += SIM_DT
-    #
-    # IPython.embed()
-    # return
-
     model = EndEffectorModel(MPC_DT)
 
     x = ee.get_state()
@@ -372,9 +364,6 @@ def main():
     r_tw_w, Q_wt = tray.get_pose()
     r_te_e = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
 
-    # desired quaternion: same as the starting orientation
-    Qd = Q_we
-
     # construct the tray balance problem
     problem = TrayBalanceOptimizationEE(model, r_te_e)
 
@@ -382,6 +371,8 @@ def main():
     us = np.zeros((N_record, model.ni))
     r_ew_ws = np.zeros((N_record, 3))
     r_ew_wds = np.zeros((N_record, 3))
+    Q_wes = np.zeros((N_record, 4))
+    Q_des = np.zeros((N_record, 4))
     v_ew_ws = np.zeros((N_record, 3))
     ω_ew_ws = np.zeros((N_record, 3))
     p_tw_ws = np.zeros((N_record, 3))
@@ -390,6 +381,7 @@ def main():
     ineq_cons = np.zeros((N_record, problem.nc_ineq))
 
     r_te_es[0, :] = r_te_e
+    Q_wes[0, :] = Q_we
     Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
     r_ew_ws[0, :] = r_ew_w
     v_ew_ws[0, :] = v_ew_w
@@ -399,6 +391,16 @@ def main():
     # setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
     setpoints = np.array([[2, 0, 0]]) + r_ew_w
     setpoint_idx = 0
+
+    # desired quaternion
+    # Qd = Q_we
+    R_ed = SO3.from_z_radians(np.pi)
+    R_we = SO3.from_quaternion_xyzw(Q_we)
+    R_wd = R_we.multiply(R_ed)
+    Qd = R_wd.as_quaternion_xyzw()
+    Qd_inv = R_wd.inverse().as_quaternion_xyzw()
+
+    Q_des[0, :] = quat_multiply(Qd_inv, Q_we)
 
     # Construct the SQP controller
     controller = sqp.SQP(
@@ -435,23 +437,28 @@ def main():
 
             x = ee.get_state()
             P_we, V_ew_w = x[:7], x[7:]
-            ineq_cons[idx, :] = np.array(problem.ineq_constraints(P_we, V_ew_w, u, embed=True))
+            ineq_cons[idx, :] = np.array(problem.ineq_constraints(P_we, V_ew_w, u))
 
             r_tw_w, Q_wt = tray.get_pose()
             r_ew_w_d = setpoints[setpoint_idx, :]
+
+            # orientation error
+            Q_de = quat_multiply(Qd_inv, Q_we)
 
             # record
             us[idx, :] = u
             r_ew_wds[idx, :] = r_ew_w_d
             r_ew_ws[idx, :] = r_ew_w
+            Q_wes[idx, :] = Q_we
+            Q_des[idx, :] = Q_de
             v_ew_ws[idx, :] = v_ew_w
             ω_ew_ws[idx, :] = ω_ew_w
             p_tw_ws[idx, :] = r_tw_w
             r_te_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
             Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
 
-        if np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01:
-            print("Position within 1 cm.")
+        if np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01 and np.linalg.norm(Q_de[:3]) < 0.01:
+            print("Close to desired pose - stopping.")
             setpoint_idx += 1
             if setpoint_idx >= setpoints.shape[0]:
                 break
@@ -479,6 +486,16 @@ def main():
     plt.xlabel("Time (s)")
     plt.ylabel("Position")
     plt.title("End effector position")
+
+    plt.figure()
+    plt.plot(ts[1:idx], Q_des[1:idx, 0], label="$ΔQ_x$", color="r")
+    plt.plot(ts[1:idx], Q_des[1:idx, 1], label="$ΔQ_y$", color="g")
+    plt.plot(ts[1:idx], Q_des[1:idx, 2], label="$ΔQ_z$", color="b")
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time (s)")
+    plt.ylabel("Orientation error")
+    plt.title("End effector orientation error")
 
     plt.figure()
     plt.plot(ts[1:idx], v_ew_ws[1:idx, 0], label="$v_x$")

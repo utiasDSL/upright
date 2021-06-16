@@ -73,13 +73,13 @@ def pitch_from_quat(Q):
 #     c = np.cos(angle / 2)
 #     s = np.sin(angle / 2)
 #     return np.append(axis * s, c)
-#
-#
-# def quat_multiply(q0, q1, np=np):
-#     """Hamilton product of two quaternions."""
-#     ε0, w0 = q0[:3], q0[3]
-#     ε1, w1 = q1[:3], q1[3]
-#     return np.append(w0 * ε1 + w1 * ε0 + skew3(ε0) @ ε1, w0 * w1 - ε0 @ ε1)
+
+
+def quat_multiply(q0, q1):
+    """Hamilton product of two quaternions."""
+    R0 = SO3.from_quaternion_xyzw(q0)
+    R1 = SO3.from_quaternion_xyzw(q1)
+    return R0.multiply(R1).as_quaternion_xyzw()
 
 
 def skew1(x):
