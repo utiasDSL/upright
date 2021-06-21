@@ -58,6 +58,12 @@ def pose_error(Pd, P):
     return jnp.concatenate((r_err, Q_err[:3]))  # exclude w term
 
 
+def state_error(xd, x):
+    Pd, Vd = xd[:7], xd[7:]
+    P, V = x[:7], x[7:]
+    return jnp.concatenate((pose_error(Pd, P), Vd - V))
+
+
 def pitch_from_quat(Q):
     """Get pitch from a quaternion."""
     return SO3.from_quaternion_xyzw(Q).compute_pitch_radians()

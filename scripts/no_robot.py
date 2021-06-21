@@ -20,7 +20,8 @@ from util import (
     equilateral_triangle_inscribed_radius,
     cylinder_inertia_matrix,
     quat_multiply,
-    debug_frame
+    debug_frame,
+    state_error
 )
 from tray import Tray
 from end_effector import EndEffector, EndEffectorModel
@@ -74,7 +75,7 @@ class TrayBalanceOptimizationEE:
             np.concatenate((np.zeros(7), 0.01 * np.ones(model.ni)))
         )  # joint state error
         W = np.diag(np.concatenate((np.ones(3), np.full(3, 1), np.zeros(6))))  # Cartesian state error
-        R = 0.1 * np.eye(self.nv)
+        R = 0.01 * np.eye(self.nv)
         V = MPC_DT * np.eye(self.nv)
 
         # lifted weight matrices
@@ -162,10 +163,13 @@ class TrayBalanceOptimizationEE:
         # makes sense).
         # Splitting the absolute value into two constraints appears to be
         # better numerically for the solver
+
         h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2)
         h1a = h1 + β[2] / r
         h1b = h1 - β[2] / r
 
+        # h1 = TRAY_MU**2 * α[2]**2 - α[0] ** 2 - α[1] ** 2
+        #
         # h1a = h1
         # h1b = 1
 
@@ -176,7 +180,8 @@ class TrayBalanceOptimizationEE:
 
         h2 = α[2]  # α3 >= 0
 
-        h3 = r * α[2] - jnp.sqrt(γ[0] ** 2 + γ[1] ** 2 + ε2)
+        # h3 = r * α[2] - jnp.sqrt(γ[0] ** 2 + γ[1] ** 2 + ε2)
+        h3 = r**2 * α[2]**2 - γ[0] ** 2 - γ[1] ** 2
         # h3 = 1
 
         return jnp.array([h1a, h1b, h2, h3, 1, 1, 1])
@@ -207,6 +212,27 @@ class TrayBalanceOptimizationEE:
         u = var.reshape((MPC_STEPS, self.model.ni))
         X, ineq_con = jax.lax.scan(ineq_func, X0, u)
         return ineq_con.flatten()
+
+    @partial(jax.jit, static_argnums=(0,))
+    def obj_fun(self, X0, P_we_d, V_ew_w_d, var):
+        ubar = var
+        e = self.error_unrolled(X0, P_we_d, V_ew_w_d, ubar)
+        x = self.state_unrolled(X0, ubar)
+        f = e.T @ self.Wbar @ e + x.T @ self.Qbar @ x + ubar.T @ self.Rbar @ ubar
+        return f
+
+    @partial(jax.jit, static_argnums=(0,))
+    def obj_jac(self, X0, P_we_d, V_ew_w_d, var):
+        ubar = var
+
+        e = self.error_unrolled(X0, P_we_d, V_ew_w_d, ubar)
+        dedu = self.err_jac(X0, P_we_d, V_ew_w_d, ubar)
+
+        x = self.state_unrolled(X0, ubar)
+        dxdu = self.state_jac(X0, ubar)
+
+        g = e.T @ self.Wbar @ dedu + x.T @ self.Qbar @ dxdu + ubar.T @ self.Rbar
+        return g
 
     @partial(jax.jit, static_argnums=(0,))
     def obj_hess_jac(self, X0, P_we_d, V_ew_w_d, var):
@@ -398,7 +424,7 @@ def main():
 
     # desired quaternion
     # Qd = Q_we
-    R_ed = SO3.from_z_radians(0)
+    R_ed = SO3.from_z_radians(np.pi)
     R_we = SO3.from_quaternion_xyzw(Q_we)
     R_wd = R_we.multiply(R_ed)
     Qd = R_wd.as_quaternion_xyzw()
@@ -407,17 +433,31 @@ def main():
     Q_des[0, :] = quat_multiply(Qd_inv, Q_we)
 
     # Construct the SQP controller
+    # controller = sqp.SQP(
+    #     problem.nv * MPC_STEPS,
+    #     2 * problem.nc * MPC_STEPS,
+    #     problem.obj_hess_jac,
+    #     problem.constraints(),
+    #     problem.bounds(),
+    #     num_wsr=300,
+    #     num_iter=SQP_ITER,
+    #     verbose=False,
+    #     solver="qpoases",
+    # )
+
     controller = sqp.SQP(
-        problem.nv * MPC_STEPS,
-        2 * problem.nc * MPC_STEPS,
-        problem.obj_hess_jac,
-        problem.constraints(),
-        problem.bounds(),
-        num_wsr=300,
+        nv=problem.nv * MPC_STEPS,
+        nc=2 * problem.nc * MPC_STEPS,
+        obj_fun=problem.obj_fun,
+        obj_jac=problem.obj_jac,
+        constraints=problem.constraints(),
+        bounds=problem.bounds(),
         num_iter=SQP_ITER,
         verbose=False,
-        solver="qpoases",
+        solver="scipy",
     )
+
+    x_pred = np.zeros(7 + 6)
 
     for i in range(N - 1):
         if i % CTRL_PERIOD == 0:
@@ -425,10 +465,19 @@ def main():
             P_we_d = pose_from_pos_quat(r_ew_w_d, Qd)
             V_we_d = jnp.zeros(6)
 
-            x = ee.get_state()
-            var = controller.solve(x, P_we_d, V_we_d)
+            x_ctrl = ee.get_state()
+            var = controller.solve(x_ctrl, P_we_d, V_we_d)
             u = var[: model.ni]  # joint acceleration input
             ee.command_acceleration(u)
+
+            # evaluate model error
+            if i > 0:
+                model_error = np.linalg.norm(state_error(x_ctrl, x_pred))
+                print(model_error)
+                if model_error > 0.1:
+                    IPython.embed()
+
+            x_pred = model.simulate(x_ctrl, u)
 
         # step simulation forward
         ee.step()

@@ -1,10 +1,13 @@
 from functools import partial
+import time
 
 import numpy as np
 import qpoases
 import osqp
 from scipy import sparse
-import time
+import scipy.optimize
+
+import IPython
 
 # import jax
 # import jax.numpy as jnp
@@ -51,6 +54,7 @@ def backtrack_line_search(f, df, x, dx, alpha, beta):
 
 class Objective:
     """Objective function fun(x) with Jacobian jac(x) and Hessian hess(x)."""
+
     def __init__(self, fun, jac, hess):
         self.fun = fun
         self.jac = jac
@@ -88,6 +92,7 @@ class Constraints:
     constraint matrix that are in general non-zero. This is used for approaches
     that represent matrices sparsely, such as OSQP.
     """
+
     def __init__(self, fun, jac, lb, ub, nz_idx=None):
         self.fun = fun
         self.jac = jac
@@ -98,6 +103,7 @@ class Constraints:
 
 class Bounds:
     """Simple bounds of the form lb <= x <= ub."""
+
     def __init__(self, lb, ub):
         self.lb = lb
         self.ub = ub
@@ -120,7 +126,9 @@ class Benchmark:
         self.time_taken += dt
 
     def print_stats(self):
-        print(f"count = {self.count}\ntotal time = {self.time_taken}\ntime / call = {self.time_taken / self.count}")
+        print(
+            f"count = {self.count}\ntotal time = {self.time_taken}\ntime / call = {self.time_taken / self.count}"
+        )
 
 
 def SQP(*args, solver="qpoases", **kwargs):
@@ -128,14 +136,83 @@ def SQP(*args, solver="qpoases", **kwargs):
         return SQP_qpOASES(*args, **kwargs)
     elif solver == "osqp":
         return SQP_OSQP(*args, **kwargs)
+    elif solver == "scipy":
+        return SQP_scipy(*args, **kwargs)
     else:
         raise Exception(f"Unknown solver {solver}")
 
 
+class SQP_scipy:
+    def __init__(
+        self, nv, nc, obj_fun, obj_jac, constraints, bounds, num_iter=3, verbose=False
+    ):
+        self.nv = nv
+        self.nc = nc
+        self.obj_fun = obj_fun
+        self.obj_jac = obj_jac
+        self.constraints = constraints
+        self.bounds = scipy.optimize.Bounds(bounds.lb, bounds.ub)
+
+        # keep track of the optimal solution for nominal warm-starting
+        self.var = np.zeros(nv)
+
+        self.benchmark = Benchmark()
+
+    def fun(self, var, x0, Pd, Vd):
+        return self.obj_fun(x0, Pd, Vd, var)
+
+    def jac(self, var, x0, Pd, Vd):
+        return self.obj_jac(x0, Pd, Vd, var)
+
+    def solve(self, x0, Pd, Vd):
+        """Solve the MPC problem at current state x0 given desired trajectory
+        xd."""
+
+        # TODO: this probably doesn't handle the velocity bounds correctly
+        constraints = {
+            "type": "ineq",
+            "fun": lambda var, x0, Pd, Vd: self.constraints.fun(x0, Pd, Vd, var),
+            "jac": lambda var, x0, Pd, Vd: self.constraints.jac(x0, Pd, Vd, var),
+            "args": (x0, Pd, Vd),
+        }
+
+        self.benchmark.start()
+        res = scipy.optimize.minimize(
+            self.fun,
+            self.var,
+            args=(x0, Pd, Vd),
+            method="slsqp",
+            jac=self.jac,
+            bounds=self.bounds,
+            constraints=constraints,
+            options={
+                "maxiter": 10,
+            },
+        )
+        self.benchmark.end()
+
+        # IPython.embed()
+
+        self.var = res.x
+
+        # return first optimal input
+        return self.var
+
+
 class SQP_qpOASES(object):
     """Generic sequential quadratic program based on qpOASES solver."""
-    def __init__(self, nv, nc, obj_func, constraints, bounds, num_iter=3,
-                 num_wsr=100, verbose=False):
+
+    def __init__(
+        self,
+        nv,
+        nc,
+        obj_func,
+        constraints,
+        bounds,
+        num_iter=3,
+        num_wsr=100,
+        verbose=False,
+    ):
         """Initialize the SQP."""
         self.nv = nv
         self.nc = nc
@@ -145,6 +222,8 @@ class SQP_qpOASES(object):
         self.obj_func = obj_func
         self.constraints = constraints
         self.bounds = bounds
+
+        self.verbose = verbose
 
         self.qp = qpoases.PySQProblem(nv, nc)
         options = qpoases.PyOptions()
@@ -162,7 +241,7 @@ class SQP_qpOASES(object):
 
     def _lookahead(self, x0, Pd, Vd, var):
         """Generate lifted matrices proprogating the state N timesteps into the
-           future."""
+        future."""
         f, g, H = self.obj_func(x0, Pd, Vd, var)
         H = np.array(H, dtype=np.float64)
         g = np.array(g, dtype=np.float64)
@@ -210,6 +289,10 @@ class SQP_qpOASES(object):
 
         var = self._step(x0, Pd, Vd, var, delta)
 
+        import IPython
+
+        # IPython.embed()
+
         # Remaining sequence is hotstarted from the first.
         for i in range(self.num_iter - 1):
             H, g, A, lbA, ubA, lb, ub = self._lookahead(x0, Pd, Vd, var)
@@ -219,11 +302,19 @@ class SQP_qpOASES(object):
             self.qp.getPrimalSolution(delta)
             var = self._step(x0, Pd, Vd, var, delta)
 
+            if i == self.num_iter - 2:
+                v = A @ delta
+                mask = np.logical_or(v <= lbA, v >= ubA)
+                print(f"number of constraint violations = {np.sum(mask)}")
+                print(f"norm of delta = {np.linalg.norm(delta)}")
+
+            # IPython.embed()
+
         return var
 
     def solve(self, x0, Pd, Vd):
         """Solve the MPC problem at current state x0 given desired trajectory
-           xd."""
+        xd."""
         # initialize decision variables
         var = np.zeros(self.nv)
 
@@ -236,7 +327,10 @@ class SQP_qpOASES(object):
 
 class SQP_OSQP(object):
     """Generic sequential quadratic program based on OSQP solver."""
-    def __init__(self, nv, nc, obj_func, constraints, bounds, num_iter=3, verbose=False):
+
+    def __init__(
+        self, nv, nc, obj_func, constraints, bounds, num_iter=3, verbose=False
+    ):
         """Initialize the SQP."""
         self.nv = nv
         self.nc = nc
@@ -254,7 +348,7 @@ class SQP_OSQP(object):
 
     def _lookahead(self, x0, Pd, Vd, var):
         """Generate lifted matrices proprogating the state N timesteps into the
-           future."""
+        future."""
         f, g, H = self.obj_func(x0, Pd, Vd, var)
 
         A = self.constraints.jac(x0, Pd, Vd, var)
@@ -294,7 +388,16 @@ class SQP_OSQP(object):
         # Initial opt problem.
         H, g, A, lower, upper = self._lookahead(x0, Pd, Vd, var)
         if not self.qp_initialized:
-            self.qp.setup(P=H, q=g, A=A, l=lower, u=upper, verbose=self.verbose, adaptive_rho=False, polish=False)
+            self.qp.setup(
+                P=H,
+                q=g,
+                A=A,
+                l=lower,
+                u=upper,
+                verbose=self.verbose,
+                adaptive_rho=False,
+                polish=False,
+            )
             self.qp_initialized = True
             results = self.qp.solve()
         else:
@@ -317,7 +420,7 @@ class SQP_OSQP(object):
 
     def solve(self, x0, Pd, Vd):
         """Solve the MPC problem at current state x0 given desired trajectory
-           xd."""
+        xd."""
         # initialize decision variables
         var = np.zeros(self.nv)
 
