@@ -20,6 +20,7 @@ from util import (
     equilateral_triangle_inscribed_radius,
     cylinder_inertia_matrix,
     quat_multiply,
+    debug_frame
 )
 from tray import Tray
 from end_effector import EndEffector, EndEffectorModel
@@ -42,7 +43,7 @@ TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_W = equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 TRAY_H = (
-    0.1  # 0.5  # height of center of mass from bottom of tray  TODO confusing
+    0.5  # height of center of mass from bottom of tray  TODO confusing
 )
 # TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
 TRAY_INERTIA = cylinder_inertia_matrix(TRAY_MASS, TRAY_RADIUS, 2 * TRAY_H)
@@ -50,7 +51,7 @@ TRAY_INERTIA = cylinder_inertia_matrix(TRAY_MASS, TRAY_RADIUS, 2 * TRAY_H)
 # simulation parameters
 SIM_DT = 0.001  # simulation timestep (s)
 MPC_DT = 0.1  # lookahead timestep of the controller
-MPC_STEPS = 10  # number of timesteps to lookahead
+MPC_STEPS = 20  # number of timesteps to lookahead
 SQP_ITER = 3  # number of iterations for the SQP solved by the controller
 PLOT_PERIOD = 100  # update plot every PLOT_PERIOD timesteps
 CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
@@ -72,8 +73,8 @@ class TrayBalanceOptimizationEE:
         Q = np.diag(
             np.concatenate((np.zeros(7), 0.01 * np.ones(model.ni)))
         )  # joint state error
-        W = np.diag(np.concatenate((np.ones(6), np.zeros(6))))  # Cartesian state error
-        R = 0.01 * np.eye(self.nv)
+        W = np.diag(np.concatenate((np.ones(3), np.full(3, 1), np.zeros(6))))  # Cartesian state error
+        R = 0.1 * np.eye(self.nv)
         V = MPC_DT * np.eye(self.nv)
 
         # lifted weight matrices
@@ -161,10 +162,11 @@ class TrayBalanceOptimizationEE:
         # makes sense).
         # Splitting the absolute value into two constraints appears to be
         # better numerically for the solver
-        h1a = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2) + β[2] / r
-        h1b = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2) - β[2] / r
+        h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2)
+        h1a = h1 + β[2] / r
+        h1b = h1 - β[2] / r
 
-        # h1a = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + 0.01)
+        # h1a = h1
         # h1b = 1
 
         # this approximation actually works less well than the correct
@@ -174,8 +176,7 @@ class TrayBalanceOptimizationEE:
 
         h2 = α[2]  # α3 >= 0
 
-        # h3 = r**2 * α[2]**2 - (γ[0]**2 + γ[1]**2)  #γ @ γ
-        h3 = r * α[2] - jnp.sqrt(γ[0] ** 2 + γ[1] ** 2 + ε2)  # γ @ γ
+        h3 = r * α[2] - jnp.sqrt(γ[0] ** 2 + γ[1] ** 2 + ε2)
         # h3 = 1
 
         return jnp.array([h1a, h1b, h2, h3, 1, 1, 1])
@@ -322,6 +323,8 @@ def setup_sim():
     # setup floating end effector
     ee = EndEffector(SIM_DT, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
 
+    debug_frame(0.1, ee.uid, -1)
+
     # setup tray
     tray = Tray(mass=TRAY_MASS, radius=TRAY_RADIUS, height=2 * TRAY_H, mu=TRAY_MU)
     ee_pos, _ = ee.get_pose()
@@ -334,8 +337,9 @@ def setup_sim():
 
 def calc_r_te_e(r_ew_w, Q_we, r_tw_w):
     """Calculate position of tray relative to the EE."""
+    # C_{ew} @ (r^{tw}_w - r^{ew}_w
     r_te_w = r_tw_w - r_ew_w
-    return SO3.from_quaternion_xyzw(Q_we) @ r_te_w
+    return SO3.from_quaternion_xyzw(Q_we).inverse() @ r_te_w
 
 
 def calc_Q_et(Q_we, Q_wt):
@@ -375,7 +379,7 @@ def main():
     Q_des = np.zeros((N_record, 4))
     v_ew_ws = np.zeros((N_record, 3))
     ω_ew_ws = np.zeros((N_record, 3))
-    p_tw_ws = np.zeros((N_record, 3))
+    r_tw_ws = np.zeros((N_record, 3))
     r_te_es = np.zeros((N_record, 3))
     Q_ets = np.zeros((N_record, 4))
     ineq_cons = np.zeros((N_record, problem.nc_ineq))
@@ -394,7 +398,7 @@ def main():
 
     # desired quaternion
     # Qd = Q_we
-    R_ed = SO3.from_z_radians(np.pi)
+    R_ed = SO3.from_z_radians(0)
     R_we = SO3.from_quaternion_xyzw(Q_we)
     R_wd = R_we.multiply(R_ed)
     Qd = R_wd.as_quaternion_xyzw()
@@ -453,7 +457,7 @@ def main():
             Q_des[idx, :] = Q_de
             v_ew_ws[idx, :] = v_ew_w
             ω_ew_ws[idx, :] = ω_ew_w
-            p_tw_ws[idx, :] = r_tw_w
+            r_tw_ws[idx, :] = r_tw_w
             r_te_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
             Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
 
@@ -511,17 +515,19 @@ def main():
     plt.title("End effector velocity")
 
     plt.figure()
-    plt.plot(ts[:idx], r_te_e[0] - r_te_es[:idx, 0], label="$x$", color="r")
-    plt.plot(ts[:idx], r_te_e[1] - r_te_es[:idx, 1], label="$y$", color="g")
-    plt.plot(ts[:idx], r_te_e[2] - r_te_es[:idx, 2], label="$z$", color="b")
+    r_te_e_err = r_te_e - r_te_es[:idx, :]
+    plt.plot(ts[:idx], r_te_e_err[:, 0], label="$x$")
+    plt.plot(ts[:idx], r_te_e_err[:, 1], label="$y$")
+    plt.plot(ts[:idx], r_te_e_err[:, 2], label="$z$")
+    plt.plot(ts[:idx], np.linalg.norm(r_te_e_err, axis=1), label="$||r||$")
     plt.plot(ts[:idx], Q_ets[:idx, 0], label="$Q_x$")
     plt.plot(ts[:idx], Q_ets[:idx, 1], label="$Q_y$")
     plt.plot(ts[:idx], Q_ets[:idx, 2], label="$Q_z$")
     plt.grid()
     plt.legend()
     plt.xlabel("Time (s)")
-    plt.ylabel("$p^{te}_e$ error")
-    plt.title("$p^{te}_e$ error")
+    plt.ylabel("$r^{te}_e$ error")
+    plt.title("$r^{te}_e$ error")
 
     plt.figure()
     for j in range(problem.nc_ineq):

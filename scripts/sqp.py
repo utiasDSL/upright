@@ -179,20 +179,20 @@ class SQP_qpOASES(object):
 
     def _step(self, x0, Pd, Vd, var, direction):
         """Take a step in the direction."""
-        _, df, _ = self.obj_func(x0, Pd, Vd, var)
-
-        def merit_func(var):
-            f, _, _ = self.obj_func(x0, Pd, Vd, var)
-            a = self.constraints.fun(x0, Pd, Vd, var)
-            return f - np.sum(np.minimum(0, a))
-
-        # df = -np.sum(self.constraints.jac(x0, Pd, Vd, var), axis=0)
-
-        # TODO should I be using the derivative of the merit function?
-
-        t = backtrack_line_search(merit_func, df, var, direction, alpha=0.25, beta=0.75)
-        return var + t * direction
-        # return var + direction
+        # _, df, _ = self.obj_func(x0, Pd, Vd, var)
+        #
+        # def merit_func(var):
+        #     f, _, _ = self.obj_func(x0, Pd, Vd, var)
+        #     a = self.constraints.fun(x0, Pd, Vd, var)
+        #     return f - np.sum(np.minimum(0, a))
+        #
+        # # df = -np.sum(self.constraints.jac(x0, Pd, Vd, var), axis=0)
+        #
+        # # TODO should I be using the derivative of the merit function?
+        #
+        # t = backtrack_line_search(merit_func, df, var, direction, alpha=0.25, beta=0.75)
+        # return var + t * direction
+        return var + direction
 
     def _iterate(self, x0, Pd, Vd, var):
         delta = np.zeros(self.nv)
