@@ -4,15 +4,20 @@ from functools import partial
 
 import jax.numpy as jnp
 import jax
-from jaxlie import SO3, SE3
+from jaxlie import SO3
 import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as pyb
 import pybullet_data
 
 import sqp
-import util
-from util import rot2d, skew1, pose_error, pose_to_pos_quat, pose_from_pos_quat
+from util import (
+    skew3,
+    pose_error,
+    pose_to_pos_quat,
+    pose_from_pos_quat,
+    cylinder_inertia_matrix,
+)
 from tray import Tray
 from robot import SimulatedRobot, RobotModel
 
@@ -56,7 +61,7 @@ TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_W = 0.085
 TRAY_H = 0.01  # 0.5
-TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
+TRAY_INERTIA = cylinder_inertia_matrix(TRAY_MASS, TRAY_RADIUS, 2 * TRAY_H)
 
 # simulation parameters
 SIM_DT = 0.001  # simulation timestep (s)
@@ -70,13 +75,13 @@ DURATION = 10.0  # duration of trajectory (s)
 
 
 class TrayBalanceOptimization:
-    def __init__(self, model, p_te_e):
+    def __init__(self, model, r_te_e):
         self.model = model
-        self.p_te_e = np.array([p_te_e[0], p_te_e[2]])  # NOTE
+        self.r_te_e = r_te_e
 
         self.nv = model.ni  # number of optimization variables per MPC step
         self.nc_eq = 0  # number of equality constraints
-        self.nc_ineq = 7  # number of inequality constraints
+        self.nc_ineq = 4  # number of inequality constraints
         self.nc = self.nc_eq + self.nc_ineq
 
         self.ns_q = 2 * model.ni  # dimension of joint state
@@ -136,42 +141,105 @@ class TrayBalanceOptimization:
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp):
         """Calculate inequality constraints for a single timestep."""
+        # _, Q_we = pose_to_pos_quat(P_we)
+        # θ_ew = util.pitch_from_quat(Q_we)
+        # dθ_ew = V_ew_w[5]  # pitch
+        # a_ew_w = jnp.array([A_ew_w[0], A_ew_w[2]])
+        # ddθ_ew = A_ew_w[5]
+        #
+        # R_ew = rot2d(-θ_ew, np=jnp)
+        # S1 = skew1(1)
+        # g = jnp.array([0, GRAVITY])
+        #
+        # α1, α2 = (
+        #     TRAY_MASS * R_ew @ (a_ew_w + g)
+        #     + TRAY_MASS * (ddθ_ew * S1 - dθ_ew ** 2 * jnp.eye(2)) @ self.p_te_e
+        # )
+        # α3 = TRAY_INERTIA * ddθ_ew
+        #
+        # # NOTE: this is written to be >= 0
+        # # h1 = TRAY_MU*α2 - jnp.abs(α1)
+        # h1a = TRAY_MU * α2 + α1
+        # h1b = TRAY_MU * α2 - α1
+        # h2 = α2
+        # # h2 = 1
+        #
+        # w1 = TRAY_W
+        # w2 = TRAY_W
+        # h3a = α3 + w1 * α2 + TRAY_H * α1
+        # h3b = α3 + w1 * α2 - TRAY_H * α1
+        # # h3a = 1
+        # # h3b = 1
+        #
+        # h4a = -α3 + w2 * α2 + TRAY_H * α1
+        # h4b = -α3 + w2 * α2 - TRAY_H * α1
+        # # h4a = 1
+        # # h4b = 1
+        #
+        # return jnp.array([h1a, h1b, h2, h3a, h3b, h4a, h4b])
+
         _, Q_we = pose_to_pos_quat(P_we)
-        θ_ew = util.pitch_from_quat(Q_we)
-        dθ_ew = V_ew_w[5]  # pitch
-        a_ew_w = jnp.array([A_ew_w[0], A_ew_w[2]])
-        ddθ_ew = A_ew_w[5]
+        ω_ew_w = V_ew_w[3:]
+        a_ew_w = A_ew_w[:3]
+        α_ew_w = A_ew_w[3:]
 
-        R_ew = rot2d(-θ_ew, np=jnp)
-        S1 = skew1(1)
-        g = jnp.array([0, GRAVITY])
+        # TODO: we could probably reformulate all of this in terms of
+        # quaternions, if desired
+        C_we = SO3.from_quaternion_xyzw(Q_we).as_matrix()
+        C_ew = C_we.T
+        Sω_ew_w = skew3(ω_ew_w)
+        ddC_we = (skew3(α_ew_w) + Sω_ew_w @ Sω_ew_w) @ C_we
 
-        α1, α2 = (
-            TRAY_MASS * R_ew @ (a_ew_w + g)
-            + TRAY_MASS * (ddθ_ew * S1 - dθ_ew ** 2 * jnp.eye(2)) @ self.p_te_e
-        )
-        α3 = TRAY_INERTIA * ddθ_ew
+        g = jnp.array([0, 0, -GRAVITY])
 
-        # NOTE: this is written to be >= 0
-        # h1 = TRAY_MU*α2 - jnp.abs(α1)
-        h1a = TRAY_MU * α2 + α1
-        h1b = TRAY_MU * α2 - α1
-        h2 = α2
-        # h2 = 1
+        α = TRAY_MASS * C_ew @ (a_ew_w + ddC_we @ self.r_te_e - g)
 
-        w1 = TRAY_W
-        w2 = TRAY_W
-        h3a = α3 + w1 * α2 + TRAY_H * α1
-        h3b = α3 + w1 * α2 - TRAY_H * α1
-        # h3a = 1
-        # h3b = 1
+        # rotational
+        Iw = C_we @ TRAY_INERTIA @ C_we.T
+        β = C_ew @ Sω_ew_w @ Iw @ ω_ew_w + TRAY_INERTIA @ C_ew @ α_ew_w
+        S = np.array([[0, 1], [-1, 0]])
 
-        h4a = -α3 + w2 * α2 + TRAY_H * α1
-        h4b = -α3 + w2 * α2 - TRAY_H * α1
-        # h4a = 1
-        # h4b = 1
+        rz = -TRAY_H
+        r = TRAY_W
 
-        return jnp.array([h1a, h1b, h2, h3a, h3b, h4a, h4b])
+        γ = rz * S.T @ α[:2] - β[:2]
+
+        # NOTE: these constraints are currently written to be >= 0, in
+        # constraint to the notes which have everything <= 0.
+        # NOTE the addition of a small term in the square root to ensure
+        # derivative is well-defined at 0
+        ε2 = 0.01
+
+        # h1 = (TRAY_MU * α[2])**2 - (α[0]**2 + α[1]**2)  # friction cone
+        # h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + 0.01)  # friction cone
+
+        # Friction cone with rotational component: this is always a tighter
+        # bound than when the rotational component isn't considered (which
+        # makes sense).
+        # Splitting the absolute value into two constraints appears to be
+        # better numerically for the solver
+
+        h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2)
+        h1a = h1 + β[2] / r
+        h1b = h1 - β[2] / r
+
+        # h1 = TRAY_MU**2 * α[2]**2 - α[0] ** 2 - α[1] ** 2
+        #
+        # h1a = h1
+        # h1b = 1
+
+        # this approximation actually works less well than the correct
+        # quadratic expression above:
+        # TODO probably because of the poor gradient info the absolute values
+        # h1 = TRAY_MU * α[2] - jnp.abs(α[0]) - jnp.abs(α[1])
+
+        h2 = α[2]  # α3 >= 0
+
+        # h3 = r * α[2] - jnp.sqrt(γ[0] ** 2 + γ[1] ** 2 + ε2)
+        h3 = r ** 2 * α[2] ** 2 - γ[0] ** 2 - γ[1] ** 2
+        # h3 = 1
+
+        return jnp.array([h1a, h1b, h2, h3])
 
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints_unrolled(self, X_q_0, P_we_d, V_ew_w_d, var):
@@ -297,7 +365,9 @@ def setup_sim():
 
     # get rid of extra parts of the GUI
     pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
-    pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, "tray3d.mp4")
+
+    # record video
+    # pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, "tray3d.mp4")
 
     # setup ground plane
     pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -314,7 +384,6 @@ def setup_sim():
     robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
 
     # setup tray
-    # TODO we want to add a constraint to the tray
     tray = Tray(mass=TRAY_MASS, radius=TRAY_RADIUS, height=2 * TRAY_H, mu=TRAY_MU)
     ee_pos, _ = robot.link_pose()
     tray.reset_pose(position=ee_pos + [0, 0, TRAY_H + 0.05])
@@ -324,10 +393,11 @@ def setup_sim():
     return robot, tray
 
 
+# TODO should put this in the util file
 def calc_r_te_e(P_we, r_tw_w):
     r_ew_w, Q_we = pose_to_pos_quat(P_we)
     r_te_w = r_tw_w - r_ew_w
-    return SO3.from_quaternion_xyzw(Q_we) @ r_te_w
+    return SO3.from_quaternion_xyzw(Q_we).inverse() @ r_te_w
 
 
 def main():
