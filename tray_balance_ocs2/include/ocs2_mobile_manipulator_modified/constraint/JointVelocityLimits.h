@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 
-#include <ocs2_mobile_manipulator_example/definitions.h>
+#include <ocs2_mobile_manipulator_modified/definitions.h>
 
 #include <ocs2_core/constraint/StateInputConstraint.h>
 

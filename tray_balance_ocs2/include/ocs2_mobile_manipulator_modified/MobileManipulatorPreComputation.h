@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_core/PreComputation.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
-#include <ocs2_mobile_manipulator_example/MobileManipulatorPinocchioMapping.h>
+#include <ocs2_mobile_manipulator_modified/MobileManipulatorPinocchioMapping.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {

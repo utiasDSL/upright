@@ -29,7 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <ocs2_mobile_manipulator_example/definitions.h>
+#include <ocs2_mobile_manipulator_modified/definitions.h>
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 
 namespace ocs2 {

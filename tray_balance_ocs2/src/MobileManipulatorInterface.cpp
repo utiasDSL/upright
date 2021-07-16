@@ -46,14 +46,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 #include <ocs2_self_collision/loadStdVectorOfPair.h>
 
-#include <ocs2_mobile_manipulator_example/MobileManipulatorDynamics.h>
-#include <ocs2_mobile_manipulator_example/MobileManipulatorInterface.h>
-#include <ocs2_mobile_manipulator_example/MobileManipulatorPreComputation.h>
-#include <ocs2_mobile_manipulator_example/constraint/EndEffectorConstraint.h>
-#include <ocs2_mobile_manipulator_example/constraint/JointVelocityLimits.h>
-#include <ocs2_mobile_manipulator_example/constraint/MobileManipulatorSelfCollisionConstraint.h>
-#include <ocs2_mobile_manipulator_example/cost/QuadraticInputCost.h>
-#include <ocs2_mobile_manipulator_example/definitions.h>
+#include <ocs2_mobile_manipulator_modified/MobileManipulatorDynamics.h>
+#include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
+#include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
+#include <ocs2_mobile_manipulator_modified/constraint/EndEffectorConstraint.h>
+#include <ocs2_mobile_manipulator_modified/constraint/JointVelocityLimits.h>
+#include <ocs2_mobile_manipulator_modified/constraint/MobileManipulatorSelfCollisionConstraint.h>
+#include <ocs2_mobile_manipulator_modified/cost/QuadraticInputCost.h>
+#include <ocs2_mobile_manipulator_modified/definitions.h>
 
 #include <ros/package.h>
 
@@ -64,10 +64,10 @@ namespace mobile_manipulator {
 /******************************************************************************************************/
 /******************************************************************************************************/
 MobileManipulatorInterface::MobileManipulatorInterface(const std::string& taskFileFolderName) {
-  const std::string taskFile = ros::package::getPath("ocs2_mobile_manipulator_example") + "/config/" + taskFileFolderName + "/task.info";
+  const std::string taskFile = ros::package::getPath("ocs2_mobile_manipulator_modified") + "/config/" + taskFileFolderName + "/task.info";
   std::cerr << "Loading task file: " << taskFile << std::endl;
 
-  const std::string libraryFolder = "/tmp/ocs2/ocs2_mobile_manipulator_example";
+  const std::string libraryFolder = "/tmp/ocs2/ocs2_mobile_manipulator_modified";
   std::cerr << "Generated library path: " << libraryFolder << std::endl;
 
   // load setting from config file
@@ -91,7 +91,7 @@ PinocchioInterface MobileManipulatorInterface::buildPinocchioInterface(const std
 /******************************************************************************************************/
 /******************************************************************************************************/
 void MobileManipulatorInterface::loadSettings(const std::string& taskFile, const std::string& libraryFolder) {
-  const std::string urdfPath = ros::package::getPath("ocs2_mobile_manipulator_example") + "/urdf/mobile_manipulator.urdf";
+  const std::string urdfPath = ros::package::getPath("ocs2_mobile_manipulator_modified") + "/urdf/mobile_manipulator.urdf";
   std::cerr << "Load Pinocchio model from " << urdfPath << '\n';
 
   pinocchioInterfacePtr_.reset(new PinocchioInterface(buildPinocchioInterface(urdfPath)));

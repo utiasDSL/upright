@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_self_collision/loadStdVectorOfPair.h>
 #include <ocs2_self_collision/visualization/GeometryInterfaceVisualization.h>
 
-#include <ocs2_mobile_manipulator_example/MobileManipulatorInterface.h>
+#include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
 
 #include <ros/package.h>
 #include <ros/ros.h>
@@ -73,9 +73,9 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "distance_visualization");
   ros::NodeHandle nodeHandle;
 
-  const std::string urdfPath = ros::package::getPath("ocs2_mobile_manipulator_example") + "/urdf/mobile_manipulator.urdf";
+  const std::string urdfPath = ros::package::getPath("ocs2_mobile_manipulator_modified") + "/urdf/mobile_manipulator.urdf";
   const std::string taskFileFolder = "mpc";
-  const std::string taskFile = ros::package::getPath("ocs2_mobile_manipulator_example") + "/config/" + taskFileFolder + "/task.info";
+  const std::string taskFile = ros::package::getPath("ocs2_mobile_manipulator_modified") + "/config/" + taskFileFolder + "/task.info";
 
   std::cerr << "Loading task file: " << taskFile << std::endl;
 

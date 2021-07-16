@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 
-#include <ocs2_mobile_manipulator_example/MobileManipulatorPreComputation.h>
+#include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
 #include <ocs2_self_collision/SelfCollisionConstraint.h>
 
 namespace ocs2 {
