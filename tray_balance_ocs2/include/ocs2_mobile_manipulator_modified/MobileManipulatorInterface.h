@@ -77,6 +77,7 @@ class MobileManipulatorInterface final : public RobotInterface {
 
  private:
   std::unique_ptr<StateInputCost> getQuadraticInputCost(const std::string& taskFile);
+  std::unique_ptr<StateCost> getQuadraticStateCost(const std::string& taskFile);
   std::unique_ptr<StateCost> getEndEffectorConstraint(PinocchioInterface pinocchioInterface, const std::string& taskFile,
                                                       const std::string& prefix, bool useCaching, const std::string& libraryFolder,
                                                       bool recompileLibraries);

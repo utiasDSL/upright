@@ -38,19 +38,26 @@ namespace ocs2 {
 namespace mobile_manipulator {
 
 class MobileManipulatorDynamics final : public SystemDynamicsBaseAD {
- public:
-  using Base = SystemDynamicsBaseAD;
+   public:
+    using Base = SystemDynamicsBaseAD;
 
-  explicit MobileManipulatorDynamics(const std::string& modelName, const std::string& modelFolder = "/tmp/ocs2",
-                                     bool recompileLibraries = true, bool verbose = true);
-  ~MobileManipulatorDynamics() override = default;
-  MobileManipulatorDynamics* clone() const override { return new MobileManipulatorDynamics(*this); }
+    explicit MobileManipulatorDynamics(
+        const std::string& modelName,
+        const std::string& modelFolder = "/tmp/ocs2",
+        bool recompileLibraries = true, bool verbose = true);
 
-  ad_vector_t systemFlowMap(ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
-                            const ad_vector_t& parameters) const override;
+    ~MobileManipulatorDynamics() override = default;
 
- private:
-  MobileManipulatorDynamics(const MobileManipulatorDynamics& rhs) = default;
+    MobileManipulatorDynamics* clone() const override {
+        return new MobileManipulatorDynamics(*this);
+    }
+
+    ad_vector_t systemFlowMap(ad_scalar_t time, const ad_vector_t& state,
+                              const ad_vector_t& input,
+                              const ad_vector_t& parameters) const override;
+
+   private:
+    MobileManipulatorDynamics(const MobileManipulatorDynamics& rhs) = default;
 };
 
 }  // namespace mobile_manipulator
