@@ -45,12 +45,17 @@ ad_vector_t MobileManipulatorDynamics::systemFlowMap(
     ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
     const ad_vector_t& parameters) const {
 
+    // std::cerr << ">>> state length = " << state.rows() << std::endl;
+    // std::cerr << ">>> input length = " << input.rows() << std::endl;
+    // assert(state.rows() == STATE_DIM);
+
     ad_vector_t dxdt(STATE_DIM);
-    dxdt.setZero(); // TODO doesn't help
-    ad_vector_t velocity = state.tail(INPUT_DIM);
     const auto theta = state(2);
-    const auto v = velocity(0);  // forward velocity in base frame
-    dxdt << cos(theta) * v, sin(theta) * v, velocity(1), velocity.tail(6), input;
+    const auto a = input(0);  // forward velocity in base frame
+    // ad_vector_t velocity = state.segment(NUM_DOFS, NUM_DOFS);
+    ad_vector_t velocity = state.tail(NUM_DOFS);
+    dxdt << velocity, cos(theta) * a, sin(theta) * a, input.tail(7);
+    // dxdt << ad_vector_t::Zero(2), velocity.tail(7), ad_vector_t::Zero(2), input.tail(7);
     return dxdt;
 }
 

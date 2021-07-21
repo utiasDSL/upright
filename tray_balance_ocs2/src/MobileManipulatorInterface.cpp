@@ -154,10 +154,11 @@ void MobileManipulatorInterface::loadSettings(
     problem_.dynamicsPtr = std::move(dynamicsPtr);
 
     /* Cost */
-    // problem_.costPtr->add("inputCost", getQuadraticInputCost(taskFile));
-    problem_.stateCostPtr->add("stateCost", getQuadraticStateCost(taskFile));
+    problem_.costPtr->add("inputCost", getQuadraticInputCost(taskFile));
+    // problem_.stateCostPtr->add("stateCost", getQuadraticStateCost(taskFile));
 
     /* Constraints */
+    // NOTE: these are actually acceleration constraints
     problem_.softConstraintPtr->add("jointVelocityLimit",
                                     getJointVelocityLimitConstraint(taskFile));
     // problem_.stateSoftConstraintPtr->add(
@@ -165,16 +166,16 @@ void MobileManipulatorInterface::loadSettings(
     //     getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, urdfPath,
     //                                usePreComputation, libraryFolder,
     //                                recompileLibraries));
-    // problem_.stateSoftConstraintPtr->add(
-    //     "endEffector",
-    //     getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
-    //                              "endEffector", usePreComputation,
-    //                              libraryFolder, recompileLibraries));
-    // problem_.finalSoftConstraintPtr->add(
-    //     "finalEndEffector",
-    //     getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
-    //                              "finalEndEffector", usePreComputation,
-    //                              libraryFolder, recompileLibraries));
+    problem_.stateSoftConstraintPtr->add(
+        "endEffector",
+        getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
+                                 "endEffector", usePreComputation,
+                                 libraryFolder, recompileLibraries));
+    problem_.finalSoftConstraintPtr->add(
+        "finalEndEffector",
+        getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
+                                 "finalEndEffector", usePreComputation,
+                                 libraryFolder, recompileLibraries));
 
     /*
      * Use pre-computation
@@ -234,7 +235,7 @@ MobileManipulatorInterface::getQuadraticStateCost(const std::string& taskFile) {
                  "============================================================="
                  "================\n";
     loadData::loadEigenMatrix(taskFile, "stateCost.Q", Q);
-    std::cerr << "inputCost.Q:  \n" << Q << '\n';
+    std::cerr << "stateCost.Q:  \n" << Q << '\n';
     std::cerr << " #### "
                  "============================================================="
                  "================"
