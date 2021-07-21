@@ -28,7 +28,7 @@ ddp
   inequalityConstraintMu        100.0
   inequalityConstraintDelta     1.1
 
-  preComputeRiccatiTerms        true
+  preComputeRiccatiTerms        false
   useNominalTimeForBackwardPass false
 
   useFeedbackPolicy             false
@@ -49,7 +49,7 @@ rollout
   AbsTolODE                     1e-5
   RelTolODE                     1e-3
   timeStep                      1e-2
-  maxNumStepsPerSecond          100000
+  maxNumStepsPerSecond          10000 ; was 100000
   checkNumericalStability       true
 }
 
@@ -127,15 +127,15 @@ stateCost
     scaling 1
 
     ; 0 for position for now
-    (0,0)  0.0  ;
-    (1,1)  0.0  ;
-    (2,2)  0.0  ;
-    (3,3)  0.0  ;
-    (4,4)  0.0  ;
-    (5,5)  0.0  ;
-    (6,6)  0.0  ;
-    (7,7)  0.0  ;
-    (8,8)  0.0  ;
+    (0,0)  1.0  ;
+    (1,1)  1.0  ;
+    (2,2)  1.0  ;
+    (3,3)  1.0  ;
+    (4,4)  1.0  ;
+    (5,5)  1.0  ;
+    (6,6)  1.0  ;
+    (7,7)  1.0  ;
+    (8,8)  1.0  ;
 
     ; velocity weight
     (9,9)    1.0

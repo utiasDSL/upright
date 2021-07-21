@@ -29,6 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include <iostream>
+
 #include <ocs2_mobile_manipulator_modified/definitions.h>
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 
@@ -46,17 +48,28 @@ class MobileManipulatorPinocchioMapping final : public PinocchioStateInputMappin
   ~MobileManipulatorPinocchioMapping() override = default;
   MobileManipulatorPinocchioMapping<SCALAR>* clone() const override { return new MobileManipulatorPinocchioMapping<SCALAR>(*this); }
 
-  vector_t getPinocchioJointPosition(const vector_t& state) const override { return state; }
+  vector_t getPinocchioJointPosition(const vector_t& state) const override { return state.head(NUM_DOFS); }
 
   vector_t getPinocchioJointVelocity(const vector_t& state, const vector_t& input) const override {
-    vector_t dxdt(STATE_DIM);
+    vector_t dqdt(NUM_DOFS);
+    vector_t velocity = state.tail(INPUT_DIM);
     const auto theta = state(2);
-    const auto v = input(0);  // forward velocity in base frame
-    dxdt << cos(theta) * v, sin(theta) * v, input(1), input.tail(6);
-    return dxdt;
+    const auto v = velocity(0);  // forward velocity in base frame
+    dqdt << cos(theta) * v, sin(theta) * v, velocity(1), velocity.tail(6);
+    return dqdt;
   }
 
   std::pair<matrix_t, matrix_t> getOcs2Jacobian(const vector_t& state, const matrix_t& Jq, const matrix_t& Jv) const override {
+      // TODO this is confusing: Jv is w.r.t. joint velocity? rather than the
+      // inputs u
+      // std::cerr << ">>> Jq.shape = (" << Jq.rows() << ", " << Jq.cols() << ")" << std::endl;
+      // std::cerr << ">>> Jv.shape = (" << Jv.rows() << ", " << Jv.cols() << ")" << std::endl;
+
+      // matrix_t dfdu(STATE_DIM, INPUT_DIM);
+      // dfdu << matrix_t::Zero(NUM_DOFS, INPUT_DIM), matrix_t::Identity(INPUT_DIM);
+      //
+      // matrix_t dxdu(STATE_DIM, STATE_DIM);
+
     matrix_t dfdu(Jv.rows(), INPUT_DIM);
     Eigen::Matrix<SCALAR, 3, 2> dvdu_base;
     const SCALAR theta = state(2);

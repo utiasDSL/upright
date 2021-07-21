@@ -49,7 +49,7 @@ ad_vector_t MobileManipulatorDynamics::systemFlowMap(
     dxdt.setZero(); // TODO doesn't help
     ad_vector_t velocity = state.tail(INPUT_DIM);
     const auto theta = state(2);
-    const auto v = velocity(0);  // forward acceleration in base frame
+    const auto v = velocity(0);  // forward velocity in base frame
     dxdt << cos(theta) * v, sin(theta) * v, velocity(1), velocity.tail(6), input;
     return dxdt;
 }

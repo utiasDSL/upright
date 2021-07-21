@@ -154,27 +154,27 @@ void MobileManipulatorInterface::loadSettings(
     problem_.dynamicsPtr = std::move(dynamicsPtr);
 
     /* Cost */
-    problem_.costPtr->add("inputCost", getQuadraticInputCost(taskFile));
+    // problem_.costPtr->add("inputCost", getQuadraticInputCost(taskFile));
     problem_.stateCostPtr->add("stateCost", getQuadraticStateCost(taskFile));
 
     /* Constraints */
     problem_.softConstraintPtr->add("jointVelocityLimit",
                                     getJointVelocityLimitConstraint(taskFile));
-    problem_.stateSoftConstraintPtr->add(
-        "selfCollision",
-        getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, urdfPath,
-                                   usePreComputation, libraryFolder,
-                                   recompileLibraries));
-    problem_.stateSoftConstraintPtr->add(
-        "endEffector",
-        getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
-                                 "endEffector", usePreComputation,
-                                 libraryFolder, recompileLibraries));
-    problem_.finalSoftConstraintPtr->add(
-        "finalEndEffector",
-        getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
-                                 "finalEndEffector", usePreComputation,
-                                 libraryFolder, recompileLibraries));
+    // problem_.stateSoftConstraintPtr->add(
+    //     "selfCollision",
+    //     getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, urdfPath,
+    //                                usePreComputation, libraryFolder,
+    //                                recompileLibraries));
+    // problem_.stateSoftConstraintPtr->add(
+    //     "endEffector",
+    //     getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
+    //                              "endEffector", usePreComputation,
+    //                              libraryFolder, recompileLibraries));
+    // problem_.finalSoftConstraintPtr->add(
+    //     "finalEndEffector",
+    //     getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
+    //                              "finalEndEffector", usePreComputation,
+    //                              libraryFolder, recompileLibraries));
 
     /*
      * Use pre-computation

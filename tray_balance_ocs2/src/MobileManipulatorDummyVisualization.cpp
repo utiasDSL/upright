@@ -199,7 +199,7 @@ void MobileManipulatorDummyVisualization::publishOptimizedTrajectory(const ros::
   std::vector<geometry_msgs::Point> endEffectorTrajectory;
   endEffectorTrajectory.reserve(mpcStateTrajectory.size());
   std::for_each(mpcStateTrajectory.begin(), mpcStateTrajectory.end(), [&](const Eigen::VectorXd& state) {
-    pinocchio::forwardKinematics(model, data, state);
+    pinocchio::forwardKinematics(model, data, state.head<NUM_DOFS>());
     pinocchio::updateFramePlacements(model, data);
     const auto eeIndex = model.getBodyId("WRIST_2");
     const vector_t eePosition = data.oMf[eeIndex].translation();
