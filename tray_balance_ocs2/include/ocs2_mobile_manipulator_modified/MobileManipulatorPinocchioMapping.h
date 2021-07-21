@@ -38,50 +38,56 @@ namespace ocs2 {
 namespace mobile_manipulator {
 
 template <typename SCALAR>
-class MobileManipulatorPinocchioMapping final : public PinocchioStateInputMapping<SCALAR> {
- public:
-  using Base = PinocchioStateInputMapping<SCALAR>;
-  using typename Base::matrix_t;
-  using typename Base::vector_t;
+class MobileManipulatorPinocchioMapping final
+    : public PinocchioStateInputMapping<SCALAR> {
+   public:
+    using Base = PinocchioStateInputMapping<SCALAR>;
+    using typename Base::matrix_t;
+    using typename Base::vector_t;
 
-  MobileManipulatorPinocchioMapping() = default;
-  ~MobileManipulatorPinocchioMapping() override = default;
-  MobileManipulatorPinocchioMapping<SCALAR>* clone() const override { return new MobileManipulatorPinocchioMapping<SCALAR>(*this); }
+    MobileManipulatorPinocchioMapping() = default;
+    ~MobileManipulatorPinocchioMapping() override = default;
+    MobileManipulatorPinocchioMapping<SCALAR>* clone() const override {
+        return new MobileManipulatorPinocchioMapping<SCALAR>(*this);
+    }
 
-  vector_t getPinocchioJointPosition(const vector_t& state) const override { return state.head(NUM_DOFS); }
+    vector_t getPinocchioJointPosition(const vector_t& state) const override {
+        return state.head(NUM_DOFS);
+    }
 
-  vector_t getPinocchioJointVelocity(const vector_t& state, const vector_t& input) const override {
-    // vector_t dqdt(NUM_DOFS);
-    vector_t velocity = state.tail(NUM_DOFS);
-    // const auto theta = state(2);
-    // const auto v = velocity(0);  // forward velocity in base frame
-    // dqdt << cos(theta) * v, sin(theta) * v, velocity(1), velocity.tail(6);
-    return velocity;
-  }
+    vector_t getPinocchioJointVelocity(const vector_t& state,
+                                       const vector_t& input) const override {
+        return state.tail(NUM_DOFS);
+    }
 
-  std::pair<matrix_t, matrix_t> getOcs2Jacobian(const vector_t& state, const matrix_t& Jq, const matrix_t& Jv) const override {
-      // TODO this is confusing: Jv is w.r.t. joint velocity? rather than the
-      // inputs u
-      std::cerr << ">>> Jq.shape = (" << Jq.rows() << ", " << Jq.cols() << ")" << std::endl;
-      std::cerr << ">>> Jv.shape = (" << Jv.rows() << ", " << Jv.cols() << ")" << std::endl;
+    std::pair<matrix_t, matrix_t> getOcs2Jacobian(
+        const vector_t& state, const matrix_t& Jq,
+        const matrix_t& Jv) const override {
+        // TODO this is confusing: Jv is w.r.t. joint velocity? rather than the
+        // inputs u
+        std::cerr << ">>> Jq.shape = (" << Jq.rows() << ", " << Jq.cols() << ")"
+                  << std::endl;
+        std::cerr << ">>> Jv.shape = (" << Jv.rows() << ", " << Jv.cols() << ")"
+                  << std::endl;
 
-      // matrix_t dfdu(STATE_DIM, INPUT_DIM);
-      // dfdu << matrix_t::Zero(NUM_DOFS, INPUT_DIM), matrix_t::Identity(INPUT_DIM);
-      //
-      // matrix_t dxdu(STATE_DIM, STATE_DIM);
+        // matrix_t dfdu(STATE_DIM, INPUT_DIM);
+        // dfdu << matrix_t::Zero(NUM_DOFS, INPUT_DIM),
+        // matrix_t::Identity(INPUT_DIM);
+        //
+        // matrix_t dxdu(STATE_DIM, STATE_DIM);
 
-    matrix_t dfdu(Jv.rows(), INPUT_DIM);
-    Eigen::Matrix<SCALAR, 3, 2> dvdu_base;
-    const SCALAR theta = state(2);
-    // clang-format off
+        matrix_t dfdu(Jv.rows(), INPUT_DIM);
+        Eigen::Matrix<SCALAR, 3, 2> dvdu_base;
+        const SCALAR theta = state(2);
+        // clang-format off
     dvdu_base << cos(theta), 0,
                  sin(theta), 0,
                  0, 1.0;
-    // clang-format on
-    dfdu.template leftCols<2>() = Jv.template leftCols<3>() * dvdu_base;
-    dfdu.template rightCols<6>() = Jv.template rightCols<6>();
-    return {Jq, dfdu};
-  }
+        // clang-format on
+        dfdu.template leftCols<2>() = Jv.template leftCols<3>() * dvdu_base;
+        dfdu.template rightCols<6>() = Jv.template rightCols<6>();
+        return {Jq, dfdu};
+    }
 };
 
 }  // namespace mobile_manipulator

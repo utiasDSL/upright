@@ -106,6 +106,7 @@ VectorFunctionLinearApproximation EndEffectorConstraint::getLinearApproximation(
     const auto desiredPositionOrientation = interpolateEndEffectorPose(time);
 
     auto approximation = VectorFunctionLinearApproximation(6, state.rows(), 0);
+    approximation.setZero(6, state.rows(), 0);
 
     const auto eePosition =
         endEffectorKinematicsPtr_->getPositionLinearApproximation(state)
