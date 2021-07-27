@@ -22,7 +22,7 @@ ddp
   AbsTolODE                     1e-2
   RelTolODE                     1e-1
   timeStep                      1e-2
-  maxNumStepsPerSecond          1000000
+  maxNumStepsPerSecond          10000000
   backwardPassIntegratorType    ODE45
 
   inequalityConstraintMu        100.0
@@ -49,14 +49,14 @@ rollout
   AbsTolODE                     1e-5
   RelTolODE                     1e-3
   timeStep                      1e-2
-  maxNumStepsPerSecond          10000
+  maxNumStepsPerSecond          100000
   checkNumericalStability       true
 }
 
 ; MPC settings
 mpc
 {
-  timeHorizon                    1.0
+  timeHorizon                    2.0
   numPartitions                  4
 
   runtimeMaxNumIterations        1

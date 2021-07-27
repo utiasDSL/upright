@@ -60,33 +60,24 @@ class MobileManipulatorPinocchioMapping final
         return state.tail(NUM_DOFS);
     }
 
+    // NOTE: maps the Jacobians of an arbitrary function f w.r.t q and v
+    // (generalized positions and velocities), as provided by Pinocchio as Jq
+    // and Jv, to the Jacobian of the state dfdx and Jacobian of the input
+    // dfdu.
     std::pair<matrix_t, matrix_t> getOcs2Jacobian(
         const vector_t& state, const matrix_t& Jq,
         const matrix_t& Jv) const override {
-        // TODO this is confusing: Jv is w.r.t. joint velocity? rather than the
-        // inputs u
-        std::cerr << ">>> Jq.shape = (" << Jq.rows() << ", " << Jq.cols() << ")"
-                  << std::endl;
-        std::cerr << ">>> Jv.shape = (" << Jv.rows() << ", " << Jv.cols() << ")"
-                  << std::endl;
 
-        // matrix_t dfdu(STATE_DIM, INPUT_DIM);
-        // dfdu << matrix_t::Zero(NUM_DOFS, INPUT_DIM),
-        // matrix_t::Identity(INPUT_DIM);
-        //
-        // matrix_t dxdu(STATE_DIM, STATE_DIM);
+        const auto output_dim = Jq.rows();
+        matrix_t dfdx(output_dim, Jq.cols() + Jv.cols());
+        dfdx << Jq, Jv;
 
-        matrix_t dfdu(Jv.rows(), INPUT_DIM);
-        Eigen::Matrix<SCALAR, 3, 2> dvdu_base;
-        const SCALAR theta = state(2);
-        // clang-format off
-    dvdu_base << cos(theta), 0,
-                 sin(theta), 0,
-                 0, 1.0;
-        // clang-format on
-        dfdu.template leftCols<2>() = Jv.template leftCols<3>() * dvdu_base;
-        dfdu.template rightCols<6>() = Jv.template rightCols<6>();
-        return {Jq, dfdu};
+        // NOTE: not correct but this isn't used for collision avoidance (which
+        // is the only place this method is called)
+        matrix_t dfdu(output_dim, INPUT_DIM);
+        dfdu.setZero();
+
+        return {dfdx, dfdu};
     }
 };
 

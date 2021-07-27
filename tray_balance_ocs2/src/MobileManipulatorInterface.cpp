@@ -161,11 +161,12 @@ void MobileManipulatorInterface::loadSettings(
     // NOTE: these are actually acceleration constraints
     problem_.softConstraintPtr->add("jointVelocityLimit",
                                     getJointVelocityLimitConstraint(taskFile));
-    // problem_.stateSoftConstraintPtr->add(
-    //     "selfCollision",
-    //     getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, urdfPath,
-    //                                usePreComputation, libraryFolder,
-    //                                recompileLibraries));
+
+    problem_.stateSoftConstraintPtr->add(
+        "selfCollision",
+        getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, urdfPath,
+                                   usePreComputation, libraryFolder,
+                                   recompileLibraries));
     problem_.stateSoftConstraintPtr->add(
         "endEffector",
         getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
