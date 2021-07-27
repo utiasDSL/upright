@@ -19,10 +19,10 @@ ddp
   displayShortSummary           false
   checkNumericalStability       false
 
-  AbsTolODE                     1e-2
-  RelTolODE                     1e-1
-  timeStep                      1e-2
-  maxNumStepsPerSecond          10000000
+  AbsTolODE                     1e-5
+  RelTolODE                     1e-3
+  timeStep                      1e-3
+  maxNumStepsPerSecond          100000
   backwardPassIntegratorType    ODE45
 
   inequalityConstraintMu        100.0
@@ -67,7 +67,7 @@ mpc
   initMaxStepLength              1.0
   initMinStepLength              1e-2
 
-  debugPrint                     false
+  debugPrint                     true
   coldStart                      false
 
   useParallelRiccatiSolver       true  ; use disjoint riccati solver in MP case and recedingHorizon fashion
@@ -108,14 +108,15 @@ inputCost
   {
     scaling 1e-2
 
-    (0,0)  5.0  ; forward velocity
-    (1,1)  5.0  ; turning velocity
-    (2,2)  1.0  ; SH_ROT velocity
-    (3,3)  1.0  ; SH_FLE velocity
-    (4,4)  1.0  ; EL_FLE velocity
-    (5,5)  1.0  ; EL_ROT velocity
-    (6,6)  1.0  ; WR_FLE velocity
-    (7,7)  1.0  ; WR_ROT velocity
+    (0,0)  5.0  ; x velocity
+    (1,1)  5.0  ; y velocity
+    (2,2)  5.0  ; angle velocity
+    (3,3)  1.0  ; SH_ROT velocity
+    (4,4)  1.0  ; SH_FLE velocity
+    (5,5)  1.0  ; EL_FLE velocity
+    (6,6)  1.0  ; EL_ROT velocity
+    (7,7)  1.0  ; WR_FLE velocity
+    (8,8)  1.0  ; WR_ROT velocity
   }
 }
 
@@ -124,9 +125,9 @@ stateCost
   ; state weight matrix
   Q
   {
-    scaling 1e-4
+    scaling 1
 
-    ; 0 for position for now
+    ; position
     (0,0)  0.0  ;
     (1,1)  0.0  ;
     (2,2)  0.0  ;
@@ -137,7 +138,7 @@ stateCost
     (7,7)  0.0  ;
     (8,8)  0.0  ;
 
-    ; velocity weight
+    ; velocity
     (9,9)    1.0
     (10,10)  1.0
     (11,11)  1.0
@@ -199,26 +200,28 @@ jointVelocityLimits
 {
   lowerBound
   {
-    (0,0) -0.5  ; forward velocity
-    (1,0) -0.5  ; turning velocity
-    (2,0) -1.0  ; SH_ROT
-    (3,0) -1.0  ; SH_FLE
-    (4,0) -1.0  ; EL_FLE
-    (5,0) -1.0  ; EL_ROT
-    (6,0) -1.0  ; WR_FLE
-    (7,0) -1.0  ; WR_ROT
+    (0,0) -0.5  ; x velocity
+    (1,0) -0.5  ; y velocity
+    (2,0) -0.5  ; angle velocity
+    (3,0) -1.0  ; SH_ROT
+    (4,0) -1.0  ; SH_FLE
+    (5,0) -1.0  ; EL_FLE
+    (6,0) -1.0  ; EL_ROT
+    (7,0) -1.0  ; WR_FLE
+    (8,0) -1.0  ; WR_ROT
   }
 
   upperBound
   {
-    (0,0) 0.5  ; forward velocity
-    (1,0) 0.5  ; turning velocity
-    (2,0) 1.0  ; SH_ROT
-    (3,0) 1.0  ; SH_FLE
-    (4,0) 1.0  ; EL_FLE
-    (5,0) 1.0  ; EL_ROT
-    (6,0) 1.0  ; WR_FLE
-    (7,0) 1.0  ; WR_ROT
+    (0,0) 0.5  ; x velocity
+    (1,0) 0.5  ; y velocity
+    (2,0) 0.5  ; angle velocity
+    (3,0) 1.0  ; SH_ROT
+    (4,0) 1.0  ; SH_FLE
+    (5,0) 1.0  ; EL_FLE
+    (6,0) 1.0  ; EL_ROT
+    (7,0) 1.0  ; WR_FLE
+    (8,0) 1.0  ; WR_ROT
   }
 
   ; relaxed log barrier mu

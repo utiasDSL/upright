@@ -46,6 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 #include <ocs2_self_collision/loadStdVectorOfPair.h>
 
+#include <ocs2_core/cost/QuadraticStateCost.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorDynamics.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
@@ -53,7 +54,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_mobile_manipulator_modified/constraint/JointVelocityLimits.h>
 #include <ocs2_mobile_manipulator_modified/constraint/MobileManipulatorSelfCollisionConstraint.h>
 #include <ocs2_mobile_manipulator_modified/cost/QuadraticInputCost.h>
-#include <ocs2_core/cost/QuadraticStateCost.h>
 #include <ocs2_mobile_manipulator_modified/definitions.h>
 
 #include <ros/package.h>
@@ -154,8 +154,15 @@ void MobileManipulatorInterface::loadSettings(
     problem_.dynamicsPtr = std::move(dynamicsPtr);
 
     /* Cost */
-    problem_.costPtr->add("inputCost", getQuadraticInputCost(taskFile));
+    problem_.costPtr->add("stateInputCost",
+                          getQuadraticStateInputCost(taskFile));
+
+    // TODO: somehow these state costs always cause the solver to fail
     // problem_.stateCostPtr->add("stateCost", getQuadraticStateCost(taskFile));
+    // matrix_t Qf(STATE_DIM, STATE_DIM);
+    // loadData::loadEigenMatrix(taskFile, "stateCost.Q", Qf);
+    // problem_.finalCostPtr->add(
+    //     "finalCost", std::unique_ptr<StateCost>(new QuadraticStateCost(Qf)));
 
     /* Constraints */
     // NOTE: these are actually acceleration constraints
@@ -208,7 +215,9 @@ std::unique_ptr<MPC_DDP> MobileManipulatorInterface::getMpc() {
 /******************************************************************************************************/
 /******************************************************************************************************/
 std::unique_ptr<StateInputCost>
-MobileManipulatorInterface::getQuadraticInputCost(const std::string& taskFile) {
+MobileManipulatorInterface::getQuadraticStateInputCost(
+    const std::string& taskFile) {
+    matrix_t Q(STATE_DIM, STATE_DIM);
     matrix_t R(INPUT_DIM, INPUT_DIM);
 
     std::cerr << "\n #### Input Cost Settings: ";
@@ -216,19 +225,22 @@ MobileManipulatorInterface::getQuadraticInputCost(const std::string& taskFile) {
                  "============================================================="
                  "================\n";
     loadData::loadEigenMatrix(taskFile, "inputCost.R", R);
+    loadData::loadEigenMatrix(taskFile, "stateCost.Q", Q);
+    std::cerr << "stateCost.Q:  \n" << Q << '\n';
     std::cerr << "inputCost.R:  \n" << R << '\n';
     std::cerr << " #### "
                  "============================================================="
                  "================"
               << std::endl;
 
+    // return std::unique_ptr<StateInputCost>(
+    //     new QuadraticStateInputCost(std::move(Q), std::move(R)));
     return std::unique_ptr<StateInputCost>(
         new QuadraticInputCost(std::move(R)));
 }
 
-
-std::unique_ptr<StateCost>
-MobileManipulatorInterface::getQuadraticStateCost(const std::string& taskFile) {
+std::unique_ptr<StateCost> MobileManipulatorInterface::getQuadraticStateCost(
+    const std::string& taskFile) {
     matrix_t Q(STATE_DIM, STATE_DIM);
 
     std::cerr << "\n #### State Cost Settings: ";
@@ -242,8 +254,7 @@ MobileManipulatorInterface::getQuadraticStateCost(const std::string& taskFile) {
                  "================"
               << std::endl;
 
-    return std::unique_ptr<StateCost>(
-        new QuadraticStateCost(std::move(Q)));
+    return std::unique_ptr<StateCost>(new QuadraticStateCost(std::move(Q)));
 }
 
 /******************************************************************************************************/
