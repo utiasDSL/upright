@@ -7,7 +7,7 @@ model_settings
 ; DDP settings
 ddp
 {
-  algorithm                     SLQ
+  algorithm                     ILQR
 
   nThreads                      3
 
@@ -125,7 +125,7 @@ stateCost
   ; state weight matrix
   Q
   {
-    scaling 1
+    scaling 1e-4
 
     ; position
     (0,0)  0.0  ;

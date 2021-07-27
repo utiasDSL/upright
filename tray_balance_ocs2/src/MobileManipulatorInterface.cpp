@@ -233,10 +233,10 @@ MobileManipulatorInterface::getQuadraticStateInputCost(
                  "================"
               << std::endl;
 
-    // return std::unique_ptr<StateInputCost>(
-    //     new QuadraticStateInputCost(std::move(Q), std::move(R)));
     return std::unique_ptr<StateInputCost>(
-        new QuadraticInputCost(std::move(R)));
+        new QuadraticStateInputCost(std::move(Q), std::move(R)));
+    // return std::unique_ptr<StateInputCost>(
+    //     new QuadraticInputCost(std::move(R)));
 }
 
 std::unique_ptr<StateCost> MobileManipulatorInterface::getQuadraticStateCost(
