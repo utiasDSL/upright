@@ -53,6 +53,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_mobile_manipulator_modified/constraint/EndEffectorConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/JointVelocityLimits.h>
 #include <ocs2_mobile_manipulator_modified/constraint/MobileManipulatorSelfCollisionConstraint.h>
+#include <ocs2_mobile_manipulator_modified/constraint/TrayBalanceConstraints.h>
 #include <ocs2_mobile_manipulator_modified/cost/QuadraticInputCost.h>
 #include <ocs2_mobile_manipulator_modified/definitions.h>
 

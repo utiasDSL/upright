@@ -60,6 +60,11 @@ class MobileManipulatorPinocchioMapping final
         return state.tail(NUM_DOFS);
     }
 
+    vector_t getPinocchioJointAcceleration(
+        const vector_t& state, const vector_t& input) const override {
+        return input;
+    }
+
     // NOTE: maps the Jacobians of an arbitrary function f w.r.t q and v
     // (generalized positions and velocities), as provided by Pinocchio as Jq
     // and Jv, to the Jacobian of the state dfdx and Jacobian of the input
@@ -67,7 +72,6 @@ class MobileManipulatorPinocchioMapping final
     std::pair<matrix_t, matrix_t> getOcs2Jacobian(
         const vector_t& state, const matrix_t& Jq,
         const matrix_t& Jv) const override {
-
         const auto output_dim = Jq.rows();
         matrix_t dfdx(output_dim, Jq.cols() + Jv.cols());
         dfdx << Jq, Jv;
