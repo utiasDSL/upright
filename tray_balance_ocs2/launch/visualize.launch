@@ -1,8 +1,8 @@
 <launch>
-  <arg name="test"        default="false"/>
+  <arg name="test"        default="true"/>
   <arg name="rviz"        default="true"/>
   <arg name="rvizconfig"  default="$(find ocs2_mobile_manipulator_modified)/rviz/mobile_manipulator.rviz"/>
-  <arg name="urdf"       default="$(find ocs2_mobile_manipulator_modified)/urdf/mobile_manipulator.urdf"/>
+  <arg name="urdf"       default="$(find ocs2_mobile_manipulator_modified)/urdf/mm.urdf"/>
 
   <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg urdf)"/>
   <param name="use_gui" value="true"/>

@@ -47,58 +47,83 @@ namespace mobile_manipulator {
  * Mobile Manipulator Robot Interface class
  */
 class MobileManipulatorInterface final : public RobotInterface {
- public:
-  /**
-   * Constructor
-   * @param [in] taskFileFolderName: The name of the folder containing task file
-   */
-  explicit MobileManipulatorInterface(const std::string& taskFileFolderName);
+   public:
+    /**
+     * Constructor
+     * @param [in] taskFileFolderName: The name of the folder containing task
+     * file
+     */
+    explicit MobileManipulatorInterface(const std::string& taskFileFolderName);
 
-  const vector_t& getInitialState() { return initialState_; }
+    const vector_t& getInitialState() { return initialState_; }
 
-  ddp::Settings& ddpSettings() { return ddpSettings_; }
+    ddp::Settings& ddpSettings() { return ddpSettings_; }
 
-  mpc::Settings& mpcSettings() { return mpcSettings_; }
+    mpc::Settings& mpcSettings() { return mpcSettings_; }
 
-  std::unique_ptr<MPC_DDP> getMpc();
+    std::unique_ptr<MPC_DDP> getMpc();
 
-  const OptimalControlProblem& getOptimalControlProblem() const override { return problem_; }
+    const OptimalControlProblem& getOptimalControlProblem() const override {
+        return problem_;
+    }
 
-  const Initializer& getInitializer() const override { return *initializerPtr_; }
+    const Initializer& getInitializer() const override {
+        return *initializerPtr_;
+    }
 
-  std::shared_ptr<ReferenceManagerInterface> getReferenceManagerPtr() const override { return referenceManagerPtr_; }
+    std::shared_ptr<ReferenceManagerInterface> getReferenceManagerPtr()
+        const override {
+        return referenceManagerPtr_;
+    }
 
-  const RolloutBase& getRollout() const { return *rolloutPtr_; }
+    const RolloutBase& getRollout() const { return *rolloutPtr_; }
 
-  const PinocchioInterface& getPinocchioInterface() const { return *pinocchioInterfacePtr_; }
+    const PinocchioInterface& getPinocchioInterface() const {
+        return *pinocchioInterfacePtr_;
+    }
 
-  /** MobileManipulator PinocchioInterface factory */
-  static PinocchioInterface buildPinocchioInterface(const std::string& urdfPath);
+    /** MobileManipulator PinocchioInterface factory */
+    static PinocchioInterface buildPinocchioInterface(
+        const std::string& urdfPath);
 
- private:
-  std::unique_ptr<StateInputCost> getQuadraticStateInputCost(const std::string& taskFile);
-  std::unique_ptr<StateCost> getQuadraticStateCost(const std::string& taskFile);
-  std::unique_ptr<StateCost> getEndEffectorConstraint(PinocchioInterface pinocchioInterface, const std::string& taskFile,
-                                                      const std::string& prefix, bool useCaching, const std::string& libraryFolder,
-                                                      bool recompileLibraries);
-  std::unique_ptr<StateCost> getSelfCollisionConstraint(PinocchioInterface pinocchioInterface, const std::string& taskFile,
-                                                        const std::string& urdfPath, bool useCaching, const std::string& libraryFolder,
-                                                        bool recompileLibraries);
-  std::unique_ptr<StateInputCost> getJointVelocityLimitConstraint(const std::string& taskFile);
+   private:
+    std::unique_ptr<StateInputCost> getQuadraticStateInputCost(
+        const std::string& taskFile);
+    std::unique_ptr<StateCost> getQuadraticStateCost(
+        const std::string& taskFile);
 
-  void loadSettings(const std::string& taskFile, const std::string& libraryFolder);
+    std::unique_ptr<StateCost> getEndEffectorConstraint(
+        PinocchioInterface pinocchioInterface, const std::string& taskFile,
+        const std::string& prefix, bool useCaching,
+        const std::string& libraryFolder, bool recompileLibraries);
 
-  ddp::Settings ddpSettings_;
-  mpc::Settings mpcSettings_;
+    std::unique_ptr<StateCost> getSelfCollisionConstraint(
+        PinocchioInterface pinocchioInterface, const std::string& taskFile,
+        const std::string& urdfPath, bool useCaching,
+        const std::string& libraryFolder, bool recompileLibraries);
 
-  OptimalControlProblem problem_;
-  std::unique_ptr<RolloutBase> rolloutPtr_;
-  std::unique_ptr<Initializer> initializerPtr_;
-  std::shared_ptr<ReferenceManager> referenceManagerPtr_;
+    std::unique_ptr<StateInputCost> getJointVelocityLimitConstraint(
+        const std::string& taskFile);
 
-  std::unique_ptr<PinocchioInterface> pinocchioInterfacePtr_;
+    std::unique_ptr<StateInputCost> getTrayBalanceConstraint(
+        PinocchioInterface pinocchioInterface, const std::string& taskFile,
+        const std::string& prefix, bool usePreComputation,
+        const std::string& libraryFolder, bool recompileLibraries);
 
-  vector_t initialState_{STATE_DIM};
+    void loadSettings(const std::string& taskFile,
+                      const std::string& libraryFolder);
+
+    ddp::Settings ddpSettings_;
+    mpc::Settings mpcSettings_;
+
+    OptimalControlProblem problem_;
+    std::unique_ptr<RolloutBase> rolloutPtr_;
+    std::unique_ptr<Initializer> initializerPtr_;
+    std::shared_ptr<ReferenceManager> referenceManagerPtr_;
+
+    std::unique_ptr<PinocchioInterface> pinocchioInterfacePtr_;
+
+    vector_t initialState_{STATE_DIM};
 };
 
 }  // namespace mobile_manipulator

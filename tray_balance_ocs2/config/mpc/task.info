@@ -15,7 +15,7 @@ ddp
   minRelCost                    0.1
   constraintTolerance           1e-3
 
-  displayInfo                   false
+  displayInfo                   true
   displayShortSummary           false
   checkNumericalStability       false
 
@@ -59,7 +59,7 @@ mpc
   timeHorizon                    2.0
   numPartitions                  4
 
-  runtimeMaxNumIterations        1
+  runtimeMaxNumIterations        3
   initMaxNumIterations           10
 
   runtimeMaxStepLength           1.0
@@ -125,7 +125,7 @@ stateCost
   ; state weight matrix
   Q
   {
-    scaling 1e-4
+    scaling 0  ;1e-4
 
     ; position
     (0,0)  0.0  ;
@@ -153,7 +153,7 @@ stateCost
 
 endEffector
 {
-  name "WRIST_2" ; name defined in the URDF
+  name "thing_tool" ; name defined in the URDF
 
   ; end effector quadratic penalty scaling
   muPosition  10.0
@@ -162,19 +162,24 @@ endEffector
 
 finalEndEffector
 {
-  name "WRIST_2"
+  name "thing_tool"
   muPosition  10.0
   muOrientation  5.0
 }
+
+; trayBalance
+; {
+;   TODO
+; }
 
 selfCollision
 {
   ; Self Collision raw object pairs
   collisionObjectPairs
   {
-    [0] "1, 4"
+    [0] 1,4
     [1] 1,6
-    [2] " 1  , 9"
+    [2] 1,9
   }
 
   ; Self Collision pairs
@@ -183,7 +188,8 @@ selfCollision
     [0] "arm_base, ARM"
     [1] arm_base,ELBOW
     [2] "arm_base  , WRIST_1"
-    [3] "link_that_doesnt_exist  , WRIST_1"
+; why is this here?
+;    [3] "link_that_doesnt_exist  , WRIST_1"
   }
 
   ; minimum distance allowed between the pairs

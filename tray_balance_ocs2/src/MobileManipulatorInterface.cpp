@@ -101,7 +101,7 @@ void MobileManipulatorInterface::loadSettings(
     const std::string& taskFile, const std::string& libraryFolder) {
     const std::string urdfPath =
         ros::package::getPath("ocs2_mobile_manipulator_modified") +
-        "/urdf/mobile_manipulator.urdf";
+        "/urdf/mm.urdf";
     std::cerr << "Load Pinocchio model from " << urdfPath << '\n';
 
     pinocchioInterfacePtr_.reset(
@@ -158,7 +158,6 @@ void MobileManipulatorInterface::loadSettings(
     problem_.costPtr->add("stateInputCost",
                           getQuadraticStateInputCost(taskFile));
 
-    // TODO: somehow these state costs always cause the solver to fail
     // problem_.stateCostPtr->add("stateCost", getQuadraticStateCost(taskFile));
     // matrix_t Qf(STATE_DIM, STATE_DIM);
     // loadData::loadEigenMatrix(taskFile, "stateCost.Q", Qf);
@@ -169,12 +168,18 @@ void MobileManipulatorInterface::loadSettings(
     // NOTE: these are actually acceleration constraints
     problem_.softConstraintPtr->add("jointVelocityLimit",
                                     getJointVelocityLimitConstraint(taskFile));
+    // problem_.softConstraintPtr->add(
+    //     "trayBalance",
+    //     getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
+    //                              "trayBalance", usePreComputation,
+    //                              libraryFolder, recompileLibraries));
 
-    problem_.stateSoftConstraintPtr->add(
-        "selfCollision",
-        getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, urdfPath,
-                                   usePreComputation, libraryFolder,
-                                   recompileLibraries));
+    // TODO removing this for now while working on tray balance
+    // problem_.stateSoftConstraintPtr->add(
+    //     "selfCollision",
+    //     getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, urdfPath,
+    //                                usePreComputation, libraryFolder,
+    //                                recompileLibraries));
     problem_.stateSoftConstraintPtr->add(
         "endEffector",
         getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
@@ -234,6 +239,8 @@ MobileManipulatorInterface::getQuadraticStateInputCost(
                  "================"
               << std::endl;
 
+    // Q.setZero();
+
     return std::unique_ptr<StateInputCost>(
         new QuadraticStateInputCost(std::move(Q), std::move(R)));
     // return std::unique_ptr<StateInputCost>(
@@ -267,7 +274,8 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorConstraint(
     const std::string& libraryFolder, bool recompileLibraries) {
     scalar_t muPosition = 1.0;
     scalar_t muOrientation = 1.0;
-    std::string name = "WRIST_2";
+    // std::string name = "WRIST_2";
+    std::string name = "thing_tool";
 
     boost::property_tree::ptree pt;
     boost::property_tree::read_info(taskFile, pt);
@@ -310,6 +318,66 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorConstraint(
     });
 
     return std::unique_ptr<StateCost>(new StateSoftConstraint(
+        std::move(constraint), std::move(penaltyArray)));
+}
+
+std::unique_ptr<StateInputCost> MobileManipulatorInterface::getTrayBalanceConstraint(
+    PinocchioInterface pinocchioInterface, const std::string& taskFile,
+    const std::string& prefix, bool usePreComputation,
+    const std::string& libraryFolder, bool recompileLibraries) {
+
+    // Default values; TODO: can be loaded from the task file
+    // scalar_t muFriction = 1.0;
+    // scalar_t muContact = 1.0;
+    // scalar_t muTipping = 1.0;
+    scalar_t mu = 1e-2;
+    scalar_t delta = 1e-3;
+
+    // std::string name = "WRIST_2";
+    std::string name = "thing_tool";
+
+    // TODO
+    // boost::property_tree::ptree pt;
+    // boost::property_tree::read_info(taskFile, pt);
+    // std::cerr << "\n #### " << prefix << " Settings: ";
+    // std::cerr << "\n #### "
+    //              "============================================================="
+    //              "================\n";
+    // loadData::loadPtreeValue(pt, muPosition, prefix + ".muPosition", true);
+    // loadData::loadPtreeValue(pt, muOrientation, prefix + ".muOrientation",
+    //                          true);
+    // std::cerr << " #### "
+    //              "============================================================="
+    //              "================"
+    //           << std::endl;
+
+    std::unique_ptr<StateInputConstraint> constraint;
+    // if (usePreComputation) {
+    //     // TODO not implemented
+    // } else {
+    MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+    PinocchioEndEffectorKinematicsCppAd pinocchioEEKinematics(
+        pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM,
+        INPUT_DIM, "tray_balance_ee_kinematics", libraryFolder,
+        recompileLibraries, false);
+    constraint.reset(new TrayBalanceConstraints(pinocchioEEKinematics));
+    // }
+
+    const size_t num_constraints = 4;  // TODO
+    // std::unique_ptr<PenaltyBase> barrierFunction;
+    std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(num_constraints);
+    // penaltyArray[0] = std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muFriction));
+    // penaltyArray[1] = std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muFriction));
+    // penaltyArray[2] = std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muContact));
+    // penaltyArray[3] = std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muTipping));
+
+    // barrierFunction.reset(new RelaxedBarrierPenalty({muFriction, deltaFriction});
+    // penaltyArray[0] = std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muFriction));
+    for (int i = 0; i < num_constraints; i++) {
+        penaltyArray[i].reset(new RelaxedBarrierPenalty({mu, delta}));
+    }
+
+    return std::unique_ptr<StateInputCost>(new StateInputSoftConstraint(
         std::move(constraint), std::move(penaltyArray)));
 }
 
