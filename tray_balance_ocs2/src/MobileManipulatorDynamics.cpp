@@ -44,13 +44,23 @@ MobileManipulatorDynamics::MobileManipulatorDynamics(
 ad_vector_t MobileManipulatorDynamics::systemFlowMap(
     ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
     const ad_vector_t& parameters) const {
-
     ad_vector_t dxdt(STATE_DIM);
     const auto theta = state(2);
-    const auto a = input(0);  // forward velocity in base frame
+    // const auto a = input(0);  // forward velocity in base frame
     ad_vector_t velocity = state.tail(NUM_DOFS);
     // dxdt << velocity, cos(theta) * a, sin(theta) * a, input.tail(7);
-    dxdt << velocity, input;
+
+    // clang-format off
+    ad_matrix_t C(2, 2);
+    C << cos(theta), -sin(theta),
+         sin(theta),  cos(theta);
+    // clang-format on
+
+    // convert acceleration input from body frame to world frame
+    ad_vector_t acceleration(INPUT_DIM);
+    acceleration << C * input.head<2>(), input.tail<7>();
+
+    dxdt << velocity, acceleration;
     return dxdt;
 }
 

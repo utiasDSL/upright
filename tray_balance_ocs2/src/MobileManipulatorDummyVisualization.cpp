@@ -168,14 +168,6 @@ void MobileManipulatorDummyVisualization::publishObservation(
     tfBroadcaster_.sendTransform(base_tf);
 
     // publish joints transforms
-    // TODO names are wrong...
-    //
-    // "ur10_arm_shoulder_pan_joint",
-    // "ur10_arm_shoulder_lift_joint",
-    // "ur10_arm_elbow_joint",
-    // "ur10_arm_wrist_1_joint",
-    // "ur10_arm_wrist_2_joint",
-    // "ur10_arm_wrist_3_joint",
     const auto j_arm = getArmJointPositions(observation.state);
     std::map<std::string, scalar_t> jointPositions{
         {"ur10_arm_shoulder_pan_joint", j_arm(0)},
