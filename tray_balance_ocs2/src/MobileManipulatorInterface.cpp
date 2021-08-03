@@ -51,7 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
 #include <ocs2_mobile_manipulator_modified/constraint/EndEffectorConstraint.h>
-#include <ocs2_mobile_manipulator_modified/constraint/JointVelocityLimits.h>
+#include <ocs2_mobile_manipulator_modified/constraint/JointAccelerationLimits.h>
 #include <ocs2_mobile_manipulator_modified/constraint/MobileManipulatorSelfCollisionConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/TrayBalanceConstraints.h>
 #include <ocs2_mobile_manipulator_modified/cost/QuadraticInputCost.h>
@@ -165,13 +165,13 @@ void MobileManipulatorInterface::loadSettings(
     //     "finalCost", std::unique_ptr<StateCost>(new QuadraticStateCost(Qf)));
 
     /* Constraints */
-    // NOTE: these are actually acceleration constraints
-    problem_.softConstraintPtr->add("jointVelocityLimit",
-                                    getJointVelocityLimitConstraint(taskFile));
+    problem_.softConstraintPtr->add("jointAccelerationLimit",
+                                    getJointAccelerationLimitConstraint(taskFile));
+
     problem_.softConstraintPtr->add(
         "trayBalance",
         getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
-                                 "trayBalance", usePreComputation,
+                                 "trayBalanceConstraints", usePreComputation,
                                  libraryFolder, recompileLibraries));
 
     // TODO removing this for now while working on tray balance
@@ -275,7 +275,6 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorConstraint(
     const std::string& libraryFolder, bool recompileLibraries) {
     scalar_t muPosition = 1.0;
     scalar_t muOrientation = 1.0;
-    // std::string name = "WRIST_2";
     std::string name = "thing_tool";
 
     boost::property_tree::ptree pt;
@@ -327,34 +326,28 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
     PinocchioInterface pinocchioInterface, const std::string& taskFile,
     const std::string& prefix, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
-    // Default values; TODO: can be loaded from the task file
-    // scalar_t muFriction = 1.0;
-    // scalar_t muContact = 1.0;
-    // scalar_t muTipping = 1.0;
+
+    // Default parameters
     scalar_t mu = 1e-2;
     scalar_t delta = 1e-3;
 
-    // std::string name = "WRIST_2";
     std::string name = "thing_tool";
 
-    // TODO
-    // boost::property_tree::ptree pt;
-    // boost::property_tree::read_info(taskFile, pt);
-    // std::cerr << "\n #### " << prefix << " Settings: ";
-    // std::cerr << "\n #### "
-    //              "============================================================="
-    //              "================\n";
-    // loadData::loadPtreeValue(pt, muPosition, prefix + ".muPosition", true);
-    // loadData::loadPtreeValue(pt, muOrientation, prefix + ".muOrientation",
-    //                          true);
-    // std::cerr << " #### "
-    //              "============================================================="
-    //              "================"
-    //           << std::endl;
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_info(taskFile, pt);
+    std::cerr << "\n #### " << prefix << " Settings: ";
+    std::cerr << "\n #### "
+                 "============================================================="
+                 "================\n";
+    loadData::loadPtreeValue(pt, mu, prefix + ".mu", true);
+    loadData::loadPtreeValue(pt, delta, prefix + ".delta", true);
+    std::cerr << " #### "
+                 "============================================================="
+                 "================"
+              << std::endl;
 
-    // if (usePreComputation) {
-    //     // TODO not implemented
-    // } else {
+    // TODO precompuation is not implemented
+
     MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
     PinocchioEndEffectorKinematicsCppAd pinocchioEEKinematics(
         pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
@@ -362,11 +355,9 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
 
     std::unique_ptr<StateInputConstraint> constraint(new
             TrayBalanceConstraints(pinocchioEEKinematics));
-    // }
 
-    const size_t num_constraints = 4;  // TODO
-    std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(num_constraints);
-    for (int i = 0; i < num_constraints; i++) {
+    std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(NUM_TRAY_BALANCE_CONSTRAINTS);
+    for (int i = 0; i < NUM_TRAY_BALANCE_CONSTRAINTS; i++) {
         penaltyArray[i].reset(new RelaxedBarrierPenalty({mu, delta}));
     }
 
@@ -441,7 +432,7 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
 /******************************************************************************************************/
 /******************************************************************************************************/
 std::unique_ptr<StateInputCost>
-MobileManipulatorInterface::getJointVelocityLimitConstraint(
+MobileManipulatorInterface::getJointAccelerationLimitConstraint(
     const std::string& taskFile) {
     vector_t lowerBound(INPUT_DIM);
     vector_t upperBound(INPUT_DIM);
@@ -450,25 +441,25 @@ MobileManipulatorInterface::getJointVelocityLimitConstraint(
 
     boost::property_tree::ptree pt;
     boost::property_tree::read_info(taskFile, pt);
-    const std::string prefix = "jointVelocityLimits.";
-    std::cerr << "\n #### JointVelocityLimits Settings: ";
+    const std::string prefix = "jointAccelerationLimits";
+    std::cerr << "\n #### JointAccelerationLimits Settings: ";
     std::cerr << "\n #### "
                  "============================================================="
                  "================\n";
-    loadData::loadEigenMatrix(taskFile, "jointVelocityLimits.lowerBound",
+    loadData::loadEigenMatrix(taskFile, prefix + ".lowerBound",
                               lowerBound);
     std::cerr << " #### 'lowerBound':  " << lowerBound.transpose() << std::endl;
-    loadData::loadEigenMatrix(taskFile, "jointVelocityLimits.upperBound",
+    loadData::loadEigenMatrix(taskFile, prefix + ".upperBound",
                               upperBound);
     std::cerr << " #### 'upperBound':  " << upperBound.transpose() << std::endl;
-    loadData::loadPtreeValue(pt, mu, prefix + "mu", true);
-    loadData::loadPtreeValue(pt, delta, prefix + "delta", true);
+    loadData::loadPtreeValue(pt, mu, prefix + ".mu", true);
+    loadData::loadPtreeValue(pt, delta, prefix + ".delta", true);
     std::cerr << " #### "
                  "============================================================="
                  "================"
               << std::endl;
 
-    std::unique_ptr<StateInputConstraint> constraint(new JointVelocityLimits);
+    std::unique_ptr<StateInputConstraint> constraint(new JointAccelerationLimits);
 
     std::unique_ptr<PenaltyBase> barrierFunction;
     std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(INPUT_DIM);

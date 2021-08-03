@@ -39,6 +39,8 @@ constexpr size_t INPUT_DIM = 6 + 3;  // 6 DOF arm vel. + forward vel. + rotation
 constexpr size_t STATE_DIM = NUM_DOFS * 2;  // position + velocity
 
 // tray balance parameters
+constexpr size_t NUM_TRAY_BALANCE_CONSTRAINTS = 4;
+
 constexpr double GRAVITY = 9.81;
 constexpr double TRAY_MASS = 0.5;
 constexpr double TRAY_COM_HEIGHT = 0.01;

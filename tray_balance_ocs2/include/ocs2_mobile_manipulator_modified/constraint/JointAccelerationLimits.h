@@ -38,19 +38,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class JointVelocityLimits final : public StateInputConstraint {
- public:
-  JointVelocityLimits() : StateInputConstraint(ConstraintOrder::Linear) {}
-  ~JointVelocityLimits() override = default;
-  JointVelocityLimits* clone() const override { return new JointVelocityLimits(*this); }
+class JointAccelerationLimits final : public StateInputConstraint {
+   public:
+    JointAccelerationLimits() : StateInputConstraint(ConstraintOrder::Linear) {}
+    ~JointAccelerationLimits() override = default;
+    JointAccelerationLimits* clone() const override {
+        return new JointAccelerationLimits(*this);
+    }
 
-  size_t getNumConstraints(scalar_t time) const override { return INPUT_DIM; }
-  vector_t getValue(scalar_t time, const vector_t& state, const vector_t& input, const PreComputation&) const override;
-  VectorFunctionLinearApproximation getLinearApproximation(scalar_t time, const vector_t& state, const vector_t& input,
-                                                           const PreComputation&) const override;
+    size_t getNumConstraints(scalar_t time) const override { return INPUT_DIM; }
+    vector_t getValue(scalar_t time, const vector_t& state,
+                      const vector_t& input,
+                      const PreComputation&) const override;
+    VectorFunctionLinearApproximation getLinearApproximation(
+        scalar_t time, const vector_t& state, const vector_t& input,
+        const PreComputation&) const override;
 
- private:
-  JointVelocityLimits(const JointVelocityLimits& other) = default;
+   private:
+    JointAccelerationLimits(const JointAccelerationLimits& other) = default;
 };
 
 }  // namespace mobile_manipulator

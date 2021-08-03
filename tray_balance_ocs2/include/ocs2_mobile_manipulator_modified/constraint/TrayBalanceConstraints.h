@@ -44,29 +44,33 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         return new TrayBalanceConstraints(*pinocchioEEKinPtr_);
     }
 
-    // NOTE: this should be implemented by StateInputConstraintCppAd
-    // VectorFunctionLinearApproximation getLinearApproximation(
-    //     scalar_t time, const vector_t& state,
-    //     const PreComputation& preComputation) const override;
-
-    size_t getNumConstraints(scalar_t time) const override { return 4; }
+    size_t getNumConstraints(scalar_t time) const override {
+        return NUM_TRAY_BALANCE_CONSTRAINTS;
+    }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
+
+    // vector_t getParameters(scalar_t time) const override {
+    //     vector_t r_te_e;
+    //     r_te_e << 0, 0, 0.067;
+    //
+    //     vector_t parameters = r_te_e;
+    //     return parameters;
+    // }
 
    protected:
     ad_vector_t constraintFunction(
         ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
         const ad_vector_t& parameters) const override {
-
         // Tray inertia (in the tray's own frame)
         ad_rotmat_t It = cylinder_inertia_matrix<ad_scalar_t>(
             ad_scalar_t(TRAY_MASS), ad_scalar_t(TRAY_RADIUS),
             ad_scalar_t(2 * TRAY_COM_HEIGHT));
 
-        // TODO placeholder, need to see what this value should actually be
-        // TODO r_te_e should be passed in as a parameter perhaps
+        // TODO r_te_e (in fact, the full pose and velocity of the tray) should
+        // be part of the state
         ad_vector_t r_te_e(3);
-        r_te_e << ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.2);
+        r_te_e << ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.067);
 
         ad_rotmat_t C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
         ad_rotmat_t C_ew = C_we.transpose();

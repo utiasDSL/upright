@@ -27,7 +27,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#include <ocs2_mobile_manipulator_modified/constraint/JointVelocityLimits.h>
+#include <ocs2_mobile_manipulator_modified/constraint/JointAccelerationLimits.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -35,20 +35,26 @@ namespace mobile_manipulator {
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-vector_t JointVelocityLimits::getValue(scalar_t time, const vector_t& state, const vector_t& input, const PreComputation&) const {
-  return input;
+vector_t JointAccelerationLimits::getValue(scalar_t time, const vector_t& state,
+                                           const vector_t& input,
+                                           const PreComputation&) const {
+    return input;
 }
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-VectorFunctionLinearApproximation JointVelocityLimits::getLinearApproximation(scalar_t time, const vector_t& state, const vector_t& input,
-                                                                              const PreComputation&) const {
-  VectorFunctionLinearApproximation limits(input.rows(), state.rows(), input.rows());
-  limits.f = input;
-  limits.dfdx.setZero();
-  limits.dfdu.setIdentity();
-  return limits;
+VectorFunctionLinearApproximation
+JointAccelerationLimits::getLinearApproximation(scalar_t time,
+                                                const vector_t& state,
+                                                const vector_t& input,
+                                                const PreComputation&) const {
+    VectorFunctionLinearApproximation limits(input.rows(), state.rows(),
+                                             input.rows());
+    limits.f = input;
+    limits.dfdx.setZero();
+    limits.dfdu.setIdentity();
+    return limits;
 }
 
 }  // namespace mobile_manipulator

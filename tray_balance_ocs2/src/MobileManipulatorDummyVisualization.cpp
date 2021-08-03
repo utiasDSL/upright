@@ -182,6 +182,7 @@ void MobileManipulatorDummyVisualization::publishObservation(
     robotStatePublisherPtr_->publishTransforms(jointPositions, timeStamp);
 
     // publish joint state
+    // TODO it would be better to have this in some interface instead
     Eigen::VectorXd q = observation.state.head<NUM_DOFS>();
     Eigen::VectorXd v = observation.state.tail<NUM_DOFS>();
 
