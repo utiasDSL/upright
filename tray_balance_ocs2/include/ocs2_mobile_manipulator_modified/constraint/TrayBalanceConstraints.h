@@ -33,6 +33,11 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
                 "number of "
                 "end effector IDs.");
         }
+        // initialize everything, mostly the CppAD interface
+        std::cerr << "about to initialize tray balance" << std::endl;
+        initialize(STATE_DIM, INPUT_DIM, 0, "tray_balance_constraints",
+                   "/tmp/ocs2", true, true);
+        std::cerr << "done initialize tray balance" << std::endl;
     }
 
     // TrayBalanceConstraints() override = default;
@@ -117,7 +122,8 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
                          gamma(1) * gamma(1);
 
         ad_vector_t constraints(getNumConstraints());
-        constraints << h1a, h1b, h2, h3;
+        // constraints << h1a, h1b, h2, h3;
+        constraints << ad_scalar_t(1), ad_scalar_t(1), h2, ad_scalar_t(1);
         return constraints;
     }
 
@@ -127,7 +133,8 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
 
     // TODO may not need this
-    // std::unique_ptr<EndEffectorKinematics<scalar_t>> endEffectorKinematicsPtr_;
+    // std::unique_ptr<EndEffectorKinematics<scalar_t>>
+    // endEffectorKinematicsPtr_;
     //
     // const ReferenceManager* referenceManagerPtr_;
 };

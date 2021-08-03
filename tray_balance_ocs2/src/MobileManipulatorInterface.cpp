@@ -168,16 +168,17 @@ void MobileManipulatorInterface::loadSettings(
     // NOTE: these are actually acceleration constraints
     problem_.softConstraintPtr->add("jointVelocityLimit",
                                     getJointVelocityLimitConstraint(taskFile));
-    // problem_.softConstraintPtr->add(
-    //     "trayBalance",
-    //     getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
-    //                              "trayBalance", usePreComputation,
-    //                              libraryFolder, recompileLibraries));
+    problem_.softConstraintPtr->add(
+        "trayBalance",
+        getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
+                                 "trayBalance", usePreComputation,
+                                 libraryFolder, recompileLibraries));
 
     // TODO removing this for now while working on tray balance
     // problem_.stateSoftConstraintPtr->add(
     //     "selfCollision",
-    //     getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, urdfPath,
+    //     getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile,
+    //     urdfPath,
     //                                usePreComputation, libraryFolder,
     //                                recompileLibraries));
     problem_.stateSoftConstraintPtr->add(
@@ -321,11 +322,11 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorConstraint(
         std::move(constraint), std::move(penaltyArray)));
 }
 
-std::unique_ptr<StateInputCost> MobileManipulatorInterface::getTrayBalanceConstraint(
+std::unique_ptr<StateInputCost>
+MobileManipulatorInterface::getTrayBalanceConstraint(
     PinocchioInterface pinocchioInterface, const std::string& taskFile,
     const std::string& prefix, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
-
     // Default values; TODO: can be loaded from the task file
     // scalar_t muFriction = 1.0;
     // scalar_t muContact = 1.0;
@@ -351,28 +352,20 @@ std::unique_ptr<StateInputCost> MobileManipulatorInterface::getTrayBalanceConstr
     //              "================"
     //           << std::endl;
 
-    std::unique_ptr<StateInputConstraint> constraint;
     // if (usePreComputation) {
     //     // TODO not implemented
     // } else {
     MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
     PinocchioEndEffectorKinematicsCppAd pinocchioEEKinematics(
-        pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM,
-        INPUT_DIM, "tray_balance_ee_kinematics", libraryFolder,
-        recompileLibraries, false);
-    constraint.reset(new TrayBalanceConstraints(pinocchioEEKinematics));
+        pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
+        "tray_balance_ee_kinematics", libraryFolder, recompileLibraries, false);
+
+    std::unique_ptr<StateInputConstraint> constraint(new
+            TrayBalanceConstraints(pinocchioEEKinematics));
     // }
 
     const size_t num_constraints = 4;  // TODO
-    // std::unique_ptr<PenaltyBase> barrierFunction;
     std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(num_constraints);
-    // penaltyArray[0] = std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muFriction));
-    // penaltyArray[1] = std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muFriction));
-    // penaltyArray[2] = std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muContact));
-    // penaltyArray[3] = std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muTipping));
-
-    // barrierFunction.reset(new RelaxedBarrierPenalty({muFriction, deltaFriction});
-    // penaltyArray[0] = std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muFriction));
     for (int i = 0; i < num_constraints; i++) {
         penaltyArray[i].reset(new RelaxedBarrierPenalty({mu, delta}));
     }

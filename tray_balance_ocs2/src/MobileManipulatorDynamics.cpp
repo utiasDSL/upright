@@ -46,9 +46,7 @@ ad_vector_t MobileManipulatorDynamics::systemFlowMap(
     const ad_vector_t& parameters) const {
     ad_vector_t dxdt(STATE_DIM);
     const auto theta = state(2);
-    // const auto a = input(0);  // forward velocity in base frame
     ad_vector_t velocity = state.tail(NUM_DOFS);
-    // dxdt << velocity, cos(theta) * a, sin(theta) * a, input.tail(7);
 
     // clang-format off
     ad_matrix_t C(2, 2);
