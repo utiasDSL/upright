@@ -34,10 +34,8 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
                 "end effector IDs.");
         }
         // initialize everything, mostly the CppAD interface
-        std::cerr << "about to initialize tray balance" << std::endl;
         initialize(STATE_DIM, INPUT_DIM, 0, "tray_balance_constraints",
                    "/tmp/ocs2", true, true);
-        std::cerr << "done initialize tray balance" << std::endl;
     }
 
     // TrayBalanceConstraints() override = default;
@@ -59,7 +57,8 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
     ad_vector_t constraintFunction(
         ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
         const ad_vector_t& parameters) const override {
-        // TODO probably construct these elsewhere later
+
+        // Tray inertia (in the tray's own frame)
         ad_rotmat_t It = cylinder_inertia_matrix<ad_scalar_t>(
             ad_scalar_t(TRAY_MASS), ad_scalar_t(TRAY_RADIUS),
             ad_scalar_t(2 * TRAY_COM_HEIGHT));

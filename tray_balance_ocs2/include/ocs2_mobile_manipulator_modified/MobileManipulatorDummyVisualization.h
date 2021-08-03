@@ -41,32 +41,42 @@ namespace ocs2 {
 namespace mobile_manipulator {
 
 class MobileManipulatorDummyVisualization final : public DummyObserver {
- public:
-  MobileManipulatorDummyVisualization(ros::NodeHandle& nodeHandle, const MobileManipulatorInterface& interface)
-      : pinocchioInterface_(interface.getPinocchioInterface()) {
-    launchVisualizerNode(nodeHandle);
-  }
+   public:
+    MobileManipulatorDummyVisualization(
+        ros::NodeHandle& nodeHandle,
+        const MobileManipulatorInterface& interface)
+        : pinocchioInterface_(interface.getPinocchioInterface()) {
+        launchVisualizerNode(nodeHandle);
+    }
 
-  ~MobileManipulatorDummyVisualization() override = default;
+    ~MobileManipulatorDummyVisualization() override = default;
 
-  void update(const SystemObservation& observation, const PrimalSolution& policy, const CommandData& command) override;
+    void update(const SystemObservation& observation,
+                const PrimalSolution& policy,
+                const CommandData& command) override;
 
- private:
-  void launchVisualizerNode(ros::NodeHandle& nodeHandle);
+   private:
+    void launchVisualizerNode(ros::NodeHandle& nodeHandle);
 
-  void publishObservation(const ros::Time& timeStamp, const SystemObservation& observation);
-  void publishTargetTrajectories(const ros::Time& timeStamp, const TargetTrajectories& targetTrajectories);
-  void publishOptimizedTrajectory(const ros::Time& timeStamp, const PrimalSolution& policy);
+    void publishObservation(const ros::Time& timeStamp,
+                            const SystemObservation& observation);
+    void publishTargetTrajectories(
+        const ros::Time& timeStamp,
+        const TargetTrajectories& targetTrajectories);
+    void publishOptimizedTrajectory(const ros::Time& timeStamp,
+                                    const PrimalSolution& policy);
 
-  PinocchioInterface pinocchioInterface_;
+    PinocchioInterface pinocchioInterface_;
 
-  std::unique_ptr<robot_state_publisher::RobotStatePublisher> robotStatePublisherPtr_;
-  tf::TransformBroadcaster tfBroadcaster_;
+    std::unique_ptr<robot_state_publisher::RobotStatePublisher>
+        robotStatePublisherPtr_;
+    tf::TransformBroadcaster tfBroadcaster_;
 
-  ros::Publisher stateOptimizedPublisher_;
-  ros::Publisher stateOptimizedPosePublisher_;
+    ros::Publisher stateOptimizedPublisher_;
+    ros::Publisher stateOptimizedPosePublisher_;
+    ros::Publisher jointPublisher_;
 
-  std::unique_ptr<GeometryInterfaceVisualization> geometryVisualization_;
+    std::unique_ptr<GeometryInterfaceVisualization> geometryVisualization_;
 };
 
 // TODO(mspieler): move somewhere else

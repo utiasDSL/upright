@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <geometry_msgs/PoseArray.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <sensor_msgs/JointState.h>
 
 #include <ocs2_ros_interfaces/common/RosMsgHelpers.h>
 
@@ -120,6 +121,8 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
     stateOptimizedPosePublisher_ =
         nodeHandle.advertise<geometry_msgs::PoseArray>(
             "/mobile_manipulator/optimizedPoseTrajectory", 1);
+    jointPublisher_ =
+        nodeHandle.advertise<sensor_msgs::JointState>("joint_states", 1);
 
     const std::string urdfPath =
         ros::package::getPath("ocs2_mobile_manipulator_modified") +
@@ -177,6 +180,19 @@ void MobileManipulatorDummyVisualization::publishObservation(
         {"ur10_arm_wrist_2_joint", j_arm(4)},
         {"ur10_arm_wrist_3_joint", j_arm(5)}};
     robotStatePublisherPtr_->publishTransforms(jointPositions, timeStamp);
+
+    // publish joint state
+    Eigen::VectorXd q = observation.state.head<NUM_DOFS>();
+    Eigen::VectorXd v = observation.state.tail<NUM_DOFS>();
+
+    sensor_msgs::JointState joint_state;
+    joint_state.header.stamp = ros::Time::now();
+    joint_state.name = {"base_x", "base_y", "base_theta", "arm_1", "arm_2",
+                        "arm_3",  "arm_4",  "arm_5",      "arm_6"};
+    joint_state.position = std::vector<double>(q.data(), q.data() + q.size());
+    joint_state.velocity = std::vector<double>(v.data(), v.data() + v.size());
+
+    jointPublisher_.publish(joint_state);
 }
 
 /******************************************************************************************************/
