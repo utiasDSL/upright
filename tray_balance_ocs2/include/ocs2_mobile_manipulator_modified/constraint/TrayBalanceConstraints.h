@@ -122,8 +122,9 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
                          gamma(1) * gamma(1);
 
         ad_vector_t constraints(getNumConstraints());
-        // constraints << h1a, h1b, h2, h3;
-        constraints << ad_scalar_t(1), ad_scalar_t(1), h2, ad_scalar_t(1);
+        constraints << h1a, h1b, h2, h3;
+        // constraints << ad_scalar_t(1), ad_scalar_t(1), ad_scalar_t(1),
+        //     ad_scalar_t(1);
         return constraints;
     }
 
