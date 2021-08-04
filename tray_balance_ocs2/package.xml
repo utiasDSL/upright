@@ -26,5 +26,6 @@
   <depend>ocs2_pinocchio_interface</depend>
   <depend>ocs2_self_collision</depend>
   <depend>pinocchio</depend>
+  <depend>tray_balance_constraints</depend>
 
 </package>

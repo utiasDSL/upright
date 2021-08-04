@@ -50,6 +50,9 @@ rollout
   RelTolODE                     1e-3
   timeStep                      1e-2
   maxNumStepsPerSecond          1000
+
+  ; good for checking things like that values are finite: spits out a lot of
+  ; debug info
   checkNumericalStability       true
 }
 

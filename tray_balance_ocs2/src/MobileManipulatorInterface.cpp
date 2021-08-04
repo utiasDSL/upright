@@ -158,7 +158,7 @@ void MobileManipulatorInterface::loadSettings(
     problem_.costPtr->add("stateInputCost",
                           getQuadraticStateInputCost(taskFile));
 
-    // problem_.stateCostPtr->add("stateCost", getQuadraticStateCost(taskFile));
+    // TODO do we need a final cost on state/input?
     // matrix_t Qf(STATE_DIM, STATE_DIM);
     // loadData::loadEigenMatrix(taskFile, "stateCost.Q", Qf);
     // problem_.finalCostPtr->add(

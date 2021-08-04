@@ -18,6 +18,7 @@ set(CATKIN_PACKAGE_DEPENDENCIES
   ocs2_robotic_tools
   ocs2_pinocchio_interface
   ocs2_self_collision
+  tray_balance_constraints
 )
 
 find_package(catkin REQUIRED COMPONENTS
