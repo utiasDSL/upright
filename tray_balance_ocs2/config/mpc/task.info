@@ -7,7 +7,7 @@ model_settings
 ; DDP settings
 ddp
 {
-  algorithm                     ILQR
+  algorithm                     SLQ
 
   nThreads                      3
 
@@ -22,7 +22,7 @@ ddp
   AbsTolODE                     1e-5
   RelTolODE                     1e-3
   timeStep                      1e-3
-  maxNumStepsPerSecond          1000
+  maxNumStepsPerSecond          100000
   backwardPassIntegratorType    ODE45
 
   inequalityConstraintMu        100.0
@@ -49,7 +49,7 @@ rollout
   AbsTolODE                     1e-5
   RelTolODE                     1e-3
   timeStep                      1e-2
-  maxNumStepsPerSecond          1000
+  maxNumStepsPerSecond          100000
 
   ; good for checking things like that values are finite: spits out a lot of
   ; debug info
@@ -63,7 +63,7 @@ mpc
   numPartitions                  4
 
   runtimeMaxNumIterations        3
-  initMaxNumIterations           10
+  initMaxNumIterations           100
 
   runtimeMaxStepLength           1.0
   runtimeMinStepLength           1e-2
@@ -129,18 +129,18 @@ stateCost
   ; state weight matrix
   Q
   {
-    scaling 1e-4
+    scaling 1e-2
 
     ; position
-    (0,0)  0.0  ;
-    (1,1)  0.0  ;
-    (2,2)  0.0  ;
-    (3,3)  0.0  ;
-    (4,4)  0.0  ;
-    (5,5)  0.0  ;
-    (6,6)  0.0  ;
-    (7,7)  0.0  ;
-    (8,8)  0.0  ;
+    (0,0)  0.0
+    (1,1)  0.0
+    (2,2)  0.0
+    (3,3)  0.0
+    (4,4)  0.0
+    (5,5)  0.0
+    (6,6)  0.0
+    (7,7)  0.0
+    (8,8)  0.0
 
     ; velocity
     (9,9)    1.0
@@ -171,10 +171,21 @@ finalEndEffector
   muOrientation  5.0
 }
 
-; trayBalance
-; {
-;   TODO
-; }
+endEffectorCost
+{
+  W
+  {
+    scaling 1
+
+    (0,0)  1.0
+    (1,1)  1.0
+    (2,2)  1.0
+    (3,3)  1.0
+    (4,4)  1.0
+    (5,5)  1.0
+  }
+
+}
 
 selfCollision
 {

@@ -74,7 +74,7 @@ class MobileManipulatorDummyVisualization final : public DummyObserver {
 
     ros::Publisher stateOptimizedPublisher_;
     ros::Publisher stateOptimizedPosePublisher_;
-    ros::Publisher jointPublisher_;
+    ros::Publisher constrolInfoPublisher_;
 
     std::unique_ptr<GeometryInterfaceVisualization> geometryVisualization_;
 };

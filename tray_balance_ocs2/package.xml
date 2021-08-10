@@ -4,8 +4,7 @@
   <version>0.0.0</version>
   <description>The ocs2_mobile_manipulator_modified package</description>
 
-  <maintainer email="mspieler@ethz.ch">Michael Spieler</maintainer>
-  <maintainer email="fperry@ethz.ch">Perry Franklin</maintainer>
+  <maintainer email="adam.heins@robotics.utias.utoronto.ca">Adam Heins</maintainer>
 
   <license>TODO</license>
 
@@ -27,5 +26,6 @@
   <depend>ocs2_self_collision</depend>
   <depend>pinocchio</depend>
   <depend>tray_balance_constraints</depend>
+  <depend>tray_balance_msgs</depend>
 
 </package>

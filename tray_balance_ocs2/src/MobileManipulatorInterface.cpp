@@ -54,7 +54,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_mobile_manipulator_modified/constraint/JointAccelerationLimits.h>
 #include <ocs2_mobile_manipulator_modified/constraint/MobileManipulatorSelfCollisionConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/TrayBalanceConstraints.h>
-#include <ocs2_mobile_manipulator_modified/cost/QuadraticInputCost.h>
+#include <ocs2_mobile_manipulator_modified/cost/EndEffectorCost.h>
+// #include <ocs2_mobile_manipulator_modified/cost/QuadraticInputCost.h>
+#include <ocs2_mobile_manipulator_modified/cost/MMQuadraticStateInputCost.h>
 #include <ocs2_mobile_manipulator_modified/definitions.h>
 
 #include <ros/package.h>
@@ -159,20 +161,25 @@ void MobileManipulatorInterface::loadSettings(
                           getQuadraticStateInputCost(taskFile));
 
     // TODO do we need a final cost on state/input?
-    // matrix_t Qf(STATE_DIM, STATE_DIM);
+    // matrix_t Qf = matrix_t::Zero(STATE_DIM, STATE_DIM);
+    // Qf.block<INPUT_DIM, INPUT_DIM>(INPUT_DIM, INPUT_DIM) =
+    //     0.1 * matrix_t::Identity(INPUT_DIM, INPUT_DIM);
+    // matrix_t Rf = 0.1 * matrix_t::Identity(INPUT_DIM, INPUT_DIM);
     // loadData::loadEigenMatrix(taskFile, "stateCost.Q", Qf);
+    //
     // problem_.finalCostPtr->add(
     //     "finalCost", std::unique_ptr<StateCost>(new QuadraticStateCost(Qf)));
 
     /* Constraints */
-    problem_.softConstraintPtr->add("jointAccelerationLimit",
-                                    getJointAccelerationLimitConstraint(taskFile));
+    // problem_.softConstraintPtr->add(
+    //     "jointAccelerationLimit",
+    //     getJointAccelerationLimitConstraint(taskFile));
 
-    problem_.softConstraintPtr->add(
-        "trayBalance",
-        getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
-                                 "trayBalanceConstraints", usePreComputation,
-                                 libraryFolder, recompileLibraries));
+    // problem_.softConstraintPtr->add(
+    //     "trayBalance",
+    //     getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
+    //                              "trayBalanceConstraints", usePreComputation,
+    //                              libraryFolder, recompileLibraries));
 
     // TODO removing this for now while working on tray balance
     // problem_.stateSoftConstraintPtr->add(
@@ -181,16 +188,26 @@ void MobileManipulatorInterface::loadSettings(
     //     urdfPath,
     //                                usePreComputation, libraryFolder,
     //                                recompileLibraries));
-    problem_.stateSoftConstraintPtr->add(
-        "endEffector",
-        getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
-                                 "endEffector", usePreComputation,
-                                 libraryFolder, recompileLibraries));
-    problem_.finalSoftConstraintPtr->add(
+    // problem_.stateSoftConstraintPtr->add(
+    //     "endEffector",
+    //     getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
+    //                              "endEffector", usePreComputation,
+    //                              libraryFolder, recompileLibraries));
+    // problem_.finalSoftConstraintPtr->add(
+    //     "finalEndEffector",
+    //     getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
+    //                              "finalEndEffector", usePreComputation,
+    //                              libraryFolder, recompileLibraries));
+
+    problem_.stateCostPtr->add(
+        "endEffector", getEndEffectorCost(*pinocchioInterfacePtr_, taskFile,
+                                          "endEffector", usePreComputation,
+                                          libraryFolder, recompileLibraries));
+    problem_.finalCostPtr->add(
         "finalEndEffector",
-        getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
-                                 "finalEndEffector", usePreComputation,
-                                 libraryFolder, recompileLibraries));
+        getEndEffectorCost(*pinocchioInterfacePtr_, taskFile,
+                           "finalEndEffector", usePreComputation, libraryFolder,
+                           recompileLibraries));
 
     /*
      * Use pre-computation
@@ -243,7 +260,7 @@ MobileManipulatorInterface::getQuadraticStateInputCost(
     // Q.setZero();
 
     return std::unique_ptr<StateInputCost>(
-        new QuadraticStateInputCost(std::move(Q), std::move(R)));
+        new MMQuadraticStateInputCost(std::move(Q), std::move(R)));
     // return std::unique_ptr<StateInputCost>(
     //     new QuadraticInputCost(std::move(R)));
 }
@@ -321,12 +338,39 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorConstraint(
         std::move(constraint), std::move(penaltyArray)));
 }
 
+std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
+    PinocchioInterface pinocchioInterface, const std::string& taskFile,
+    const std::string& prefix, bool usePreComputation,
+    const std::string& libraryFolder, bool recompileLibraries) {
+
+    std::string name = "thing_tool";
+    matrix_t W(6, 6);
+
+    std::cerr << "\n #### End Effector Cost Settings: ";
+    std::cerr << "\n #### "
+                 "============================================================="
+                 "================\n";
+    loadData::loadEigenMatrix(taskFile, "endEffectorCost.W", W);
+    std::cerr << "endEffectorCost.W:  \n" << W << '\n';
+    std::cerr << " #### "
+                 "============================================================="
+                 "================"
+              << std::endl;
+
+    MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+    PinocchioEndEffectorKinematicsCppAd eeKinematics(
+        pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
+        "end_effector_kinematics", libraryFolder, recompileLibraries, false);
+
+    return std::unique_ptr<StateCost>(
+        new EndEffectorCost(std::move(W), eeKinematics, *referenceManagerPtr_));
+}
+
 std::unique_ptr<StateInputCost>
 MobileManipulatorInterface::getTrayBalanceConstraint(
     PinocchioInterface pinocchioInterface, const std::string& taskFile,
     const std::string& prefix, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
-
     // Default parameters
     scalar_t mu = 1e-2;
     scalar_t delta = 1e-3;
@@ -353,10 +397,11 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
         pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
         "tray_balance_ee_kinematics", libraryFolder, recompileLibraries, false);
 
-    std::unique_ptr<StateInputConstraint> constraint(new
-            TrayBalanceConstraints(pinocchioEEKinematics));
+    std::unique_ptr<StateInputConstraint> constraint(
+        new TrayBalanceConstraints(pinocchioEEKinematics));
 
-    std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(NUM_TRAY_BALANCE_CONSTRAINTS);
+    std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(
+        NUM_TRAY_BALANCE_CONSTRAINTS);
     for (int i = 0; i < NUM_TRAY_BALANCE_CONSTRAINTS; i++) {
         penaltyArray[i].reset(new RelaxedBarrierPenalty({mu, delta}));
     }
@@ -446,11 +491,9 @@ MobileManipulatorInterface::getJointAccelerationLimitConstraint(
     std::cerr << "\n #### "
                  "============================================================="
                  "================\n";
-    loadData::loadEigenMatrix(taskFile, prefix + ".lowerBound",
-                              lowerBound);
+    loadData::loadEigenMatrix(taskFile, prefix + ".lowerBound", lowerBound);
     std::cerr << " #### 'lowerBound':  " << lowerBound.transpose() << std::endl;
-    loadData::loadEigenMatrix(taskFile, prefix + ".upperBound",
-                              upperBound);
+    loadData::loadEigenMatrix(taskFile, prefix + ".upperBound", upperBound);
     std::cerr << " #### 'upperBound':  " << upperBound.transpose() << std::endl;
     loadData::loadPtreeValue(pt, mu, prefix + ".mu", true);
     loadData::loadPtreeValue(pt, delta, prefix + ".delta", true);
@@ -459,7 +502,8 @@ MobileManipulatorInterface::getJointAccelerationLimitConstraint(
                  "================"
               << std::endl;
 
-    std::unique_ptr<StateInputConstraint> constraint(new JointAccelerationLimits);
+    std::unique_ptr<StateInputConstraint> constraint(
+        new JointAccelerationLimits);
 
     std::unique_ptr<PenaltyBase> barrierFunction;
     std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(INPUT_DIM);

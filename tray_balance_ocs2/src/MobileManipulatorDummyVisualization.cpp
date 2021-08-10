@@ -39,13 +39,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <geometry_msgs/PoseArray.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <sensor_msgs/JointState.h>
+// #include <sensor_msgs/JointState.h>
 
 #include <ocs2_ros_interfaces/common/RosMsgHelpers.h>
 
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorDummyVisualization.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
 #include <ocs2_mobile_manipulator_modified/definitions.h>
+
+#include <tray_balance_msgs/TrayBalanceControllerInfo.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -121,8 +123,9 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
     stateOptimizedPosePublisher_ =
         nodeHandle.advertise<geometry_msgs::PoseArray>(
             "/mobile_manipulator/optimizedPoseTrajectory", 1);
-    jointPublisher_ =
-        nodeHandle.advertise<sensor_msgs::JointState>("joint_states", 1);
+    constrolInfoPublisher_ =
+        nodeHandle.advertise<tray_balance_msgs::TrayBalanceControllerInfo>(
+            "/mm/control_info", 1);
 
     const std::string urdfPath =
         ros::package::getPath("ocs2_mobile_manipulator_modified") +
@@ -181,19 +184,27 @@ void MobileManipulatorDummyVisualization::publishObservation(
         {"ur10_arm_wrist_3_joint", j_arm(5)}};
     robotStatePublisherPtr_->publishTransforms(jointPositions, timeStamp);
 
-    // publish joint state
+    // publish info about the controller
     // TODO it would be better to have this in some interface instead
     Eigen::VectorXd q = observation.state.head<NUM_DOFS>();
     Eigen::VectorXd v = observation.state.tail<NUM_DOFS>();
+    Eigen::VectorXd u = observation.input;
 
-    sensor_msgs::JointState joint_state;
-    joint_state.header.stamp = ros::Time::now();
-    joint_state.name = {"base_x", "base_y", "base_theta", "arm_1", "arm_2",
-                        "arm_3",  "arm_4",  "arm_5",      "arm_6"};
-    joint_state.position = std::vector<double>(q.data(), q.data() + q.size());
-    joint_state.velocity = std::vector<double>(v.data(), v.data() + v.size());
+    tray_balance_msgs::TrayBalanceControllerInfo control_info_msg;
 
-    jointPublisher_.publish(joint_state);
+    // sensor_msgs::JointState joint_state;
+    control_info_msg.header.stamp = ros::Time::now();
+    control_info_msg.joints.name = {"base_x", "base_y", "base_theta",
+                                    "arm_1",  "arm_2",  "arm_3",
+                                    "arm_4",  "arm_5",  "arm_6"};
+    control_info_msg.joints.position =
+        std::vector<double>(q.data(), q.data() + q.size());
+    control_info_msg.joints.velocity =
+        std::vector<double>(v.data(), v.data() + v.size());
+    control_info_msg.command =
+        std::vector<double>(u.data(), u.data() + u.size());
+
+    constrolInfoPublisher_.publish(control_info_msg);
 }
 
 /******************************************************************************************************/

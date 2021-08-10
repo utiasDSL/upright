@@ -4,14 +4,14 @@ Copyright (c) 2020, Farbod Farshidian. All rights reserved.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
- * Redistributions of source code must retain the above copyright notice, this
+* Redistributions of source code must retain the above copyright notice, this
   list of conditions and the following disclaimer.
 
- * Redistributions in binary form must reproduce the above copyright notice,
+* Redistributions in binary form must reproduce the above copyright notice,
   this list of conditions and the following disclaimer in the documentation
   and/or other materials provided with the distribution.
 
- * Neither the name of the copyright holder nor the names of its
+* Neither the name of the copyright holder nor the names of its
   contributors may be used to endorse or promote products derived from
   this software without specific prior written permission.
 
@@ -27,42 +27,33 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorDynamics.h>
+#pragma once
+
+#include <ocs2_core/cost/QuadraticStateInputCost.h>
+#include <ocs2_mobile_manipulator_modified/definitions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-MobileManipulatorDynamics::MobileManipulatorDynamics(
-    const std::string& modelName,
-    const std::string& modelFolder /*= "/tmp/ocs2"*/,
-    bool recompileLibraries /*= true*/, bool verbose /*= true*/)
-    : SystemDynamicsBaseAD() {
-    Base::initialize(STATE_DIM, INPUT_DIM, modelName, modelFolder,
-                     recompileLibraries, verbose);
-}
+class MMQuadraticStateInputCost final : public QuadraticStateInputCost {
+   public:
+    explicit MMQuadraticStateInputCost(matrix_t Q, matrix_t R)
+        : QuadraticStateInputCost(std::move(Q),
+                                  std::move(R)) {}
+    ~MMQuadraticStateInputCost() override = default;
 
-ad_vector_t MobileManipulatorDynamics::systemFlowMap(
-    ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
-    const ad_vector_t& parameters) const {
-    ad_vector_t dxdt(STATE_DIM);
-    const auto theta = state(2);
-    ad_vector_t velocity = state.tail(NUM_DOFS);
+    MMQuadraticStateInputCost* clone() const override {
+        return new MMQuadraticStateInputCost(*this);
+    }
 
-    // clang-format off
-    ad_matrix_t C(2, 2);
-    C << cos(theta), -sin(theta),
-         sin(theta),  cos(theta);
-    // clang-format on
-
-    // convert acceleration input from body frame to world frame
-    ad_vector_t acceleration(INPUT_DIM);
-    acceleration << C * input.head<2>(), input.tail<7>();
-    // acceleration << input.head<2>(), 0, input.tail<6>();
-    // acceleration = input;
-
-    dxdt << velocity, acceleration;
-    return dxdt;
-}
+    std::pair<vector_t, vector_t> getStateInputDeviation(
+        scalar_t time, const vector_t& state, const vector_t& input,
+        const TargetTrajectories& targetTrajectories) const override {
+        // const vector_t inputDeviation =
+        //     input - targetTrajectories.getDesiredInput(time);
+        return {state, input};
+    }
+};
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2
