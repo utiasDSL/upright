@@ -35,15 +35,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class MMQuadraticStateInputCost final : public QuadraticStateInputCost {
+class QuadraticJointStateInputCost final : public QuadraticStateInputCost {
    public:
-    explicit MMQuadraticStateInputCost(matrix_t Q, matrix_t R)
+    explicit QuadraticJointStateInputCost(matrix_t Q, matrix_t R)
         : QuadraticStateInputCost(std::move(Q),
                                   std::move(R)) {}
-    ~MMQuadraticStateInputCost() override = default;
+    ~QuadraticJointStateInputCost() override = default;
 
-    MMQuadraticStateInputCost* clone() const override {
-        return new MMQuadraticStateInputCost(*this);
+    QuadraticJointStateInputCost* clone() const override {
+        return new QuadraticJointStateInputCost(*this);
     }
 
     std::pair<vector_t, vector_t> getStateInputDeviation(

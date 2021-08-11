@@ -27,40 +27,57 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorDynamics.h>
+#pragma once
+
+#include <memory>
+
+#include <ocs2_mobile_manipulator_modified/definitions.h>
+
+#include <ocs2_core/constraint/StateInputConstraint.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-MobileManipulatorDynamics::MobileManipulatorDynamics(
-    const std::string& modelName,
-    const std::string& modelFolder /*= "/tmp/ocs2"*/,
-    bool recompileLibraries /*= true*/, bool verbose /*= true*/)
-    : SystemDynamicsBaseAD() {
-    Base::initialize(STATE_DIM, INPUT_DIM, modelName, modelFolder,
-                     recompileLibraries, verbose);
-}
+class JointStateInputLimits final : public StateInputConstraint {
+   public:
+    JointStateInputLimits() : StateInputConstraint(ConstraintOrder::Linear) {}
+    ~JointStateInputLimits() override = default;
+    JointStateInputLimits* clone() const override {
+        return new JointStateInputLimits(*this);
+    }
 
-ad_vector_t MobileManipulatorDynamics::systemFlowMap(
-    ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
-    const ad_vector_t& parameters) const {
-    ad_vector_t dxdt(STATE_DIM);
-    const auto theta = state(2);
-    ad_vector_t velocity = state.tail(NUM_DOFS);
+    size_t getNumConstraints(scalar_t time) const override {
+        return STATE_DIM + INPUT_DIM;
+    }
 
-    // clang-format off
-    ad_matrix_t C(2, 2);
-    C << cos(theta), -sin(theta),
-         sin(theta),  cos(theta);
-    // clang-format on
+    vector_t getValue(scalar_t time, const vector_t& state,
+                      const vector_t& input,
+                      const PreComputation&) const override {
+        vector_t value(getNumConstraints(time));
+        value << state, input;
+        return value;
+    }
 
-    // convert acceleration input from body frame to world frame
-    ad_vector_t acceleration(INPUT_DIM);
-    acceleration << C * input.head<2>(), input.tail<7>();
+    VectorFunctionLinearApproximation getLinearApproximation(
+        scalar_t time, const vector_t& state, const vector_t& input,
+        const PreComputation& precomp) const override {
+        VectorFunctionLinearApproximation limits(getNumConstraints(time),
+                                                 state.rows(), input.rows());
+        limits.f = getValue(time, state, input, precomp);
+        limits.dfdx.setZero();
+        limits.dfdx.topRows(state.rows()).setIdentity();
+        limits.dfdu.setZero();
+        limits.dfdu.bottomRows(input.rows()).setIdentity();
 
-    dxdt << velocity, acceleration;
-    return dxdt;
-}
+        // std::cout << "limits.dfdx = " << limits.dfdx << std::endl;
+        // std::cout << "limits.dfdu = " << limits.dfdu << std::endl;
+
+        return limits;
+    }
+
+   private:
+    JointStateInputLimits(const JointStateInputLimits& other) = default;
+};
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2

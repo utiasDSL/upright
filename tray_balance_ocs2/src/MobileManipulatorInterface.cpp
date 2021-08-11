@@ -52,11 +52,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
 #include <ocs2_mobile_manipulator_modified/constraint/EndEffectorConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/JointAccelerationLimits.h>
+#include <ocs2_mobile_manipulator_modified/constraint/JointStateInputLimits.h>
 #include <ocs2_mobile_manipulator_modified/constraint/MobileManipulatorSelfCollisionConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/TrayBalanceConstraints.h>
 #include <ocs2_mobile_manipulator_modified/cost/EndEffectorCost.h>
 // #include <ocs2_mobile_manipulator_modified/cost/QuadraticInputCost.h>
-#include <ocs2_mobile_manipulator_modified/cost/MMQuadraticStateInputCost.h>
+#include <ocs2_mobile_manipulator_modified/cost/QuadraticJointStateInputCost.h>
 #include <ocs2_mobile_manipulator_modified/definitions.h>
 
 #include <ros/package.h>
@@ -166,7 +167,6 @@ void MobileManipulatorInterface::loadSettings(
     //     0.1 * matrix_t::Identity(INPUT_DIM, INPUT_DIM);
     // matrix_t Rf = 0.1 * matrix_t::Identity(INPUT_DIM, INPUT_DIM);
     // loadData::loadEigenMatrix(taskFile, "stateCost.Q", Qf);
-    //
     // problem_.finalCostPtr->add(
     //     "finalCost", std::unique_ptr<StateCost>(new QuadraticStateCost(Qf)));
 
@@ -175,11 +175,15 @@ void MobileManipulatorInterface::loadSettings(
     //     "jointAccelerationLimit",
     //     getJointAccelerationLimitConstraint(taskFile));
 
-    // problem_.softConstraintPtr->add(
-    //     "trayBalance",
-    //     getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
-    //                              "trayBalanceConstraints", usePreComputation,
-    //                              libraryFolder, recompileLibraries));
+    problem_.softConstraintPtr->add(
+        "jointStateInputLimits",
+        getJointStateInputLimitConstraint(taskFile));
+
+    problem_.softConstraintPtr->add(
+        "trayBalance",
+        getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
+                                 "trayBalanceConstraints", usePreComputation,
+                                 libraryFolder, recompileLibraries));
 
     // TODO removing this for now while working on tray balance
     // problem_.stateSoftConstraintPtr->add(
@@ -188,6 +192,8 @@ void MobileManipulatorInterface::loadSettings(
     //     urdfPath,
     //                                usePreComputation, libraryFolder,
     //                                recompileLibraries));
+
+    // Alternative EE pose matching formulated as a (soft) constraint
     // problem_.stateSoftConstraintPtr->add(
     //     "endEffector",
     //     getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
@@ -260,7 +266,7 @@ MobileManipulatorInterface::getQuadraticStateInputCost(
     // Q.setZero();
 
     return std::unique_ptr<StateInputCost>(
-        new MMQuadraticStateInputCost(std::move(Q), std::move(R)));
+        new QuadraticJointStateInputCost(std::move(Q), std::move(R)));
     // return std::unique_ptr<StateInputCost>(
     //     new QuadraticInputCost(std::move(R)));
 }
@@ -342,7 +348,6 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
     PinocchioInterface pinocchioInterface, const std::string& taskFile,
     const std::string& prefix, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
-
     std::string name = "thing_tool";
     matrix_t W(6, 6);
 
@@ -511,6 +516,85 @@ MobileManipulatorInterface::getJointAccelerationLimitConstraint(
         barrierFunction.reset(new RelaxedBarrierPenalty({mu, delta}));
         penaltyArray[i].reset(new DoubleSidedPenalty(
             lowerBound(i), upperBound(i), std::move(barrierFunction)));
+    }
+
+    return std::unique_ptr<StateInputCost>(new StateInputSoftConstraint(
+        std::move(constraint), std::move(penaltyArray)));
+}
+
+std::unique_ptr<StateInputCost>
+MobileManipulatorInterface::getJointStateInputLimitConstraint(
+    const std::string& taskFile) {
+    vector_t state_lower_bound(STATE_DIM);
+    vector_t state_upper_bound(STATE_DIM);
+    scalar_t state_mu = 1e-2;
+    scalar_t state_delta = 1e-3;
+
+    vector_t input_lower_bound(INPUT_DIM);
+    vector_t input_upper_bound(INPUT_DIM);
+    scalar_t input_mu = 1e-2;
+    scalar_t input_delta = 1e-3;
+
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_info(taskFile, pt);
+    std::cerr << "\n #### Joint limit settings: ";
+    std::cerr << "\n #### "
+                 "============================================================="
+                 "================\n";
+
+    // State limits
+    std::string prefix = "jointLimits.state";
+    loadData::loadEigenMatrix(taskFile, prefix + ".lowerBound",
+                              state_lower_bound);
+    std::cerr << " #### 'state lower bound':  " << state_lower_bound.transpose()
+              << std::endl;
+    loadData::loadEigenMatrix(taskFile, prefix + ".upperBound",
+                              state_upper_bound);
+    std::cerr << " #### 'state upper bound':  " << state_upper_bound.transpose()
+              << std::endl;
+    loadData::loadPtreeValue(pt, state_mu, prefix + ".mu", true);
+    loadData::loadPtreeValue(pt, state_delta, prefix + ".delta", true);
+
+    // Input limits
+    prefix = "jointLimits.input";
+    loadData::loadEigenMatrix(taskFile, prefix + ".lowerBound",
+                              input_lower_bound);
+    std::cerr << " #### 'input lower bound':  " << input_lower_bound.transpose()
+              << std::endl;
+    loadData::loadEigenMatrix(taskFile, prefix + ".upperBound",
+                              input_upper_bound);
+    std::cerr << " #### 'input upper bound':  " << input_upper_bound.transpose()
+              << std::endl;
+    loadData::loadPtreeValue(pt, input_mu, prefix + ".mu", true);
+    loadData::loadPtreeValue(pt, input_delta, prefix + ".delta", true);
+
+    std::cerr << " #### "
+                 "============================================================="
+                 "================"
+              << std::endl;
+
+    std::unique_ptr<StateInputConstraint> constraint(new JointStateInputLimits);
+
+    auto num_constraints = constraint->getNumConstraints(0);
+    std::unique_ptr<PenaltyBase> barrierFunction;
+    std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(num_constraints);
+
+    // State penalty
+    for (int i = 0; i < STATE_DIM; i++) {
+        barrierFunction.reset(
+            new RelaxedBarrierPenalty({state_mu, state_delta}));
+        penaltyArray[i].reset(
+            new DoubleSidedPenalty(state_lower_bound(i), state_upper_bound(i),
+                                   std::move(barrierFunction)));
+    }
+
+    // Input penalty
+    for (int i = 0; i < INPUT_DIM; i++) {
+        barrierFunction.reset(
+            new RelaxedBarrierPenalty({input_mu, input_delta}));
+        penaltyArray[STATE_DIM + i].reset(
+            new DoubleSidedPenalty(input_lower_bound(i), input_upper_bound(i),
+                                   std::move(barrierFunction)));
     }
 
     return std::unique_ptr<StateInputCost>(new StateInputSoftConstraint(
