@@ -200,11 +200,9 @@ selfCollision
   ; Self Collision pairs
   collisionLinkPairs
   {
-    [0] "arm_base, ARM"
-    [1] arm_base,ELBOW
-    [2] "arm_base  , WRIST_1"
-; why is this here?
-;    [3] "link_that_doesnt_exist  , WRIST_1"
+    [0] "chassis_link, ur10_arm_upper_arm_link"
+    ;[1] arm_base, ELBOW
+    ;[2] "arm_base, WRIST_1"
   }
 
   ; minimum distance allowed between the pairs

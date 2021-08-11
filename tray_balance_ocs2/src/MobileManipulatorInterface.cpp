@@ -176,22 +176,20 @@ void MobileManipulatorInterface::loadSettings(
     //     getJointAccelerationLimitConstraint(taskFile));
 
     problem_.softConstraintPtr->add(
-        "jointStateInputLimits",
-        getJointStateInputLimitConstraint(taskFile));
+        "jointStateInputLimits", getJointStateInputLimitConstraint(taskFile));
+
+    problem_.stateSoftConstraintPtr->add(
+        "selfCollision",
+        getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile,
+        urdfPath,
+                                   usePreComputation, libraryFolder,
+                                   recompileLibraries));
 
     problem_.softConstraintPtr->add(
         "trayBalance",
         getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
                                  "trayBalanceConstraints", usePreComputation,
                                  libraryFolder, recompileLibraries));
-
-    // TODO removing this for now while working on tray balance
-    // problem_.stateSoftConstraintPtr->add(
-    //     "selfCollision",
-    //     getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile,
-    //     urdfPath,
-    //                                usePreComputation, libraryFolder,
-    //                                recompileLibraries));
 
     // Alternative EE pose matching formulated as a (soft) constraint
     // problem_.stateSoftConstraintPtr->add(
@@ -440,8 +438,8 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
     loadData::loadPtreeValue(pt, delta, prefix + "delta", true);
     loadData::loadPtreeValue(pt, minimumDistance, prefix + "minimumDistance",
                              true);
-    loadData::loadStdVectorOfPair(taskFile, prefix + "collisionObjectPairs",
-                                  collisionObjectPairs, true);
+    // loadData::loadStdVectorOfPair(taskFile, prefix + "collisionObjectPairs",
+    //                               collisionObjectPairs, true);
     loadData::loadStdVectorOfPair(taskFile, prefix + "collisionLinkPairs",
                                   collisionLinkPairs, true);
     std::cerr << " #### "
@@ -449,8 +447,9 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
                  "================"
               << std::endl;
 
+    // only specifying link pairs (i.e. by name)
     PinocchioGeometryInterface geometryInterface(
-        pinocchioInterface, collisionLinkPairs, collisionObjectPairs);
+        pinocchioInterface, collisionLinkPairs, {});
 
     const size_t numCollisionPairs = geometryInterface.getNumCollisionPairs();
     std::cerr << "SelfCollision: Testing for " << numCollisionPairs

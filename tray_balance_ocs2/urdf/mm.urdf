@@ -176,17 +176,26 @@
   </joint>
   <link name="chassis_link">
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0 0.15"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/body.stl"/>
+        <box size="1.0 0.8 0.3"/>
       </geometry>
+      <!-- <origin xyz="0 0 0"/> -->
+      <!-- <geometry> -->
+      <!--   <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/body.stl"/> -->
+      <!-- </geometry> -->
       <material name="black"/>
     </visual>
     <collision>
-      <origin xyz="0 0 0"/>
+      <!-- simpler collision geometry for speed -->
+      <origin rpy="0 0 0" xyz="0 0 0.15"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/body-collision.stl"/>
+        <box size="1.0 0.8 0.3"/>
       </geometry>
+      <!-- <origin xyz="0 0 0"/> -->
+      <!-- <geometry> -->
+      <!--   <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/body&#45;collision.stl"/> -->
+      <!-- </geometry> -->
     </collision>
     <inertial>
       <origin rpy="1.57079632679 0 1.57079632679" xyz="0.012 0.002 0.067"/>
