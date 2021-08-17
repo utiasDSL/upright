@@ -185,9 +185,9 @@ class SQP_scipy:
             jac=self.jac,
             bounds=self.bounds,
             constraints=constraints,
-            options={
-                "maxiter": 10,
-            },
+            # options={
+            #     "maxiter": 10,
+            # },
         )
         self.benchmark.end()
 

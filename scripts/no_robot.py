@@ -153,7 +153,7 @@ class TrayBalanceOptimizationEE:
         # constraint to the notes which have everything <= 0.
         # NOTE the addition of a small term in the square root to ensure
         # derivative is well-defined at 0
-        ε2 = 0.01
+        # ε2 = 0.01
 
         # h1 = (TRAY_MU * α[2])**2 - (α[0]**2 + α[1]**2)  # friction cone
         # h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + 0.01)  # friction cone
@@ -164,9 +164,11 @@ class TrayBalanceOptimizationEE:
         # Splitting the absolute value into two constraints appears to be
         # better numerically for the solver
 
-        h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2)
-        h1a = h1 + β[2] / r
-        h1b = h1 - β[2] / r
+        # h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + ε2)
+        # h1a = h1 + β[2] / r
+        # h1b = h1 - β[2] / r
+
+        h1 = (TRAY_MU * α[2])**2 - α[0]**2 - α[1]**2 - (β[2]/r)**2
 
         # h1 = TRAY_MU**2 * α[2]**2 - α[0] ** 2 - α[1] ** 2
         #
@@ -184,7 +186,7 @@ class TrayBalanceOptimizationEE:
         h3 = r**2 * α[2]**2 - γ[0] ** 2 - γ[1] ** 2
         # h3 = 1
 
-        return jnp.array([h1a, h1b, h2, h3, 1, 1, 1])
+        return jnp.array([h1, h2, h3, 1, 1, 1, 1])
 
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints_unrolled(self, X0, P_we_d, V_ew_w_d, var):
@@ -425,6 +427,7 @@ def main():
     # desired quaternion
     # Qd = Q_we
     R_ed = SO3.from_z_radians(np.pi)
+    # R_ed = SO3.identity()
     R_we = SO3.from_quaternion_xyzw(Q_we)
     R_wd = R_we.multiply(R_ed)
     Qd = R_wd.as_quaternion_xyzw()
