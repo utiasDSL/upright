@@ -37,18 +37,28 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class MobileManipulatorSelfCollisionConstraint final : public SelfCollisionConstraint {
- public:
-  MobileManipulatorSelfCollisionConstraint(const PinocchioStateInputMapping<scalar_t>& mapping,
-                                           PinocchioGeometryInterface pinocchioGeometryInterface, scalar_t minimumDistance)
-      : SelfCollisionConstraint(mapping, std::move(pinocchioGeometryInterface), minimumDistance) {}
-  ~MobileManipulatorSelfCollisionConstraint() override = default;
-  MobileManipulatorSelfCollisionConstraint(const MobileManipulatorSelfCollisionConstraint& other) = default;
-  MobileManipulatorSelfCollisionConstraint* clone() const { return new MobileManipulatorSelfCollisionConstraint(*this); }
+class MobileManipulatorSelfCollisionConstraint final
+    : public SelfCollisionConstraint {
+   public:
+    MobileManipulatorSelfCollisionConstraint(
+        const PinocchioStateInputMapping<scalar_t>& mapping,
+        PinocchioGeometryInterface pinocchioGeometryInterface,
+        scalar_t minimumDistance)
+        : SelfCollisionConstraint(
+              mapping, std::move(pinocchioGeometryInterface), minimumDistance) {
+    }
+    ~MobileManipulatorSelfCollisionConstraint() override = default;
+    MobileManipulatorSelfCollisionConstraint(
+        const MobileManipulatorSelfCollisionConstraint& other) = default;
+    MobileManipulatorSelfCollisionConstraint* clone() const {
+        return new MobileManipulatorSelfCollisionConstraint(*this);
+    }
 
-  const PinocchioInterface& getPinocchioInterface(const PreComputation& preComputation) const override {
-    return cast<MobileManipulatorPreComputation>(preComputation).getPinocchioInterface();
-  }
+    const PinocchioInterface& getPinocchioInterface(
+        const PreComputation& preComputation) const override {
+        return cast<MobileManipulatorPreComputation>(preComputation)
+            .getPinocchioInterface();
+    }
 };
 
 }  // namespace mobile_manipulator

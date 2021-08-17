@@ -110,8 +110,8 @@ class MobileManipulatorInterface final : public RobotInterface {
     std::unique_ptr<StateInputCost> getJointAccelerationLimitConstraint(
         const std::string& taskFile);
 
-    std::unique_ptr<StateInputCost>
-    getJointStateInputLimitConstraint(const std::string& taskFile);
+    std::unique_ptr<StateInputCost> getJointStateInputLimitConstraint(
+        const std::string& taskFile);
 
     std::unique_ptr<StateInputCost> getTrayBalanceConstraint(
         PinocchioInterface pinocchioInterface, const std::string& taskFile,
