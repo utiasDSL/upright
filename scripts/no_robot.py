@@ -182,7 +182,8 @@ class TrayBalanceOptimizationEE:
 
         h2 = α[2]  # α3 >= 0
 
-        # h3 = r * α[2] - jnp.sqrt(γ[0] ** 2 + γ[1] ** 2 + ε2)
+        # NOTE: this is equivalent to the ZMP constraint for a circle with
+        # radius r
         h3 = r**2 * α[2]**2 - γ[0] ** 2 - γ[1] ** 2
         # h3 = 1
 

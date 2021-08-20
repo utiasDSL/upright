@@ -34,8 +34,7 @@ def rot2d(θ, np=np):
     """2D rotation matrix: rotates points counter-clockwise."""
     c = np.cos(θ)
     s = np.sin(θ)
-    return np.array([[c, -s],
-                     [s,  c]])
+    return np.array([[c, -s], [s, c]])
 
 
 def pose_to_pos_quat(P):
@@ -104,11 +103,14 @@ def dhtf(q, a, d, α, np=jnp):
     sα = np.sin(α)
     cq = np.cos(q)
     sq = np.sin(q)
-    return np.array([
-        [cq, -sq*cα,  sq*sα, a*cq],
-        [sq,  cq*cα, -cq*sα, a*sq],
-        [0,      sα,     cα,    d],
-        [0,       0,      0,   1]])
+    return np.array(
+        [
+            [cq, -sq * cα, sq * sα, a * cq],
+            [sq, cq * cα, -cq * sα, a * sq],
+            [0, sα, cα, d],
+            [0, 0, 0, 1],
+        ]
+    )
 
 
 def zoh(A, B, dt):
@@ -125,7 +127,7 @@ def zoh(A, B, dt):
     H = np.block([[A, B], [np.zeros((rh - ra, ch))]])
     Hd = expm(dt * H)
     Ad = Hd[:ra, :ca]
-    Bd = Hd[:rb, ca:ca+cb]
+    Bd = Hd[:rb, ca : ca + cb]
 
     return Ad, Bd
 
@@ -135,8 +137,41 @@ def equilateral_triangle_inscribed_radius(side_length):
     return side_length / (2 * np.sqrt(3))
 
 
-def cylinder_inertia_matrix(m, r, h):
+def cylinder_inertia_matrix(mass, radius, height):
     """Inertia matrix for cylinder aligned along z-axis."""
-    xx = yy = m * (3 * r**2 + h**2) / 12
-    zz = 0.5 * m * r**2
+    xx = yy = mass * (3 * radius ** 2 + height ** 2) / 12
+    zz = 0.5 * mass * radius ** 2
     return np.diag([xx, yy, zz])
+
+
+def cuboid_inertia_matrix(mass, side_lengths):
+    """Inertia matrix for a rectangular cuboid with side_lengths in (x, y, z)
+    dimensions."""
+    lx, ly, lz = side_lengths
+    return (
+        mass * np.diag([ly ** 2 + lz ** 2, lx ** 2 + lz ** 2, lx ** 2 + ly ** 2]) / 12.0
+    )
+
+
+class Body:
+    """Rigid body parameters."""
+    def __init__(self, mass, inertia, com):
+        self.mass = mass
+        self.inertia = np.array(inertia)
+        self.com = np.array(com)  # relative to some reference point
+
+
+def compose_bodies(bodies):
+    """Compute dynamic parameters for a system of multiple rigid bodies."""
+    mass = sum([body.mass for body in bodies])
+    com = sum([body.mass * body.com for body in bodies]) / mass
+
+    # parallel axis theorem to compute new inertia matrix
+    inertia = np.zeros((3, 3))
+    for body in bodies:
+        r = body.com - com  # direction doesn't actually matter: it cancels out
+        R = skew3(r, np=np)
+        I_new = body.inertia - body.mass * R @ R
+        inertia += I_new
+
+    return Body(mass, inertia, com)
