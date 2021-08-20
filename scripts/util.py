@@ -175,3 +175,38 @@ def compose_bodies(bodies):
         inertia += I_new
 
     return Body(mass, inertia, com)
+
+
+def circle_zmp_constraints(zmp, center, radius):
+    """ZMP constraint for a circular support area."""
+    e = zmp - center
+    return radius**2 - e @ e
+
+
+def edge_zmp_constraint(zmp, v1, v2):
+    S = np.array([[0, 1], [-1, 0]])
+    normal = S @ (v2 - v1)  # inward-facing
+    return -(zmp - v1) @ normal  # negative because g >= 0
+
+
+def polygon_zmp_constraints(zmp, vertices):
+    """ZMP constraint for a polygonal support area.
+
+    vertices are an N*2 array of vertices arranged in order, counter-clockwise.
+    """
+    N = vertices.shape[0]
+    g = np.zeros(N)
+    for i in range(N - 1):
+        v1 = vertices[i, :]
+        v2 = vertices[i+1, :]
+        g[i] = edge_zmp_constraint(zmp, v1, v2)
+    g[-1] = edge_zmp_constraint(zmp, vertices[-1, :], vertices[0, :])
+    return g
+
+
+class Polygon:
+    def __init__(self, vertices):
+        self.vertices = np.array(vertices)
+
+    def zmp_constraints(self, zmp):
+        pass
