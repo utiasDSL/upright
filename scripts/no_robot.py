@@ -21,7 +21,9 @@ from util import (
     cylinder_inertia_matrix,
     quat_multiply,
     debug_frame,
-    state_error
+    state_error,
+    polygon_zmp_constraints,
+    circle_zmp_constraints,
 )
 from tray import Tray
 from end_effector import EndEffector, EndEffectorModel
@@ -67,7 +69,7 @@ class TrayBalanceOptimizationEE:
 
         self.nv = model.ni  # number of optimization variables per MPC step
         self.nc_eq = 0  # number of equality constraints
-        self.nc_ineq = 7  # number of inequality constraints
+        self.nc_ineq = 2 + 3  # number of inequality constraints: 2 + ZMP constraints
         self.nc = self.nc_eq + self.nc_ineq
 
         # MPC weights
@@ -147,7 +149,6 @@ class TrayBalanceOptimizationEE:
         rz = -TRAY_H
         r = TRAY_W
 
-        γ = rz * S.T @ α[:2] - β[:2]
 
         # NOTE: these constraints are currently written to be >= 0, in
         # constraint to the notes which have everything <= 0.
@@ -182,12 +183,16 @@ class TrayBalanceOptimizationEE:
 
         h2 = α[2]  # α3 >= 0
 
-        # NOTE: this is equivalent to the ZMP constraint for a circle with
-        # radius r
-        h3 = r**2 * α[2]**2 - γ[0] ** 2 - γ[1] ** 2
-        # h3 = 1
+        zmp = (rz * α[:2] - S @ β[:2]) / α[2]  # TODO numerical issues?
+        # h3 = circle_zmp_constraints(zmp, np.array([0, 0]), r)
 
-        return jnp.array([h1, h2, h3, 1, 1, 1, 1])
+        vertices = np.array([[0.1732, 0], [-0.0866, 0.15], [-0.0866, -0.15]])
+        h3 = polygon_zmp_constraints(zmp, vertices)
+
+        h12 = jnp.array([h1, h2])
+        return jnp.concatenate((h12, h3))
+
+        # return jnp.array([h1, h2, h3, 1, 1, 1, 1])
 
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints_unrolled(self, X0, P_we_d, V_ew_w_d, var):

@@ -1,5 +1,6 @@
 import numpy as np
 import pybullet as pyb
+import jax
 import jax.numpy as jnp
 from jaxlie import SO3
 from scipy.linalg import expm
@@ -155,6 +156,7 @@ def cuboid_inertia_matrix(mass, side_lengths):
 
 class Body:
     """Rigid body parameters."""
+
     def __init__(self, mass, inertia, com):
         self.mass = mass
         self.inertia = np.array(inertia)
@@ -180,7 +182,7 @@ def compose_bodies(bodies):
 def circle_zmp_constraints(zmp, center, radius):
     """ZMP constraint for a circular support area."""
     e = zmp - center
-    return radius**2 - e @ e
+    return radius ** 2 - e @ e
 
 
 def edge_zmp_constraint(zmp, v1, v2):
@@ -189,12 +191,25 @@ def edge_zmp_constraint(zmp, v1, v2):
     return -(zmp - v1) @ normal  # negative because g >= 0
 
 
-def polygon_zmp_constraints(zmp, vertices):
+def polygon_zmp_constraints(zmp, vertices, np=jnp):
+    """ZMP constraint for a polygonal support area.
+
+    vertices are an N*2 array of vertices arranged in order, counter-clockwise.
+    """
+    def scan_func(v0, v1):
+        return v1, edge_zmp_constraint(zmp, v0, v1)
+
+    _, g = jax.lax.scan(scan_func, vertices[-1, :], vertices)
+    return g
+
+
+def polygon_zmp_constraints_np(zmp, vertices):
     """ZMP constraint for a polygonal support area.
 
     vertices are an N*2 array of vertices arranged in order, counter-clockwise.
     """
     N = vertices.shape[0]
+
     g = np.zeros(N)
     for i in range(N - 1):
         v1 = vertices[i, :]
