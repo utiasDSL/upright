@@ -2,26 +2,14 @@ import numpy as np
 import pybullet as pyb
 
 
-class Tray:
-    def __init__(self, mass=0.5, radius=0.25, height=0.01, mu=0.5):
-
-        collision_uid = pyb.createCollisionShape(
-            shapeType=pyb.GEOM_CYLINDER,
-            radius=radius,
-            height=height,
-        )
-        visual_uid = pyb.createVisualShape(
-            shapeType=pyb.GEOM_CYLINDER,
-            radius=radius,
-            length=height,
-            rgbaColor=[0, 0, 1, 1],
-        )
+class BalancedObject:
+    def __init__(self, mass, mu, collision_uid, visual_uid, position, orientation):
         self.uid = pyb.createMultiBody(
             baseMass=mass,
             baseCollisionShapeIndex=collision_uid,
             baseVisualShapeIndex=visual_uid,
-            basePosition=[0, 0, 2],
-            baseOrientation=[0, 0, 0, 1],
+            basePosition=position,
+            baseOrientation=orientation,
         )
 
         # set friction
@@ -44,3 +32,19 @@ class Tray:
         if orientation is None:
             orientation = current_orn
         pyb.resetBasePositionAndOrientation(self.uid, list(position), list(orientation))
+
+
+class Cylinder(BalancedObject):
+    def __init__(self, mass=0.5, radius=0.25, height=0.01, mu=0.5, color=(0, 0, 1, 1)):
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_CYLINDER,
+            radius=radius,
+            height=height,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_CYLINDER,
+            radius=radius,
+            length=height,
+            rgbaColor=color,
+        )
+        super().__init__(mass, mu, collision_uid, visual_uid, [0, 0, 2], [0, 0, 0, 1])

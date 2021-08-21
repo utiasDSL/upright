@@ -25,7 +25,7 @@ from util import (
     polygon_zmp_constraints,
     circle_zmp_constraints,
 )
-from tray import Tray
+from bodies import Cylinder
 from end_effector import EndEffector, EndEffectorModel
 
 import IPython
@@ -45,11 +45,14 @@ TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_W = equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
-TRAY_H = (
-    0.5  # height of center of mass from bottom of tray  TODO confusing
-)
-# TRAY_INERTIA = TRAY_MASS * (3 * TRAY_RADIUS ** 2 + (2 * TRAY_H) ** 2) / 12.0
+TRAY_H = 0.01  # height of center of mass from bottom of tray  TODO confusing
 TRAY_INERTIA = cylinder_inertia_matrix(TRAY_MASS, TRAY_RADIUS, 2 * TRAY_H)
+
+OBJ_MASS = 1
+OBJ_MU = 1  # TODO change
+OBJ_RADIUS = 0.1
+OBJ_COM_HEIGHT = 0.2
+OBJ_INERTIA = cylinder_inertia_matrix(OBJ_MASS, OBJ_RADIUS, 2 * OBJ_COM_HEIGHT)
 
 # simulation parameters
 SIM_DT = 0.001  # simulation timestep (s)
@@ -69,14 +72,16 @@ class TrayBalanceOptimizationEE:
 
         self.nv = model.ni  # number of optimization variables per MPC step
         self.nc_eq = 0  # number of equality constraints
-        self.nc_ineq = 2 + 3  # number of inequality constraints: 2 + ZMP constraints
+        self.nc_ineq = 2 + 1  # number of inequality constraints: 2 + ZMP constraints
         self.nc = self.nc_eq + self.nc_ineq
 
         # MPC weights
         Q = np.diag(
             np.concatenate((np.zeros(7), 0.01 * np.ones(model.ni)))
         )  # joint state error
-        W = np.diag(np.concatenate((np.ones(3), np.full(3, 1), np.zeros(6))))  # Cartesian state error
+        W = np.diag(
+            np.concatenate((np.ones(3), np.full(3, 1), np.zeros(6)))
+        )  # Cartesian state error
         R = 0.01 * np.eye(self.nv)
         V = MPC_DT * np.eye(self.nv)
 
@@ -149,7 +154,6 @@ class TrayBalanceOptimizationEE:
         rz = -TRAY_H
         r = TRAY_W
 
-
         # NOTE: these constraints are currently written to be >= 0, in
         # constraint to the notes which have everything <= 0.
         # NOTE the addition of a small term in the square root to ensure
@@ -169,7 +173,7 @@ class TrayBalanceOptimizationEE:
         # h1a = h1 + β[2] / r
         # h1b = h1 - β[2] / r
 
-        h1 = (TRAY_MU * α[2])**2 - α[0]**2 - α[1]**2 - (β[2]/r)**2
+        h1 = (TRAY_MU * α[2]) ** 2 - α[0] ** 2 - α[1] ** 2 - (β[2] / r) ** 2
 
         # h1 = TRAY_MU**2 * α[2]**2 - α[0] ** 2 - α[1] ** 2
         #
@@ -184,15 +188,15 @@ class TrayBalanceOptimizationEE:
         h2 = α[2]  # α3 >= 0
 
         zmp = (rz * α[:2] - S @ β[:2]) / α[2]  # TODO numerical issues?
-        # h3 = circle_zmp_constraints(zmp, np.array([0, 0]), r)
+        h3 = circle_zmp_constraints(zmp, np.array([0, 0]), r)
 
-        vertices = np.array([[0.1732, 0], [-0.0866, 0.15], [-0.0866, -0.15]])
-        h3 = polygon_zmp_constraints(zmp, vertices)
+        # vertices = np.array([[0.1732, 0], [-0.0866, 0.15], [-0.0866, -0.15]])
+        # h3 = polygon_zmp_constraints(zmp, vertices)
+        #
+        # h12 = jnp.array([h1, h2])
+        # return jnp.concatenate((h12, h3))
 
-        h12 = jnp.array([h1, h2])
-        return jnp.concatenate((h12, h3))
-
-        # return jnp.array([h1, h2, h3, 1, 1, 1, 1])
+        return jnp.array([h1, h2, h3])
 
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints_unrolled(self, X0, P_we_d, V_ew_w_d, var):
@@ -360,9 +364,19 @@ def setup_sim():
     debug_frame(0.1, ee.uid, -1)
 
     # setup tray
-    tray = Tray(mass=TRAY_MASS, radius=TRAY_RADIUS, height=2 * TRAY_H, mu=TRAY_MU)
+    tray = Cylinder(mass=TRAY_MASS, radius=TRAY_RADIUS, height=2 * TRAY_H, mu=TRAY_MU)
     ee_pos, _ = ee.get_pose()
     tray.reset_pose(position=ee_pos + [0, 0, TRAY_H + 0.05])
+
+    # object on tray
+    obj = Cylinder(
+        mass=OBJ_MASS,
+        radius=OBJ_RADIUS,
+        height=2 * OBJ_COM_HEIGHT,
+        mu=OBJ_MU,
+        color=(0, 1, 0, 1),
+    )
+    obj.reset_pose(position=ee_pos + [0, 0, 2 * TRAY_H + OBJ_COM_HEIGHT + 0.05])
 
     settle_sim(1.0)
 
