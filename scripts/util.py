@@ -138,90 +138,65 @@ def equilateral_triangle_inscribed_radius(side_length):
     return side_length / (2 * np.sqrt(3))
 
 
-def cylinder_inertia_matrix(mass, radius, height):
-    """Inertia matrix for cylinder aligned along z-axis."""
-    xx = yy = mass * (3 * radius ** 2 + height ** 2) / 12
-    zz = 0.5 * mass * radius ** 2
-    return np.diag([xx, yy, zz])
+def circle_r_tau(radius):
+    return 2.0 * radius / 3
 
 
-def cuboid_inertia_matrix(mass, side_lengths):
-    """Inertia matrix for a rectangular cuboid with side_lengths in (x, y, z)
-    dimensions."""
-    lx, ly, lz = side_lengths
-    return (
-        mass * np.diag([ly ** 2 + lz ** 2, lx ** 2 + lz ** 2, lx ** 2 + ly ** 2]) / 12.0
-    )
+class PolygonSupportArea:
+    """Polygonal support area
 
-
-class Body:
-    """Rigid body parameters."""
-
-    def __init__(self, mass, inertia, com):
-        self.mass = mass
-        self.inertia = np.array(inertia)
-        self.com = np.array(com)  # relative to some reference point
-
-
-def compose_bodies(bodies):
-    """Compute dynamic parameters for a system of multiple rigid bodies."""
-    mass = sum([body.mass for body in bodies])
-    com = sum([body.mass * body.com for body in bodies]) / mass
-
-    # parallel axis theorem to compute new inertia matrix
-    inertia = np.zeros((3, 3))
-    for body in bodies:
-        r = body.com - com  # direction doesn't actually matter: it cancels out
-        R = skew3(r, np=np)
-        I_new = body.inertia - body.mass * R @ R
-        inertia += I_new
-
-    return Body(mass, inertia, com)
-
-
-def circle_zmp_constraints(zmp, center, radius):
-    """ZMP constraint for a circular support area."""
-    e = zmp - center
-    return radius ** 2 - e @ e
-
-
-def edge_zmp_constraint(zmp, v1, v2):
-    S = np.array([[0, 1], [-1, 0]])
-    normal = S @ (v2 - v1)  # inward-facing
-    return -(zmp - v1) @ normal  # negative because g >= 0
-
-
-def polygon_zmp_constraints(zmp, vertices, np=jnp):
-    """ZMP constraint for a polygonal support area.
-
-    vertices are an N*2 array of vertices arranged in order, counter-clockwise.
+    vertices: N*2 array of vertices arranged in order, counter-clockwise.
+    offset: the 2D vector pointing from the projection of the CoM on the
+    support plane to the center of the support area
     """
-    def scan_func(v0, v1):
-        return v1, edge_zmp_constraint(zmp, v0, v1)
 
-    _, g = jax.lax.scan(scan_func, vertices[-1, :], vertices)
-    return g
-
-
-def polygon_zmp_constraints_np(zmp, vertices):
-    """ZMP constraint for a polygonal support area.
-
-    vertices are an N*2 array of vertices arranged in order, counter-clockwise.
-    """
-    N = vertices.shape[0]
-
-    g = np.zeros(N)
-    for i in range(N - 1):
-        v1 = vertices[i, :]
-        v2 = vertices[i+1, :]
-        g[i] = edge_zmp_constraint(zmp, v1, v2)
-    g[-1] = edge_zmp_constraint(zmp, vertices[-1, :], vertices[0, :])
-    return g
-
-
-class Polygon:
-    def __init__(self, vertices):
+    def __init__(self, vertices, offset=(0, 0)):
         self.vertices = np.array(vertices)
+        self.offset = np.array(offset)
+
+    @staticmethod
+    def edge_zmp_constraint(zmp, v1, v2):
+        """ZMP constraint for a single edge of a polygon.
+
+        zmp is the zero-moment point
+        v1 and v2 are the endpoints of the segment.
+        """
+        S = np.array([[0, 1], [-1, 0]])
+        normal = S @ (v2 - v1)  # inward-facing
+        return -(zmp - v1) @ normal  # negative because g >= 0
 
     def zmp_constraints(self, zmp):
-        pass
+        def scan_func(v0, v1):
+            return v1, PolygonSupportArea.edge_zmp_constraint(zmp, v0, v1)
+
+        _, g = jax.lax.scan(scan_func, self.vertices[-1, :], self.vertices)
+        return g
+
+    def zmp_constraints_numpy(self, zmp):
+        N = self.vertices.shape[0]
+
+        g = np.zeros(N)
+        for i in range(N - 1):
+            v1 = self.vertices[i, :]
+            v2 = self.vertices[i + 1, :]
+            g[i] = PolygonSupportArea.edge_zmp_constraint(zmp, v1, v2)
+        g[-1] = PolygonSupportArea.edge_zmp_constraint(
+            zmp, self.vertices[-1, :], self.vertices[0, :]
+        )
+        return g
+
+
+class CircleSupportArea:
+    """Circular support area
+
+    offset: the 2D vector pointing from the projection of the CoM on the
+    support plane to the center of the support area
+    """
+
+    def __init__(self, radius, offset=(0, 0)):
+        self.radius = radius
+        self.offset = np.array(offset)
+
+    def zmp_constraints(self, zmp):
+        e = zmp - self.offset
+        return self.radius ** 2 - e @ e

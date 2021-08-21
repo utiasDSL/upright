@@ -1,8 +1,52 @@
 import numpy as np
 import pybullet as pyb
 
+from util import skew3
 
-class BalancedObject:
+
+def cylinder_inertia_matrix(mass, radius, height):
+    """Inertia matrix for cylinder aligned along z-axis."""
+    xx = yy = mass * (3 * radius ** 2 + height ** 2) / 12
+    zz = 0.5 * mass * radius ** 2
+    return np.diag([xx, yy, zz])
+
+
+def cuboid_inertia_matrix(mass, side_lengths):
+    """Inertia matrix for a rectangular cuboid with side_lengths in (x, y, z)
+    dimensions."""
+    lx, ly, lz = side_lengths
+    xx = ly ** 2 + lz ** 2
+    yy = lx ** 2 + lz ** 2
+    zz = lx ** 2 + ly ** 2
+    return mass * np.diag([xx, yy, zz]) / 12.0
+
+
+class RigidBody:
+    """Rigid body parameters."""
+
+    def __init__(self, mass, inertia, com):
+        self.mass = mass
+        self.inertia = np.array(inertia)
+        self.com = np.array(com)  # relative to some reference point
+
+
+def compose_bodies(bodies):
+    """Compute dynamic parameters for a system of multiple rigid bodies."""
+    mass = sum([body.mass for body in bodies])
+    com = sum([body.mass * body.com for body in bodies]) / mass
+
+    # parallel axis theorem to compute new inertia matrix
+    inertia = np.zeros((3, 3))
+    for body in bodies:
+        r = body.com - com  # direction doesn't actually matter: it cancels out
+        R = skew3(r, np=np)
+        I_new = body.inertia - body.mass * R @ R
+        inertia += I_new
+
+    return RigidBody(mass, inertia, com)
+
+
+class BulletBody:
     def __init__(self, mass, mu, collision_uid, visual_uid, position, orientation):
         self.uid = pyb.createMultiBody(
             baseMass=mass,
@@ -34,8 +78,38 @@ class BalancedObject:
         pyb.resetBasePositionAndOrientation(self.uid, list(position), list(orientation))
 
 
-class Cylinder(BalancedObject):
-    def __init__(self, mass=0.5, radius=0.25, height=0.01, mu=0.5, color=(0, 0, 1, 1)):
+class BalancedBody:
+    """Rigid body balanced by the EE.
+
+    com_height: height of the CoM from the bottom of the object
+    r_tau: distance value used for max frictional torque calculation
+    """
+
+    def __init__(self, body, com_height, r_tau, support_area, mu):
+        # dynamic parameters
+        self.body = body
+
+        # geometry
+        self.com_height = com_height
+        self.support_area = support_area
+
+        # friction
+        self.r_tau = r_tau
+        self.mu = mu
+
+
+class Cylinder(BalancedBody):
+    def __init__(
+        self,
+        r_tau,
+        support_area,
+        mass=0.5,
+        radius=0.25,
+        height=0.01,
+        mu=0.5,
+        bullet_mu=1.0,
+        color=(0, 0, 1, 1),
+    ):
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_CYLINDER,
             radius=radius,
@@ -47,4 +121,10 @@ class Cylinder(BalancedObject):
             length=height,
             rgbaColor=color,
         )
-        super().__init__(mass, mu, collision_uid, visual_uid, [0, 0, 2], [0, 0, 0, 1])
+        self.bullet = BulletBody(
+            mass, bullet_mu, collision_uid, visual_uid, [0, 0, 2], [0, 0, 0, 1]
+        )
+
+        inertia = cylinder_inertia_matrix(mass, radius, height)
+        body = RigidBody(mass, inertia, [0, 0, 0])
+        super().__init__(body, 0.5 * height, r_tau, support_area, mu)
