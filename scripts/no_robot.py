@@ -2,7 +2,6 @@
 """Baseline tray balancing formulation."""
 from functools import partial
 import time
-import copy
 
 import jax.numpy as jnp
 import jax
@@ -49,10 +48,9 @@ GRAVITY_VECTOR = np.array([0, 0, -GRAVITY_MAG])
 # tray parameters
 TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
-TRAY_MU = 0.5
+TRAY_MU = 1.0
 TRAY_W = equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 TRAY_H = 0.01  # height of center of mass from bottom of tray  TODO confusing
-# TRAY_INERTIA = cylinder_inertia_matrix(TRAY_MASS, TRAY_RADIUS, 2 * TRAY_H)
 
 print(f"TRAY_W = {TRAY_W}")
 
@@ -61,7 +59,7 @@ OBJ_TRAY_MU = 0.5
 OBJ_TRAY_MU_BULLET = OBJ_TRAY_MU / TRAY_MU
 OBJ_RADIUS = 0.1
 OBJ_COM_HEIGHT = 0.2
-# OBJ_INERTIA = cylinder_inertia_matrix(OBJ_MASS, OBJ_RADIUS, 2 * OBJ_COM_HEIGHT)
+OBJ_ZMP_MARGIN = 0.01
 
 NUM_OBJECTS = 1
 
@@ -84,11 +82,11 @@ class TrayBalanceOptimizationEE:
 
         # create the composite
         # TODO may be better to just construct a new object from scratch
-        obj_tray_composite = tray.copy()
-        obj_tray_composite.body = compose_bodies([tray.body, obj.body])
-        delta = tray.body.com - obj_tray_composite.body.com
-        obj_tray_composite.support_area.offset = delta[:2]
-        obj_tray_composite.com_height = tray.com_height - delta[2]
+        # obj_tray_composite = tray.copy()
+        # obj_tray_composite.body = compose_bodies([tray.body, obj.body])
+        # delta = tray.body.com - obj_tray_composite.body.com
+        # obj_tray_composite.support_area.offset = delta[:2]
+        # obj_tray_composite.com_height = tray.com_height - delta[2]
 
         # self.obj_to_constrain = [obj_tray_composite, obj]
         self.obj_to_constrain = [obj]
@@ -415,7 +413,7 @@ def setup_sim():
     # object on tray
     obj = Cylinder(
         r_tau=circle_r_tau(OBJ_RADIUS),
-        support_area=CircleSupportArea(OBJ_RADIUS, margin=0.01),
+        support_area=CircleSupportArea(OBJ_RADIUS, margin=OBJ_ZMP_MARGIN),
         mass=OBJ_MASS,
         radius=OBJ_RADIUS,
         height=2 * OBJ_COM_HEIGHT,
@@ -483,12 +481,14 @@ def main():
     r_te_es = np.zeros((N_record, 3))
     r_oe_es = np.zeros((N_record, 3))
     Q_ets = np.zeros((N_record, 4))
+    Q_eos = np.zeros((N_record, 4))
     ineq_cons = np.zeros((N_record, problem.nc_ineq))
 
     r_te_es[0, :] = tray.body.com
     r_oe_es[0, :] = obj.body.com
     Q_wes[0, :] = Q_we
     Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
+    Q_eos[0, :] = calc_Q_et(Q_we, Q_wo)
     r_ew_ws[0, :] = r_ew_w
     v_ew_ws[0, :] = v_ew_w
     ω_ew_ws[0, :] = ω_ew_w
@@ -586,8 +586,8 @@ def main():
             r_tw_ws[idx, :] = r_tw_w
             r_te_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
             r_oe_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_ow_w)
-            Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
-            # Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
+            Q_ets[idx, :] = calc_Q_et(Q_we, Q_wt)
+            Q_eos[idx, :] = calc_Q_et(Q_we, Q_wo)
 
         if np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01 and np.linalg.norm(Q_de[:3]) < 0.01:
             print("Close to desired pose - stopping.")
@@ -663,9 +663,9 @@ def main():
     plt.plot(ts[:idx], r_oe_e_err[:, 1], label="$y$")
     plt.plot(ts[:idx], r_oe_e_err[:, 2], label="$z$")
     # plt.plot(ts[:idx], np.linalg.norm(r_te_e_err, axis=1), label="$||r||$")
-    # plt.plot(ts[:idx], Q_ets[:idx, 0], label="$Q_x$")
-    # plt.plot(ts[:idx], Q_ets[:idx, 1], label="$Q_y$")
-    # plt.plot(ts[:idx], Q_ets[:idx, 2], label="$Q_z$")
+    plt.plot(ts[:idx], Q_eos[:idx, 0], label="$Q_x$")
+    plt.plot(ts[:idx], Q_eos[:idx, 1], label="$Q_y$")
+    plt.plot(ts[:idx], Q_eos[:idx, 2], label="$Q_z$")
     plt.grid()
     plt.legend()
     plt.xlabel("Time (s)")

@@ -49,7 +49,7 @@ def compose_bodies(bodies):
 
 
 class BulletBody:
-    def __init__(self, mass, mu, collision_uid, visual_uid, position, orientation):
+    def __init__(self, mass, mu, r_tau, collision_uid, visual_uid, position, orientation):
         self.uid = pyb.createMultiBody(
             baseMass=mass,
             baseCollisionShapeIndex=collision_uid,
@@ -59,7 +59,7 @@ class BulletBody:
         )
 
         # set friction
-        pyb.changeDynamics(self.uid, -1, lateralFriction=mu)
+        pyb.changeDynamics(self.uid, -1, lateralFriction=mu, spinningFriction=r_tau)
 
     def get_pose(self):
         pos, orn = pyb.getBasePositionAndOrientation(self.uid)
@@ -127,7 +127,7 @@ class Cylinder(BalancedBody):
             rgbaColor=color,
         )
         self.bullet = BulletBody(
-            mass, bullet_mu, collision_uid, visual_uid, [0, 0, 2], [0, 0, 0, 1]
+            mass, bullet_mu, r_tau, collision_uid, visual_uid, [0, 0, 2], [0, 0, 0, 1]
         )
 
         inertia = cylinder_inertia_matrix(mass, radius, height)

@@ -209,4 +209,4 @@ class CircleSupportArea:
         Returns a value g, where g >= 0 satisfies the ZMP constraint
         """
         e = zmp - self.offset
-        return self.radius ** 2 - self.margin ** 2 - e @ e
+        return (self.radius - self.margin) ** 2 - e @ e
