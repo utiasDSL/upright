@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import pybullet as pyb
 
@@ -97,17 +99,20 @@ class BalancedBody:
         self.r_tau = r_tau
         self.mu = mu
 
+    def copy(self):
+        return copy.deepcopy(self)
+
 
 class Cylinder(BalancedBody):
     def __init__(
         self,
         r_tau,
         support_area,
-        mass=0.5,
-        radius=0.25,
-        height=0.01,
-        mu=0.5,
-        bullet_mu=1.0,
+        mass,
+        radius,
+        height,
+        mu,
+        bullet_mu,
         color=(0, 0, 1, 1),
     ):
         collision_uid = pyb.createCollisionShape(
@@ -126,5 +131,5 @@ class Cylinder(BalancedBody):
         )
 
         inertia = cylinder_inertia_matrix(mass, radius, height)
-        body = RigidBody(mass, inertia, [0, 0, 0])
+        body = RigidBody(mass, inertia, None)
         super().__init__(body, 0.5 * height, r_tau, support_area, mu)

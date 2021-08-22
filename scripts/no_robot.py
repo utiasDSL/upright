@@ -54,6 +54,8 @@ TRAY_W = equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 TRAY_H = 0.01  # height of center of mass from bottom of tray  TODO confusing
 # TRAY_INERTIA = cylinder_inertia_matrix(TRAY_MASS, TRAY_RADIUS, 2 * TRAY_H)
 
+print(f"TRAY_W = {TRAY_W}")
+
 OBJ_MASS = 1
 OBJ_TRAY_MU = 0.5
 OBJ_TRAY_MU_BULLET = OBJ_TRAY_MU / TRAY_MU
@@ -61,7 +63,7 @@ OBJ_RADIUS = 0.1
 OBJ_COM_HEIGHT = 0.2
 # OBJ_INERTIA = cylinder_inertia_matrix(OBJ_MASS, OBJ_RADIUS, 2 * OBJ_COM_HEIGHT)
 
-NUM_OBJECTS = 2
+NUM_OBJECTS = 1
 
 # simulation parameters
 SIM_DT = 0.001  # simulation timestep (s)
@@ -81,14 +83,17 @@ class TrayBalanceOptimizationEE:
         # self.obj = obj
 
         # create the composite
-        obj_tray_composite = copy.deepcopy(tray)
+        # TODO may be better to just construct a new object from scratch
+        obj_tray_composite = tray.copy()
         obj_tray_composite.body = compose_bodies([tray.body, obj.body])
         delta = tray.body.com - obj_tray_composite.body.com
         obj_tray_composite.support_area.offset = delta[:2]
         obj_tray_composite.com_height = tray.com_height - delta[2]
 
-        self.obj_to_constrain = [obj_tray_composite, obj]
-        # self.obj_to_constrain = [tray]
+        # self.obj_to_constrain = [obj_tray_composite, obj]
+        self.obj_to_constrain = [obj]
+
+        # IPython.embed()
 
         self.nv = model.ni  # number of optimization variables per MPC step
         self.nc_eq = 0  # number of equality constraints
@@ -148,29 +153,24 @@ class TrayBalanceOptimizationEE:
         return ebar.flatten()
 
     # TODO no reason this should be a method
-    @partial(jax.jit, static_argnums=(0,1))
+    @partial(jax.jit, static_argnums=(0, 1))
     def object_balance_constraints(self, obj, C_we, ω_ew_w, a_ew_w, α_ew_w):
         C_ew = C_we.T
         Sω_ew_w = skew3(ω_ew_w)
         ddC_we = (skew3(α_ew_w) + Sω_ew_w @ Sω_ew_w) @ C_we
 
         α = obj.body.mass * C_ew @ (a_ew_w + ddC_we @ obj.body.com - GRAVITY_VECTOR)
-
-        # rotational
         Iw = C_we @ obj.body.inertia @ C_we.T
         β = C_ew @ Sω_ew_w @ Iw @ ω_ew_w + obj.body.inertia @ C_ew @ α_ew_w
-        S = np.array([[0, 1], [-1, 0]])
 
         h1 = (obj.mu * α[2]) ** 2 - α[0] ** 2 - α[1] ** 2 - (β[2] / obj.r_tau) ** 2
         h2 = α[2]  # α3 >= 0
         # h12 = jnp.array([h1, h2])
 
-        # TODO is this CoM height really what we care about?
         r_z = -obj.com_height
+        S = np.array([[0, 1], [-1, 0]])
         zmp = (r_z * α[:2] - S @ β[:2]) / α[2]  # TODO numerical issues?
-        # r_zmp = TRAY_W
         h3 = obj.support_area.zmp_constraints(zmp)
-        # h3 = circle_zmp_constraints(zmp, np.array([0, 0]), r_zmp)
 
         return jnp.array([h1, h2, h3])
 
@@ -191,11 +191,11 @@ class TrayBalanceOptimizationEE:
         h0 = self.object_balance_constraints(
            self.obj_to_constrain[0], C_we, ω_ew_w, a_ew_w, α_ew_w
         )
-        h1 = self.object_balance_constraints(
-           self.obj_to_constrain[1], C_we, ω_ew_w, a_ew_w, α_ew_w
-        )
-        # h = h0
-        h = jnp.concatenate((h0, h1))
+        # h1 = self.object_balance_constraints(
+        #    self.obj_to_constrain[1], C_we, ω_ew_w, a_ew_w, α_ew_w
+        # )
+        h = h0
+        # h = jnp.concatenate((h0, h1))
         return h
 
         # h_tray =
@@ -415,7 +415,7 @@ def setup_sim():
     # object on tray
     obj = Cylinder(
         r_tau=circle_r_tau(OBJ_RADIUS),
-        support_area=CircleSupportArea(OBJ_RADIUS),
+        support_area=CircleSupportArea(OBJ_RADIUS, margin=0.01),
         mass=OBJ_MASS,
         radius=OBJ_RADIUS,
         height=2 * OBJ_COM_HEIGHT,
@@ -481,10 +481,12 @@ def main():
     ω_ew_ws = np.zeros((N_record, 3))
     r_tw_ws = np.zeros((N_record, 3))
     r_te_es = np.zeros((N_record, 3))
+    r_oe_es = np.zeros((N_record, 3))
     Q_ets = np.zeros((N_record, 4))
     ineq_cons = np.zeros((N_record, problem.nc_ineq))
 
     r_te_es[0, :] = tray.body.com
+    r_oe_es[0, :] = obj.body.com
     Q_wes[0, :] = Q_we
     Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
     r_ew_ws[0, :] = r_ew_w
@@ -497,9 +499,8 @@ def main():
     setpoint_idx = 0
 
     # desired quaternion
-    # Qd = Q_we
-    R_ed = SO3.from_z_radians(np.pi)
-    # R_ed = SO3.identity()
+    # R_ed = SO3.from_z_radians(np.pi)
+    R_ed = SO3.identity()
     R_we = SO3.from_quaternion_xyzw(Q_we)
     R_wd = R_we.multiply(R_ed)
     Qd = R_wd.as_quaternion_xyzw()
@@ -568,6 +569,7 @@ def main():
             ineq_cons[idx, :] = np.array(problem.ineq_constraints(P_we, V_ew_w, u))
 
             r_tw_w, Q_wt = tray.bullet.get_pose()
+            r_ow_w, Q_wo = obj.bullet.get_pose()
             r_ew_w_d = setpoints[setpoint_idx, :]
 
             # orientation error
@@ -583,7 +585,9 @@ def main():
             ω_ew_ws[idx, :] = ω_ew_w
             r_tw_ws[idx, :] = r_tw_w
             r_te_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+            r_oe_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_ow_w)
             Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
+            # Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
 
         if np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01 and np.linalg.norm(Q_de[:3]) < 0.01:
             print("Close to desired pose - stopping.")
@@ -652,6 +656,21 @@ def main():
     plt.xlabel("Time (s)")
     plt.ylabel("$r^{te}_e$ error")
     plt.title("$r^{te}_e$ error")
+
+    plt.figure()
+    r_oe_e_err = obj.body.com - r_oe_es[:idx, :]
+    plt.plot(ts[:idx], r_oe_e_err[:, 0], label="$x$")
+    plt.plot(ts[:idx], r_oe_e_err[:, 1], label="$y$")
+    plt.plot(ts[:idx], r_oe_e_err[:, 2], label="$z$")
+    # plt.plot(ts[:idx], np.linalg.norm(r_te_e_err, axis=1), label="$||r||$")
+    # plt.plot(ts[:idx], Q_ets[:idx, 0], label="$Q_x$")
+    # plt.plot(ts[:idx], Q_ets[:idx, 1], label="$Q_y$")
+    # plt.plot(ts[:idx], Q_ets[:idx, 2], label="$Q_z$")
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time (s)")
+    plt.ylabel("$r^{oe}_e$ error")
+    plt.title("$r^{oe}_e$ error")
 
     plt.figure()
     for j in range(problem.nc_ineq):

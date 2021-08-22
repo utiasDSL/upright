@@ -172,6 +172,7 @@ class PolygonSupportArea:
         _, g = jax.lax.scan(scan_func, self.vertices[-1, :], self.vertices)
         return g
 
+    # TODO margin
     def zmp_constraints_numpy(self, zmp):
         N = self.vertices.shape[0]
 
@@ -193,10 +194,19 @@ class CircleSupportArea:
     support plane to the center of the support area
     """
 
-    def __init__(self, radius, offset=(0, 0)):
+    def __init__(self, radius, offset=(0, 0), margin=0):
         self.radius = radius
         self.offset = np.array(offset)
+        self.margin = margin
 
     def zmp_constraints(self, zmp):
+        """Generate ZMP stability constraint.
+
+
+        zmp: 2D point to check for inclusion in the support area
+        margin: minimum distance from edge of support area to be considered inside
+
+        Returns a value g, where g >= 0 satisfies the ZMP constraint
+        """
         e = zmp - self.offset
-        return self.radius ** 2 - e @ e
+        return self.radius ** 2 - self.margin ** 2 - e @ e
