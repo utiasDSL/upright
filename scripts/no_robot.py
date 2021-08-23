@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Baseline tray balancing formulation."""
 from functools import partial
-import time
 
 import jax.numpy as jnp
 import jax
@@ -9,51 +8,22 @@ from jaxlie import SO3
 import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as pyb
-import pybullet_data
 
 import sqp
 import util
-from bodies import Cylinder, Cuboid, compose_bodies
-from end_effector import EndEffector, EndEffectorModel
+from end_effector import EndEffectorModel
 import geometry
 import balancing
+from simulation import Simulation
 
 import IPython
 
-
-# EE geometry parameters
-EE_SIDE_LENGTH = 0.3
-EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 
 # EE motion parameters
 VEL_LIM = 4
 ACC_LIM = 8
 
-GRAVITY_MAG = 9.81
-GRAVITY_VECTOR = np.array([0, 0, -GRAVITY_MAG])
-
-# tray parameters
-TRAY_RADIUS = 0.25
-TRAY_MASS = 0.5
-TRAY_MU = 0.5
-TRAY_COM_HEIGHT = 0.01
-TRAY_NUM_ZMP_CONSTRAINTS = 1
-TRAY_NUM_CONSTRAINTS = 2 + TRAY_NUM_ZMP_CONSTRAINTS
-
-OBJ_MASS = 1
-OBJ_TRAY_MU = 0.5
-OBJ_TRAY_MU_BULLET = OBJ_TRAY_MU / TRAY_MU
-OBJ_RADIUS = 0.1
-OBJ_SIDE_LENGTHS = (0.2, 0.2, 0.4)
-OBJ_COM_HEIGHT = 0.2
-OBJ_ZMP_MARGIN = 0.01
-OBJ_NUM_ZMP_CONSTRAINTS = 4
-OBJ_NUM_CONSTRAINTS = 2 + OBJ_NUM_ZMP_CONSTRAINTS
-
-NUM_OBJECTS = 2
-
 # simulation parameters
-SIM_DT = 0.001  # simulation timestep (s)
 MPC_DT = 0.1  # lookahead timestep of the controller
 MPC_STEPS = 20  # number of timesteps to lookahead
 SQP_ITER = 3  # number of iterations for the SQP solved by the controller
@@ -64,25 +34,22 @@ DURATION = 10.0  # duration of trajectory (s)
 
 
 class TrayBalanceOptimizationEE:
-    def __init__(self, model, tray, obj):
+    def __init__(self, model, obj_to_constrain):
         self.model = model
-
-        # create the composite
-        obj_tray_composite = tray.copy()
-        obj_tray_composite.body = compose_bodies([tray.body, obj.body])
-        delta = tray.body.com - obj_tray_composite.body.com
-        obj_tray_composite.support_area.offset = delta[:2]
-        obj_tray_composite.com_height = tray.com_height - delta[2]
-
-        self.obj_to_constrain = [obj_tray_composite, obj]
-        assert len(self.obj_to_constrain) == NUM_OBJECTS
+        self.obj_to_constrain = obj_to_constrain
 
         self.nv = model.ni  # number of optimization variables per MPC step
         self.nc_eq = 0  # number of equality constraints
 
-        # NOTE: n_balance_con multiplied by 2 because we enforce two
+        # each object has 1 normal constraint, 1 friction constraint, and >= 1
+        # ZMP constraint depending on the geometry of the support area
+        num_obj = len(self.obj_to_constrain)
+        self.n_balance_con = 2 * num_obj + sum(
+            [obj.support_area.num_constraints for obj in self.obj_to_constrain]
+        )
+
+        # n_balance_con multiplied by 2 because we enforce two
         # constraints per timestep
-        self.n_balance_con = TRAY_NUM_CONSTRAINTS + OBJ_NUM_CONSTRAINTS
         self.nc = self.nc_eq + 2 * self.n_balance_con
 
         # MPC weights
@@ -289,119 +256,31 @@ class TrayBalanceOptimizationEE:
         )
 
 
-def settle_sim(duration):
-    """Briefly simulate to let the simulation settle."""
-    t = 0
-    while t < 1.0:
-        pyb.stepSimulation()
-        t += SIM_DT
-
-
-def setup_sim():
-    """Setup pybullet simulation."""
-    pyb.connect(pyb.GUI)
-
-    pyb.setGravity(0, 0, -GRAVITY_MAG)
-    pyb.setTimeStep(SIM_DT)
-
-    pyb.resetDebugVisualizerCamera(
-        cameraDistance=4.6,
-        cameraYaw=5.2,
-        cameraPitch=-27,
-        cameraTargetPosition=[1.18, 0.11, 0.05],
-    )
-
-    # get rid of extra parts of the GUI
-    pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
-
-    # record video
-    # pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, "no_robot.mp4")
-
-    # setup ground plane
-    pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
-    pyb.loadURDF("plane.urdf", [0, 0, 0])
-
-    # setup floating end effector
-    ee = EndEffector(SIM_DT, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
-
-    util.debug_frame(0.1, ee.uid, -1)
-
-    # setup tray
-    tray = Cylinder(
-        r_tau=EE_INSCRIBED_RADIUS,
-        support_area=geometry.CircleSupportArea(EE_INSCRIBED_RADIUS),
-        mass=TRAY_MASS,
-        radius=TRAY_RADIUS,
-        height=2 * TRAY_COM_HEIGHT,
-        mu=TRAY_MU,
-        bullet_mu=TRAY_MU,
-    )
-    ee_pos, _ = ee.get_pose()
-    tray.bullet.reset_pose(position=ee_pos + [0, 0, TRAY_COM_HEIGHT + 0.05])
-
-    # object on tray
-    # obj = Cylinder(
-    #     r_tau=geometry.circle_r_tau(OBJ_RADIUS),
-    #     support_area=geometry.CircleSupportArea(OBJ_RADIUS, margin=OBJ_ZMP_MARGIN),
-    #     mass=OBJ_MASS,
-    #     radius=OBJ_RADIUS,
-    #     height=2 * OBJ_COM_HEIGHT,
-    #     mu=OBJ_TRAY_MU,
-    #     bullet_mu=OBJ_TRAY_MU_BULLET,
-    #     color=(0, 1, 0, 1),
-    # )
-    # obj.bullet.reset_pose(position=ee_pos + [0, 0, 2 * TRAY_COM_HEIGHT + OBJ_COM_HEIGHT + 0.05])
-
-    obj_support = geometry.PolygonSupportArea(
-        geometry.cuboid_support_vertices(OBJ_SIDE_LENGTHS), margin=OBJ_ZMP_MARGIN
-    )
-    obj = Cuboid(
-        r_tau=geometry.circle_r_tau(OBJ_RADIUS),
-        support_area=obj_support,
-        mass=OBJ_MASS,
-        side_lengths=OBJ_SIDE_LENGTHS,
-        mu=OBJ_TRAY_MU,
-        bullet_mu=OBJ_TRAY_MU_BULLET,
-        color=(0, 1, 0, 1),
-    )
-    obj.bullet.reset_pose(
-        position=ee_pos + [0.05, 0, 2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05]
-    )
-
-    settle_sim(1.0)
-
-    return ee, tray, obj
-
-
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    if EE_INSCRIBED_RADIUS < TRAY_MU * TRAY_COM_HEIGHT:
-        print("warning: w < μh")
+    sim = Simulation(dt=0.001)
 
-    N = int(DURATION / SIM_DT) + 1
-    N_record = int(DURATION / (SIM_DT * RECORD_PERIOD))
+    N = int(DURATION / sim.dt) + 1
+    N_record = int(DURATION / (sim.dt * RECORD_PERIOD))
 
     # simulation objects and model
-    ee, tray, obj = setup_sim()
+    ee, objects, composites = sim.setup()
+    tray = objects["tray"]
+    obj = objects["obj"]
 
     model = EndEffectorModel(MPC_DT)
 
     x = ee.get_state()
     r_ew_w, Q_we = ee.get_pose()
     v_ew_w, ω_ew_w = ee.get_velocity()
-
-    # set CoMs relative to EE
     r_tw_w, Q_wt = tray.bullet.get_pose()
-    tray.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
-
     r_ow_w, Q_wo = obj.bullet.get_pose()
-    obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
 
     # construct the tray balance problem
-    problem = TrayBalanceOptimizationEE(model, tray, obj)
+    problem = TrayBalanceOptimizationEE(model, composites)
 
-    ts = RECORD_PERIOD * SIM_DT * np.arange(N_record)
+    ts = RECORD_PERIOD * sim.dt * np.arange(N_record)
     us = np.zeros((N_record, model.ni))
     r_ew_ws = np.zeros((N_record, 3))
     r_ew_wds = np.zeros((N_record, 3))
@@ -540,7 +419,7 @@ def main():
             # update r_ew_w_d to avoid falling back into this block right away
             r_ew_w_d = setpoints[setpoint_idx, :]
 
-        time.sleep(SIM_DT)
+        # time.sleep(SIM_DT)
 
     controller.benchmark.print_stats()
 

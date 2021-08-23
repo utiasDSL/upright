@@ -13,12 +13,7 @@ import pybullet as pyb
 import pybullet_data
 
 import sqp
-from util import (
-    pose_error,
-    state_error,
-    pose_to_pos_quat,
-    pose_from_pos_quat,
-)
+import util
 from bodies import Cylinder
 import geometry
 import balancing
@@ -145,7 +140,7 @@ class TrayBalanceOptimizationEE:
             P_we, V_ew_w = x[:7], x[7:]
 
             # TODO rewrite in terms of state
-            pose_err = pose_error(P_we_d, P_we)
+            pose_err = util.pose_error(P_we_d, P_we)
             V_err = V_ee_d - V_ew_w
 
             e = jnp.concatenate((pose_err, V_err))
@@ -158,7 +153,7 @@ class TrayBalanceOptimizationEE:
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp):
         """Calculate inequality constraints for a single timestep."""
-        _, Q_we = pose_to_pos_quat(P_we)
+        _, Q_we = util.pose_to_pos_quat(P_we)
         ω_ew_w = V_ew_w[3:]
         a_ew_w = A_ew_w[:3]
         α_ew_w = A_ew_w[3:]
@@ -193,7 +188,7 @@ class TrayBalanceOptimizationEE:
             ineq_con1 = self.ineq_constraints(P_we1, V_ew_w1, u0)
 
             # equality constraint on the dynamics
-            eq_con = state_error(x1, self.model.simulate(x0, u0))
+            eq_con = util.state_error(x1, self.model.simulate(x0, u0))
 
             return x1, jnp.concatenate((ineq_con0, ineq_con1, eq_con))
 
@@ -233,7 +228,7 @@ class TrayBalanceOptimizationEE:
 
         def one_step_con_func(x0, u0x1):
             u0, x1 = u0x1[: self.model.ni], u0x1[self.model.ni :]
-            eq_con = state_error(x1, self.model.simulate(x0, u0))
+            eq_con = util.state_error(x1, self.model.simulate(x0, u0))
 
             return x1, eq_con
 
@@ -393,18 +388,6 @@ def setup_sim():
     return ee, tray
 
 
-def calc_r_te_e(r_ew_w, Q_we, r_tw_w):
-    """Calculate position of tray relative to the EE."""
-    r_te_w = r_tw_w - r_ew_w
-    return SO3.from_quaternion_xyzw(Q_we) @ r_te_w
-
-
-def calc_Q_et(Q_we, Q_wt):
-    SO3_we = SO3.from_quaternion_xyzw(Q_we)
-    SO3_wt = SO3.from_quaternion_xyzw(Q_wt)
-    return SO3_we.inverse().multiply(SO3_wt).as_quaternion_xyzw()
-
-
 def sample_inputs(problem):
     x0 = np.random.random(problem.model.ns)
     x0[3:7] = x0[3:7] / np.linalg.norm(x0[3:7])  # normalize the quaternion
@@ -456,7 +439,7 @@ def main():
     v_ew_w, ω_ew_w = ee.get_velocity()
 
     r_tw_w, Q_wt = tray.bullet.get_pose()
-    tray.body.com = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+    tray.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
 
     # desired quaternion: same as the starting orientation
     Qd = Q_we
@@ -476,7 +459,7 @@ def main():
     ineq_cons = np.zeros((N_record, 3))
 
     r_te_es[0, :] = tray.body.com
-    Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
+    Q_ets[0, :] = util.calc_Q_et(Q_we, Q_wt)
     r_ew_ws[0, :] = r_ew_w
     v_ew_ws[0, :] = v_ew_w
     ω_ew_ws[0, :] = ω_ew_w
@@ -523,7 +506,7 @@ def main():
     for i in range(N - 1):
         if i % CTRL_PERIOD == 0:
             r_ew_w_d = setpoints[setpoint_idx, :]
-            P_we_d = pose_from_pos_quat(r_ew_w_d, Qd)
+            P_we_d = util.pose_from_pos_quat(r_ew_w_d, Qd)
             V_we_d = jnp.zeros(6)
 
             x = ee.get_state()
@@ -556,8 +539,8 @@ def main():
             v_ew_ws[idx, :] = v_ew_w
             ω_ew_ws[idx, :] = ω_ew_w
             p_tw_ws[idx, :] = r_tw_w
-            r_te_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
-            Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
+            r_te_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+            Q_ets[0, :] = util.calc_Q_et(Q_we, Q_wt)
 
         if np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01:
             print("Position within 1 cm.")

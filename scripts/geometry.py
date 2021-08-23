@@ -34,6 +34,7 @@ class PolygonSupportArea:
         self.vertices = np.array(vertices)
         self.offset = np.array(offset)
         self.margin = margin
+        self.num_constraints = self.vertices.shape[0]
 
         # TODO could pre-process normals
 
@@ -52,7 +53,9 @@ class PolygonSupportArea:
 
     def zmp_constraints(self, zmp):
         def scan_func(v0, v1):
-            return v1, PolygonSupportArea.edge_zmp_constraint(zmp, v0, v1, self.margin, np=jnp)
+            return v1, PolygonSupportArea.edge_zmp_constraint(
+                zmp, v0, v1, self.margin, np=jnp
+            )
 
         _, g = jax.lax.scan(scan_func, self.vertices[-1, :], self.vertices)
         return g
@@ -80,6 +83,7 @@ class CircleSupportArea:
     offset: the 2D vector pointing from the projection of the CoM on the
     support plane to the center of the support area
     """
+    num_constraints = 1
 
     def __init__(self, radius, offset=(0, 0), margin=0):
         self.radius = radius
