@@ -110,6 +110,7 @@ class EndEffectorModel:
     def __init__(self, dt):
         self.dt = dt
         self.ni = 6
+        self.ns = 7 + 6
 
         Z = np.zeros((3, 3))
         A = np.block([[Z, np.eye(3)], [Z, Z]])

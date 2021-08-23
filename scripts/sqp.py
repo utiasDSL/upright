@@ -84,6 +84,65 @@ class Objective:
 #         return sum([obj.hessian(*args, dtype=dtype) for obj in self.objectives])
 
 
+class SparseObjective:
+    def __init__(self, obj_jac_hess_func, hess_nz_idx, hess_shape):
+        # there are all evaluated in a single function because there is
+        # substantial overlap in the terms needed to compute each
+        self.obj_jac_hess_func = obj_jac_hess_func
+
+        # build initial sparse Hessian matrix, filled with zeros
+        self.hess_nz_idx = hess_nz_idx
+        self.hessian = sparse.csc_matrix(
+            (np.zeros(hess_shape)[hess_nz_idx], hess_nz_idx), shape=hess_shape
+        )
+
+    def evaluate(self, *args):
+        self.value, g, H = self.obj_jac_hess_func(*args)
+
+        # explicit array conversion to get rid of jax types
+        self.jacobian = np.array(g)
+
+        # update Hessian data rather than creating a new sparse matrix
+        # there are some savings here, but it would be better it we could keep
+        # H sparse from the start
+        # NOTE: conversion from DeviceArray to normal numpy array
+        # self.hessian.data = np.array(H)[self.hess_nz_idx]
+
+        # TODO: I'd like to do an update as above, but this doesn't seem to
+        # work
+        self.hessian = sparse.csc_matrix(
+            (np.array(H)[self.hess_nz_idx], self.hess_nz_idx), shape=H.shape
+        )
+
+
+class SparseConstraints:
+    def __init__(self, func, jac_func, lb, ub, jac_nz_idx, jac_shape):
+        self.func = func
+        self.jac_func = jac_func
+        self.lb = lb
+        self.ub = ub
+
+        self.jac_nz_idx = jac_nz_idx
+        self.jac_mat = sparse.csc_matrix(
+            (np.zeros(jac_shape)[jac_nz_idx], jac_nz_idx), shape=jac_shape
+        )
+
+    def jacobian(self, *args):
+        J = self.jac_func(*args)
+        # self.jac_mat.data = np.array(J)[self.jac_nz_idx]
+
+        jac_mat = sparse.csc_matrix(
+            (np.array(J)[self.jac_nz_idx], self.jac_nz_idx), shape=J.shape
+        )
+        return jac_mat
+
+    def linearized_bounds(self, *args):
+        a = self.func(*args)
+        lbA = np.array(self.lb - a)
+        ubA = np.array(self.ub - a)
+        return lbA, ubA
+
+
 class Constraints:
     """Constraints of the form lb <= fun(x) <= ub.
 
@@ -329,14 +388,22 @@ class SQP_OSQP(object):
     """Generic sequential quadratic program based on OSQP solver."""
 
     def __init__(
-        self, nv, nc, obj_func, constraints, bounds, num_iter=3, verbose=False
+        self,
+        nv,
+        nc,
+        objective,
+        constraints,
+        bounds,
+        num_iter=3,
+        verbose=False,
+        var0=None,
     ):
         """Initialize the SQP."""
         self.nv = nv
         self.nc = nc
         self.num_iter = num_iter
 
-        self.obj_func = obj_func
+        self.objective = objective
         self.constraints = constraints
         self.bounds = bounds
 
@@ -344,38 +411,38 @@ class SQP_OSQP(object):
         self.verbose = verbose
         self.qp_initialized = False
 
+        # initial guess for the very first solve
+        # subsequent solves reuse the previous optimal solution
+        if var0 is None:
+            self.var = np.zeros(nv)
+        else:
+            self.var = np.copy(var0)
+
         self.benchmark = Benchmark()
 
     def _lookahead(self, x0, Pd, Vd, var):
         """Generate lifted matrices proprogating the state N timesteps into the
         future."""
-        f, g, H = self.obj_func(x0, Pd, Vd, var)
 
-        A = self.constraints.jac(x0, Pd, Vd, var)
-        a = self.constraints.fun(x0, Pd, Vd, var)
-        lbA = np.array(self.constraints.lb - a)
-        ubA = np.array(self.constraints.ub - a)
+        # TODO we can normalize var here
 
-        lb = np.array(self.bounds.lb - var)
-        ub = np.array(self.bounds.ub - var)
-
-        # use mask that assumes H is fully dense, but take only the
-        # upper-triangular part because H is symmetric and thus OSQP only needs
-        # that part
-        H_mask = np.triu(np.ones_like(H))
-        H_nz_idx = np.nonzero(H_mask)
-        H = sparse.csc_matrix((np.array(H)[H_nz_idx], H_nz_idx), shape=H.shape)
-        g = np.array(g)
-
-        # there may be some zeros that aren't always zero, so we use an
-        # explicit sparsity pattern
-        nz_idx = self.constraints.nz_idx
-        A1 = sparse.csc_matrix((np.array(A)[nz_idx], nz_idx), shape=A.shape)
-        A2 = sparse.eye(self.nv)  # bounds
-        A = sparse.vstack((A1, A2), format="csc")
+        self.objective.evaluate(x0, Pd, Vd, var)
+        g = self.objective.jacobian
+        H = self.objective.hessian
 
         # since OSQP does not use separate bounds, we concatenate onto the
         # constraints
+        A1 = self.constraints.jacobian(x0, Pd, Vd, var)
+        A2 = sparse.eye(self.nv)  # bounds
+        A = sparse.vstack((A1, A2), format="csc")
+
+        lbA, ubA = self.constraints.linearized_bounds(x0, Pd, Vd, var)
+
+        # TODO possibly problematic for SO(3) - should be fine as long as avoid
+        # actually constraining elements of SO(3)
+        lb = np.array(self.bounds.lb - var)
+        ub = np.array(self.bounds.ub - var)
+
         lower = np.concatenate((lbA, lb))
         upper = np.concatenate((ubA, ub))
 
@@ -395,7 +462,8 @@ class SQP_OSQP(object):
                 l=lower,
                 u=upper,
                 verbose=self.verbose,
-                adaptive_rho=False,
+                # linsys_solver="mkl pardiso",
+                adaptive_rho=True,
                 polish=False,
             )
             self.qp_initialized = True
@@ -405,6 +473,11 @@ class SQP_OSQP(object):
             self.qp.update(Px=H.data, q=g, Ax=A.data, l=lower, u=upper)
             results = self.qp.solve()
             self.benchmark.end()
+
+        if results.x[0] is None or np.isnan(results.info.obj_val):
+            print("Failed to solve")
+            IPython.embed()
+
         var = var + results.x
 
         # Remaining sequence is hotstarted from the first.
@@ -414,6 +487,11 @@ class SQP_OSQP(object):
             self.qp.update(Px=H.data, q=g, Ax=A.data, l=lower, u=upper)
             results = self.qp.solve()
             self.benchmark.end()
+
+            if results.x[0] is None or np.isnan(results.info.obj_val):
+                print("Failed to solve")
+                IPython.embed()
+
             var = var + results.x
 
         return var
@@ -421,11 +499,8 @@ class SQP_OSQP(object):
     def solve(self, x0, Pd, Vd):
         """Solve the MPC problem at current state x0 given desired trajectory
         xd."""
-        # initialize decision variables
-        var = np.zeros(self.nv)
-
         # iterate to final solution
-        var = self._iterate(x0, Pd, Vd, var)
+        self.var = self._iterate(x0, Pd, Vd, self.var)
 
         # return first optimal input
-        return var
+        return self.var

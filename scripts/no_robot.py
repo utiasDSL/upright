@@ -24,6 +24,7 @@ from util import (
 from bodies import Cylinder, compose_bodies
 from end_effector import EndEffector, EndEffectorModel
 import geometry
+import balancing
 
 import IPython
 
@@ -140,28 +141,6 @@ class TrayBalanceOptimizationEE:
         X, ebar = jax.lax.scan(error_func, X0, u)
         return ebar.flatten()
 
-    # TODO no reason this should be a method
-    @partial(jax.jit, static_argnums=(0, 1))
-    def object_balance_constraints(self, obj, C_we, ω_ew_w, a_ew_w, α_ew_w):
-        C_ew = C_we.T
-        Sω_ew_w = skew3(ω_ew_w)
-        ddC_we = (skew3(α_ew_w) + Sω_ew_w @ Sω_ew_w) @ C_we
-
-        α = obj.body.mass * C_ew @ (a_ew_w + ddC_we @ obj.body.com - GRAVITY_VECTOR)
-        Iw = C_we @ obj.body.inertia @ C_we.T
-        β = C_ew @ Sω_ew_w @ Iw @ ω_ew_w + obj.body.inertia @ C_ew @ α_ew_w
-
-        h1 = (obj.mu * α[2]) ** 2 - α[0] ** 2 - α[1] ** 2 - (β[2] / obj.r_tau) ** 2
-        h2 = α[2]  # α3 >= 0
-        # h12 = jnp.array([h1, h2])
-
-        r_z = -obj.com_height
-        S = np.array([[0, 1], [-1, 0]])
-        zmp = (r_z * α[:2] - S @ β[:2]) / α[2]  # TODO numerical issues?
-        h3 = obj.support_area.zmp_constraints(zmp)
-
-        return jnp.array([h1, h2, h3])
-
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp):
         """Calculate inequality constraints for a single timestep."""
@@ -169,12 +148,11 @@ class TrayBalanceOptimizationEE:
         ω_ew_w = V_ew_w[3:]
         a_ew_w = A_ew_w[:3]
         α_ew_w = A_ew_w[3:]
-
         C_we = SO3.from_quaternion_xyzw(Q_we).as_matrix()
 
         h = jnp.concatenate(
             [
-                self.object_balance_constraints(obj, C_we, ω_ew_w, a_ew_w, α_ew_w)
+                balancing.object_balance_constraints(obj, C_we, ω_ew_w, a_ew_w, α_ew_w)
                 for obj in self.obj_to_constrain
             ]
         )
