@@ -20,7 +20,7 @@ from util import (
     debug_frame,
     state_error,
 )
-from bodies import Cylinder, compose_bodies
+from bodies import Cylinder, Cuboid, compose_bodies
 from end_effector import EndEffector, EndEffectorModel
 import geometry
 import balancing
@@ -50,6 +50,7 @@ OBJ_MASS = 1
 OBJ_TRAY_MU = 0.5
 OBJ_TRAY_MU_BULLET = OBJ_TRAY_MU / TRAY_MU
 OBJ_RADIUS = 0.1
+OBJ_SIDE_LENGTHS = (0.2, 0.2, 0.4)
 OBJ_COM_HEIGHT = 0.2
 OBJ_ZMP_MARGIN = 0.01
 
@@ -335,17 +336,30 @@ def setup_sim():
     tray.bullet.reset_pose(position=ee_pos + [0, 0, TRAY_COM_HEIGHT + 0.05])
 
     # object on tray
-    obj = Cylinder(
+    # obj = Cylinder(
+    #     r_tau=geometry.circle_r_tau(OBJ_RADIUS),
+    #     support_area=geometry.CircleSupportArea(OBJ_RADIUS, margin=OBJ_ZMP_MARGIN),
+    #     mass=OBJ_MASS,
+    #     radius=OBJ_RADIUS,
+    #     height=2 * OBJ_COM_HEIGHT,
+    #     mu=OBJ_TRAY_MU,
+    #     bullet_mu=OBJ_TRAY_MU_BULLET,
+    #     color=(0, 1, 0, 1),
+    # )
+    # obj.bullet.reset_pose(position=ee_pos + [0, 0, 2 * TRAY_COM_HEIGHT + OBJ_COM_HEIGHT + 0.05])
+
+    obj = Cuboid(
         r_tau=geometry.circle_r_tau(OBJ_RADIUS),
         support_area=geometry.CircleSupportArea(OBJ_RADIUS, margin=OBJ_ZMP_MARGIN),
         mass=OBJ_MASS,
-        radius=OBJ_RADIUS,
-        height=2 * OBJ_COM_HEIGHT,
+        side_lengths=OBJ_SIDE_LENGTHS,
         mu=OBJ_TRAY_MU,
         bullet_mu=OBJ_TRAY_MU_BULLET,
         color=(0, 1, 0, 1),
     )
-    obj.bullet.reset_pose(position=ee_pos + [0, 0, 2 * TRAY_COM_HEIGHT + OBJ_COM_HEIGHT + 0.05])
+    obj.bullet.reset_pose(
+        position=ee_pos + [0, 0, 2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05]
+    )
 
     settle_sim(1.0)
 

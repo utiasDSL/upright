@@ -104,6 +104,15 @@ class BalancedBody:
 
 
 class Cylinder(BalancedBody):
+    """Balanced cylindrical object.
+
+    mu and bullet_mu may be different in general. mu is the coefficient of
+    friction betweenthis object and its support surface that we want to
+    simulate. bullet_mu is the value to set in Bullet to make that true, since
+    Bullet calculates the coefficient for a contact by multiplying those for
+    each object.
+    """
+
     def __init__(
         self,
         r_tau,
@@ -133,3 +142,33 @@ class Cylinder(BalancedBody):
         inertia = cylinder_inertia_matrix(mass, radius, height)
         body = RigidBody(mass, inertia, None)
         super().__init__(body, 0.5 * height, r_tau, support_area, mu)
+
+
+class Cuboid(BalancedBody):
+    def __init__(
+        self,
+        r_tau,
+        support_area,
+        mass,
+        side_lengths,  # (x, y, z)
+        mu,
+        bullet_mu,
+        color=(0, 0, 1, 1),
+    ):
+        half_extents = tuple(0.5 * np.array(side_lengths))
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_BOX,
+            halfExtents=half_extents,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_BOX,
+            halfExtents=half_extents,
+            rgbaColor=color,
+        )
+        self.bullet = BulletBody(
+            mass, bullet_mu, r_tau, collision_uid, visual_uid, [0, 0, 2], [0, 0, 0, 1]
+        )
+
+        inertia = cuboid_inertia_matrix(mass, side_lengths)
+        body = RigidBody(mass, inertia, None)
+        super().__init__(body, 0.5 * side_lengths[2], r_tau, support_area, mu)
