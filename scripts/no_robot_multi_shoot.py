@@ -27,8 +27,6 @@ from end_effector import EndEffector, EndEffectorModel
 import IPython
 
 
-# TODO: something like: from params import *
-
 # EE geometry parameters
 EE_SIDE_LENGTH = 0.3
 EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)

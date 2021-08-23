@@ -12,19 +12,11 @@ import pybullet as pyb
 import pybullet_data
 
 import sqp
-from util import (
-    pose_error,
-    pose_to_pos_quat,
-    pose_from_pos_quat,
-    quat_multiply,
-    debug_frame,
-    state_error,
-)
+import util
 from bodies import Cylinder, Cuboid, compose_bodies
 from end_effector import EndEffector, EndEffectorModel
 import geometry
 import balancing
-import params
 
 import IPython
 
@@ -142,7 +134,7 @@ class TrayBalanceOptimizationEE:
             X = self.model.simulate(X, u)
             P_we, V_ew_w = X[:7], X[7:]
 
-            pose_err = pose_error(P_we_d, P_we)
+            pose_err = util.pose_error(P_we_d, P_we)
             V_err = V_ee_d - V_ew_w
 
             e = jnp.concatenate((pose_err, V_err))
@@ -155,7 +147,7 @@ class TrayBalanceOptimizationEE:
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp):
         """Calculate inequality constraints for a single timestep."""
-        _, Q_we = pose_to_pos_quat(P_we)
+        _, Q_we = util.pose_to_pos_quat(P_we)
         ω_ew_w = V_ew_w[3:]
         a_ew_w = A_ew_w[:3]
         α_ew_w = A_ew_w[3:]
@@ -332,7 +324,7 @@ def setup_sim():
     # setup floating end effector
     ee = EndEffector(SIM_DT, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
 
-    debug_frame(0.1, ee.uid, -1)
+    util.debug_frame(0.1, ee.uid, -1)
 
     # setup tray
     tray = Cylinder(
@@ -373,25 +365,12 @@ def setup_sim():
         color=(0, 1, 0, 1),
     )
     obj.bullet.reset_pose(
-        position=ee_pos + [0, 0, 2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05]
+        position=ee_pos + [0.05, 0, 2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05]
     )
 
     settle_sim(1.0)
 
     return ee, tray, obj
-
-
-def calc_r_te_e(r_ew_w, Q_we, r_tw_w):
-    """Calculate position of tray relative to the EE."""
-    # C_{ew} @ (r^{tw}_w - r^{ew}_w
-    r_te_w = r_tw_w - r_ew_w
-    return SO3.from_quaternion_xyzw(Q_we).inverse() @ r_te_w
-
-
-def calc_Q_et(Q_we, Q_wt):
-    SO3_we = SO3.from_quaternion_xyzw(Q_we)
-    SO3_wt = SO3.from_quaternion_xyzw(Q_wt)
-    return SO3_we.inverse().multiply(SO3_wt).as_quaternion_xyzw()
 
 
 def main():
@@ -414,10 +393,10 @@ def main():
 
     # set CoMs relative to EE
     r_tw_w, Q_wt = tray.bullet.get_pose()
-    tray.body.com = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+    tray.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
 
     r_ow_w, Q_wo = obj.bullet.get_pose()
-    obj.body.com = calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+    obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
 
     # construct the tray balance problem
     problem = TrayBalanceOptimizationEE(model, tray, obj)
@@ -431,17 +410,24 @@ def main():
     v_ew_ws = np.zeros((N_record, 3))
     ω_ew_ws = np.zeros((N_record, 3))
     r_tw_ws = np.zeros((N_record, 3))
-    r_te_es = np.zeros((N_record, 3))
-    r_oe_es = np.zeros((N_record, 3))
-    Q_ets = np.zeros((N_record, 4))
-    Q_eos = np.zeros((N_record, 4))
     ineq_cons = np.zeros((N_record, problem.n_balance_con))
+
+    r_te_es = np.zeros((N_record, 3))
+    Q_ets = np.zeros((N_record, 4))
+
+    r_oe_es = np.zeros((N_record, 3))
+    Q_eos = np.zeros((N_record, 4))
+
+    r_ot_ts = np.zeros((N_record, 3))
+    Q_tos = np.zeros((N_record, 4))
 
     r_te_es[0, :] = tray.body.com
     r_oe_es[0, :] = obj.body.com
+    r_ot_ts[0, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
     Q_wes[0, :] = Q_we
-    Q_ets[0, :] = calc_Q_et(Q_we, Q_wt)
-    Q_eos[0, :] = calc_Q_et(Q_we, Q_wo)
+    Q_ets[0, :] = util.calc_Q_et(Q_we, Q_wt)
+    Q_eos[0, :] = util.calc_Q_et(Q_we, Q_wo)
+    Q_tos[0, :] = util.calc_Q_et(Q_wt, Q_wo)
     r_ew_ws[0, :] = r_ew_w
     v_ew_ws[0, :] = v_ew_w
     ω_ew_ws[0, :] = ω_ew_w
@@ -459,7 +445,7 @@ def main():
     Qd = R_wd.as_quaternion_xyzw()
     Qd_inv = R_wd.inverse().as_quaternion_xyzw()
 
-    Q_des[0, :] = quat_multiply(Qd_inv, Q_we)
+    Q_des[0, :] = util.quat_multiply(Qd_inv, Q_we)
 
     # Construct the SQP controller
     # controller = sqp.SQP(
@@ -492,7 +478,7 @@ def main():
     for i in range(N - 1):
         if i % CTRL_PERIOD == 0:
             r_ew_w_d = setpoints[setpoint_idx, :]
-            P_we_d = pose_from_pos_quat(r_ew_w_d, Qd)
+            P_we_d = util.pose_from_pos_quat(r_ew_w_d, Qd)
             V_we_d = jnp.zeros(6)
 
             x_ctrl = ee.get_state()
@@ -502,7 +488,7 @@ def main():
 
             # evaluate model error
             if i > 0:
-                model_error = np.linalg.norm(state_error(x_ctrl, x_pred))
+                model_error = np.linalg.norm(util.state_error(x_ctrl, x_pred))
                 print(model_error)
                 if model_error > 0.1:
                     IPython.embed()
@@ -527,7 +513,7 @@ def main():
             r_ew_w_d = setpoints[setpoint_idx, :]
 
             # orientation error
-            Q_de = quat_multiply(Qd_inv, Q_we)
+            Q_de = util.quat_multiply(Qd_inv, Q_we)
 
             # record
             us[idx, :] = u
@@ -538,10 +524,12 @@ def main():
             v_ew_ws[idx, :] = v_ew_w
             ω_ew_ws[idx, :] = ω_ew_w
             r_tw_ws[idx, :] = r_tw_w
-            r_te_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_tw_w)
-            r_oe_es[idx, :] = calc_r_te_e(r_ew_w, Q_we, r_ow_w)
-            Q_ets[idx, :] = calc_Q_et(Q_we, Q_wt)
-            Q_eos[idx, :] = calc_Q_et(Q_we, Q_wo)
+            r_te_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+            r_oe_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+            r_ot_ts[idx, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
+            Q_ets[idx, :] = util.calc_Q_et(Q_we, Q_wt)
+            Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
+            Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
 
         if np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01 and np.linalg.norm(Q_de[:3]) < 0.01:
             print("Close to desired pose - stopping.")
@@ -616,7 +604,6 @@ def main():
     plt.plot(ts[:idx], r_oe_e_err[:, 0], label="$x$")
     plt.plot(ts[:idx], r_oe_e_err[:, 1], label="$y$")
     plt.plot(ts[:idx], r_oe_e_err[:, 2], label="$z$")
-    # plt.plot(ts[:idx], np.linalg.norm(r_te_e_err, axis=1), label="$||r||$")
     plt.plot(ts[:idx], Q_eos[:idx, 0], label="$Q_x$")
     plt.plot(ts[:idx], Q_eos[:idx, 1], label="$Q_y$")
     plt.plot(ts[:idx], Q_eos[:idx, 2], label="$Q_z$")
@@ -625,6 +612,20 @@ def main():
     plt.xlabel("Time (s)")
     plt.ylabel("$r^{oe}_e$ error")
     plt.title("$r^{oe}_e$ error")
+
+    plt.figure()
+    r_ot_t_err = r_ot_ts[0, :] - r_ot_ts[:idx, :]
+    plt.plot(ts[:idx], r_ot_t_err[:, 0], label="$x$")
+    plt.plot(ts[:idx], r_ot_t_err[:, 1], label="$y$")
+    plt.plot(ts[:idx], r_ot_t_err[:, 2], label="$z$")
+    plt.plot(ts[:idx], Q_tos[:idx, 0], label="$Q_x$")
+    plt.plot(ts[:idx], Q_tos[:idx, 1], label="$Q_y$")
+    plt.plot(ts[:idx], Q_tos[:idx, 2], label="$Q_z$")
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time (s)")
+    plt.ylabel("$r^{ot}_t$ error")
+    plt.title("$r^{ot}_t$ error")
 
     plt.figure()
     for j in range(problem.n_balance_con):

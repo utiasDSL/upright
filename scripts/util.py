@@ -130,3 +130,17 @@ def zoh(A, B, dt):
     Bd = Hd[:rb, ca : ca + cb]
 
     return Ad, Bd
+
+
+def calc_r_te_e(r_ew_w, Q_we, r_tw_w):
+    """Calculate position of tray relative to the EE."""
+    # C_{ew} @ (r^{tw}_w - r^{ew}_w)
+    r_te_w = r_tw_w - r_ew_w
+    return SO3.from_quaternion_xyzw(Q_we).inverse() @ r_te_w
+
+
+def calc_Q_et(Q_we, Q_wt):
+    """Calculate orientation of tray relative to the EE."""
+    SO3_we = SO3.from_quaternion_xyzw(Q_we)
+    SO3_wt = SO3.from_quaternion_xyzw(Q_wt)
+    return SO3_we.inverse().multiply(SO3_wt).as_quaternion_xyzw()
