@@ -1,5 +1,6 @@
 import numpy as np
 import jax
+import jax.numpy as jnp
 
 
 def equilateral_triangle_inscribed_radius(side_length):
@@ -9,6 +10,16 @@ def equilateral_triangle_inscribed_radius(side_length):
 
 def circle_r_tau(radius):
     return 2.0 * radius / 3
+
+
+def cuboid_support_vertices(side_lengths):
+    """Generate vertices of support area for cuboid with given side_lengths.
+
+    side_lengths are arranged (x, y, z). Only x and y are used.
+    """
+    hx, hy = 0.5 * np.array(side_lengths)[:2]
+    vertices = np.array([[hx, hy], [-hx, hy], [-hx, -hy], [hx, -hy]])
+    return vertices
 
 
 class PolygonSupportArea:
@@ -24,9 +35,11 @@ class PolygonSupportArea:
         self.offset = np.array(offset)
         self.margin = margin
 
+        # TODO could pre-process normals
+
     # TODO margin is not tested yet
     @staticmethod
-    def edge_zmp_constraint(zmp, v1, v2, margin):
+    def edge_zmp_constraint(zmp, v1, v2, margin, np=np):
         """ZMP constraint for a single edge of a polygon.
 
         zmp is the zero-moment point
@@ -39,10 +52,13 @@ class PolygonSupportArea:
 
     def zmp_constraints(self, zmp):
         def scan_func(v0, v1):
-            return v1, PolygonSupportArea.edge_zmp_constraint(zmp, v0, v1, self.margin)
+            return v1, PolygonSupportArea.edge_zmp_constraint(zmp, v0, v1, self.margin, np=jnp)
 
         _, g = jax.lax.scan(scan_func, self.vertices[-1, :], self.vertices)
         return g
+
+    # def zmp_constraints_scaled(self, αz_zmp, αz):
+    #     pass
 
     def zmp_constraints_numpy(self, zmp):
         N = self.vertices.shape[0]
@@ -80,8 +96,8 @@ class CircleSupportArea:
         Returns a value g, where g >= 0 satisfies the ZMP constraint
         """
         e = zmp - self.offset
-        return (self.radius - self.margin) ** 2 - e @ e
+        return jnp.array([(self.radius - self.margin) ** 2 - e @ e])
 
     def zmp_constraints_scaled(self, αz_zmp, αz):
         e = αz_zmp - αz * self.offset
-        return (αz * (self.radius - self.margin)) ** 2 - e @ e
+        return jnp.array([(αz * (self.radius - self.margin)) ** 2 - e @ e])

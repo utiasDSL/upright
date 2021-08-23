@@ -45,6 +45,8 @@ TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_COM_HEIGHT = 0.01
+TRAY_NUM_ZMP_CONSTRAINTS = 1
+TRAY_NUM_CONSTRAINTS = 2 + TRAY_NUM_ZMP_CONSTRAINTS
 
 OBJ_MASS = 1
 OBJ_TRAY_MU = 0.5
@@ -53,6 +55,8 @@ OBJ_RADIUS = 0.1
 OBJ_SIDE_LENGTHS = (0.2, 0.2, 0.4)
 OBJ_COM_HEIGHT = 0.2
 OBJ_ZMP_MARGIN = 0.01
+OBJ_NUM_ZMP_CONSTRAINTS = 4
+OBJ_NUM_CONSTRAINTS = 2 + OBJ_NUM_ZMP_CONSTRAINTS
 
 NUM_OBJECTS = 2
 
@@ -83,19 +87,27 @@ class TrayBalanceOptimizationEE:
 
         self.nv = model.ni  # number of optimization variables per MPC step
         self.nc_eq = 0  # number of equality constraints
-        self.nc_ineq = (
-            2 + 1
-        ) * NUM_OBJECTS  # number of inequality constraints: 2 + ZMP constraints
-        self.nc = self.nc_eq + self.nc_ineq
+
+        # NOTE: n_balance_con multiplied by 2 because we enforce two
+        # constraints per timestep
+        self.n_balance_con = TRAY_NUM_CONSTRAINTS + OBJ_NUM_CONSTRAINTS
+        self.nc = self.nc_eq + 2 * self.n_balance_con
 
         # MPC weights
-        Q = np.diag(
-            np.concatenate((np.zeros(7), 0.01 * np.ones(model.ni)))
-        )  # joint state error
-        W = np.diag(
-            np.concatenate((np.ones(3), np.full(3, 1), np.zeros(6)))
-        )  # Cartesian state error
+        # Joint state weight
+        Q_POSE = np.zeros(7)
+        Q_VELOCITY = 0.01 * np.ones(model.ni)
+        Q = np.diag(np.concatenate((Q_POSE, Q_VELOCITY)))
+
+        # Cartesian state error weight
+        W_EE_POSE = np.ones(6)
+        W_EE_VELOCITY = np.zeros(6)
+        W = np.diag(np.concatenate((W_EE_POSE, W_EE_VELOCITY)))
+
+        # Input weight
         R = 0.01 * np.eye(self.nv)
+
+        # Velocity constraint matrix
         V = MPC_DT * np.eye(self.nv)
 
         # lifted weight matrices
@@ -265,8 +277,8 @@ class TrayBalanceOptimizationEE:
         lb_vel = -VEL_LIM * np.ones(MPC_STEPS * self.nv)
         ub_vel = VEL_LIM * np.ones(MPC_STEPS * self.nv)
 
-        lb_physics = np.zeros(MPC_STEPS * self.nc * 2)
-        ub_physics = np.infty * np.ones(MPC_STEPS * self.nc * 2)
+        lb_physics = np.zeros(MPC_STEPS * self.nc)
+        ub_physics = np.infty * np.ones(MPC_STEPS * self.nc)
 
         con_lb = np.concatenate((lb_vel, lb_physics))
         con_ub = np.concatenate((ub_vel, ub_physics))
@@ -275,7 +287,7 @@ class TrayBalanceOptimizationEE:
         vel_con_mask = self.Vbar
 
         physics_con_mask = np.kron(
-            np.tril(np.ones((MPC_STEPS, MPC_STEPS))), np.ones((2 * self.nc, self.nv))
+            np.tril(np.ones((MPC_STEPS, MPC_STEPS))), np.ones((self.nc, self.nv))
         )
         con_mask = np.vstack((vel_con_mask, physics_con_mask))
         con_nz_idx = np.nonzero(con_mask)
@@ -348,9 +360,12 @@ def setup_sim():
     # )
     # obj.bullet.reset_pose(position=ee_pos + [0, 0, 2 * TRAY_COM_HEIGHT + OBJ_COM_HEIGHT + 0.05])
 
+    obj_support = geometry.PolygonSupportArea(
+        geometry.cuboid_support_vertices(OBJ_SIDE_LENGTHS), margin=OBJ_ZMP_MARGIN
+    )
     obj = Cuboid(
         r_tau=geometry.circle_r_tau(OBJ_RADIUS),
-        support_area=geometry.CircleSupportArea(OBJ_RADIUS, margin=OBJ_ZMP_MARGIN),
+        support_area=obj_support,
         mass=OBJ_MASS,
         side_lengths=OBJ_SIDE_LENGTHS,
         mu=OBJ_TRAY_MU,
@@ -420,7 +435,7 @@ def main():
     r_oe_es = np.zeros((N_record, 3))
     Q_ets = np.zeros((N_record, 4))
     Q_eos = np.zeros((N_record, 4))
-    ineq_cons = np.zeros((N_record, problem.nc_ineq))
+    ineq_cons = np.zeros((N_record, problem.n_balance_con))
 
     r_te_es[0, :] = tray.body.com
     r_oe_es[0, :] = obj.body.com
@@ -449,7 +464,7 @@ def main():
     # Construct the SQP controller
     # controller = sqp.SQP(
     #     problem.nv * MPC_STEPS,
-    #     2 * problem.nc * MPC_STEPS,
+    #     problem.nc * MPC_STEPS,
     #     problem.obj_hess_jac,
     #     problem.constraints(),
     #     problem.bounds(),
@@ -461,7 +476,7 @@ def main():
 
     controller = sqp.SQP(
         nv=problem.nv * MPC_STEPS,
-        nc=2 * problem.nc * MPC_STEPS,
+        nc=problem.nc * MPC_STEPS,
         obj_fun=problem.obj_fun,
         obj_jac=problem.obj_jac,
         ineq_cons=problem.constraints(),
@@ -612,7 +627,7 @@ def main():
     plt.title("$r^{oe}_e$ error")
 
     plt.figure()
-    for j in range(problem.nc_ineq):
+    for j in range(problem.n_balance_con):
         plt.plot(ts[:idx], ineq_cons[:idx, j], label=f"$h_{j+1}$")
     plt.plot([0, ts[idx]], [0, 0], color="k")
     plt.grid()

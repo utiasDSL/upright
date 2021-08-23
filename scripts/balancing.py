@@ -24,11 +24,12 @@ def object_balance_constraints(obj, C_we, ω_ew_w, a_ew_w, α_ew_w):
 
     h1 = (obj.mu * α[2]) ** 2 - α[0] ** 2 - α[1] ** 2 - (β[2] / obj.r_tau) ** 2
     h2 = α[2]  # α3 >= 0
-    # h12 = jnp.array([h1, h2])
 
     r_z = -obj.com_height
     S = np.array([[0, 1], [-1, 0]])
-    zmp = (r_z * α[:2] - S @ β[:2])  # / α[2]  # TODO numerical issues?
-    h3 = obj.support_area.zmp_constraints_scaled(zmp, α[2])
+    zmp = (r_z * α[:2] - S @ β[:2]) / α[2]  # TODO numerical issues?
+    # h3 = obj.support_area.zmp_constraints_scaled(zmp, α[2])
+    h3 = obj.support_area.zmp_constraints(zmp)
 
-    return jnp.array([h1, h2, h3])
+    h12 = jnp.array([h1, h2])
+    return jnp.concatenate((h12, h3))
