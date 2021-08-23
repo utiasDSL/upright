@@ -14,7 +14,6 @@ import pybullet_data
 
 import sqp
 from util import (
-    skew3,
     pose_error,
     state_error,
     pose_to_pos_quat,
@@ -27,6 +26,8 @@ from end_effector import EndEffector, EndEffectorModel
 
 import IPython
 
+
+# TODO: something like: from params import *
 
 # EE geometry parameters
 EE_SIDE_LENGTH = 0.3
@@ -47,7 +48,7 @@ TRAY_H = 0.1  # 0.5  # height of center of mass from bottom of tray  TODO confus
 # simulation parameters
 SIM_DT = 0.001  # simulation timestep (s)
 MPC_DT = 0.1  # lookahead timestep of the controller MPC_STEPS = 10  # number of timesteps to lookahead
-MPC_STEPS = 10
+MPC_STEPS = 20
 SQP_ITER = 3  # number of iterations for the SQP solved by the controller
 PLOT_PERIOD = 100  # update plot every PLOT_PERIOD timesteps
 CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
@@ -72,10 +73,12 @@ class TrayBalanceOptimizationEE:
         self.nc = self.nc_eq + self.nc_ineq
 
         # MPC weights
-        W = np.diag(np.concatenate((np.ones(6), np.zeros(6))))  # Cartesian state error weights
+        W = np.diag(
+            np.concatenate((np.ones(6), np.zeros(6)))
+        )  # Cartesian state error weights
 
         Q = np.diag(
-            np.concatenate((0.01 * np.ones(7), 0.01 * np.ones(model.ni)))
+            np.concatenate((0.01 * np.zeros(7), 0.01 * np.ones(model.ni)))
         )  # Cartesian state weights
         R = 0.01 * np.eye(model.ni)  # Accleration input weights
 
@@ -171,62 +174,6 @@ class TrayBalanceOptimizationEE:
         )
         return h
 
-    # @partial(jax.jit, static_argnums=(0,))
-    # def ineq_constraints(self, P_we, V_ew_w, A_ew_w, jnp=jnp):
-    #     """Calculate inequality constraints for a single timestep."""
-    #     _, Q_we = pose_to_pos_quat(P_we)
-    #     ω_ew_w = V_ew_w[3:]
-    #     a_ew_w = A_ew_w[:3]
-    #     α_ew_w = A_ew_w[3:]
-    #
-    #     # TODO: we could probably reformulate all of this in terms of
-    #     # quaternions, if desired
-    #     C_we = SO3.from_quaternion_xyzw(Q_we).as_matrix()
-    #     C_ew = C_we.T
-    #     Sω_ew_w = skew3(ω_ew_w)
-    #     ddC_we = (skew3(α_ew_w) + Sω_ew_w @ Sω_ew_w) @ C_we
-    #
-    #     g = jnp.array([0, 0, -GRAVITY])
-    #
-    #     α = TRAY_MASS * C_ew @ (a_ew_w + ddC_we @ self.r_te_e - g)
-    #
-    #     # rotational
-    #     Iw = C_we @ TRAY_INERTIA @ C_we.T
-    #     β = C_ew @ Sω_ew_w @ Iw @ ω_ew_w + TRAY_INERTIA @ C_ew @ α_ew_w
-    #     S = np.array([[0, 1], [-1, 0]])
-    #
-    #     rz = -TRAY_H
-    #     r = TRAY_W
-    #
-    #     γ = rz * S.T @ α[:2] - β[:2]
-    #
-    #     # NOTE: these constraints are currently written to be >= 0, in
-    #     # constraint to the notes which have everything <= 0.
-    #
-    #     # h1 = (TRAY_MU * α[2])**2 - (α[0]**2 + α[1]**2)  # friction cone
-    #     # NOTE the addition of a small term in the square root to ensure
-    #     # derivative is well-defined at 0
-    #     h1 = TRAY_MU * α[2] - jnp.sqrt(α[0] ** 2 + α[1] ** 2 + 0.01)  # friction cone
-    #
-    #     # this approximation actually works less well than the correct
-    #     # quadratic expression above:
-    #     # h1 = TRAY_MU * α[2] - jnp.abs(α[0]) - jnp.abs(α[1])
-    #     h2 = α[2]  # α3 >= 0
-    #
-    #     # h3 = r**2 * α[2]**2 - (γ[0]**2 + γ[1]**2)  #γ @ γ
-    #     h3 = r * α[2] - jnp.sqrt(γ[0] ** 2 + γ[1] ** 2 + 0.01)  # γ @ γ
-    #     # h3 = 1
-    #
-    #     # w1 = TRAY_W
-    #     # w2 = TRAY_W
-    #     # h3a = α3 + w1 * α2 + TRAY_H * α1
-    #     # h3b = α3 + w1 * α2 - TRAY_H * α1
-    #     #
-    #     # h4a = -α3 + w2 * α2 + TRAY_H * α1
-    #     # h4b = -α3 + w2 * α2 - TRAY_H * α1
-    #
-    #     return jnp.array([h1, h2, h3])
-
     @partial(jax.jit, static_argnums=(0,))
     def constraints_unrolled(self, x0, P_we_d, V_ew_w_d, var):
         """Unroll the inequality constraints over the time horizon."""
@@ -257,6 +204,46 @@ class TrayBalanceOptimizationEE:
         return con2d.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
+    def balance_constraints_unrolled(self, x0, P_we_d, V_ew_w_d, var):
+        """Inequality constraints for object balancing."""
+
+        def one_step_con_func(x0, u0x1):
+            u0, x1 = u0x1[: self.model.ni], u0x1[self.model.ni :]
+
+            # we actually two sets of constraints for each timestep: one at the
+            # start and one at the end
+            # at the start of the timestep, we need to ensure the new inputs
+            # satisfy constraints
+            P_we0, V_ew_w0 = x0[:7], x0[7:]
+            ineq_con0 = self.ineq_constraints(P_we0, V_ew_w0, u0)
+
+            # at the end of the timestep, we need to make sure that the robot
+            # ends up in a state where constraints are still satisfied given
+            # the input
+            P_we1, V_ew_w1 = x1[:7], x1[7:]
+            ineq_con1 = self.ineq_constraints(P_we1, V_ew_w1, u0)
+
+            return x1, jnp.concatenate((ineq_con0, ineq_con1))
+
+        var2d = var.reshape((MPC_STEPS, self.nv))
+        _, con2d = jax.lax.scan(one_step_con_func, x0, var2d)
+        return con2d.flatten()
+
+    @partial(jax.jit, static_argnums=(0,))
+    def dynamics_constraints_unrolled(self, x0, P_we_d, V_ew_w_d, var):
+        """Equality constraints on the dynamics."""
+
+        def one_step_con_func(x0, u0x1):
+            u0, x1 = u0x1[: self.model.ni], u0x1[self.model.ni :]
+            eq_con = state_error(x1, self.model.simulate(x0, u0))
+
+            return x1, eq_con
+
+        var2d = var.reshape((MPC_STEPS, self.nv))
+        _, con2d = jax.lax.scan(one_step_con_func, x0, var2d)
+        return con2d.flatten()
+
+    @partial(jax.jit, static_argnums=(0,))
     def obj_jac_hess(self, x0, P_we_d, V_ew_w_d, var):
         """Calculate objective Hessian and Jacobian."""
 
@@ -281,7 +268,8 @@ class TrayBalanceOptimizationEE:
         # Jacobian
         g = (
             ebar.T @ self.Wbar @ dedvar
-            + xbar.T @ self.Qbar @ dxdvar - self.xtbar.T @ self.Qbar @ dxdvar
+            + xbar.T @ self.Qbar @ dxdvar
+            - self.xtbar.T @ self.Qbar @ dxdvar
             + ubar.T @ self.Rbar @ dudvar
         )
 
@@ -294,10 +282,17 @@ class TrayBalanceOptimizationEE:
 
         return f, g, H
 
+    # TODO not ideal, but maybe works for now
+    def obj_fun(self, X0, P_we_d, V_ew_w_d, var):
+        f, _, _ = self.obj_jac_hess(X0, P_we_d, V_ew_w_d, var)
+        return f
+
+    def obj_jac(self, X0, P_we_d, V_ew_w_d, var):
+        _, J, _ = self.obj_jac_hess(X0, P_we_d, V_ew_w_d, var)
+        return J
+
     def objective(self):
-        return sqp.SparseObjective(
-            self.obj_jac_hess, self.H_nz_idx, self.H_mask.shape
-        )
+        return sqp.SparseObjective(self.obj_jac_hess, self.H_nz_idx, self.H_mask.shape)
 
     def bounds(self):
         """Compute bounds for the problem."""
@@ -325,10 +320,26 @@ class TrayBalanceOptimizationEE:
         func = self.constraints_unrolled
         jac_func = jax.jit(jax.jacfwd(self.constraints_unrolled, argnums=3))
 
-        # return jac_func
         return sqp.SparseConstraints(
             func, jac_func, lb, ub, self.A_nz_idx, self.A_mask.shape
         )
+
+    def scipy_ineq_constraints(self):
+        # physics constraints are currently formulated such that they are
+        # constrainted to be positive
+        # equality constraints just have lb = ub = 0
+        # lb = np.zeros(MPC_STEPS * self.nc)
+        # ub0 = np.concatenate((np.full(self.nc_ineq, np.infty), np.zeros(self.nc_eq)))
+        # ub = np.tile(ub0, MPC_STEPS)
+
+        fun = self.balance_constraints_unrolled
+        jac = jax.jit(jax.jacfwd(fun, argnums=3))
+        return sqp.Constraints(fun, jac, None, None)
+
+    def scipy_eq_constraints(self):
+        fun = self.dynamics_constraints_unrolled
+        jac = jax.jit(jax.jacfwd(fun, argnums=3))
+        return sqp.Constraints(fun, jac, None, None)
 
 
 def settle_sim(duration):
@@ -455,31 +466,6 @@ def main():
     # construct the tray balance problem
     problem = TrayBalanceOptimizationEE(model, tray)
 
-    # H = sample_hessian(problem)
-    # for i in range(9):
-    #     H += sample_hessian(problem)
-    #
-    # H_mask = problem.H_mask
-    #
-    # assert np.allclose(H_mask * H, H)
-
-    # A = sample_constraint_jac(problem)
-    # for i in range(9):
-    #     A += sample_constraint_jac(problem)
-    #
-    # A_mask = problem.A_mask
-    #
-    # plt.figure()
-    # plt.spy(A)
-    #
-    # plt.figure()
-    # plt.spy(A_mask)
-    #
-    # plt.show()
-    #
-    # IPython.embed()
-    # return
-
     ts = RECORD_PERIOD * SIM_DT * np.arange(N_record)
     us = np.zeros((N_record, model.ni))
     r_ew_ws = np.zeros((N_record, 3))
@@ -509,16 +495,30 @@ def main():
     var0 = np.tile(var00, MPC_STEPS)
 
     # Construct the SQP controller
+    # controller = sqp.SQP(
+    #     problem.nv * MPC_STEPS,
+    #     problem.nc * MPC_STEPS,
+    #     problem.objective(),
+    #     problem.constraints(),
+    #     problem.bounds(),
+    #     # num_wsr=300,
+    #     num_iter=SQP_ITER,
+    #     verbose=True,
+    #     solver="osqp",
+    #     var0=var0,
+    # )
+
     controller = sqp.SQP(
-        problem.nv * MPC_STEPS,
-        problem.nc * MPC_STEPS,
-        problem.objective(),
-        problem.constraints(),
-        problem.bounds(),
-        # num_wsr=300,
+        nv=problem.nv * MPC_STEPS,
+        nc=problem.nc * MPC_STEPS,
+        obj_fun=problem.obj_fun,
+        obj_jac=problem.obj_jac,
+        ineq_cons=problem.scipy_ineq_constraints(),
+        eq_cons=problem.scipy_eq_constraints(),
+        bounds=problem.bounds(),
         num_iter=SQP_ITER,
-        verbose=True,
-        solver="osqp",
+        verbose=False,
+        solver="scipy",
         var0=var0,
     )
 
@@ -529,9 +529,11 @@ def main():
             V_we_d = jnp.zeros(6)
 
             x = ee.get_state()
-            ubar = controller.solve(x, P_we_d, V_we_d)
-            u = ubar[: model.ni]  # joint acceleration input
+            var = controller.solve(x, P_we_d, V_we_d)
+            u = var[: model.ni]  # joint acceleration input
             ee.command_acceleration(u)
+            print(np.array(problem.obj_fun(x, P_we_d, V_we_d, var)))
+            print(u)
 
         # step simulation forward
         ee.step()

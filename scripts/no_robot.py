@@ -25,6 +25,7 @@ from bodies import Cylinder, compose_bodies
 from end_effector import EndEffector, EndEffectorModel
 import geometry
 import balancing
+import params
 
 import IPython
 
@@ -45,8 +46,6 @@ TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_W = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 TRAY_H = 0.01  # height of center of mass from bottom of tray  TODO confusing
-
-print(f"TRAY_W = {TRAY_W}")
 
 OBJ_MASS = 1
 OBJ_TRAY_MU = 0.5
@@ -452,7 +451,8 @@ def main():
         nc=2 * problem.nc * MPC_STEPS,
         obj_fun=problem.obj_fun,
         obj_jac=problem.obj_jac,
-        constraints=problem.constraints(),
+        ineq_cons=problem.constraints(),
+        eq_cons=None,
         bounds=problem.bounds(),
         num_iter=SQP_ITER,
         verbose=False,
