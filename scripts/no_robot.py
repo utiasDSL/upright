@@ -13,7 +13,6 @@ import pybullet_data
 
 import sqp
 from util import (
-    skew3,
     pose_error,
     pose_to_pos_quat,
     pose_from_pos_quat,
@@ -32,6 +31,7 @@ import IPython
 
 # EE geometry parameters
 EE_SIDE_LENGTH = 0.3
+EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 
 # EE motion parameters
 VEL_LIM = 4
@@ -44,8 +44,7 @@ GRAVITY_VECTOR = np.array([0, 0, -GRAVITY_MAG])
 TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
-TRAY_W = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
-TRAY_H = 0.01  # height of center of mass from bottom of tray  TODO confusing
+TRAY_COM_HEIGHT = 0.01
 
 OBJ_MASS = 1
 OBJ_TRAY_MU = 0.5
@@ -324,16 +323,16 @@ def setup_sim():
 
     # setup tray
     tray = Cylinder(
-        r_tau=TRAY_W,
-        support_area=geometry.CircleSupportArea(TRAY_W),
+        r_tau=EE_INSCRIBED_RADIUS,
+        support_area=geometry.CircleSupportArea(EE_INSCRIBED_RADIUS),
         mass=TRAY_MASS,
         radius=TRAY_RADIUS,
-        height=2 * TRAY_H,
+        height=2 * TRAY_COM_HEIGHT,
         mu=TRAY_MU,
         bullet_mu=TRAY_MU,
     )
     ee_pos, _ = ee.get_pose()
-    tray.bullet.reset_pose(position=ee_pos + [0, 0, TRAY_H + 0.05])
+    tray.bullet.reset_pose(position=ee_pos + [0, 0, TRAY_COM_HEIGHT + 0.05])
 
     # object on tray
     obj = Cylinder(
@@ -346,7 +345,7 @@ def setup_sim():
         bullet_mu=OBJ_TRAY_MU_BULLET,
         color=(0, 1, 0, 1),
     )
-    obj.bullet.reset_pose(position=ee_pos + [0, 0, 2 * TRAY_H + OBJ_COM_HEIGHT + 0.05])
+    obj.bullet.reset_pose(position=ee_pos + [0, 0, 2 * TRAY_COM_HEIGHT + OBJ_COM_HEIGHT + 0.05])
 
     settle_sim(1.0)
 
@@ -369,7 +368,7 @@ def calc_Q_et(Q_we, Q_wt):
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    if TRAY_W < TRAY_MU * TRAY_H:
+    if EE_INSCRIBED_RADIUS < TRAY_MU * TRAY_COM_HEIGHT:
         print("warning: w < μh")
 
     N = int(DURATION / SIM_DT) + 1
@@ -424,8 +423,8 @@ def main():
     setpoint_idx = 0
 
     # desired quaternion
-    # R_ed = SO3.from_z_radians(np.pi)
-    R_ed = SO3.identity()
+    R_ed = SO3.from_z_radians(np.pi)
+    # R_ed = SO3.identity()
     R_we = SO3.from_quaternion_xyzw(Q_we)
     R_wd = R_we.multiply(R_ed)
     Qd = R_wd.as_quaternion_xyzw()

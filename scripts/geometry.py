@@ -81,3 +81,7 @@ class CircleSupportArea:
         """
         e = zmp - self.offset
         return (self.radius - self.margin) ** 2 - e @ e
+
+    def zmp_constraints_scaled(self, αz_zmp, αz):
+        e = αz_zmp - αz * self.offset
+        return (αz * (self.radius - self.margin)) ** 2 - e @ e

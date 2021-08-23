@@ -28,7 +28,7 @@ def object_balance_constraints(obj, C_we, ω_ew_w, a_ew_w, α_ew_w):
 
     r_z = -obj.com_height
     S = np.array([[0, 1], [-1, 0]])
-    zmp = (r_z * α[:2] - S @ β[:2]) / α[2]  # TODO numerical issues?
-    h3 = obj.support_area.zmp_constraints(zmp)
+    zmp = (r_z * α[:2] - S @ β[:2])  # / α[2]  # TODO numerical issues?
+    h3 = obj.support_area.zmp_constraints_scaled(zmp, α[2])
 
     return jnp.array([h1, h2, h3])
