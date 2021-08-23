@@ -2,7 +2,8 @@ import numpy as np
 import jax.numpy as jnp
 import pybullet as pyb
 from jaxlie import SO3
-from util import zoh, equilateral_triangle_inscribed_radius
+from util import zoh
+from geometry import equilateral_triangle_inscribed_radius
 
 
 COLOR = (1, 0, 0, 1)

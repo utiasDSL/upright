@@ -17,22 +17,15 @@ from util import (
     pose_error,
     pose_to_pos_quat,
     pose_from_pos_quat,
-    equilateral_triangle_inscribed_radius,
     quat_multiply,
     debug_frame,
     state_error,
-    CircleSupportArea,
-    PolygonSupportArea,
-    circle_r_tau,
 )
 from bodies import Cylinder, compose_bodies
 from end_effector import EndEffector, EndEffectorModel
+import geometry
 
 import IPython
-
-
-# TODO: friction is not accurate: mu needs to be the combination of the
-# supports
 
 
 # EE geometry parameters
@@ -48,8 +41,8 @@ GRAVITY_VECTOR = np.array([0, 0, -GRAVITY_MAG])
 # tray parameters
 TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
-TRAY_MU = 1.0
-TRAY_W = equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
+TRAY_MU = 0.5
+TRAY_W = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 TRAY_H = 0.01  # height of center of mass from bottom of tray  TODO confusing
 
 print(f"TRAY_W = {TRAY_W}")
@@ -61,7 +54,7 @@ OBJ_RADIUS = 0.1
 OBJ_COM_HEIGHT = 0.2
 OBJ_ZMP_MARGIN = 0.01
 
-NUM_OBJECTS = 1
+NUM_OBJECTS = 2
 
 # simulation parameters
 SIM_DT = 0.001  # simulation timestep (s)
@@ -77,25 +70,22 @@ DURATION = 10.0  # duration of trajectory (s)
 class TrayBalanceOptimizationEE:
     def __init__(self, model, tray, obj):
         self.model = model
-        # self.tray = tray
-        # self.obj = obj
 
         # create the composite
-        # TODO may be better to just construct a new object from scratch
-        # obj_tray_composite = tray.copy()
-        # obj_tray_composite.body = compose_bodies([tray.body, obj.body])
-        # delta = tray.body.com - obj_tray_composite.body.com
-        # obj_tray_composite.support_area.offset = delta[:2]
-        # obj_tray_composite.com_height = tray.com_height - delta[2]
+        obj_tray_composite = tray.copy()
+        obj_tray_composite.body = compose_bodies([tray.body, obj.body])
+        delta = tray.body.com - obj_tray_composite.body.com
+        obj_tray_composite.support_area.offset = delta[:2]
+        obj_tray_composite.com_height = tray.com_height - delta[2]
 
-        # self.obj_to_constrain = [obj_tray_composite, obj]
-        self.obj_to_constrain = [obj]
-
-        # IPython.embed()
+        self.obj_to_constrain = [obj_tray_composite, obj]
+        assert len(self.obj_to_constrain) == NUM_OBJECTS
 
         self.nv = model.ni  # number of optimization variables per MPC step
         self.nc_eq = 0  # number of equality constraints
-        self.nc_ineq = (2 + 1) * NUM_OBJECTS  # number of inequality constraints: 2 + ZMP constraints
+        self.nc_ineq = (
+            2 + 1
+        ) * NUM_OBJECTS  # number of inequality constraints: 2 + ZMP constraints
         self.nc = self.nc_eq + self.nc_ineq
 
         # MPC weights
@@ -182,55 +172,13 @@ class TrayBalanceOptimizationEE:
 
         C_we = SO3.from_quaternion_xyzw(Q_we).as_matrix()
 
-        # def map_func(obj):
-        #     return self.object_balance_constraints(C_we, ω_ew_w, a_ew_w, α_ew_w, obj)
-        #
-        # _, h = jax.lax.map(map_func, self.obj_to_constrain_jax)
-        h0 = self.object_balance_constraints(
-           self.obj_to_constrain[0], C_we, ω_ew_w, a_ew_w, α_ew_w
+        h = jnp.concatenate(
+            [
+                self.object_balance_constraints(obj, C_we, ω_ew_w, a_ew_w, α_ew_w)
+                for obj in self.obj_to_constrain
+            ]
         )
-        # h1 = self.object_balance_constraints(
-        #    self.obj_to_constrain[1], C_we, ω_ew_w, a_ew_w, α_ew_w
-        # )
-        h = h0
-        # h = jnp.concatenate((h0, h1))
         return h
-
-        # h_tray =
-        # C_ew = C_we.T
-        # Sω_ew_w = skew3(ω_ew_w)
-        # ddC_we = (skew3(α_ew_w) + Sω_ew_w @ Sω_ew_w) @ C_we
-
-        # until here is "general setup"
-
-        # TODO how to handle the composed tray + object body?
-
-        # α = TRAY_MASS * C_ew @ (a_ew_w + ddC_we @ self.r_te_e - GRAVITY_VECTOR)
-        #
-        # # rotational
-        # Iw = C_we @ TRAY_INERTIA @ C_we.T
-        # β = C_ew @ Sω_ew_w @ Iw @ ω_ew_w + TRAY_INERTIA @ C_ew @ α_ew_w
-        # S = np.array([[0, 1], [-1, 0]])
-        #
-        # rz = -TRAY_H
-        # r = TRAY_W
-        #
-        # h1 = (TRAY_MU * α[2]) ** 2 - α[0] ** 2 - α[1] ** 2 - (β[2] / r) ** 2
-        # h2 = α[2]  # α3 >= 0
-        # # h12 = jnp.array([h1, h2])
-        #
-        # zmp = (rz * α[:2] - S @ β[:2]) / α[2]  # TODO numerical issues?
-        # h3 = circle_zmp_constraints(zmp, np.array([0, 0]), r)
-
-        # TODO want to formulate another set of constraints for the other
-        # object
-
-        # vertices = np.array([[0.1732, 0], [-0.0866, 0.15], [-0.0866, -0.15]])
-        # h3 = polygon_zmp_constraints(zmp, vertices)
-        #
-        # return jnp.concatenate((h12, h3))
-
-        # return jnp.array([h1, h2, h3])
 
     @partial(jax.jit, static_argnums=(0,))
     def ineq_constraints_unrolled(self, X0, P_we_d, V_ew_w_d, var):
@@ -400,7 +348,7 @@ def setup_sim():
     # setup tray
     tray = Cylinder(
         r_tau=TRAY_W,
-        support_area=CircleSupportArea(TRAY_W),
+        support_area=geometry.CircleSupportArea(TRAY_W),
         mass=TRAY_MASS,
         radius=TRAY_RADIUS,
         height=2 * TRAY_H,
@@ -412,8 +360,8 @@ def setup_sim():
 
     # object on tray
     obj = Cylinder(
-        r_tau=circle_r_tau(OBJ_RADIUS),
-        support_area=CircleSupportArea(OBJ_RADIUS, margin=OBJ_ZMP_MARGIN),
+        r_tau=geometry.circle_r_tau(OBJ_RADIUS),
+        support_area=geometry.CircleSupportArea(OBJ_RADIUS, margin=OBJ_ZMP_MARGIN),
         mass=OBJ_MASS,
         radius=OBJ_RADIUS,
         height=2 * OBJ_COM_HEIGHT,
