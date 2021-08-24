@@ -27,7 +27,6 @@ ACC_LIM = 8
 MPC_DT = 0.1  # lookahead timestep of the controller
 MPC_STEPS = 20  # number of timesteps to lookahead
 SQP_ITER = 3  # number of iterations for the SQP solved by the controller
-PLOT_PERIOD = 100  # update plot every PLOT_PERIOD timesteps
 CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 10.0  # duration of trajectory (s)
@@ -292,9 +291,9 @@ def main():
     N = int(DURATION / sim.dt) + 1
 
     # simulation objects and model
-    ee, objects, composites = sim.setup()
+    ee, objects, composites = sim.setup(obj_names=["tray", "cuboid1"])
     tray = objects["tray"]
-    obj = objects["obj"]
+    obj = objects["cuboid1"]
 
     robot_model = EndEffectorModel(MPC_DT)
 

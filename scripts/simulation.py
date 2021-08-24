@@ -7,6 +7,8 @@ import util
 import geometry
 import bodies
 
+import IPython
+
 
 EE_SIDE_LENGTH = 0.3
 EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
@@ -31,8 +33,6 @@ OBJ_COM_HEIGHT = 0.2
 OBJ_ZMP_MARGIN = 0.01
 OBJ_NUM_ZMP_CONSTRAINTS = 4
 OBJ_NUM_CONSTRAINTS = 2 + OBJ_NUM_ZMP_CONSTRAINTS
-
-NUM_OBJECTS = 2
 
 # SIM_DT = 0.001
 
@@ -82,69 +82,84 @@ class Simulation:
 
         # setup floating end effector
         ee = EndEffector(self.dt, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
+        r_ew_w, Q_we = ee.get_pose()
 
         util.debug_frame(0.1, ee.uid, -1)
 
-        # setup tray
-        tray = bodies.Cylinder(
+        # setup balanced objects
+        objects = {}
+
+        objects["tray"] = bodies.Cylinder(
             r_tau=EE_INSCRIBED_RADIUS,
             support_area=geometry.CircleSupportArea(EE_INSCRIBED_RADIUS),
             mass=TRAY_MASS,
             radius=TRAY_RADIUS,
             height=2 * TRAY_COM_HEIGHT,
             mu=TRAY_MU,
-            bullet_mu=TRAY_MU,
         )
-        ee_pos, _ = ee.get_pose()
-        tray.bullet.reset_pose(position=ee_pos + [0, 0, TRAY_COM_HEIGHT + 0.05])
+        objects["tray"].add_to_sim(bullet_mu=TRAY_MU)
+        r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
+        objects["tray"].bullet.reset_pose(position=r_tw_w)
+        objects["tray"].body.com = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
 
-        # object on tray
-        # obj = Cylinder(
-        #     r_tau=geometry.circle_r_tau(OBJ_RADIUS),
-        #     support_area=geometry.CircleSupportArea(OBJ_RADIUS, margin=OBJ_ZMP_MARGIN),
-        #     mass=OBJ_MASS,
-        #     radius=OBJ_RADIUS,
-        #     height=2 * OBJ_COM_HEIGHT,
-        #     mu=OBJ_TRAY_MU,
-        #     bullet_mu=OBJ_TRAY_MU_BULLET,
-        #     color=(0, 1, 0, 1),
-        # )
-        # obj.bullet.reset_pose(position=ee_pos + [0, 0, 2 * TRAY_COM_HEIGHT + OBJ_COM_HEIGHT + 0.05])
+        if "cylinder1" in obj_names:
+            objects["cylinder1"] = bodies.Cylinder(
+                r_tau=geometry.circle_r_tau(OBJ_RADIUS),
+                support_area=geometry.CircleSupportArea(
+                    OBJ_RADIUS, margin=OBJ_ZMP_MARGIN
+                ),
+                mass=OBJ_MASS,
+                radius=OBJ_RADIUS,
+                height=2 * OBJ_COM_HEIGHT,
+                mu=OBJ_TRAY_MU,
+            )
+            objects["cylinder1"].add_to_sim(
+                bullet_mu=OBJ_TRAY_MU_BULLET, color=(0, 1, 0, 1)
+            )
+            r_ow_w = r_ew_w + [0, 0, 2 * TRAY_COM_HEIGHT + OBJ_COM_HEIGHT + 0.05]
+            objects["cylinder1"].bullet.reset_pose(position=r_ow_w)
+            objects["cylinder1"].body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+            objects["tray"].children.append("cylinder1")
 
-        obj_support = geometry.PolygonSupportArea(
-            geometry.cuboid_support_vertices(OBJ_SIDE_LENGTHS), margin=OBJ_ZMP_MARGIN
-        )
-        obj = bodies.Cuboid(
-            r_tau=geometry.circle_r_tau(OBJ_RADIUS),
-            support_area=obj_support,
-            mass=OBJ_MASS,
-            side_lengths=OBJ_SIDE_LENGTHS,
-            mu=OBJ_TRAY_MU,
-            bullet_mu=OBJ_TRAY_MU_BULLET,
-            color=(0, 1, 0, 1),
-        )
-        obj.bullet.reset_pose(
-            position=ee_pos
-            + [0.05, 0, 2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05]
-        )
+        if "cuboid1" in obj_names:
+            support = geometry.PolygonSupportArea(
+                geometry.cuboid_support_vertices(OBJ_SIDE_LENGTHS),
+                margin=OBJ_ZMP_MARGIN,
+            )
+            objects["cuboid1"] = bodies.Cuboid(
+                r_tau=geometry.circle_r_tau(OBJ_RADIUS),  # TODO
+                support_area=support,
+                mass=OBJ_MASS,
+                side_lengths=OBJ_SIDE_LENGTHS,
+                mu=OBJ_TRAY_MU,
+            )
+            objects["cuboid1"].add_to_sim(
+                bullet_mu=OBJ_TRAY_MU_BULLET, color=(0, 1, 0, 1)
+            )
+            r_ow_w = r_ew_w + [
+                0.05,
+                0,
+                2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05,
+            ]
+            objects["cuboid1"].bullet.reset_pose(position=r_ow_w)
+            objects["cuboid1"].body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+            objects["tray"].children.append("cuboid1")
 
         self.settle(1.0)
 
-        # set CoMs of the objects relative to EE
-        r_ew_w, Q_we = ee.get_pose()
-        r_tw_w, Q_wt = tray.bullet.get_pose()
-        r_ow_w, Q_wo = obj.bullet.get_pose()
-
-        tray.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
-        obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
-
-        obj_tray_composite = tray.copy()
-        obj_tray_composite.body = bodies.compose_bodies([tray.body, obj.body])
-        delta = tray.body.com - obj_tray_composite.body.com
-        obj_tray_composite.support_area.offset = delta[:2]
-        obj_tray_composite.com_height = tray.com_height - delta[2]
-
-        objects = {"tray": tray, "obj": obj}
-        composites = [obj_tray_composite, obj]
+        tray = objects["tray"]
+        assert len(tray.children) <= 1
+        if len(tray.children) > 0:
+            # TODO this would be straightforward to extend to many objects on
+            # the tray
+            obj = objects[tray.children[0]]
+            obj_tray_composite = tray.copy()
+            obj_tray_composite.body = bodies.compose_bodies([tray.body, obj.body])
+            delta = tray.body.com - obj_tray_composite.body.com
+            obj_tray_composite.support_area.offset = delta[:2]
+            obj_tray_composite.com_height = tray.com_height - delta[2]
+            composites = [obj_tray_composite, obj]
+        else:
+            composites = [tray]
 
         return ee, objects, composites

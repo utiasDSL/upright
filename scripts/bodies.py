@@ -1,4 +1,4 @@
-import copy
+# import copy
 
 import numpy as np
 import pybullet as pyb
@@ -49,7 +49,9 @@ def compose_bodies(bodies):
 
 
 class BulletBody:
-    def __init__(self, mass, mu, r_tau, collision_uid, visual_uid, position, orientation):
+    def __init__(
+        self, mass, mu, r_tau, collision_uid, visual_uid, position, orientation
+    ):
         self.uid = pyb.createMultiBody(
             baseMass=mass,
             baseCollisionShapeIndex=collision_uid,
@@ -99,8 +101,13 @@ class BalancedBody:
         self.r_tau = r_tau
         self.mu = mu
 
+        self.children = []
+
     def copy(self):
-        return copy.deepcopy(self)
+        # NOTE: this doesn't make a deep copy
+        return BalancedBody(
+            self.body, self.com_height, self.r_tau, self.support_area, self.mu
+        )
 
 
 class Cylinder(BalancedBody):
@@ -113,49 +120,45 @@ class Cylinder(BalancedBody):
     each object.
     """
 
-    def __init__(
-        self,
-        r_tau,
-        support_area,
-        mass,
-        radius,
-        height,
-        mu,
-        bullet_mu,
-        color=(0, 0, 1, 1),
-    ):
-        collision_uid = pyb.createCollisionShape(
-            shapeType=pyb.GEOM_CYLINDER,
-            radius=radius,
-            height=height,
-        )
-        visual_uid = pyb.createVisualShape(
-            shapeType=pyb.GEOM_CYLINDER,
-            radius=radius,
-            length=height,
-            rgbaColor=color,
-        )
-        self.bullet = BulletBody(
-            mass, bullet_mu, r_tau, collision_uid, visual_uid, [0, 0, 2], [0, 0, 0, 1]
-        )
-
+    def __init__(self, r_tau, support_area, mass, radius, height, mu):
+        self.radius = radius
+        self.height = height
         inertia = cylinder_inertia_matrix(mass, radius, height)
         body = RigidBody(mass, inertia, None)
         super().__init__(body, 0.5 * height, r_tau, support_area, mu)
 
+    def add_to_sim(self, bullet_mu, color=(0, 0, 1, 1)):
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_CYLINDER,
+            radius=self.radius,
+            height=self.height,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_CYLINDER,
+            radius=self.radius,
+            length=self.height,
+            rgbaColor=color,
+        )
+        self.bullet = BulletBody(
+            self.body.mass,
+            bullet_mu,
+            self.r_tau,
+            collision_uid,
+            visual_uid,
+            [0, 0, 2],
+            [0, 0, 0, 1],
+        )
+
 
 class Cuboid(BalancedBody):
-    def __init__(
-        self,
-        r_tau,
-        support_area,
-        mass,
-        side_lengths,  # (x, y, z)
-        mu,
-        bullet_mu,
-        color=(0, 0, 1, 1),
-    ):
-        half_extents = tuple(0.5 * np.array(side_lengths))
+    def __init__(self, r_tau, support_area, mass, side_lengths, mu):  # (x, y, z)
+        self.side_lengths = side_lengths
+        inertia = cuboid_inertia_matrix(mass, side_lengths)
+        body = RigidBody(mass, inertia, None)
+        super().__init__(body, 0.5 * side_lengths[2], r_tau, support_area, mu)
+
+    def add_to_sim(self, bullet_mu, color=(0, 0, 1, 1)):
+        half_extents = tuple(0.5 * np.array(self.side_lengths))
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_BOX,
             halfExtents=half_extents,
@@ -166,9 +169,11 @@ class Cuboid(BalancedBody):
             rgbaColor=color,
         )
         self.bullet = BulletBody(
-            mass, bullet_mu, r_tau, collision_uid, visual_uid, [0, 0, 2], [0, 0, 0, 1]
+            self.body.mass,
+            bullet_mu,
+            self.r_tau,
+            collision_uid,
+            visual_uid,
+            [0, 0, 2],
+            [0, 0, 0, 1],
         )
-
-        inertia = cuboid_inertia_matrix(mass, side_lengths)
-        body = RigidBody(mass, inertia, None)
-        super().__init__(body, 0.5 * side_lengths[2], r_tau, support_area, mu)
