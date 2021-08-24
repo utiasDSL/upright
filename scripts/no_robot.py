@@ -12,9 +12,9 @@ import pybullet as pyb
 import sqp
 import util
 from end_effector import EndEffectorModel
-import geometry
 import balancing
 from simulation import Simulation
+from recording import Recorder
 
 import IPython
 
@@ -262,14 +262,13 @@ def main():
     sim = Simulation(dt=0.001)
 
     N = int(DURATION / sim.dt) + 1
-    N_record = int(DURATION / (sim.dt * RECORD_PERIOD))
 
     # simulation objects and model
     ee, objects, composites = sim.setup()
     tray = objects["tray"]
     obj = objects["obj"]
 
-    model = EndEffectorModel(MPC_DT)
+    robot_model = EndEffectorModel(MPC_DT)
 
     x = ee.get_state()
     r_ew_w, Q_we = ee.get_pose()
@@ -278,38 +277,23 @@ def main():
     r_ow_w, Q_wo = obj.bullet.get_pose()
 
     # construct the tray balance problem
-    problem = TrayBalanceOptimizationEE(model, composites)
+    problem = TrayBalanceOptimizationEE(robot_model, composites)
 
-    ts = RECORD_PERIOD * sim.dt * np.arange(N_record)
-    us = np.zeros((N_record, model.ni))
-    r_ew_ws = np.zeros((N_record, 3))
-    r_ew_wds = np.zeros((N_record, 3))
-    Q_wes = np.zeros((N_record, 4))
-    Q_des = np.zeros((N_record, 4))
-    v_ew_ws = np.zeros((N_record, 3))
-    ω_ew_ws = np.zeros((N_record, 3))
-    r_tw_ws = np.zeros((N_record, 3))
-    ineq_cons = np.zeros((N_record, problem.n_balance_con))
+    # data recorder and plotter
+    recorder = Recorder(
+        sim.dt, DURATION, RECORD_PERIOD, model=robot_model, problem=problem
+    )
 
-    r_te_es = np.zeros((N_record, 3))
-    Q_ets = np.zeros((N_record, 4))
-
-    r_oe_es = np.zeros((N_record, 3))
-    Q_eos = np.zeros((N_record, 4))
-
-    r_ot_ts = np.zeros((N_record, 3))
-    Q_tos = np.zeros((N_record, 4))
-
-    r_te_es[0, :] = tray.body.com
-    r_oe_es[0, :] = obj.body.com
-    r_ot_ts[0, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
-    Q_wes[0, :] = Q_we
-    Q_ets[0, :] = util.calc_Q_et(Q_we, Q_wt)
-    Q_eos[0, :] = util.calc_Q_et(Q_we, Q_wo)
-    Q_tos[0, :] = util.calc_Q_et(Q_wt, Q_wo)
-    r_ew_ws[0, :] = r_ew_w
-    v_ew_ws[0, :] = v_ew_w
-    ω_ew_ws[0, :] = ω_ew_w
+    recorder.r_te_es[0, :] = tray.body.com
+    recorder.r_oe_es[0, :] = obj.body.com
+    recorder.r_ot_ts[0, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
+    recorder.Q_wes[0, :] = Q_we
+    recorder.Q_ets[0, :] = util.calc_Q_et(Q_we, Q_wt)
+    recorder.Q_eos[0, :] = util.calc_Q_et(Q_we, Q_wo)
+    recorder.Q_tos[0, :] = util.calc_Q_et(Q_wt, Q_wo)
+    recorder.r_ew_ws[0, :] = r_ew_w
+    recorder.v_ew_ws[0, :] = v_ew_w
+    recorder.ω_ew_ws[0, :] = ω_ew_w
 
     # reference trajectory
     # setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
@@ -324,7 +308,7 @@ def main():
     Qd = R_wd.as_quaternion_xyzw()
     Qd_inv = R_wd.inverse().as_quaternion_xyzw()
 
-    Q_des[0, :] = util.quat_multiply(Qd_inv, Q_we)
+    recorder.Q_des[0, :] = util.quat_multiply(Qd_inv, Q_we)
 
     # Construct the SQP controller
     # controller = sqp.SQP(
@@ -362,7 +346,7 @@ def main():
 
             x_ctrl = ee.get_state()
             var = controller.solve(x_ctrl, P_we_d, V_we_d)
-            u = var[: model.ni]  # joint acceleration input
+            u = var[: robot_model.ni]  # joint acceleration input
             ee.command_acceleration(u)
 
             # evaluate model error
@@ -372,20 +356,22 @@ def main():
                 if model_error > 0.1:
                     IPython.embed()
 
-            x_pred = model.simulate(x_ctrl, u)
+            x_pred = robot_model.simulate(x_ctrl, u)
 
         # step simulation forward
         ee.step()
         pyb.stepSimulation()
 
-        if i % RECORD_PERIOD == 0:
-            idx = i // RECORD_PERIOD
+        if recorder.now_is_the_time(i):
+            idx = recorder.record_index(i)
             r_ew_w, Q_we = ee.get_pose()
             v_ew_w, ω_ew_w = ee.get_velocity()
 
             x = ee.get_state()
             P_we, V_ew_w = x[:7], x[7:]
-            ineq_cons[idx, :] = np.array(problem.ineq_constraints(P_we, V_ew_w, u))
+            recorder.ineq_cons[idx, :] = np.array(
+                problem.ineq_constraints(P_we, V_ew_w, u)
+            )
 
             r_tw_w, Q_wt = tray.bullet.get_pose()
             r_ow_w, Q_wo = obj.bullet.get_pose()
@@ -395,20 +381,20 @@ def main():
             Q_de = util.quat_multiply(Qd_inv, Q_we)
 
             # record
-            us[idx, :] = u
-            r_ew_wds[idx, :] = r_ew_w_d
-            r_ew_ws[idx, :] = r_ew_w
-            Q_wes[idx, :] = Q_we
-            Q_des[idx, :] = Q_de
-            v_ew_ws[idx, :] = v_ew_w
-            ω_ew_ws[idx, :] = ω_ew_w
-            r_tw_ws[idx, :] = r_tw_w
-            r_te_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
-            r_oe_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
-            r_ot_ts[idx, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
-            Q_ets[idx, :] = util.calc_Q_et(Q_we, Q_wt)
-            Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
-            Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
+            recorder.us[idx, :] = u
+            recorder.r_ew_wds[idx, :] = r_ew_w_d
+            recorder.r_ew_ws[idx, :] = r_ew_w
+            recorder.Q_wes[idx, :] = Q_we
+            recorder.Q_des[idx, :] = Q_de
+            recorder.v_ew_ws[idx, :] = v_ew_w
+            recorder.ω_ew_ws[idx, :] = ω_ew_w
+            recorder.r_tw_ws[idx, :] = r_tw_w
+            recorder.r_te_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+            recorder.r_oe_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+            recorder.r_ot_ts[idx, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
+            recorder.Q_ets[idx, :] = util.calc_Q_et(Q_we, Q_wt)
+            recorder.Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
+            recorder.Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
 
         if np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01 and np.linalg.norm(Q_de[:3]) < 0.01:
             print("Close to desired pose - stopping.")
@@ -423,107 +409,17 @@ def main():
 
     controller.benchmark.print_stats()
 
-    print(f"Min constraint value = {np.min(ineq_cons)}")
+    print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
 
-    idx = i // RECORD_PERIOD
-
-    plt.figure()
-    plt.plot(ts[1:idx], r_ew_wds[1:idx, 0], label="$x_d$", color="r", linestyle="--")
-    plt.plot(ts[1:idx], r_ew_wds[1:idx, 1], label="$y_d$", color="g", linestyle="--")
-    plt.plot(ts[1:idx], r_ew_wds[1:idx, 2], label="$z_d$", color="b", linestyle="--")
-    plt.plot(ts[1:idx], r_ew_ws[1:idx, 0], label="$x$", color="r")
-    plt.plot(ts[1:idx], r_ew_ws[1:idx, 1], label="$y$", color="g")
-    plt.plot(ts[1:idx], r_ew_ws[1:idx, 2], label="$z$", color="b")
-    plt.grid()
-    plt.legend()
-    plt.xlabel("Time (s)")
-    plt.ylabel("Position")
-    plt.title("End effector position")
-
-    plt.figure()
-    plt.plot(ts[1:idx], Q_des[1:idx, 0], label="$ΔQ_x$", color="r")
-    plt.plot(ts[1:idx], Q_des[1:idx, 1], label="$ΔQ_y$", color="g")
-    plt.plot(ts[1:idx], Q_des[1:idx, 2], label="$ΔQ_z$", color="b")
-    plt.grid()
-    plt.legend()
-    plt.xlabel("Time (s)")
-    plt.ylabel("Orientation error")
-    plt.title("End effector orientation error")
-
-    plt.figure()
-    plt.plot(ts[1:idx], v_ew_ws[1:idx, 0], label="$v_x$")
-    plt.plot(ts[1:idx], v_ew_ws[1:idx, 1], label="$v_y$")
-    plt.plot(ts[1:idx], v_ew_ws[1:idx, 2], label="$v_z$")
-    plt.plot(ts[1:idx], ω_ew_ws[1:idx, 0], label="$ω_x$")
-    plt.plot(ts[1:idx], ω_ew_ws[1:idx, 1], label="$ω_y$")
-    plt.plot(ts[1:idx], ω_ew_ws[1:idx, 2], label="$ω_z$")
-    plt.grid()
-    plt.legend()
-    plt.xlabel("Time (s)")
-    plt.ylabel("Velocity")
-    plt.title("End effector velocity")
-
-    plt.figure()
-    r_te_e_err = tray.body.com - r_te_es[:idx, :]
-    plt.plot(ts[:idx], r_te_e_err[:, 0], label="$x$")
-    plt.plot(ts[:idx], r_te_e_err[:, 1], label="$y$")
-    plt.plot(ts[:idx], r_te_e_err[:, 2], label="$z$")
-    plt.plot(ts[:idx], np.linalg.norm(r_te_e_err, axis=1), label="$||r||$")
-    plt.plot(ts[:idx], Q_ets[:idx, 0], label="$Q_x$")
-    plt.plot(ts[:idx], Q_ets[:idx, 1], label="$Q_y$")
-    plt.plot(ts[:idx], Q_ets[:idx, 2], label="$Q_z$")
-    plt.grid()
-    plt.legend()
-    plt.xlabel("Time (s)")
-    plt.ylabel("$r^{te}_e$ error")
-    plt.title("$r^{te}_e$ error")
-
-    plt.figure()
-    r_oe_e_err = obj.body.com - r_oe_es[:idx, :]
-    plt.plot(ts[:idx], r_oe_e_err[:, 0], label="$x$")
-    plt.plot(ts[:idx], r_oe_e_err[:, 1], label="$y$")
-    plt.plot(ts[:idx], r_oe_e_err[:, 2], label="$z$")
-    plt.plot(ts[:idx], Q_eos[:idx, 0], label="$Q_x$")
-    plt.plot(ts[:idx], Q_eos[:idx, 1], label="$Q_y$")
-    plt.plot(ts[:idx], Q_eos[:idx, 2], label="$Q_z$")
-    plt.grid()
-    plt.legend()
-    plt.xlabel("Time (s)")
-    plt.ylabel("$r^{oe}_e$ error")
-    plt.title("$r^{oe}_e$ error")
-
-    plt.figure()
-    r_ot_t_err = r_ot_ts[0, :] - r_ot_ts[:idx, :]
-    plt.plot(ts[:idx], r_ot_t_err[:, 0], label="$x$")
-    plt.plot(ts[:idx], r_ot_t_err[:, 1], label="$y$")
-    plt.plot(ts[:idx], r_ot_t_err[:, 2], label="$z$")
-    plt.plot(ts[:idx], Q_tos[:idx, 0], label="$Q_x$")
-    plt.plot(ts[:idx], Q_tos[:idx, 1], label="$Q_y$")
-    plt.plot(ts[:idx], Q_tos[:idx, 2], label="$Q_z$")
-    plt.grid()
-    plt.legend()
-    plt.xlabel("Time (s)")
-    plt.ylabel("$r^{ot}_t$ error")
-    plt.title("$r^{ot}_t$ error")
-
-    plt.figure()
-    for j in range(problem.n_balance_con):
-        plt.plot(ts[:idx], ineq_cons[:idx, j], label=f"$h_{j+1}$")
-    plt.plot([0, ts[idx]], [0, 0], color="k")
-    plt.grid()
-    plt.legend()
-    plt.xlabel("Time (s)")
-    plt.ylabel("Value")
-    plt.title("Inequality constraints")
-
-    plt.figure()
-    for j in range(model.ni):
-        plt.plot(ts[:idx], us[:idx, j], label=f"$u_{j+1}$")
-    plt.grid()
-    plt.legend()
-    plt.xlabel("Time (s)")
-    plt.ylabel("Commanded joint acceleration")
-    plt.title("Acceleration commands")
+    last_sim_index = i
+    recorder.plot_ee_position(last_sim_index)
+    recorder.plot_ee_orientation(last_sim_index)
+    recorder.plot_ee_velocity(last_sim_index)
+    recorder.plot_r_te_e_error(last_sim_index)
+    recorder.plot_r_oe_e_error(last_sim_index)
+    recorder.plot_r_ot_t_error(last_sim_index)
+    recorder.plot_balancing_constraints(last_sim_index)
+    recorder.plot_commands(last_sim_index)
 
     plt.show()
 
