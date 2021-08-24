@@ -255,6 +255,34 @@ class TrayBalanceOptimizationEE:
             self.con_fun, self.con_jac, con_lb, con_ub, nz_idx=con_nz_idx
         )
 
+    def qpoases_controller(self):
+        # TODO not sure if this currently works
+        return sqp.SQP(
+            self.nv * MPC_STEPS,
+            self.nc * MPC_STEPS,
+            self.obj_hess_jac,
+            self.constraints(),
+            self.bounds(),
+            num_wsr=300,
+            num_iter=SQP_ITER,
+            verbose=False,
+            solver="qpoases",
+        )
+
+    def scipy_controller(self):
+        return sqp.SQP(
+            nv=self.nv * MPC_STEPS,
+            nc=self.nc * MPC_STEPS,
+            obj_fun=self.obj_fun,
+            obj_jac=self.obj_jac,
+            ineq_cons=self.constraints(),
+            eq_cons=None,
+            bounds=self.bounds(),
+            num_iter=SQP_ITER,
+            verbose=False,
+            solver="scipy",
+        )
+
 
 def main():
     np.set_printoptions(precision=3, suppress=True)
@@ -311,32 +339,7 @@ def main():
     recorder.Q_des[0, :] = util.quat_multiply(Qd_inv, Q_we)
 
     # Construct the SQP controller
-    # controller = sqp.SQP(
-    #     problem.nv * MPC_STEPS,
-    #     problem.nc * MPC_STEPS,
-    #     problem.obj_hess_jac,
-    #     problem.constraints(),
-    #     problem.bounds(),
-    #     num_wsr=300,
-    #     num_iter=SQP_ITER,
-    #     verbose=False,
-    #     solver="qpoases",
-    # )
-
-    controller = sqp.SQP(
-        nv=problem.nv * MPC_STEPS,
-        nc=problem.nc * MPC_STEPS,
-        obj_fun=problem.obj_fun,
-        obj_jac=problem.obj_jac,
-        ineq_cons=problem.constraints(),
-        eq_cons=None,
-        bounds=problem.bounds(),
-        num_iter=SQP_ITER,
-        verbose=False,
-        solver="scipy",
-    )
-
-    x_pred = np.zeros(7 + 6)
+    controller = problem.scipy_controller()
 
     for i in range(N - 1):
         if i % CTRL_PERIOD == 0:
@@ -349,14 +352,7 @@ def main():
             u = var[: robot_model.ni]  # joint acceleration input
             ee.command_acceleration(u)
 
-            # evaluate model error
-            if i > 0:
-                model_error = np.linalg.norm(util.state_error(x_ctrl, x_pred))
-                print(model_error)
-                if model_error > 0.1:
-                    IPython.embed()
-
-            x_pred = robot_model.simulate(x_ctrl, u)
+            print(f"u = {u}")
 
         # step simulation forward
         ee.step()
@@ -396,16 +392,17 @@ def main():
             recorder.Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
             recorder.Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
 
-        if np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01 and np.linalg.norm(Q_de[:3]) < 0.01:
-            print("Close to desired pose - stopping.")
-            setpoint_idx += 1
-            if setpoint_idx >= setpoints.shape[0]:
-                break
+            if (
+                np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01
+                and np.linalg.norm(Q_de[:3]) < 0.01
+            ):
+                print("Close to desired pose - stopping.")
+                setpoint_idx += 1
+                if setpoint_idx >= setpoints.shape[0]:
+                    break
 
-            # update r_ew_w_d to avoid falling back into this block right away
-            r_ew_w_d = setpoints[setpoint_idx, :]
-
-        # time.sleep(SIM_DT)
+                # update r_ew_w_d to avoid falling back into this block right away
+                r_ew_w_d = setpoints[setpoint_idx, :]
 
     controller.benchmark.print_stats()
 
