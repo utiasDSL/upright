@@ -3,6 +3,7 @@ import pybullet as pyb
 import pybullet_data
 
 from end_effector import EndEffector
+from robot import SimulatedRobot
 import util
 import geometry
 import bodies
@@ -30,12 +31,30 @@ OBJ_SIDE_LENGTHS = (0.2, 0.2, 0.4)
 OBJ_COM_HEIGHT = 0.2
 OBJ_ZMP_MARGIN = 0.01
 
-# SIM_DT = 0.001
+BASE_HOME = [0, 0, 0]
+UR10_HOME_STANDARD = [
+    0.0,
+    -0.75 * np.pi,
+    -0.5 * np.pi,
+    -0.75 * np.pi,
+    -0.5 * np.pi,
+    0.5 * np.pi,
+]
+UR10_HOME_TRAY_BALANCE = [
+    0.0,
+    -0.75 * np.pi,
+    -0.5 * np.pi,
+    -0.25 * np.pi,
+    -0.5 * np.pi,
+    0.5 * np.pi,
+]
+ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
 
 
 class Simulation:
-    def __init__(self, dt=0.001):
+    def __init__(self, dt):
         self.dt = dt  # simulation timestep (s)
+        self.video_file_name = None
 
     def settle(self, duration):
         """Run simulation while doing nothing.
@@ -47,10 +66,14 @@ class Simulation:
             pyb.stepSimulation()
             t += self.dt
 
-    # TODO: obj_names could be uses to get rid of some objects that I don't
-    # want in the sim
-    def setup(self, obj_names=None):
-        """Setup pybullet simulation."""
+    def step(self):
+        self.robot.step()
+        pyb.stepSimulation()
+
+    def record_video(self, file_name):
+        self.video_file_name = file_name
+
+    def basic_setup(self):
         if EE_INSCRIBED_RADIUS < TRAY_MU * TRAY_COM_HEIGHT:
             print("warning: w < μh")
 
@@ -70,18 +93,14 @@ class Simulation:
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
 
         # record video
-        # pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, "no_robot.mp4")
+        if self.video_file_name is not None:
+            pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, self.video_file_name)
 
         # setup ground plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
         pyb.loadURDF("plane.urdf", [0, 0, 0])
 
-        # setup floating end effector
-        ee = EndEffector(self.dt, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
-        r_ew_w, Q_we = ee.get_pose()
-
-        util.debug_frame(0.1, ee.uid, -1)
-
+    def object_setup(self, r_ew_w, obj_names):
         # setup balanced objects
         objects = {}
 
@@ -113,7 +132,6 @@ class Simulation:
             )
             r_ow_w = r_ew_w + [0, 0, 2 * TRAY_COM_HEIGHT + OBJ_COM_HEIGHT + 0.05]
             objects["cylinder1"].bullet.reset_pose(position=r_ow_w)
-            # objects["cylinder1"].body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
             objects["tray"].children.append("cylinder1")
 
         if "cuboid1" in obj_names:
@@ -137,21 +155,11 @@ class Simulation:
                 2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05,
             ]
             objects["cuboid1"].bullet.reset_pose(position=r_ow_w)
-            # objects["cuboid1"].body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
             objects["tray"].children.append("cuboid1")
 
-        self.settle(1.0)
+            return objects
 
-        # need to set the CoM after the sim has been settled, so objects are in
-        # their proper positions
-        # tray = objects["tray"]
-        # r_ew_w, Q_we = ee.get_pose()
-        # r_tw_w, _ = tray.bullet.get_pose()
-        # tray.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
-        for obj in objects.values():
-            r_ow_w, _ = obj.bullet.get_pose()
-            obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
-
+    def composite_setup(self, objects):
         tray = objects["tray"]
         assert len(tray.children) <= 1
         if len(tray.children) > 0:
@@ -166,5 +174,71 @@ class Simulation:
             composites = [obj_tray_composite, obj]
         else:
             composites = [tray]
+        return composites
 
-        return ee, objects, composites
+
+class FloatingEESimulation(Simulation):
+    def __init__(self, dt=0.001):
+        super().__init__(dt)
+
+    def setup(self, obj_names=None):
+        """Setup pybullet simulation."""
+        super().basic_setup()
+
+        # setup floating end effector
+        robot = EndEffector(self.dt, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
+        self.robot = robot
+        util.debug_frame(0.1, robot.uid, -1)
+
+        r_ew_w, Q_we = robot.get_pose()
+        objects = super().object_setup(r_ew_w, obj_names)
+
+        self.settle(1.0)
+
+        # need to set the CoM after the sim has been settled, so objects are in
+        # their proper positions
+        for obj in objects.values():
+            r_ow_w, _ = obj.bullet.get_pose()
+            obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+
+        composites = super().composite_setup(objects)
+
+        return robot, objects, composites
+
+
+class MobileManipulatorSimulation(Simulation):
+    def __init__(self, dt=0.001):
+        super().__init__(dt)
+
+    def setup(self, obj_names=None):
+        """Setup pybullet simulation."""
+        super().basic_setup()
+
+        # setup floating end effector
+        # robot = EndEffector(self.dt, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
+        robot = SimulatedRobot(self.dt)
+        self.robot = robot
+        util.debug_frame(0.1, robot.uid, -1)
+        robot.reset_joint_configuration(ROBOT_HOME)
+
+        # simulate briefly to let the robot settle down after being positioned
+        self.settle(1.0)
+
+        # arm gets bumped by the above settling, so we reset it again
+        robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
+
+        r_ew_w, _ = robot.link_pose()
+        objects = super().object_setup(r_ew_w, obj_names)
+
+        self.settle(1.0)
+
+        # need to set the CoM after the sim has been settled, so objects are in
+        # their proper positions
+        r_ew_w, Q_we = robot.link_pose()
+        for obj in objects.values():
+            r_ow_w, _ = obj.bullet.get_pose()
+            obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+
+        composites = super().composite_setup(objects)
+
+        return robot, objects, composites

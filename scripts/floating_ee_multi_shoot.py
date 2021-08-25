@@ -8,13 +8,12 @@ from jaxlie import SO3
 import numpy as np
 from scipy.linalg import block_diag
 import matplotlib.pyplot as plt
-import pybullet as pyb
 
 import sqp
 import util
 import balancing
 from end_effector import EndEffectorModel
-from simulation import Simulation
+from simulation import FloatingEESimulation
 from recording import Recorder
 
 import IPython
@@ -33,7 +32,7 @@ RECORD_PERIOD = 10
 DURATION = 10.0  # duration of trajectory (s)
 
 
-class TrayBalanceOptimizationEE:
+class FloatingEETrayBalanceMultiShootingProblem:
     def __init__(self, model, obj_to_constrain):
         self.model = model
         self.obj_to_constrain = obj_to_constrain
@@ -395,7 +394,7 @@ class TrayBalanceOptimizationEE:
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    sim = Simulation(dt=0.001)
+    sim = FloatingEESimulation(dt=0.001)
 
     N = int(DURATION / sim.dt) + 1
 
@@ -414,7 +413,7 @@ def main():
     Qd = Q_we
 
     # construct the tray balance problem
-    problem = TrayBalanceOptimizationEE(model, composites)
+    problem = FloatingEETrayBalanceMultiShootingProblem(model, composites)
 
     recorder = Recorder(sim.dt, DURATION, RECORD_PERIOD, model=model, problem=problem)
 
@@ -446,8 +445,7 @@ def main():
             print(u)
 
         # step simulation forward
-        ee.step()
-        pyb.stepSimulation()
+        sim.step()
 
         if recorder.now_is_the_time(i):
             idx = recorder.record_index(i)

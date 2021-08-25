@@ -7,13 +7,12 @@ import jax
 from jaxlie import SO3
 import numpy as np
 import matplotlib.pyplot as plt
-import pybullet as pyb
 
 import sqp
 import util
 from end_effector import EndEffectorModel
 import balancing
-from simulation import Simulation
+from simulation import FloatingEESimulation
 from recording import Recorder
 
 import IPython
@@ -32,7 +31,7 @@ RECORD_PERIOD = 10
 DURATION = 10.0  # duration of trajectory (s)
 
 
-class TrayBalanceOptimizationEE:
+class FloatingEETrayBalanceSingleShootingProblem:
     def __init__(self, model, obj_to_constrain):
         self.model = model
         self.obj_to_constrain = obj_to_constrain
@@ -285,25 +284,25 @@ class TrayBalanceOptimizationEE:
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    sim = Simulation(dt=0.001)
+    sim = FloatingEESimulation(dt=0.001)
 
     N = int(DURATION / sim.dt) + 1
 
     # simulation objects and model
-    ee, objects, composites = sim.setup(obj_names=["tray", "cuboid1"])
+    robot, objects, composites = sim.setup(obj_names=["tray", "cuboid1"])
     tray = objects["tray"]
     obj = objects["cuboid1"]
 
     robot_model = EndEffectorModel(MPC_DT)
 
-    x = ee.get_state()
-    r_ew_w, Q_we = ee.get_pose()
-    v_ew_w, ω_ew_w = ee.get_velocity()
+    x = robot.get_state()
+    r_ew_w, Q_we = robot.get_pose()
+    v_ew_w, ω_ew_w = robot.get_velocity()
     r_tw_w, Q_wt = tray.bullet.get_pose()
     r_ow_w, Q_wo = obj.bullet.get_pose()
 
     # construct the tray balance problem
-    problem = TrayBalanceOptimizationEE(robot_model, composites)
+    problem = FloatingEETrayBalanceSingleShootingProblem(robot_model, composites)
 
     # data recorder and plotter
     recorder = Recorder(
@@ -345,23 +344,22 @@ def main():
             P_we_d = util.pose_from_pos_quat(r_ew_w_d, Qd)
             V_we_d = jnp.zeros(6)
 
-            x_ctrl = ee.get_state()
+            x_ctrl = robot.get_state()
             var = controller.solve(x_ctrl, P_we_d, V_we_d)
             u = var[: robot_model.ni]  # joint acceleration input
-            ee.command_acceleration(u)
+            robot.command_acceleration(u)
 
             print(f"u = {u}")
 
         # step simulation forward
-        ee.step()
-        pyb.stepSimulation()
+        sim.step()
 
         if recorder.now_is_the_time(i):
             idx = recorder.record_index(i)
-            r_ew_w, Q_we = ee.get_pose()
-            v_ew_w, ω_ew_w = ee.get_velocity()
+            r_ew_w, Q_we = robot.get_pose()
+            v_ew_w, ω_ew_w = robot.get_velocity()
 
-            x = ee.get_state()
+            x = robot.get_state()
             P_we, V_ew_w = x[:7], x[7:]
             recorder.ineq_cons[idx, :] = np.array(
                 problem.ineq_constraints(P_we, V_ew_w, u)
