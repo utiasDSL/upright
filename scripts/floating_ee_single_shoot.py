@@ -271,7 +271,6 @@ class TrayBalanceOptimizationEE:
     def scipy_controller(self):
         return sqp.SQP(
             nv=self.nv * MPC_STEPS,
-            nc=self.nc * MPC_STEPS,
             obj_fun=self.obj_fun,
             obj_jac=self.obj_jac,
             ineq_cons=self.constraints(),

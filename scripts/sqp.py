@@ -206,10 +206,8 @@ def SQP(*args, solver="qpoases", **kwargs):
 
 class SQP_scipy:
     def __init__(
-        self, nv, nc, obj_fun, obj_jac, ineq_cons, eq_cons, bounds, num_iter=3, verbose=False, var0=None
+        self, nv, obj_fun, obj_jac, ineq_cons, eq_cons, bounds, num_iter=3, verbose=False, var0=None
     ):
-        self.nv = nv
-        self.nc = nc
         self.obj_fun = obj_fun
         self.obj_jac = obj_jac
         self.ineq_cons = ineq_cons
@@ -223,6 +221,7 @@ class SQP_scipy:
             self.var = np.copy(var0)
 
         self.benchmark = Benchmark()
+        self.verbose = verbose
 
     def fun(self, var, x0, Pd, Vd):
         return self.obj_fun(x0, Pd, Vd, var)
@@ -265,68 +264,13 @@ class SQP_scipy:
         )
         self.benchmark.end()
 
-        # IPython.embed()
+        if self.verbose and not res.success:
+            print(f"Solver was not successful: {res.message}")
 
         self.var = res.x
 
         # return first optimal input
         return self.var
-
-
-# class SQP_scipy_ms:
-#     def __init__(
-#         self, nv, nc, objective, constraints, bounds, num_iter=3, verbose=False,
-#         var0=None
-#     ):
-#         self.nv = nv
-#         self.nc = nc
-#         self.objective = objective
-#         # self.obj_fun = obj_fun
-#         # self.obj_jac = obj_jac
-#         self.constraints = constraints
-#         self.bounds = scipy.optimize.Bounds(bounds.lb, bounds.ub)
-#
-#         # keep track of the optimal solution for nominal warm-starting
-#         self.var = np.zeros(nv)
-#
-#         self.benchmark = Benchmark()
-#
-#     def fun(self, var, x0, Pd, Vd):
-#         return self.obj_fun(x0, Pd, Vd, var)
-#
-#     def jac(self, var, x0, Pd, Vd):
-#         return self.obj_jac(x0, Pd, Vd, var)
-#
-#     def solve(self, x0, Pd, Vd):
-#         """Solve the MPC problem at current state x0 given desired trajectory
-#         xd."""
-#
-#         # TODO: this probably doesn't handle the velocity bounds correctly
-#         constraints = {
-#             "type": "ineq",
-#             "fun": lambda var, x0, Pd, Vd: self.constraints.evaluate(x0, Pd, Vd, var),
-#             "jac": lambda var, x0, Pd, Vd: self.constraints.jacobian(x0, Pd, Vd, var),
-#             "args": (x0, Pd, Vd),
-#         }
-#
-#         self.benchmark.start()
-#         res = scipy.optimize.minimize(
-#             self.fun,
-#             self.var,
-#             args=(x0, Pd, Vd),
-#             method="slsqp",
-#             jac=self.jac,
-#             bounds=self.bounds,
-#             constraints=constraints,
-#         )
-#         self.benchmark.end()
-#
-#         # IPython.embed()
-#
-#         self.var = res.x
-#
-#         # return first optimal input
-#         return self.var
 
 
 class SQP_qpOASES(object):

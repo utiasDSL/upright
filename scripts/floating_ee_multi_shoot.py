@@ -26,7 +26,7 @@ ACC_LIM = 8
 
 # simulation parameters
 MPC_DT = 0.1  # lookahead timestep of the controller
-MPC_STEPS = 20  # number of timesteps to lookahead
+MPC_STEPS = 10  # number of timesteps to lookahead
 SQP_ITER = 3  # number of iterations for the SQP solved by the controller
 CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
@@ -52,13 +52,15 @@ class TrayBalanceOptimizationEE:
             [obj.support_area.num_constraints for obj in self.obj_to_constrain]
         )
 
-        # n_balance_con multiplied by 2 because we enforce two
-        # constraints per timestep
+        # n_balance_con multiplied by 2 because we enforce two constraints per
+        # timestep
         self.nc = self.nc_eq + 2 * self.n_balance_con
 
         # MPC weights
         # Joint state weight
-        Q_POSE = np.zeros(7)
+        # we need to weight the quaternion scalar component by 1 for
+        # normalization
+        Q_POSE = np.append(np.zeros(6), 1)
         Q_VELOCITY = 0.01 * np.ones(model.ni)
         Q = np.diag(np.concatenate((Q_POSE, Q_VELOCITY)))
 
@@ -116,13 +118,13 @@ class TrayBalanceOptimizationEE:
 
     @partial(jax.jit, static_argnums=(0,))
     def extract_xbar(self, var):
-        var2d = var.reshape((MPC_STEPS, self.model.ni + self.model.ns))
+        var2d = var.reshape((MPC_STEPS, self.nv))
         xbar2d = var2d[:, self.model.ni :]
         return xbar2d.flatten()
 
     @partial(jax.jit, static_argnums=(0,))
     def extract_ubar(self, var):
-        var2d = var.reshape((MPC_STEPS, self.model.ni + self.model.ns))
+        var2d = var.reshape((MPC_STEPS, self.nv))
         ubar2d = var2d[:, : self.model.ni]
         return ubar2d.flatten()
 
@@ -346,7 +348,6 @@ class TrayBalanceOptimizationEE:
     def scipy_controller(self, verbose=False):
         return sqp.SQP(
             nv=self.nv * MPC_STEPS,
-            nc=self.nc * MPC_STEPS,
             obj_fun=self.obj_fun,
             obj_jac=self.obj_jac,
             ineq_cons=self.scipy_ineq_constraints(),
@@ -399,12 +400,8 @@ def main():
     N = int(DURATION / sim.dt) + 1
 
     # simulation objects and model
-    # ee, objects, composites = sim.setup(obj_names=["tray"])
-    # tray = objects["tray"]
-    ee, tray = sim.setup(obj_names=["tray"])
-    composites = [tray]
-
-    # IPython.embed()
+    ee, objects, composites = sim.setup(obj_names=["tray"])
+    tray = objects["tray"]
 
     model = EndEffectorModel(MPC_DT)
 
@@ -433,7 +430,7 @@ def main():
     setpoints = np.array([[2, 0, 0]]) + r_ew_w
     setpoint_idx = 0
 
-    controller = problem.scipy_controller()
+    controller = problem.scipy_controller(verbose=True)
 
     for i in range(N - 1):
         if i % CTRL_PERIOD == 0:
@@ -445,8 +442,7 @@ def main():
             var = controller.solve(x, P_we_d, V_we_d)
             u = var[: model.ni]  # joint acceleration input
             ee.command_acceleration(u)
-            print(x)
-            print(problem.obj_fun(x, P_we_d, V_we_d, var))
+            # print(problem.obj_fun(x, P_we_d, V_we_d, var))
             print(u)
 
         # step simulation forward

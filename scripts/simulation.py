@@ -21,8 +21,6 @@ TRAY_RADIUS = 0.25
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_COM_HEIGHT = 0.01
-TRAY_NUM_ZMP_CONSTRAINTS = 1
-TRAY_NUM_CONSTRAINTS = 2 + TRAY_NUM_ZMP_CONSTRAINTS
 
 OBJ_MASS = 1
 OBJ_TRAY_MU = 0.5
@@ -31,8 +29,6 @@ OBJ_RADIUS = 0.1
 OBJ_SIDE_LENGTHS = (0.2, 0.2, 0.4)
 OBJ_COM_HEIGHT = 0.2
 OBJ_ZMP_MARGIN = 0.01
-OBJ_NUM_ZMP_CONSTRAINTS = 4
-OBJ_NUM_CONSTRAINTS = 2 + OBJ_NUM_ZMP_CONSTRAINTS
 
 # SIM_DT = 0.001
 
@@ -100,7 +96,6 @@ class Simulation:
         objects["tray"].add_to_sim(bullet_mu=TRAY_MU)
         r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
         objects["tray"].bullet.reset_pose(position=r_tw_w)
-        objects["tray"].body.com = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
 
         if "cylinder1" in obj_names:
             objects["cylinder1"] = bodies.Cylinder(
@@ -118,7 +113,7 @@ class Simulation:
             )
             r_ow_w = r_ew_w + [0, 0, 2 * TRAY_COM_HEIGHT + OBJ_COM_HEIGHT + 0.05]
             objects["cylinder1"].bullet.reset_pose(position=r_ow_w)
-            objects["cylinder1"].body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+            # objects["cylinder1"].body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
             objects["tray"].children.append("cylinder1")
 
         if "cuboid1" in obj_names:
@@ -142,10 +137,20 @@ class Simulation:
                 2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05,
             ]
             objects["cuboid1"].bullet.reset_pose(position=r_ow_w)
-            objects["cuboid1"].body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+            # objects["cuboid1"].body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
             objects["tray"].children.append("cuboid1")
 
         self.settle(1.0)
+
+        # need to set the CoM after the sim has been settled, so objects are in
+        # their proper positions
+        # tray = objects["tray"]
+        # r_ew_w, Q_we = ee.get_pose()
+        # r_tw_w, _ = tray.bullet.get_pose()
+        # tray.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+        for obj in objects.values():
+            r_ow_w, _ = obj.bullet.get_pose()
+            obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
 
         tray = objects["tray"]
         assert len(tray.children) <= 1

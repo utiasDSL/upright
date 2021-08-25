@@ -5,11 +5,7 @@ import jax.numpy as jnp
 import jax
 
 import util
-
-
-# TODO this is repeated
-GRAVITY_MAG = 9.81
-GRAVITY_VECTOR = np.array([0, 0, -GRAVITY_MAG])
+from simulation import GRAVITY_VECTOR
 
 
 @partial(jax.jit, static_argnums=(0,))
