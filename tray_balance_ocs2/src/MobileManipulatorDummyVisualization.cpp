@@ -186,25 +186,24 @@ void MobileManipulatorDummyVisualization::publishObservation(
 
     // publish info about the controller
     // TODO it would be better to have this in some interface instead
-    Eigen::VectorXd q = observation.state.head<NUM_DOFS>();
-    Eigen::VectorXd v = observation.state.tail<NUM_DOFS>();
-    Eigen::VectorXd u = observation.input;
-
-    tray_balance_msgs::TrayBalanceControllerInfo control_info_msg;
-
-    // sensor_msgs::JointState joint_state;
-    control_info_msg.header.stamp = ros::Time::now();
-    control_info_msg.joints.name = {"base_x", "base_y", "base_theta",
-                                    "arm_1",  "arm_2",  "arm_3",
-                                    "arm_4",  "arm_5",  "arm_6"};
-    control_info_msg.joints.position =
-        std::vector<double>(q.data(), q.data() + q.size());
-    control_info_msg.joints.velocity =
-        std::vector<double>(v.data(), v.data() + v.size());
-    control_info_msg.command =
-        std::vector<double>(u.data(), u.data() + u.size());
-
-    constrolInfoPublisher_.publish(control_info_msg);
+    // Eigen::VectorXd q = observation.state.head<NUM_DOFS>();
+    // Eigen::VectorXd v = observation.state.tail<NUM_DOFS>();
+    // Eigen::VectorXd u = observation.input;
+    //
+    // tray_balance_msgs::TrayBalanceControllerInfo control_info_msg;
+    //
+    // control_info_msg.header.stamp = ros::Time::now();
+    // control_info_msg.joints.name = {"base_x", "base_y", "base_theta",
+    //                                 "arm_1",  "arm_2",  "arm_3",
+    //                                 "arm_4",  "arm_5",  "arm_6"};
+    // control_info_msg.joints.position =
+    //     std::vector<double>(q.data(), q.data() + q.size());
+    // control_info_msg.joints.velocity =
+    //     std::vector<double>(v.data(), v.data() + v.size());
+    // control_info_msg.command =
+    //     std::vector<double>(u.data(), u.data() + u.size());
+    //
+    // constrolInfoPublisher_.publish(control_info_msg);
 }
 
 /******************************************************************************************************/

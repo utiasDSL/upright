@@ -35,58 +35,95 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Dummy_Loop.h>
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
 
+#include <sensor_msgs/JointState.h>
+
 #include <ros/init.h>
 
 using namespace ocs2;
 using namespace mobile_manipulator;
 
+class MRTUpdater {
+   public:
+    MRTUpdater(MRT_ROS_Interface& mrt) : mrt_(mrt) {}
+
+    void subscribe(::ros::NodeHandle& nh) {
+        current_state_sub_ = nh.subscribe("/current_state", 1,
+                                          &MRTUpdater::current_state_cb, this);
+    }
+
+    void current_state_cb(const sensor_msgs::JointState& msg) {
+        SystemObservation observation;
+        observation.time = msg.header.stamp.toSec();
+        observation.state.setZero(STATE_DIM);
+        observation.input.setZero(INPUT_DIM);
+        for (int i = 0; i < NUM_DOFS; ++i) {
+            observation.state(i) = msg.position[i];
+            observation.state(i + NUM_DOFS) = msg.velocity[i];
+        }
+        mrt_.setCurrentObservation(observation);
+    }
+
+   private:
+    MRT_ROS_Interface& mrt_;
+    ros::Subscriber current_state_sub_;
+};
+
 int main(int argc, char** argv) {
-  const std::string robotName = "mobile_manipulator";
+    const std::string robotName = "mobile_manipulator";
 
-  // task files
-  std::vector<std::string> programArgs{};
-  ::ros::removeROSArgs(argc, argv, programArgs);
-  if (programArgs.size() <= 1) {
-    throw std::runtime_error("No task file specified. Aborting.");
-  }
-  std::string taskFileFolderName = std::string(programArgs[1]);
+    // task files
+    std::vector<std::string> programArgs{};
+    ::ros::removeROSArgs(argc, argv, programArgs);
+    if (programArgs.size() <= 1) {
+        throw std::runtime_error("No task file specified. Aborting.");
+    }
+    std::string taskFileFolderName = std::string(programArgs[1]);
 
-  // Initialize ros node
-  ros::init(argc, argv, robotName + "_mrt");
-  ros::NodeHandle nodeHandle;
+    // Initialize ros node
+    ros::init(argc, argv, robotName + "_mrt");
+    ros::NodeHandle nodeHandle;
 
-  // Robot Interface
-  mobile_manipulator::MobileManipulatorInterface interface(taskFileFolderName);
+    // Robot Interface
+    mobile_manipulator::MobileManipulatorInterface interface(
+        taskFileFolderName);
 
-  // MRT
-  MRT_ROS_Interface mrt(robotName);
-  mrt.initRollout(&interface.getRollout());
-  mrt.launchNodes(nodeHandle);
+    // MRT
+    MRT_ROS_Interface mrt(robotName);
+    mrt.initRollout(&interface.getRollout());
+    mrt.launchNodes(nodeHandle);
 
-  // Visualization
-  std::shared_ptr<mobile_manipulator::MobileManipulatorDummyVisualization> dummyVisualization(
-      new mobile_manipulator::MobileManipulatorDummyVisualization(nodeHandle, interface));
+    // Subscribe for new updates to the robot state.
+    MRTUpdater updater(mrt);
+    updater.subscribe(nodeHandle);
 
-  // Dummy MRT
-  MRT_ROS_Dummy_Loop dummy(mrt, interface.mpcSettings().mrtDesiredFrequency_, interface.mpcSettings().mpcDesiredFrequency_);
-  dummy.subscribeObservers({dummyVisualization});
+    // Visualization
+    std::shared_ptr<mobile_manipulator::MobileManipulatorDummyVisualization>
+        dummyVisualization(
+            new mobile_manipulator::MobileManipulatorDummyVisualization(
+                nodeHandle, interface));
 
-  // initial state
-  SystemObservation initObservation;
-  initObservation.state = interface.getInitialState();
-  initObservation.input.setZero(mobile_manipulator::INPUT_DIM);
-  initObservation.time = 0.0;
+    // Dummy MRT
+    MRT_ROS_Dummy_Loop dummy(mrt, interface.mpcSettings().mrtDesiredFrequency_,
+                             interface.mpcSettings().mpcDesiredFrequency_);
+    dummy.subscribeObservers({dummyVisualization});
 
-  // initial command
-  vector_t initTarget(7);
-  initTarget.head(3) << 0, 1, 1;
-  initTarget.tail(4) << Eigen::Quaternion<scalar_t>(1, 0, 0, 0).coeffs();
-  const vector_t zeroInput = vector_t::Zero(mobile_manipulator::INPUT_DIM);
-  const TargetTrajectories initTargetTrajectories({initObservation.time}, {initTarget}, {zeroInput});
+    // initial state
+    SystemObservation initObservation;
+    initObservation.state = interface.getInitialState();
+    initObservation.input.setZero(mobile_manipulator::INPUT_DIM);
+    initObservation.time = ros::Time::now().toSec();
 
-  // Run dummy (loops while ros is ok)
-  dummy.run(initObservation, initTargetTrajectories);
+    // initial target pose
+    vector_t initTarget(7);
+    initTarget.head(3) << 0, 1, 1;
+    initTarget.tail(4) << Eigen::Quaternion<scalar_t>(1, 0, 0, 0).coeffs();
+    const vector_t zeroInput = vector_t::Zero(mobile_manipulator::INPUT_DIM);
+    const TargetTrajectories initTargetTrajectories({initObservation.time},
+                                                    {initTarget}, {zeroInput});
 
-  // Successful exit
-  return 0;
+    // Run dummy (loops while ros is ok)
+    dummy.run(initObservation, initTargetTrajectories);
+
+    // Successful exit
+    return 0;
 }

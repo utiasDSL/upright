@@ -1,0 +1,12 @@
+<launch>
+    <arg name="rviz"       default="true" />
+    <arg name="task_name"  default="mpc"/>
+    <arg name="debug"      default="false" />
+
+    <group if="$(arg rviz)">
+      <include file="$(find ocs2_mobile_manipulator_modified)/launch/visualize.launch"/>
+    </group>
+
+    <node if="$(arg debug)" pkg="ocs2_mobile_manipulator_modified" type="mpc_mrt_node" name="mpc_mrt_node" output="screen" args="$(arg task_name)" launch-prefix="gnome-terminal -- gdb -ex run --args"/>
+    <node unless="$(arg debug)" pkg="ocs2_mobile_manipulator_modified" type="mpc_mrt_node" name="mpc_mrt_node" output="screen" args="$(arg task_name)" launch-prefix=""/>
+</launch>

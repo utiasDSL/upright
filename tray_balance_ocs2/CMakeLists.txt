@@ -146,6 +146,21 @@ target_link_libraries(mobile_manipulator_target
 )
 target_compile_options(mobile_manipulator_target PUBLIC ${FLAGS})
 
+# My new MPC-MRT node
+add_executable(mpc_mrt_node
+  src/mpc_mrt_node.cpp
+  src/MobileManipulatorDummyVisualization.cpp
+)
+add_dependencies(mpc_mrt_node
+  ${PROJECT_NAME}
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(mpc_mrt_node
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+target_compile_options(mpc_mrt_node PUBLIC ${FLAGS})
+
 ####################
 ## Clang tooling ###
 ####################
