@@ -8,8 +8,6 @@ import util
 import geometry
 import bodies
 
-import IPython
-
 
 EE_SIDE_LENGTH = 0.3
 EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
@@ -66,8 +64,9 @@ class Simulation:
             pyb.stepSimulation()
             t += self.dt
 
-    def step(self):
-        self.robot.step()
+    def step(self, step_robot=True):
+        if step_robot:
+            self.robot.step()
         pyb.stepSimulation()
 
     def record_video(self, file_name):

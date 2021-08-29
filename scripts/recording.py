@@ -19,7 +19,9 @@ class Recorder:
         self.v_ew_ws = zeros(3)
         self.ω_ew_ws = zeros(3)
         self.r_tw_ws = zeros(3)
-        self.ineq_cons = zeros(params["problem"].n_balance_con)
+
+        if "problem" in params:
+            self.ineq_cons = zeros(params["problem"].n_balance_con)
 
         self.r_te_es = zeros(3)
         self.Q_ets = zeros(4)

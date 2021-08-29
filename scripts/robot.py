@@ -49,6 +49,9 @@ class SimulatedRobot:
 
         self.dt = dt
 
+        self.cmd_vel = np.zeros(9)
+        self.cmd_acc = np.zeros_like(self.cmd_vel)
+
         # build a dict of all joints, keyed by name
         self.joints = {}
         for i in range(pyb.getNumJoints(self.uid)):
@@ -300,18 +303,20 @@ class RobotModel:
         T = jaxlie.SE3.from_matrix(self.tool_pose_matrix(q))
         r = T.translation()
         Q = T.rotation().as_quaternion_xyzw()
-        return pose_from_pos_quat(r, Q)
+        return r, Q
+        # return pose_from_pos_quat(r, Q)
 
-    def tool_velocity(self, x):
+    def tool_velocity(self, q, v):
         """Calculate velocity at the tool with given joint state.
 
         x = [q, dq] is the joint state.
         """
-        q, dq = x[: self.ni], x[self.ni :]
-        J = self.jacobian(q)
+        # q, dq = x[: self.ni], x[self.ni :]
+        # J = self.jacobian(q)
         # print(J.shape)
         # print(dq.shape)
-        return self.jacobian(q) @ dq
+        # TODO this would be much faster if we let pybullet do it
+        return pose_to_pos_quat(self.jacobian(q) @ v)
 
     def tool_acceleration(self, x, u):
         """Calculate acceleration at the tool with given joint state.
