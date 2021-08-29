@@ -56,7 +56,7 @@ class MRTLoop {
 
     void init(::ros::NodeHandle& nh) {
         current_state_sub_ =
-            nh.subscribe("/current_state", 1, &MRTLoop::current_state_cb, this);
+            nh.subscribe("/mm/current_state", 1, &MRTLoop::current_state_cb, this);
 
         control_info_pub_ =
             nh.advertise<tray_balance_msgs::TrayBalanceControllerInfo>(
@@ -65,9 +65,8 @@ class MRTLoop {
 
     void current_state_cb(const sensor_msgs::JointState& msg) {
         // Record new state
+        // TODO could it be that *updating* the observation like this is bad?
         observation_.time = msg.header.stamp.toSec();
-        // observation_.state.setZero(STATE_DIM);
-        // observation_.input.setZero(INPUT_DIM);
         for (int i = 0; i < NUM_DOFS; ++i) {
             observation_.state(i) = msg.position[i];
             observation_.state(i + NUM_DOFS) = msg.velocity[i];
@@ -99,7 +98,10 @@ class MRTLoop {
 
     void loop(const TargetTrajectories& init_target_trajectory) {
         ros::Rate rate(frequency_);
-        observation_.time = ros::Time::now().toSec();
+        double dt = 1. / frequency_;
+
+        // observation_.time = ros::Time::now().toSec();
+        observation_.time = 0;
 
         mpc_interface_.resetMpcNode(init_target_trajectory);
 
@@ -119,22 +121,28 @@ class MRTLoop {
                 // Re-compute policy based on latest state measurement.
                 mpc_interface_.updatePolicy();
 
+                // TODO take out when using sim time
+                observation_.time += dt;
+
                 // Evaluate the current policy at the current state and time.
-                ros::Time now = ros::Time::now();
-                mpc_interface_.evaluatePolicy(now.toSec(), observation_.state,
+                // ros::Time now = ros::Time::now();
+                mpc_interface_.evaluatePolicy(observation_.time, observation_.state,
                                               optimalState, optimalInput, mode);
 
                 // We need to update time to keep in sync, even if we don't
                 // receive anything from the subscriber. Otherwise, if we
                 // receive something in the future, it'll be outside the MPC
                 // horizon.
-                observation_.time = now.toSec();
+                // observation_.time = now.toSec();
 
                 // For testing without receiving state updates, we can just use
                 // the optimal state.
-                // observation_.state = optimalState;
+                observation_.state = optimalState;
 
-                publish_control_info(now, optimalState, optimalInput);
+                publish_control_info(ros::Time(observation_.time), optimalState, optimalInput);
+
+                // matrix_t K;
+                // mpc_interface_.getLinearFeedbackGain(now,
 
                 for (auto& observer : observers_) {
                     observer->update(observation_, mpc_interface_.getPolicy(),
@@ -194,7 +202,8 @@ int main(int argc, char** argv) {
     MPC_MRT_Interface mpcInterface(*mpcPtr);
     mpcInterface.initRollout(&interface.getRollout());
 
-    auto time = ros::Time::now().toSec();
+    // auto time = ros::Time::now().toSec();
+    scalar_t time = 0;
     auto frequency = interface.mpcSettings().mrtDesiredFrequency_;
 
     // initial state
@@ -205,11 +214,11 @@ int main(int argc, char** argv) {
 
     // initial target pose
     vector_t initTarget(7);
-    initTarget.head(3) << 0, 1, 1;
+    initTarget.head(3) << 2, 0, 1;
     initTarget.tail(4) << Eigen::Quaternion<scalar_t>(1, 0, 0, 0).coeffs();
-    // const vector_t zeroInput = vector_t::Zero(mobile_manipulator::INPUT_DIM);
+    const vector_t zeroInput = vector_t::Zero(mobile_manipulator::INPUT_DIM);
     const TargetTrajectories init_target_trajectory(
-        {init_observation.time}, {initTarget}, {init_observation.input});
+        {init_observation.time}, {initTarget}, {zeroInput});
 
     // TODO API is kind of all over the place atm
     MRTLoop control_loop(mpcInterface, frequency, init_observation);

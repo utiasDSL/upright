@@ -47,7 +47,7 @@ class MRTUpdater {
     MRTUpdater(MRT_ROS_Interface& mrt) : mrt_(mrt) {}
 
     void subscribe(::ros::NodeHandle& nh) {
-        current_state_sub_ = nh.subscribe("/current_state", 1,
+        current_state_sub_ = nh.subscribe("/mm/current_state", 1,
                                           &MRTUpdater::current_state_cb, this);
     }
 

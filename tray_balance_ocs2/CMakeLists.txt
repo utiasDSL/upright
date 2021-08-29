@@ -9,6 +9,7 @@ set(CATKIN_PACKAGE_DEPENDENCIES
   urdf
   kdl_parser
   robot_state_publisher
+  pybind11_catkin
   visualization_msgs
   geometry_msgs
   ocs2_ros_interfaces
@@ -20,6 +21,7 @@ set(CATKIN_PACKAGE_DEPENDENCIES
   ocs2_self_collision
   tray_balance_constraints
   tray_balance_msgs
+  ocs2_python_interface
 )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -161,6 +163,24 @@ target_link_libraries(mpc_mrt_node
 )
 target_compile_options(mpc_mrt_node PUBLIC ${FLAGS})
 
+# python bindings
+pybind11_add_module(MobileManipulatorPyBindings SHARED
+  src/pybindings.cpp
+)
+add_dependencies(MobileManipulatorPyBindings
+  ${PROJECT_NAME}
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(MobileManipulatorPyBindings PRIVATE
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+set_target_properties(MobileManipulatorPyBindings
+    PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
+)
+
+catkin_python_setup()
+
 ####################
 ## Clang tooling ###
 ####################
@@ -190,6 +210,11 @@ install(DIRECTORY include/${PROJECT_NAME}/
 )
 install(DIRECTORY config launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+install(TARGETS MobileManipulatorPyBindings
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
 )
 
 ############

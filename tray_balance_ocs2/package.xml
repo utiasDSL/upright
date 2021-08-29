@@ -15,6 +15,7 @@
   <depend>urdf</depend>
   <depend>kdl_parser</depend>
   <depend>robot_state_publisher</depend>
+  <depend>pybind11_catkin</depend>
   <depend>visualization_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>ocs2_core</depend>
@@ -27,5 +28,6 @@
   <depend>pinocchio</depend>
   <depend>tray_balance_constraints</depend>
   <depend>tray_balance_msgs</depend>
+  <depend>ocs2_python_interface</depend>
 
 </package>
