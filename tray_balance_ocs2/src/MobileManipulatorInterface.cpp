@@ -180,8 +180,7 @@ void MobileManipulatorInterface::loadSettings(
 
     problem_.stateSoftConstraintPtr->add(
         "selfCollision",
-        getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile,
-        urdfPath,
+        getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, urdfPath,
                                    usePreComputation, libraryFolder,
                                    recompileLibraries));
 
@@ -207,11 +206,11 @@ void MobileManipulatorInterface::loadSettings(
         "endEffector", getEndEffectorCost(*pinocchioInterfacePtr_, taskFile,
                                           "endEffector", usePreComputation,
                                           libraryFolder, recompileLibraries));
-    problem_.finalCostPtr->add(
-        "finalEndEffector",
-        getEndEffectorCost(*pinocchioInterfacePtr_, taskFile,
-                           "finalEndEffector", usePreComputation, libraryFolder,
-                           recompileLibraries));
+    // problem_.finalCostPtr->add(
+    //     "finalEndEffector",
+    //     getEndEffectorCost(*pinocchioInterfacePtr_, taskFile,
+    //                        "finalEndEffector", usePreComputation,
+    //                        libraryFolder, recompileLibraries));
 
     /*
      * Use pre-computation
@@ -448,8 +447,8 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
               << std::endl;
 
     // only specifying link pairs (i.e. by name)
-    PinocchioGeometryInterface geometryInterface(
-        pinocchioInterface, collisionLinkPairs, {});
+    PinocchioGeometryInterface geometryInterface(pinocchioInterface,
+                                                 collisionLinkPairs, {});
 
     const size_t numCollisionPairs = geometryInterface.getNumCollisionPairs();
     std::cerr << "SelfCollision: Testing for " << numCollisionPairs

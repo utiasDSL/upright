@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
 
     // MRT
     MRT_ROS_Interface mrt(robotName);
-    mrt.initRollout(&interface.getRollout());
+    // mrt.initRollout(&interface.getRollout());
     mrt.launchNodes(nodeHandle);
 
     // Subscribe for new updates to the robot state.
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
 
     // initial target pose
     vector_t initTarget(7);
-    initTarget.head(3) << 0, 1, 1;
+    initTarget.head(3) << 3, 0, 1;
     initTarget.tail(4) << Eigen::Quaternion<scalar_t>(1, 0, 0, 0).coeffs();
     const vector_t zeroInput = vector_t::Zero(mobile_manipulator::INPUT_DIM);
     const TargetTrajectories initTargetTrajectories({initObservation.time},

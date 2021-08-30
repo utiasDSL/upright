@@ -109,6 +109,8 @@ class EndEffectorCost final : public StateCost {
                     state, {desiredPositionOrientation.second})
                 .front();
 
+        // std::cout << "EE orientation error = " << eeOrientationError.f << std::endl;
+
         // Function value
         vector_t e = vector_t::Zero(6);
         e << eePosition.f - desiredPositionOrientation.first,

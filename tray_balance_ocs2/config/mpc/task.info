@@ -62,7 +62,7 @@ mpc
   timeHorizon                    2.0
   numPartitions                  4
 
-  runtimeMaxNumIterations        3
+  runtimeMaxNumIterations        5
   initMaxNumIterations           100
 
   runtimeMaxStepLength           1.0
@@ -112,9 +112,9 @@ inputCost
   {
     scaling 1e-2
 
-    (0,0)  5.0  ; x velocity
-    (1,1)  5.0  ; y velocity
-    (2,2)  5.0  ; angle velocity
+    (0,0)  1.0  ; x velocity
+    (1,1)  1.0  ; y velocity
+    (2,2)  1.0  ; angle velocity
     (3,3)  1.0  ; SH_ROT velocity
     (4,4)  1.0  ; SH_FLE velocity
     (5,5)  1.0  ; EL_FLE velocity
