@@ -119,12 +119,14 @@ class SimulatedRobot:
 
     def command_acceleration(self, cmd_acc):
         """Command acceleration of the robot's joints."""
-        _, v = self.joint_states()
-        self.cmd_vel = v
+        # _, v = self.joint_states()
+        # self.cmd_vel = v
         self.cmd_acc = cmd_acc
 
     def step(self):
         """One step of the physics engine."""
+        # TODO this is not correct: acc is in body frame but vel is in world
+        # frame
         self.cmd_vel += self.dt * self.cmd_acc
         self.command_velocity(self.cmd_vel)
 
