@@ -75,7 +75,7 @@ def main():
     # setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
     # setpoints = np.array([[2, 0, 0]]) + r_ew_w
     # setpoint_idx = 0
-    r_ew_w_d = np.array(r_ew_w) + [1, 0, 0]
+    r_ew_w_d = np.array(r_ew_w) + [2, 0, 0]
     Qd = np.array(Q_we)
 
     # desired quaternion

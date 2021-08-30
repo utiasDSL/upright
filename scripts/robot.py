@@ -98,37 +98,50 @@ class SimulatedRobot:
             targetVelocities=ua,
         )
 
-    def _command_base_velocity(self, ub):
+    def _base_rotation_matrix(self):
+        base_pose, _ = self._base_state()
+        yaw = base_pose[2]
+        C_wb = SO3.rotz(yaw)
+        return C_wb
+
+    def _command_base_velocity(self, ub, bodyframe=True):
         """Command base velocity.
 
-        The input ub = [vx, vy, wz] is in body coordinates.
+        The input ub = [vx, vy, wz] is in body coordinates, unless
+        bodyframe=False. Then it is in world coordinates.
         """
         # map from body coordinates to world coordinates for pybullet
-        pose, _ = self._base_state()
-        yaw = pose[2]
-        C_wb = SO3.rotz(yaw)
+        if bodyframe:
+            C_wb = self._base_rotation_matrix()
+            linear = C_wb.dot([ub[0], ub[1], 0])
+        else:
+            linear = [ub[0], ub[1], 0]
 
-        linear = C_wb.dot([ub[0], ub[1], 0])
         angular = [0, 0, ub[2]]
         pyb.resetBaseVelocity(self.uid, linear, angular)
 
-    def command_velocity(self, u):
+    def command_velocity(self, u, bodyframe=True):
         """Command the velocity of the robot's joints."""
-        self._command_base_velocity(u[:3])
+        self._command_base_velocity(u[:3], bodyframe=bodyframe)
         self._command_arm_velocity(u[3:])
 
     def command_acceleration(self, cmd_acc):
         """Command acceleration of the robot's joints."""
         # _, v = self.joint_states()
         # self.cmd_vel = v
-        self.cmd_acc = cmd_acc
+        # TODO: want to try rotating this into the body frame *here*, rather
+        # than only doing it on the velocity level
+        C_wb = self._base_rotation_matrix()
+        # import IPython; IPython.embed()
+        base_acc = C_wb.dot(cmd_acc[:3])
+        self.cmd_acc = np.concatenate((base_acc, cmd_acc[3:]))
 
     def step(self):
         """One step of the physics engine."""
         # TODO this is not correct: acc is in body frame but vel is in world
         # frame
         self.cmd_vel += self.dt * self.cmd_acc
-        self.command_velocity(self.cmd_vel)
+        self.command_velocity(self.cmd_vel, bodyframe=False)
 
     def _base_state(self):
         """Get the state of the base.
