@@ -11,7 +11,12 @@ class MobileManipulatorPyBindings final : public PythonInterface {
  public:
   explicit MobileManipulatorPyBindings(const std::string& taskFileFolder) {
     MobileManipulatorInterface robot(taskFileFolder);
-    PythonInterface::init(robot, robot.getMpc());
+
+    // Set the reference manager -- otherwise there are problems with the
+    // EndEffectorCost
+    std::unique_ptr<MPC_BASE> mpcPtr = robot.getMpc();
+    mpcPtr->getSolverPtr()->setReferenceManager(robot.getReferenceManagerPtr());
+    PythonInterface::init(robot, std::move(mpcPtr));
   }
 };
 
