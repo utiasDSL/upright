@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <pinocchio/multibody/joint/joint-composite.hpp>
 #include <pinocchio/multibody/model.hpp>
 
+#include <ocs2_core/cost/QuadraticStateCost.h>
 #include <ocs2_core/initialization/DefaultInitializer.h>
 #include <ocs2_core/misc/LoadData.h>
 #include <ocs2_core/soft_constraint/StateInputSoftConstraint.h>
@@ -46,17 +47,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 #include <ocs2_self_collision/loadStdVectorOfPair.h>
 
-#include <ocs2_core/cost/QuadraticStateCost.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorDynamics.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
+#include <ocs2_mobile_manipulator_modified/constraint/ObstacleConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/EndEffectorConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/JointAccelerationLimits.h>
 #include <ocs2_mobile_manipulator_modified/constraint/JointStateInputLimits.h>
 #include <ocs2_mobile_manipulator_modified/constraint/MobileManipulatorSelfCollisionConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/TrayBalanceConstraints.h>
 #include <ocs2_mobile_manipulator_modified/cost/EndEffectorCost.h>
-// #include <ocs2_mobile_manipulator_modified/cost/QuadraticInputCost.h>
 #include <ocs2_mobile_manipulator_modified/cost/QuadraticJointStateInputCost.h>
 #include <ocs2_mobile_manipulator_modified/definitions.h>
 

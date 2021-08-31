@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 
-#include <ocs2_core/cost/StateCost.h>
+#include <ocs2_core/constraint/StateConstraint.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
@@ -42,96 +42,96 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class EndEffectorCost final : public StateCost {
+class ObstacleConstraint final : public StateConstraint {
    public:
     using vector3_t = Eigen::Matrix<scalar_t, 3, 1>;
     using quaternion_t = Eigen::Quaternion<scalar_t>;
 
-    EndEffectorCost(
-        const matrix_t W,  // note not reference
+    ObstacleConstraint(
         const EndEffectorKinematics<scalar_t>& endEffectorKinematics,
         const ReferenceManager& referenceManager)
-        : W_(std::move(W)),
+        : StateConstraint(ConstraintOrder::Linear),
           endEffectorKinematicsPtr_(endEffectorKinematics.clone()),
           referenceManagerPtr_(&referenceManager) {
         if (endEffectorKinematics.getIds().size() != 1) {
             throw std::runtime_error(
                 "[EndEffectorConstraint] endEffectorKinematics has wrong "
-                "number of "
-                "end effector IDs.");
+                "number of end effector IDs.");
         }
         pinocchioEEKinPtr_ = dynamic_cast<PinocchioEndEffectorKinematics*>(
             endEffectorKinematicsPtr_.get());
     }
 
-    ~EndEffectorCost() override = default;
+    ~ObstacleConstraint() override = default;
 
-    EndEffectorCost* clone() const override {
-        return new EndEffectorCost(W_, *endEffectorKinematicsPtr_,
-                                   *referenceManagerPtr_);
+    ObstacleConstraint* clone() const override {
+        return new ObstacleConstraint(*endEffectorKinematicsPtr_,
+                                      *referenceManagerPtr_);
     }
 
-    scalar_t getValue(scalar_t time, const vector_t& state,
-                      const TargetTrajectories& targetTrajectories,
-                      const PreComputation& preComp) const override {
-        const auto desiredPositionOrientation =
-            interpolateEndEffectorPose(time, targetTrajectories);
-
-        vector_t err = vector_t::Zero(6);
-        err.head<3>() = endEffectorKinematicsPtr_->getPosition(state).front() -
-                        desiredPositionOrientation.first;
-        err.tail<3>() = endEffectorKinematicsPtr_
-                            ->getOrientationError(
-                                state, {desiredPositionOrientation.second})
-                            .front();
-        return 0.5 * err.transpose() * W_ * err;
+    size_t getNumConstraints(scalar_t time) const override {
+        return 1;  // TODO
     }
 
-    ScalarFunctionQuadraticApproximation getQuadraticApproximation(
+    vector_t getValue(scalar_t time, const vector_t& state,
+                      const PreComputation& preComputation) const override {
+        const auto& targetTrajectories =
+            referenceManagerPtr_->getTargetTrajectories();
+        vector3_t obstacle_pos =
+            interpolate_obstacle_position(time, targetTrajectories);
+        vector3_t ee_pos =
+            endEffectorKinematicsPtr_->getPosition(state).front();
+        vector3_t vec = ee_pos - obstacle_pos;
+
+        scalar_t r_objects = 0.25;
+        scalar_t r_obstacle = 0.1;
+        scalar_t r_safety = 0.1;
+        scalar_t r = r_objects + r_obstacle + r_safety;
+
+        // here we are only worrying about obstacle and the objects, not any
+        // other part of the robot
+        vector_t constraints;
+        constraints << vec.dot(vec) - r * r;
+        return constraints;
+    }
+
+    VectorFunctionLinearApproximation getLinearApproximation(
         scalar_t time, const vector_t& state,
-        const TargetTrajectories& targetTrajectories,
-        const PreComputation& preComp) const override {
-        const auto desiredPositionOrientation =
-            interpolateEndEffectorPose(time, targetTrajectories);
+        const PreComputation& preComputation) const override {
+        auto approximation = VectorFunctionLinearApproximation(
+            getNumConstraints(time), state.rows(), 0);
+        approximation.setZero(getNumConstraints(time), state.rows(), 0);
 
-        // NOTE: input is not used in this state cost, so we give it a
-        // dimension of zero.
-        auto approximation =
-            ScalarFunctionQuadraticApproximation(state.rows(), 0);
-        approximation.setZero(state.rows(), 0);
-
-        // Linear approximations of position and orientation error
-        const auto eePosition =
+        const auto& targetTrajectories =
+            referenceManagerPtr_->getTargetTrajectories();
+        vector3_t obstacle_pos =
+            interpolate_obstacle_position(time, targetTrajectories);
+        const auto ee_pos =
             endEffectorKinematicsPtr_->getPositionLinearApproximation(state)
                 .front();
-        const auto eeOrientationError =
-            endEffectorKinematicsPtr_
-                ->getOrientationErrorLinearApproximation(
-                    state, {desiredPositionOrientation.second})
-                .front();
+        vector3_t vec = ee_pos.f - obstacle_pos;
 
-        // Function value
-        vector_t e = vector_t::Zero(6);
-        e << eePosition.f - desiredPositionOrientation.first,
-            eeOrientationError.f;
-        approximation.f = 0.5 * e.transpose() * W_ * e;
+        // the .f part is just the value
+        approximation.f = getValue(time, state, preComputation);
+        approximation.dfdx = 2 * vec.transpose() * ee_pos.dfdx;
 
-        // Jacobian
-        matrix_t dedx(6, state.rows());
-        dedx.setZero();
-        dedx << eePosition.dfdx, eeOrientationError.dfdx;
-        approximation.dfdx = e.transpose() * W_ * dedx;
-
-        // Hessian (Gauss-Newton approximation)
-        approximation.dfdxx = dedx.transpose() * W_ * dedx;
+        // approximation.f.head<3>() =
+        //     eePosition.f - desiredPositionOrientation.first;
+        // approximation.dfdx.topRows<3>() = eePosition.dfdx;
+        //
+        // const auto eeOrientationError =
+        //     endEffectorKinematicsPtr_
+        //         ->getOrientationErrorLinearApproximation(
+        //             state, {desiredPositionOrientation.second})
+        //         .front();
+        // approximation.f.tail<3>() = eeOrientationError.f;
+        // approximation.dfdx.bottomRows<3>() = eeOrientationError.dfdx;
 
         return approximation;
     }
 
    private:
-    EndEffectorCost(const EndEffectorCost& other) = default;
-
-    matrix_t W_;  // weight matrix
+    ObstacleConstraint(const ObstacleConstraint& other) = default;
 
     /** Cached pointer to the pinocchio end effector kinematics. Is set to
      * nullptr if not used. */
@@ -141,7 +141,7 @@ class EndEffectorCost final : public StateCost {
     quaternion_t eeDesiredOrientation_;
     std::unique_ptr<EndEffectorKinematics<scalar_t>> endEffectorKinematicsPtr_;
     const ReferenceManager* referenceManagerPtr_;
-};
+};  // class ObstacleConstraint
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2

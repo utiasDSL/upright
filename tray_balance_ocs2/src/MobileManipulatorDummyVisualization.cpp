@@ -45,6 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorDummyVisualization.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
+#include <ocs2_mobile_manipulator_modified/MobileManipulatorReferenceTrajectory.h>
 #include <ocs2_mobile_manipulator_modified/definitions.h>
 
 #include <tray_balance_msgs/TrayBalanceControllerInfo.h>
@@ -213,10 +214,9 @@ void MobileManipulatorDummyVisualization::publishTargetTrajectories(
     const ros::Time& timeStamp, const TargetTrajectories& targetTrajectories) {
     // publish command transform
     const Eigen::Vector3d eeDesiredPosition =
-        targetTrajectories.stateTrajectory.back().head(3);
-    Eigen::Quaterniond eeDesiredOrientation;
-    eeDesiredOrientation.coeffs() =
-        targetTrajectories.stateTrajectory.back().tail(4);
+        get_target_position(targetTrajectories.stateTrajectory.back());
+    Eigen::Quaterniond eeDesiredOrientation =
+        get_target_orientation(targetTrajectories.stateTrajectory.back());
     geometry_msgs::TransformStamped command_tf;
     command_tf.header.stamp = timeStamp;
     command_tf.header.frame_id = "world";
