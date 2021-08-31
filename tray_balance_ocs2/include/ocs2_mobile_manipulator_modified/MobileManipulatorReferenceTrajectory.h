@@ -37,6 +37,14 @@ namespace mobile_manipulator {
 using vector3_t = Eigen::Matrix<scalar_t, 3, 1>;
 using quaternion_t = Eigen::Quaternion<scalar_t>;
 
+inline vector_t make_target(const vector3_t& ee_position,
+                            const quaternion_t& ee_orientation,
+                            const vector3_t& obs_position) {
+    vector_t target(10);
+    target << ee_position, ee_orientation.coeffs(), obs_position;
+    return target;
+}
+
 inline void set_target_position(vector_t& target, const vector3_t& position) {
     target.head<3>() = position;
 }
@@ -96,7 +104,6 @@ inline std::pair<vector_t, quaternion_t> interpolateEndEffectorPose(
 // Interpolate position of obstacle over time.
 inline vector3_t interpolate_obstacle_position(
     scalar_t time, const TargetTrajectories& targetTrajectories) {
-
     const auto& timeTrajectory = targetTrajectories.timeTrajectory;
     const auto& stateTrajectory = targetTrajectories.stateTrajectory;
 

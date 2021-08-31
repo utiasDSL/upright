@@ -50,11 +50,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorDynamics.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
-#include <ocs2_mobile_manipulator_modified/constraint/ObstacleConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/EndEffectorConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/JointAccelerationLimits.h>
 #include <ocs2_mobile_manipulator_modified/constraint/JointStateInputLimits.h>
 #include <ocs2_mobile_manipulator_modified/constraint/MobileManipulatorSelfCollisionConstraint.h>
+#include <ocs2_mobile_manipulator_modified/constraint/ObstacleConstraint.h>
 #include <ocs2_mobile_manipulator_modified/constraint/TrayBalanceConstraints.h>
 #include <ocs2_mobile_manipulator_modified/cost/EndEffectorCost.h>
 #include <ocs2_mobile_manipulator_modified/cost/QuadraticJointStateInputCost.h>
@@ -184,11 +184,18 @@ void MobileManipulatorInterface::loadSettings(
                                    usePreComputation, libraryFolder,
                                    recompileLibraries));
 
+    problem_.stateSoftConstraintPtr->add(
+        "obstacleAvoidance",
+        getObstacleConstraint(*pinocchioInterfacePtr_, taskFile,
+                              "obstacleAvoidance", usePreComputation,
+                              libraryFolder, recompileLibraries));
+
     problem_.softConstraintPtr->add(
         "trayBalance",
         getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
                                  "trayBalanceConstraints", usePreComputation,
                                  libraryFolder, recompileLibraries));
+
 
     // Alternative EE pose matching formulated as a (soft) constraint
     // problem_.stateSoftConstraintPtr->add(
@@ -341,6 +348,51 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorConstraint(
         std::move(constraint), std::move(penaltyArray)));
 }
 
+std::unique_ptr<StateCost> MobileManipulatorInterface::getObstacleConstraint(
+    PinocchioInterface pinocchioInterface, const std::string& taskFile,
+    const std::string& prefix, bool usePreComputation,
+    const std::string& libraryFolder, bool recompileLibraries) {
+    scalar_t mu = 1e-3;
+    scalar_t delta = 1e-3;
+    std::string name = "thing_tool";
+
+    // boost::property_tree::ptree pt;
+    // boost::property_tree::read_info(taskFile, pt);
+    // std::cerr << "\n #### " << prefix << " Settings: ";
+    // std::cerr << "\n #### "
+    //              "============================================================="
+    //              "================\n";
+    // loadData::loadPtreeValue(pt, muPosition, prefix + ".muPosition", true);
+    // loadData::loadPtreeValue(pt, muOrientation, prefix + ".muOrientation",
+    //                          true);
+    // std::cerr << " #### "
+    //              "============================================================="
+    //              "================"
+    //           << std::endl;
+
+    // TODO there are a bunch of these now; should reuse
+    MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+    PinocchioEndEffectorKinematicsCppAd eeKinematics(
+        pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
+        "end_effector_kinematics", libraryFolder, recompileLibraries, false);
+    std::unique_ptr<StateConstraint> constraint(
+        new ObstacleConstraint(eeKinematics, *referenceManagerPtr_));
+
+    // std::unique_ptr<PenaltyBase> penalty(
+    //     new RelaxedBarrierPenalty({mu, delta}));
+    //
+    // return std::unique_ptr<StateCost>(
+    //     new StateSoftConstraint(std::move(constraint), std::move(penalty)));
+
+    std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(1);
+    for (int i = 0; i < penaltyArray.size(); i++) {
+        penaltyArray[i].reset(new RelaxedBarrierPenalty({mu, delta}));
+    }
+
+    return std::unique_ptr<StateCost>(new StateSoftConstraint(
+        std::move(constraint), std::move(penaltyArray)));
+}
+
 std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
     PinocchioInterface pinocchioInterface, const std::string& taskFile,
     const std::string& prefix, bool usePreComputation,
@@ -350,8 +402,7 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
 
     std::cerr << "\n #### End Effector Cost Settings: ";
     std::cerr << "\n #### "
-                 "============================================================="
-                 "================\n";
+                 "=============================================================" "================\n";
     loadData::loadEigenMatrix(taskFile, "endEffectorCost.W", W);
     std::cerr << "endEffectorCost.W:  \n" << W << '\n';
     std::cerr << " #### "

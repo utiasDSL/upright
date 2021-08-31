@@ -88,10 +88,14 @@ class ObstacleConstraint final : public StateConstraint {
         scalar_t r_safety = 0.1;
         scalar_t r = r_objects + r_obstacle + r_safety;
 
+        // std::cout << "vec = " << vec << std::endl;
+        // std::cout << "obs pos = " << obstacle_pos << std::endl;
+
         // here we are only worrying about obstacle and the objects, not any
         // other part of the robot
-        vector_t constraints;
-        constraints << vec.dot(vec) - r * r;
+        vector_t constraints(getNumConstraints(time));
+        constraints << vec.norm() - r;
+        // std::cout << "obstacle constraint = " << constraints << std::endl;
         return constraints;
     }
 
@@ -111,21 +115,13 @@ class ObstacleConstraint final : public StateConstraint {
                 .front();
         vector3_t vec = ee_pos.f - obstacle_pos;
 
+        // std::cout << "[getLinearApproximation] one" << std::endl;
+
         // the .f part is just the value
         approximation.f = getValue(time, state, preComputation);
-        approximation.dfdx = 2 * vec.transpose() * ee_pos.dfdx;
+        approximation.dfdx = vec.transpose() * ee_pos.dfdx / vec.norm();
 
-        // approximation.f.head<3>() =
-        //     eePosition.f - desiredPositionOrientation.first;
-        // approximation.dfdx.topRows<3>() = eePosition.dfdx;
-        //
-        // const auto eeOrientationError =
-        //     endEffectorKinematicsPtr_
-        //         ->getOrientationErrorLinearApproximation(
-        //             state, {desiredPositionOrientation.second})
-        //         .front();
-        // approximation.f.tail<3>() = eeOrientationError.f;
-        // approximation.dfdx.bottomRows<3>() = eeOrientationError.dfdx;
+        // std::cout << "[getLinearApproximation] two" << std::endl;
 
         return approximation;
     }
