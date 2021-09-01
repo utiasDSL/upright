@@ -99,6 +99,10 @@ class SimulatedRobot:
         )
 
     def _base_rotation_matrix(self):
+        """Get rotation matrix for the base.
+
+        This is just the rotation about the z-axis by the yaw angle.
+        """
         base_pose, _ = self._base_state()
         yaw = base_pose[2]
         C_wb = SO3.rotz(yaw)
@@ -127,19 +131,15 @@ class SimulatedRobot:
 
     def command_acceleration(self, cmd_acc):
         """Command acceleration of the robot's joints."""
+        # TODO for some reason feeding back v doesn't work
         # _, v = self.joint_states()
         # self.cmd_vel = v
-        # TODO: want to try rotating this into the body frame *here*, rather
-        # than only doing it on the velocity level
         C_wb = self._base_rotation_matrix()
-        # import IPython; IPython.embed()
         base_acc = C_wb.dot(cmd_acc[:3])
         self.cmd_acc = np.concatenate((base_acc, cmd_acc[3:]))
 
     def step(self):
         """One step of the physics engine."""
-        # TODO this is not correct: acc is in body frame but vel is in world
-        # frame
         self.cmd_vel += self.dt * self.cmd_acc
         self.command_velocity(self.cmd_vel, bodyframe=False)
 

@@ -4,6 +4,7 @@ import rospy
 
 import numpy as np
 import matplotlib.pyplot as plt
+import pybullet as pyb
 
 import util
 from robot import RobotModel
@@ -35,6 +36,34 @@ SQP_ITER = 3  # number of iterations for the SQP solved by the controller
 CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 10.0  # duration of trajectory (s)
+
+
+class Obstacle:
+    def __init__(self, initial_position, collision_uid, visual_uid, velocity=None):
+        self.uid = pyb.createMultiBody(
+            baseMass=0,  # non-dynamic body
+            baseCollisionShapeIndex=collision_uid,
+            baseVisualShapeIndex=visual_uid,
+            basePosition=list(initial_position),
+            baseOrientation=(0, 0, 0, 1),
+        )
+        self.initial_position = initial_position
+
+        self.velocity = velocity
+        if self.velocity is None:
+            self.velocity = np.zeros(3)
+        pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
+
+    # def update_velocity(self, t):
+    #     v = self.velocity_func(self.initial_position, t)
+    #     pyb.resetBaseVelocity(self.uid, linearVelocity=v)
+
+    def sample_position(self, t):
+        """Sample the position of the object at a given time."""
+        # assume constant velocity
+        return self.initial_position + t * self.velocity
+        # positions = np.array([self.initial_position + t * self.velocity for t in ts])
+        # return positions
 
 
 def main():
@@ -75,8 +104,6 @@ def main():
     # setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
     # setpoints = np.array([[2, 0, 0]]) + r_ew_w
     # setpoint_idx = 0
-    r_ew_w_d = np.array(r_ew_w) + [2, 0, 0]
-    Qd = np.array(Q_we)
 
     # desired quaternion
     # R_ed = SO3.from_z_radians(np.pi)
@@ -88,29 +115,51 @@ def main():
     #
     # recorder.Q_des[0, :] = util.quat_multiply(Qd_inv, Q_we)
 
+    r_obs0 = np.array(r_ew_w) + [0, -10, 0]
+    v_obs = np.array([0, 0.4, 0])
+    obs_radius = 0.1
+    obs_collision_uid = pyb.createCollisionShape(
+        shapeType=pyb.GEOM_SPHERE,
+        radius=obs_radius,
+    )
+    obs_visual_uid = pyb.createVisualShape(
+        shapeType=pyb.GEOM_SPHERE,
+        radius=obs_radius,
+        rgbaColor=(1, 0, 0, 1),
+    )
+    obstacle = Obstacle(r_obs0, -1, obs_visual_uid, velocity=v_obs)
+
+    # r_obs5 = obstacle.sample_position(5)
+
     # initial time, state, and input
     t = 0
     x = np.concatenate((q, v))
     u = np.zeros(robot_model.ni)
 
+    target_times = [0, 3, 6, 9]
+
     # setup MPC and initial EE target pose
     mpc = mpc_interface("mpc")
     t_target = scalar_array()
-    t_target.push_back(t)
+    for time in target_times:
+        t_target.push_back(time)
 
     input_target = vector_array()
-    input_target.push_back(np.copy(u))
+    for _ in target_times:
+        input_target.push_back(u)
 
-    # TODO I think this must match what is in MRT node, so I need a EE pose
     state_target = vector_array()
-    # x0 = np.concatenate((ROBOT_HOME, np.zeros(robot_model.ni)))
-    # state_target.push_back(x0)
-    state_target.push_back(np.concatenate((r_ew_w_d, Qd)))
+    r_ew_w_d = np.array(r_ew_w) + [0, 0, 0]
+    Qd = np.array(Q_we)
+    state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w_d + [1, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w_d + [2, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w_d + [3, 0, 0], Qd, r_obs0)))
 
     target_trajectories = TargetTrajectories(t_target, state_target, input_target)
     mpc.reset(target_trajectories)
 
-    # K = np.eye(9)
+    assert len(state_target) == len(target_times)
 
     for i in range(N - 1):
         # t = i * sim.dt

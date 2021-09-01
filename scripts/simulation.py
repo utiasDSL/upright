@@ -99,6 +99,11 @@ class Simulation:
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
         pyb.loadURDF("plane.urdf", [0, 0, 0])
 
+        # setup obstacles
+        obstacles_uid = pyb.loadURDF("/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/obstacles.urdf")
+        pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
+        # pyb.setCollisionFilterGroupMask(obstacles_uid, -1, 0, 0)
+
     def object_setup(self, r_ew_w, obj_names):
         # setup balanced objects
         objects = {}
