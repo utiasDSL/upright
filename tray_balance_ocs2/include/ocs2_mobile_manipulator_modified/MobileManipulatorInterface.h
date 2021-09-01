@@ -88,6 +88,9 @@ class MobileManipulatorInterface final : public RobotInterface {
     static PinocchioInterface buildPinocchioInterface(
         const std::string& urdfPath, const std::string& obstacle_urdfPath);
 
+
+    static pinocchio::GeometryModel build_geometry_model(const std::string& urdf_path);
+
    private:
     std::unique_ptr<StateInputCost> getQuadraticStateInputCost(
         const std::string& taskFile);

@@ -111,16 +111,13 @@ PinocchioInterface MobileManipulatorInterface::buildPinocchioInterface(
     return getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);
 }
 
-pinocchio::GeometryModel build_geometry_model(const std::string& urdf_path) {
+pinocchio::GeometryModel MobileManipulatorInterface::build_geometry_model(const std::string& urdf_path) {
     PinocchioInterface::Model model;
     pinocchio::urdf::buildModel(urdf_path, model);
     pinocchio::GeometryModel geom_model;
     pinocchio::urdf::buildGeom(model, urdf_path, pinocchio::COLLISION,
                                geom_model);
     return geom_model;
-    // for (int i = 0; i < geom_model.ngeoms; ++i) {
-    //     std::cout << geom_model.geometryObjects[i].name << std::endl;
-    // }
 }
 
 /******************************************************************************************************/

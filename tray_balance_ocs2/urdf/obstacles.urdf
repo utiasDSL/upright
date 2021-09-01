@@ -2,24 +2,19 @@
 <robot name="Obstacles">
   <link name="obstacle1_link">
     <visual>
-      <origin rpy="0 0 0" xyz="1.25 0 0.5"/>
+      <origin rpy="0 0 0" xyz="1.25 0 0.25"/>
       <geometry>
-        <cylinder length="1" radius="0.25"/>
+        <cylinder length="0.5" radius="0.25"/>
       </geometry>
       <material name="Red">
         <color rgba="1.0 0.0 0.0 1.0"/>
       </material>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="1.25 0 0.5"/>
+      <origin rpy="0 0 0" xyz="1.25 0 0.25"/>
       <geometry>
-        <cylinder length="1" radius="0.25"/>
+        <cylinder length="0.5" radius="0.25"/>
       </geometry>
     </collision>
   </link>
-  <!-- <joint name="obstacle1_link_joint" type="fixed"> -->
-  <!--   <origin rpy="0 0 0" xyz="2 2 0"/> -->
-  <!--   <parent link="base_link"/> -->
-  <!--   <child link="obstacle1_link"/> -->
-  <!-- </joint> -->
 </robot>

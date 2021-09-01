@@ -139,11 +139,19 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
     // TODO(perry) get the collision pairs from the task.info file to match the
     // current mpc setup
     // TODO need to get the real geom interface
-    PinocchioGeometryInterface geomInterface(pinocchioInterface,
-                                             {{1, 4}, {1, 6}});
+    // PinocchioGeometryInterface geomInterface(pinocchioInterface,
+    //                                          {{1, 4}, {1, 6}});
+
+    PinocchioGeometryInterface geometryInterface(pinocchioInterface);
+    const std::string obstacle_urdf_path =
+        ros::package::getPath("ocs2_mobile_manipulator_modified") +
+        "/urdf/obstacles.urdf";
+    pinocchio::GeometryModel obs_geom_model =
+       MobileManipulatorInterface::build_geometry_model(obstacle_urdf_path);
+    geometryInterface.addGeometryObjects(obs_geom_model);
 
     geometryVisualization_.reset(new GeometryInterfaceVisualization(
-        std::move(pinocchioInterface), geomInterface, nodeHandle));
+        std::move(pinocchioInterface), geometryInterface, nodeHandle));
 }
 
 /******************************************************************************************************/
