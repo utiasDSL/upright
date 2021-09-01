@@ -79,7 +79,10 @@ int main(int argc, char** argv) {
 
   std::cerr << "Loading task file: " << taskFile << std::endl;
 
-  pInterface.reset(new PinocchioInterface(MobileManipulatorInterface::buildPinocchioInterface(urdfPath)));
+  const std::string obstacle_urdfPath =
+      ros::package::getPath("ocs2_mobile_manipulator_modified") +
+      "/urdf/obstacles.urdf";
+  pInterface.reset(new PinocchioInterface(MobileManipulatorInterface::buildPinocchioInterface(urdfPath, obstacle_urdfPath)));
 
   std::vector<std::pair<size_t, size_t>> selfCollisionObjectPairs;
   std::vector<std::pair<std::string, std::string>> selfCollisionLinkPairs;

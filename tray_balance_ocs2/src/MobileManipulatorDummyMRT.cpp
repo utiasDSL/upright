@@ -117,16 +117,16 @@ int main(int argc, char** argv) {
     // NOTE: Eigen quaternions are constructed using (w, x, y, z) but coeffs()
     // returns (x, y, z, w).
     vector_t initTarget =
-        make_target(Eigen::Vector3d(1, 0, 1), Eigen::Quaterniond(0, 0, 0, 1),
-                    Eigen::Vector3d(1, -1, 1));
+        make_target(Eigen::Vector3d(3, 0, 1), Eigen::Quaterniond(0, 0, 0, 1),
+                    Eigen::Vector3d(1, -5, 1));
     //     vector_t::Zero(10);
     // set_target_position(initTarget, Eigen::Vector3d(1, 0, 1));
     // set_target_orientation(initTarget, Eigen::Quaternion<scalar_t>(1, 0, 0,
     // 0)); set_obstacle_position(initTarget, Eigen::Vector3d(2, 0, 1));
 
     vector_t initTarget2 =
-        make_target(Eigen::Vector3d(1, 0, 1), Eigen::Quaterniond(0, 0, 0, 1),
-                    Eigen::Vector3d(1, 1, 1));
+        make_target(Eigen::Vector3d(3, 0, 1), Eigen::Quaterniond(0, 0, 0, 1),
+                    Eigen::Vector3d(1, -5, 1));
 
     const vector_t zeroInput = vector_t::Zero(mobile_manipulator::INPUT_DIM);
     const TargetTrajectories initTargetTrajectories(

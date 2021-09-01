@@ -200,7 +200,8 @@ selfCollision
   ; Self Collision pairs
   collisionLinkPairs
   {
-    [0] "chassis_link, ur10_arm_upper_arm_link"
+    ;[0] "chassis_link_0, ur10_arm_upper_arm_link_0"
+    [0] "chassis_link_0, obstacle1_link_0"
     ;[1] arm_base, ELBOW
     ;[2] "arm_base, WRIST_1"
   }
@@ -209,7 +210,7 @@ selfCollision
   minimumDistance  0.1
 
   ; relaxed log barrier mu
-  mu  0.01
+  mu  1e-2
 
   ; relaxed log barrier delta
   delta  1e-3

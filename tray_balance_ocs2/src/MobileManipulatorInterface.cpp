@@ -87,14 +87,40 @@ MobileManipulatorInterface::MobileManipulatorInterface(
 /******************************************************************************************************/
 /******************************************************************************************************/
 PinocchioInterface MobileManipulatorInterface::buildPinocchioInterface(
-    const std::string& urdfPath) {
+    const std::string& urdfPath, const std::string& obstacle_urdfPath) {
     // add 3 DOF for wheelbase
     pinocchio::JointModelComposite rootJoint(3);
     rootJoint.addJoint(pinocchio::JointModelPX());
     rootJoint.addJoint(pinocchio::JointModelPY());
     rootJoint.addJoint(pinocchio::JointModelRZ());
 
+    // TODO try loading another URDF with the obstacles, and adding it to the
+    // existing model with given root joint
+    // PinocchioInterface pinocchio_interface =
+    // getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);
+    // PinocchioInterface::Model pinocchio_model =
+    // pinocchio_interface.getModel();
+    //
+    // pinocchio::JointModelComposite even_rootier_joint;
+
+    // TODO this doesn't make sense, because the root joint has these DOFs
+    // added
+
+    // return pinocchio_interface;
+
     return getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);
+}
+
+pinocchio::GeometryModel build_geometry_model(const std::string& urdf_path) {
+    PinocchioInterface::Model model;
+    pinocchio::urdf::buildModel(urdf_path, model);
+    pinocchio::GeometryModel geom_model;
+    pinocchio::urdf::buildGeom(model, urdf_path, pinocchio::COLLISION,
+                               geom_model);
+    return geom_model;
+    // for (int i = 0; i < geom_model.ngeoms; ++i) {
+    //     std::cout << geom_model.geometryObjects[i].name << std::endl;
+    // }
 }
 
 /******************************************************************************************************/
@@ -105,10 +131,13 @@ void MobileManipulatorInterface::loadSettings(
     const std::string urdfPath =
         ros::package::getPath("ocs2_mobile_manipulator_modified") +
         "/urdf/mm.urdf";
+    const std::string obstacle_urdfPath =
+        ros::package::getPath("ocs2_mobile_manipulator_modified") +
+        "/urdf/obstacles.urdf";
     std::cerr << "Load Pinocchio model from " << urdfPath << '\n';
 
-    pinocchioInterfacePtr_.reset(
-        new PinocchioInterface(buildPinocchioInterface(urdfPath)));
+    pinocchioInterfacePtr_.reset(new PinocchioInterface(
+        buildPinocchioInterface(urdfPath, obstacle_urdfPath)));
     std::cerr << *pinocchioInterfacePtr_;
 
     bool usePreComputation = true;
@@ -195,7 +224,6 @@ void MobileManipulatorInterface::loadSettings(
         getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
                                  "trayBalanceConstraints", usePreComputation,
                                  libraryFolder, recompileLibraries));
-
 
     // Alternative EE pose matching formulated as a (soft) constraint
     // problem_.stateSoftConstraintPtr->add(
@@ -402,7 +430,8 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
 
     std::cerr << "\n #### End Effector Cost Settings: ";
     std::cerr << "\n #### "
-                 "=============================================================" "================\n";
+                 "============================================================="
+                 "================\n";
     loadData::loadEigenMatrix(taskFile, "endEffectorCost.W", W);
     std::cerr << "endEffectorCost.W:  \n" << W << '\n';
     std::cerr << " #### "
@@ -488,6 +517,10 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
     loadData::loadPtreeValue(pt, delta, prefix + "delta", true);
     loadData::loadPtreeValue(pt, minimumDistance, prefix + "minimumDistance",
                              true);
+
+    // NOTE: object vs. link is confusing: the real distinction is that
+    // "object" means "id" (i.e., an index, of type size_t) and "link" means
+    // "name" (i.e. string)
     // loadData::loadStdVectorOfPair(taskFile, prefix + "collisionObjectPairs",
     //                               collisionObjectPairs, true);
     loadData::loadStdVectorOfPair(taskFile, prefix + "collisionLinkPairs",
@@ -498,12 +531,60 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
               << std::endl;
 
     // only specifying link pairs (i.e. by name)
-    PinocchioGeometryInterface geometryInterface(pinocchioInterface,
-                                                 collisionLinkPairs, {});
+    // PinocchioGeometryInterface geometryInterface(pinocchioInterface,
+    //                                              collisionLinkPairs, {});
+    PinocchioGeometryInterface geometryInterface(pinocchioInterface);
+
+    // NOTE: need to get a reference to avoid copy-assignment
+    // pinocchio::GeometryModel& geometry_model =
+    //     geometryInterface.getGeometryModel();
+
+    // Add obstacle collision objects to the geometry model, so we can check
+    // them against the robot.
+    const std::string obstacle_urdf_path =
+        ros::package::getPath("ocs2_mobile_manipulator_modified") +
+        "/urdf/obstacles.urdf";
+    pinocchio::GeometryModel obs_geom_model =
+        build_geometry_model(obstacle_urdf_path);
+    geometryInterface.addGeometryObjects(obs_geom_model);
+
+    // for (int i = 0; i < obs_geom_model.ngeoms; ++i) {
+    //     geometry_model.addGeometryObject(obs_geom_model.geometryObjects[i]);
+    // }
+
+    // geometryInterface.addCollisionLinkPairs(pinocchioInterface,
+    //                                         collisionLinkPairs);
+    // for (int i = 0; i < geometry_model.ngeoms; ++i) {
+    //     std::cout << geometry_model.geometryObjects[i].name << std::endl;
+    // }
+    //
+    // auto obs1_id = geometry_model.getGeometryId("obstacle1_link_0");
+    // auto chassis_id = geometry_model.getGeometryId("chassis_link_0");
+    //
+    // std::cout << "obstacle1_link id = " << obs1_id << std::endl;
+    // std::cout << "chassis_link id = " << chassis_id << std::endl;
+    //
+    // std::cout << "obstacle1_link placement = "
+    //           << geometry_model.geometryObjects[obs1_id].placement << std::endl;
+    // std::cout << "chassis_link parent joint id = "
+    //           << geometry_model.geometryObjects[chassis_id].parentJoint
+    //           << std::endl;
+    //
+    // geometry_model.addCollisionPair(
+    //     pinocchio::CollisionPair{chassis_id, obs1_id});
+    //
+    // std::cout << geometry_model.collisionPairs.size() << std::endl;
+    geometryInterface.addCollisionPairsByName(collisionLinkPairs);
 
     const size_t numCollisionPairs = geometryInterface.getNumCollisionPairs();
     std::cerr << "SelfCollision: Testing for " << numCollisionPairs
               << " collision pairs\n";
+
+    std::vector<hpp::fcl::DistanceResult> distances =
+        geometryInterface.computeDistances(pinocchioInterface);
+    for (int i = 0; i < distances.size(); ++i) {
+        std::cout << "dist = " << distances[i].min_distance << std::endl;
+    }
 
     std::unique_ptr<StateConstraint> constraint;
     if (usePreComputation) {
