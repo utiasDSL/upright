@@ -279,28 +279,28 @@ jointLimits
   {
     lowerBound
     {
-      (0,0) -0.5  ; x velocity
-      (1,0) -0.5  ; y velocity
-      (2,0) -0.5  ; angle velocity
-      (3,0) -1.0  ; SH_ROT
-      (4,0) -1.0  ; SH_FLE
-      (5,0) -1.0  ; EL_FLE
-      (6,0) -1.0  ; EL_ROT
-      (7,0) -1.0  ; WR_FLE
-      (8,0) -1.0  ; WR_ROT
+      (0,0) -1.0  ; x velocity
+      (1,0) -1.0  ; y velocity
+      (2,0) -1.0  ; angle velocity
+      (3,0) -2.0  ; SH_ROT
+      (4,0) -2.0  ; SH_FLE
+      (5,0) -2.0  ; EL_FLE
+      (6,0) -2.0  ; EL_ROT
+      (7,0) -2.0  ; WR_FLE
+      (8,0) -2.0  ; WR_ROT
     }
 
     upperBound
     {
-      (0,0) 0.5  ; x velocity
-      (1,0) 0.5  ; y velocity
-      (2,0) 0.5  ; angle velocity
-      (3,0) 1.0  ; SH_ROT
-      (4,0) 1.0  ; SH_FLE
-      (5,0) 1.0  ; EL_FLE
-      (6,0) 1.0  ; EL_ROT
-      (7,0) 1.0  ; WR_FLE
-      (8,0) 1.0  ; WR_ROT
+      (0,0) 1.0  ; x velocity
+      (1,0) 1.0  ; y velocity
+      (2,0) 1.0  ; angle velocity
+      (3,0) 2.0  ; SH_ROT
+      (4,0) 2.0  ; SH_FLE
+      (5,0) 2.0  ; EL_FLE
+      (6,0) 2.0  ; EL_ROT
+      (7,0) 2.0  ; WR_FLE
+      (8,0) 2.0  ; WR_ROT
     }
 
     mu  0.01
@@ -309,40 +309,40 @@ jointLimits
 }
 
 ; TODO: these can likely be more generous
-jointAccelerationLimits
-{
-  lowerBound
-  {
-    (0,0) -0.5  ; x velocity
-    (1,0) -0.5  ; y velocity
-    (2,0) -0.5  ; angle velocity
-    (3,0) -1.0  ; SH_ROT
-    (4,0) -1.0  ; SH_FLE
-    (5,0) -1.0  ; EL_FLE
-    (6,0) -1.0  ; EL_ROT
-    (7,0) -1.0  ; WR_FLE
-    (8,0) -1.0  ; WR_ROT
-  }
-
-  upperBound
-  {
-    (0,0) 0.5  ; x velocity
-    (1,0) 0.5  ; y velocity
-    (2,0) 0.5  ; angle velocity
-    (3,0) 1.0  ; SH_ROT
-    (4,0) 1.0  ; SH_FLE
-    (5,0) 1.0  ; EL_FLE
-    (6,0) 1.0  ; EL_ROT
-    (7,0) 1.0  ; WR_FLE
-    (8,0) 1.0  ; WR_ROT
-  }
-
-  ; relaxed log barrier mu
-  mu  0.01
-
-  ; relaxed log barrier delta
-  delta  1e-3
-}
+; jointAccelerationLimits
+; {
+;   lowerBound
+;   {
+;     (0,0) -1.0  ; x velocity
+;     (1,0) -1.0  ; y velocity
+;     (2,0) -1.0  ; angle velocity
+;     (3,0) -2.0  ; SH_ROT
+;     (4,0) -2.0  ; SH_FLE
+;     (5,0) -2.0  ; EL_FLE
+;     (6,0) -2.0  ; EL_ROT
+;     (7,0) -2.0  ; WR_FLE
+;     (8,0) -2.0  ; WR_ROT
+;   }
+; 
+;   upperBound
+;   {
+;     (0,0) 1.0  ; x velocity
+;     (1,0) 1.0  ; y velocity
+;     (2,0) 1.0  ; angle velocity
+;     (3,0) 2.0  ; SH_ROT
+;     (4,0) 2.0  ; SH_FLE
+;     (5,0) 2.0  ; EL_FLE
+;     (6,0) 2.0  ; EL_ROT
+;     (7,0) 2.0  ; WR_FLE
+;     (8,0) 2.0  ; WR_ROT
+;   }
+; 
+;   ; relaxed log barrier mu
+;   mu  0.01
+; 
+;   ; relaxed log barrier delta
+;   delta  1e-3
+; }
 
 trayBalanceConstraints
 {

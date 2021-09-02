@@ -47,24 +47,16 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        return NUM_TRAY_BALANCE_CONSTRAINTS;
+        // TODO this depends on the configuration at hand
+        return 3;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
-
-    // vector_t getParameters(scalar_t time) const override {
-    //     vector_t r_te_e;
-    //     r_te_e << 0, 0, 0.067;
-    //
-    //     vector_t parameters = r_te_e;
-    //     return parameters;
-    // }
 
    protected:
     ad_vector_t constraintFunction(
         ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
         const ad_vector_t& parameters) const override {
-
         ad_rotmat_t C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
         ad_vector_t angular_vel =
             pinocchioEEKinPtr_->getAngularVelocityCppAd(state, input);
@@ -73,9 +65,37 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        TrayBalanceParameters<ad_scalar_t> params;
+        // TrayBalanceParameters<ad_scalar_t> params;
+        // BalancedBody(RigidBody<Scalar>& body, Scalar com_height,
+        //              SupportAreaBase<Scalar> support_area, Scalar r_tau,
+        //              Scalar mu)
+        ad_scalar_t tray_mass = ad_scalar_t(0.5);
+        ad_scalar_t tray_com_height = ad_scalar_t(0.01);
+        ad_scalar_t tray_height = tray_com_height * 2;
+        ad_scalar_t tray_radius = ad_scalar_t(0.25);
+        ad_scalar_t tray_mu = ad_scalar_t(0.5);
+        ad_scalar_t ee_side_length = ad_scalar_t(0.3);
+        ad_vector_t tray_com(3);  // wrt the EE frame
+        tray_com << ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.067);  // TODO
+
+        Eigen::Matrix<ad_scalar_t, 3, 3> tray_inertia =
+            cylinder_inertia_matrix<ad_scalar_t>(tray_mass, tray_radius,
+                                                 tray_height);
+        RigidBody<ad_scalar_t> tray_body(tray_mass, tray_inertia, tray_com);
+
+        ad_scalar_t tray_r_tau =
+            equilateral_triangle_inscribed_radius<ad_scalar_t>(ee_side_length);
+        Eigen::Matrix<ad_scalar_t, 2, 1> tray_support_offset =
+            Eigen::Matrix<ad_scalar_t, 2, 1>::Zero();
+        CircleSupportArea<ad_scalar_t> tray_support_area(
+            tray_r_tau, tray_support_offset, ad_scalar_t(0));
+
+        BalancedObject<ad_scalar_t> tray(
+            tray_body, tray_com_height, tray_support_area, tray_r_tau, tray_mu);
+
+        // TODO single object for now
         ad_vector_t constraints = inequality_constraints<ad_scalar_t>(
-            C_we, angular_vel, linear_acc, angular_acc, params);
+            C_we, angular_vel, linear_acc, angular_acc, tray);
         return constraints;
     }
 

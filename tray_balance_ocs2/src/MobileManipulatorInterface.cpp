@@ -111,7 +111,8 @@ PinocchioInterface MobileManipulatorInterface::buildPinocchioInterface(
     return getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);
 }
 
-pinocchio::GeometryModel MobileManipulatorInterface::build_geometry_model(const std::string& urdf_path) {
+pinocchio::GeometryModel MobileManipulatorInterface::build_geometry_model(
+    const std::string& urdf_path) {
     PinocchioInterface::Model model;
     pinocchio::urdf::buildModel(urdf_path, model);
     pinocchio::GeometryModel geom_model;
@@ -480,8 +481,8 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
         new TrayBalanceConstraints(pinocchioEEKinematics));
 
     std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(
-        NUM_TRAY_BALANCE_CONSTRAINTS);
-    for (int i = 0; i < NUM_TRAY_BALANCE_CONSTRAINTS; i++) {
+        constraint->getNumConstraints(0));
+    for (int i = 0; i < constraint->getNumConstraints(0); i++) {
         penaltyArray[i].reset(new RelaxedBarrierPenalty({mu, delta}));
     }
 
@@ -562,7 +563,8 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
     // std::cout << "chassis_link id = " << chassis_id << std::endl;
     //
     // std::cout << "obstacle1_link placement = "
-    //           << geometry_model.geometryObjects[obs1_id].placement << std::endl;
+    //           << geometry_model.geometryObjects[obs1_id].placement <<
+    //           std::endl;
     // std::cout << "chassis_link parent joint id = "
     //           << geometry_model.geometryObjects[chassis_id].parentJoint
     //           << std::endl;
