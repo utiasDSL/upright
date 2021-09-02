@@ -1,8 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
+# from ...recording import DATA_DRIVE_PATH
 
-
-DATA_PATH = "../balance_data_2021-09-02_20-02-07.npz"
+DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/ICRA22")
+DATA_PATH = DATA_DRIVE_PATH / "balance_data_2021-09-02_21-29-09.npz"
 FIG_PATH = "ee_pose.pdf"
 
 
@@ -15,7 +17,7 @@ def main():
     fig = plt.figure(figsize=(3.25, 1.8))
     plt.rcParams.update({"font.size": 8, "text.usetex": True, "legend.fontsize": 8})
 
-    ax = plt.gca()
+    # ax = plt.gca()
     plt.grid()
     plt.plot(ts, r_ew_wds[:, 0], label="$x_d$", color="r", linestyle="--")
     plt.plot(ts, r_ew_wds[:, 1], label="$y_d$", color="g", linestyle="--")

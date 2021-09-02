@@ -2,11 +2,11 @@ import numpy as np
 import pybullet as pyb
 import pybullet_data
 
-from end_effector import EndEffector
-from robot import SimulatedRobot
-import util
-import geometry
-import bodies
+from mm_pybullet_sim.end_effector import EndEffector
+from mm_pybullet_sim.robot import SimulatedRobot
+import mm_pybullet_sim.util as util
+import mm_pybullet_sim.geometry as geometry
+import mm_pybullet_sim.bodies as bodies
 
 
 EE_SIDE_LENGTH = 0.3

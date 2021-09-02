@@ -4,8 +4,8 @@ import numpy as np
 import jax.numpy as jnp
 import jax
 
-import util
-from simulation import GRAVITY_VECTOR
+import mm_pybullet_sim.util as util
+from mm_pybullet_sim.simulation import GRAVITY_VECTOR
 
 
 @partial(jax.jit, static_argnums=(0,))

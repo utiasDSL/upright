@@ -6,7 +6,7 @@ import pybullet as pyb
 from liegroups import SO3
 import jaxlie
 
-from util import dhtf, rot2d, pose_from_pos_quat, pose_to_pos_quat, skew3
+from mm_pybullet_sim.util import dhtf, rot2d, pose_from_pos_quat, pose_to_pos_quat, skew3
 
 # TODO ideally we wouldn't be using both jaxlie and liegroups
 
@@ -265,6 +265,7 @@ class RobotModel:
     def __init__(self, dt, qd):
         self.dt = dt
         self.ni = 9
+        self.ns = 9 + 9
 
         self.dJdq = jax.jit(jax.jacfwd(self.jacobian))
 

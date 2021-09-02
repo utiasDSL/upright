@@ -1,7 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-import util
+import mm_pybullet_sim.util as util
+
+DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/ICRA22")
 
 
 class Recorder:
@@ -22,8 +25,8 @@ class Recorder:
             return np.zeros((num_records, x))
 
         self.ts = period * dt * np.arange(num_records)
-        self.us = zeros(params["model"].ni)
-        self.xs = zeros(params["model"].ns)
+        self.us = zeros(model.ni)
+        self.xs = zeros(model.ns)
         self.r_ew_ws = zeros(3)
         self.r_ew_wds = zeros(3)
         self.Q_wes = zeros(4)
@@ -51,9 +54,13 @@ class Recorder:
         self.dynamic_obs_distance = zeros(n_dynamic_obs)
         self.collision_pair_distance = zeros(n_collision_pair)
 
-    def save(self, filename):
+    def save(self, filename, use_data_drive=True):
+        if use_data_drive:
+            path = DATA_DRIVE_PATH / filename
+        else:
+            path = filename
         np.savez_compressed(
-            filename,
+            path,
             ts=self.ts,
             us=self.us,
             r_ew_ws=self.r_ew_ws,

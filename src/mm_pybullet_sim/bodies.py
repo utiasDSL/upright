@@ -1,9 +1,7 @@
-# import copy
-
 import numpy as np
 import pybullet as pyb
 
-from util import skew3
+from mm_pybullet_sim.util import skew3
 
 
 def cylinder_inertia_matrix(mass, radius, height):

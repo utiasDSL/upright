@@ -1,18 +1,17 @@
 #!/usr/bin/env python
 """Baseline tray balancing formulation."""
 import datetime
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as pyb
 
-import util
-from robot import RobotModel
-import balancing
-from simulation import MobileManipulatorSimulation, ROBOT_HOME
-from recording import Recorder
-
-# from ros_interface import ROSInterface
+import mm_pybullet_sim.util as util
+from mm_pybullet_sim.robot import RobotModel
+import mm_pybullet_sim.balancing as balancing
+from mm_pybullet_sim.simulation import MobileManipulatorSimulation, ROBOT_HOME
+from mm_pybullet_sim.recording import Recorder
 
 from ocs2_mobile_manipulator_modified import (
     mpc_interface,
@@ -35,7 +34,7 @@ MPC_STEPS = 20  # number of timesteps to lookahead
 SQP_ITER = 3  # number of iterations for the SQP solved by the controller
 CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 10.0  # duration of trajectory (s)
+DURATION = 15.0  # duration of trajectory (s)
 
 
 class Obstacle:
@@ -91,6 +90,9 @@ def main():
         sim.dt, DURATION, RECORD_PERIOD, model=robot_model, n_balance_con=3
     )
 
+    for name, obj in objects.items():
+        print(f"{name} CoM = {obj.body.com}")
+
     # desired quaternion
     # R_ed = SO3.from_z_radians(np.pi)
     # # R_ed = SO3.identity()
@@ -122,7 +124,7 @@ def main():
     x = np.concatenate((q, v))
     u = np.zeros(robot_model.ni)
 
-    target_times = [0, 3, 6, 9]
+    target_times = [0, 2, 4, 6, 8, 10]
 
     # setup MPC and initial EE target pose
     mpc = mpc_interface("mpc")
@@ -141,6 +143,8 @@ def main():
     state_target.push_back(np.concatenate((r_ew_w_d + [1, 0, 0], Qd, r_obs0)))
     state_target.push_back(np.concatenate((r_ew_w_d + [2, 0, 0], Qd, r_obs0)))
     state_target.push_back(np.concatenate((r_ew_w_d + [3, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w_d + [4, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w_d + [4, 0, 0], Qd, r_obs0)))
 
     target_trajectories = TargetTrajectories(t_target, state_target, input_target)
     mpc.reset(target_trajectories)
@@ -229,12 +233,11 @@ def main():
         # if i % 300 == 0:
         #     IPython.embed()
 
-    print("done: time expired")
+    print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
 
-    # print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
-
-    fname = "balance_data_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    recorder.save(fname)
+    if "--save" in sys.argv:
+        fname = "balance_data_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        recorder.save(fname)
 
     last_sim_index = i
     recorder.plot_ee_position(last_sim_index)
@@ -243,7 +246,7 @@ def main():
     recorder.plot_r_te_e_error(last_sim_index)
     recorder.plot_r_oe_e_error(last_sim_index)
     recorder.plot_r_ot_t_error(last_sim_index)
-    # recorder.plot_balancing_constraints(last_sim_index)
+    recorder.plot_balancing_constraints(last_sim_index)
     recorder.plot_commands(last_sim_index)
 
     plt.show()
