@@ -144,3 +144,7 @@ def calc_Q_et(Q_we, Q_wt):
     SO3_we = SO3.from_quaternion_xyzw(Q_we)
     SO3_wt = SO3.from_quaternion_xyzw(Q_wt)
     return SO3_we.inverse().multiply(SO3_wt).as_quaternion_xyzw()
+
+
+def quat_inverse(Q):
+    return np.append(-Q[:3], Q[3])

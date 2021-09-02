@@ -5,11 +5,6 @@ from tray_balance_msgs.msg import TrayBalanceControllerInfo
 from sensor_msgs.msg import JointState
 
 
-# class ControlInfo:
-#     def __init__(self):
-#         pass
-
-
 class ROSInterface:
     def __init__(self, name):
         rospy.init_node(name)

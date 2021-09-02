@@ -1,9 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import util
+
 
 class Recorder:
-    def __init__(self, dt, duration, period, **params):
+    def __init__(
+        self,
+        dt,
+        duration,
+        period,
+        model,
+        n_balance_con=0,
+        n_dynamic_obs=0,
+        n_collision_pair=0,
+    ):
         self.period = period
         num_records = int(duration / (dt * period))
 
@@ -12,6 +23,7 @@ class Recorder:
 
         self.ts = period * dt * np.arange(num_records)
         self.us = zeros(params["model"].ni)
+        self.xs = zeros(params["model"].ns)
         self.r_ew_ws = zeros(3)
         self.r_ew_wds = zeros(3)
         self.Q_wes = zeros(4)
@@ -20,8 +32,8 @@ class Recorder:
         self.ω_ew_ws = zeros(3)
         self.r_tw_ws = zeros(3)
 
-        if "problem" in params:
-            self.ineq_cons = zeros(params["problem"].n_balance_con)
+        # inequality constraints for balancing
+        self.ineq_cons = zeros(n_balance_con)
 
         self.r_te_es = zeros(3)
         self.Q_ets = zeros(4)
@@ -31,6 +43,37 @@ class Recorder:
 
         self.r_ot_ts = zeros(3)
         self.Q_tos = zeros(4)
+
+        # TODO this may need more thinking if I add more collision pairs with
+        # the dynamic obstacle
+        # NOTE be careful in that these are not necessarily raw distance
+        # values, depending on how the constraint is formulated
+        self.dynamic_obs_distance = zeros(n_dynamic_obs)
+        self.collision_pair_distance = zeros(n_collision_pair)
+
+    def save(self, filename):
+        np.savez_compressed(
+            filename,
+            ts=self.ts,
+            us=self.us,
+            r_ew_ws=self.r_ew_ws,
+            r_ew_wds=self.r_ew_wds,
+            Q_wes=self.Q_wes,
+            Q_des=self.Q_des,
+            v_ew_ws=self.v_ew_ws,
+            ω_ew_ws=self.ω_ew_ws,
+            r_tw_ws=self.r_tw_ws,
+            ineq_cons=self.ineq_cons,
+            r_te_es=self.r_te_es,
+            Q_ets=self.Q_ets,
+            r_oe_es=self.r_oe_es,
+            Q_eos=self.Q_eos,
+            r_ot_ts=self.r_ot_ts,
+            Q_tos=self.Q_tos,
+            dynamic_obs_distance=self.dynamic_obs_distance,
+            collision_pair_distance=self.collision_pair_distance,
+        )
+        print(f"Saved data to {filename}.")
 
     def now_is_the_time(self, sim_index):
         return sim_index % self.period == 0
@@ -104,9 +147,19 @@ class Recorder:
         plt.plot(ts, r_te_e_err[:, 1], label="$y$")
         plt.plot(ts, r_te_e_err[:, 2], label="$z$")
         plt.plot(ts, np.linalg.norm(r_te_e_err, axis=1), label="$||r||$")
-        plt.plot(ts, self.Q_ets[s, 0], label="$Q_x$")
-        plt.plot(ts, self.Q_ets[s, 1], label="$Q_y$")
-        plt.plot(ts, self.Q_ets[s, 2], label="$Q_z$")
+
+        # the rotation between EE and tray should be constant throughout the
+        # tracjectory, so there error is the deviation from the starting
+        # orientation
+        Q_et0 = self.Q_ets[0, :]
+        Q_te0 = util.quat_inverse(Q_et0)
+        Q_et_err = np.zeros_like(self.Q_ets[s, :])
+        for i in range(Q_et_err.shape[0]):
+            Q_et_err[i, :] = util.quat_multiply(Q_te0, self.Q_ets[i, :])
+
+        plt.plot(ts, Q_et_err[:, 0], label="$Q_x$")
+        plt.plot(ts, Q_et_err[:, 1], label="$Q_y$")
+        plt.plot(ts, Q_et_err[:, 2], label="$Q_z$")
         plt.grid()
         plt.legend()
         plt.xlabel("Time (s)")

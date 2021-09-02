@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Baseline tray balancing formulation."""
-import rospy
+import datetime
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -87,23 +87,9 @@ def main():
     r_ow_w, Q_wo = obj.bullet.get_pose()
 
     # data recorder and plotter
-    recorder = Recorder(sim.dt, DURATION, RECORD_PERIOD, model=robot_model)
-
-    recorder.r_te_es[0, :] = tray.body.com
-    recorder.r_oe_es[0, :] = obj.body.com
-    recorder.r_ot_ts[0, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
-    recorder.Q_wes[0, :] = Q_we
-    recorder.Q_ets[0, :] = util.calc_Q_et(Q_we, Q_wt)
-    recorder.Q_eos[0, :] = util.calc_Q_et(Q_we, Q_wo)
-    recorder.Q_tos[0, :] = util.calc_Q_et(Q_wt, Q_wo)
-    recorder.r_ew_ws[0, :] = r_ew_w
-    recorder.v_ew_ws[0, :] = v_ew_w
-    recorder.ω_ew_ws[0, :] = ω_ew_w
-
-    # reference trajectory
-    # setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
-    # setpoints = np.array([[2, 0, 0]]) + r_ew_w
-    # setpoint_idx = 0
+    recorder = Recorder(
+        sim.dt, DURATION, RECORD_PERIOD, model=robot_model, n_balance_con=3
+    )
 
     # desired quaternion
     # R_ed = SO3.from_z_radians(np.pi)
@@ -159,16 +145,20 @@ def main():
     target_trajectories = TargetTrajectories(t_target, state_target, input_target)
     mpc.reset(target_trajectories)
 
+    target_idx = 0
+
     assert len(state_target) == len(target_times)
+    assert len(t_target) == len(target_times)
+    assert len(input_target) == len(target_times)
 
-    for i in range(N - 1):
-        # t = i * sim.dt
-
+    # TODO sort out the final indices here, with recording
+    for i in range(N-1):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
         mpc.setObservation(t, x, u)
 
         # TODO this should be set to reflect the MPC time step
+        # we can increase it if the MPC rate is faster
         if i % CTRL_PERIOD == 0:
             # t0 = time.time()
             robot.cmd_vel = v  # NOTE
@@ -184,89 +174,79 @@ def main():
         mpc.getMpcSolution(t_result, x_result, u_result)
 
         u = u_result[0]
-        # x_ref = x + sim.dt * mpc.flowMap(t, x, u)
-        # v_cmd = K.dot(x_ref[:9] - x[:9]) + x_ref[9:]
-        # robot.command_velocity(v_cmd)
-
         robot.command_acceleration(u)
+
+        if recorder.now_is_the_time(i):
+            idx = recorder.record_index(i)
+
+            # r_ew_w, Q_we = robot_model.tool_pose(q)
+            # v_ew_w, ω_ew_w = robot_model.tool_velocity(q, v)
+
+            # this is *much* faster than computing via the model
+            r_ew_w, Q_we = robot.link_pose()
+            v_ew_w, ω_ew_w = robot.tool_velocity()
+            recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
+                "trayBalance", t, x, u
+            )
+            # recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
+            #     "obstacleAvoidance", t, x
+            # )
+            # recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
+            #     "selfCollision", t, x
+            # )
+
+            r_tw_w, Q_wt = tray.bullet.get_pose()
+            r_ow_w, Q_wo = obj.bullet.get_pose()
+
+            r_ew_w_d = state_target[target_idx][:3]
+
+            # orientation error
+            # Q_de = util.quat_multiply(Qd_inv, Q_we)
+
+            # record
+            recorder.us[idx, :] = u
+            recorder.xs[idx, :] = x
+            recorder.r_ew_wds[idx, :] = r_ew_w_d
+            recorder.r_ew_ws[idx, :] = r_ew_w
+            recorder.Q_wes[idx, :] = Q_we
+            # recorder.Q_des[idx, :] = Q_de
+            recorder.v_ew_ws[idx, :] = v_ew_w
+            recorder.ω_ew_ws[idx, :] = ω_ew_w
+            recorder.r_tw_ws[idx, :] = r_tw_w
+
+            recorder.r_te_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+            recorder.r_oe_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+            recorder.r_ot_ts[idx, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
+            recorder.Q_ets[idx, :] = util.calc_Q_et(Q_we, Q_wt)
+            recorder.Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
+            recorder.Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
+
         sim.step(step_robot=True)
-
-        # dx = mpc.flowMap(t, x, u)
-        # x += sim.dt * dx
-
         t += sim.dt
+        if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
+            target_idx += 1
 
         # if i % 300 == 0:
         #     IPython.embed()
 
-        # t_result_prev = t_result
-        # x_result_prev = x_result
-        # u_result_prev = u_result
-
-        continue
-
-        # if recorder.now_is_the_time(i):
-        #     idx = recorder.record_index(i)
-        #     r_ew_w, Q_we = robot_model.tool_pose(q)
-        #     v_ew_w, ω_ew_w = robot_model.tool_velocity(q, v)
-
-        # P_we, V_ew_w = robot.link_pose()
-        # recorder.ineq_cons[idx, :] = np.array(
-        #     problem.ineq_constraints(P_we, V_ew_w, u)
-        # )
-
-        # r_tw_w, Q_wt = tray.bullet.get_pose()
-        # r_ow_w, Q_wo = obj.bullet.get_pose()
-        # r_ew_w_d = setpoints[setpoint_idx, :]
-
-        # orientation error
-        # Q_de = util.quat_multiply(Qd_inv, Q_we)
-
-        # record
-        # recorder.us[idx, :] = u
-        # recorder.r_ew_wds[idx, :] = r_ew_w_d
-        # recorder.r_ew_ws[idx, :] = r_ew_w
-        # recorder.Q_wes[idx, :] = Q_we
-        # recorder.Q_des[idx, :] = Q_de
-        # recorder.v_ew_ws[idx, :] = v_ew_w
-        # recorder.ω_ew_ws[idx, :] = ω_ew_w
-        # recorder.r_tw_ws[idx, :] = r_tw_w
-        # recorder.r_te_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
-        # recorder.r_oe_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
-        # recorder.r_ot_ts[idx, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
-        # recorder.Q_ets[idx, :] = util.calc_Q_et(Q_we, Q_wt)
-        # recorder.Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
-        # recorder.Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
-
-        # if (
-        #     np.linalg.norm(r_ew_w_d - r_ew_w) < 0.01
-        #     and np.linalg.norm(Q_de[:3]) < 0.01
-        # ):
-        #     print("Close to desired pose - stopping.")
-        #     setpoint_idx += 1
-        #     if setpoint_idx >= setpoints.shape[0]:
-        #         break
-        #
-        #     # update r_ew_w_d to avoid falling back into this block right away
-        #     r_ew_w_d = setpoints[setpoint_idx, :]
-        # i += 1
     print("done: time expired")
-
-    # controller.benchmark.print_stats()
 
     # print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
 
-    # last_sim_index = i
-    # recorder.plot_ee_position(last_sim_index)
+    fname = "balance_data_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    recorder.save(fname)
+
+    last_sim_index = i
+    recorder.plot_ee_position(last_sim_index)
     # recorder.plot_ee_orientation(last_sim_index)
-    # recorder.plot_ee_velocity(last_sim_index)
-    # recorder.plot_r_te_e_error(last_sim_index)
-    # recorder.plot_r_oe_e_error(last_sim_index)
-    # recorder.plot_r_ot_t_error(last_sim_index)
-    # # recorder.plot_balancing_constraints(last_sim_index)
-    # recorder.plot_commands(last_sim_index)
-    #
-    # plt.show()
+    recorder.plot_ee_velocity(last_sim_index)
+    recorder.plot_r_te_e_error(last_sim_index)
+    recorder.plot_r_oe_e_error(last_sim_index)
+    recorder.plot_r_ot_t_error(last_sim_index)
+    # recorder.plot_balancing_constraints(last_sim_index)
+    recorder.plot_commands(last_sim_index)
+
+    plt.show()
 
 
 if __name__ == "__main__":

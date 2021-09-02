@@ -190,6 +190,12 @@ class SimulatedRobot:
         pos, orn = state[0], state[1]
         return np.array(pos), np.array(orn)
 
+    def tool_velocity(self):
+        q, v = self.joint_states()
+        J = self.jacobian(q)
+        V = J @ v
+        return V[:3], V[3:]
+
     def jacobian(self, q=None):
         """Get the end effector Jacobian at the current configuration."""
         # Don't allow querying of arbitrary configurations, because the pose in
