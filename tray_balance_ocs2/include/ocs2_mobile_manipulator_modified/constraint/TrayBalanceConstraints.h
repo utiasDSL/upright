@@ -23,7 +23,10 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
     using ad_quaternion_t =
         PinocchioEndEffectorKinematicsCppAd::ad_quaternion_t;
     using ad_rotmat_t = PinocchioEndEffectorKinematicsCppAd::ad_rotmat_t;
-    // using ad_quaternion_t = Eigen::Quaternion<ad_scalar_t>;
+
+    using ad_vec2_t = Eigen::Matrix<ad_scalar_t, 2, 1>;
+    using ad_vec3_t = Eigen::Matrix<ad_scalar_t, 3, 1>;
+    using ad_mat3_t = Eigen::Matrix<ad_scalar_t, 3, 3>;
 
     TrayBalanceConstraints(
         const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics)
@@ -65,28 +68,58 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        // TrayBalanceParameters<ad_scalar_t> params;
-        // BalancedBody(RigidBody<Scalar>& body, Scalar com_height,
-        //              SupportAreaBase<Scalar> support_area, Scalar r_tau,
-        //              Scalar mu)
-        ad_scalar_t tray_mass = ad_scalar_t(0.5);
-        ad_scalar_t tray_com_height = ad_scalar_t(0.01);
+        // generic object params
+        ad_scalar_t obj_mass(1.0);
+        ad_scalar_t obj_mu(0.5);
+        ad_scalar_t obj_com_height(0.2);
+        ad_scalar_t obj_zmp_margin(0.01);
+        ad_vec2_t obj_support_offset = ad_vec2_t::Zero();
+
+        // cylinder-specific params
+        ad_scalar_t cylinder_radius(0.1);
+        ad_scalar_t cylinder_height = obj_com_height * 2;
+        ad_scalar_t cylinder_r_tau = circle_r_tau(cylinder_radius);
+        ad_vec3_t cylinder_com(ad_scalar_t(0), ad_scalar_t(0),
+                               ad_scalar_t(0.2));  // TODO
+        ad_mat3_t cylinder_inertia =
+            cylinder_inertia_matrix(obj_mass, cylinder_radius, cylinder_height);
+        RigidBody<ad_scalar_t> cylinder_body(obj_mass, cylinder_inertia,
+                                             cylinder_com);
+        CircleSupportArea<ad_scalar_t> cylinder_support_area(
+            cylinder_r_tau, obj_support_offset, obj_zmp_margin);
+
+        // cuboid-specific params
+        ad_vec3_t cuboid_side_lengths(ad_scalar_t(0.2), ad_scalar_t(0.2),
+                                      obj_com_height * 2);
+        ad_mat3_t cuboid_inertia =
+            cuboid_inertia_matrix(obj_mass, cuboid_side_lengths);
+        ad_vec3_t cuboid_com(ad_scalar_t(0), ad_scalar_t(0),
+                             ad_scalar_t(0.2));  // TODO
+        RigidBody<ad_scalar_t> cuboid_body(obj_mass, cuboid_inertia,
+                                           cuboid_com);
+        ad_scalar_t cuboid_r_tau =
+            circle_r_tau(cuboid_side_lengths(0) * 0.5);  // TODO
+        std::vector<ad_vec2_t> vertices =
+            cuboid_support_vertices(cuboid_side_lengths);
+        PolygonSupportArea<ad_scalar_t> cuboid_support_area(
+            vertices, obj_support_offset, obj_zmp_margin);
+
+        ad_scalar_t tray_mass(0.5);
+        ad_scalar_t tray_com_height(0.01);
         ad_scalar_t tray_height = tray_com_height * 2;
-        ad_scalar_t tray_radius = ad_scalar_t(0.25);
-        ad_scalar_t tray_mu = ad_scalar_t(0.5);
-        ad_scalar_t ee_side_length = ad_scalar_t(0.3);
-        ad_vector_t tray_com(3);  // wrt the EE frame
+        ad_scalar_t tray_radius(0.25);
+        ad_scalar_t tray_mu(0.5);
+        ad_scalar_t ee_side_length(0.3);
+        ad_vec3_t tray_com(3);  // wrt the EE frame
         tray_com << ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.067);  // TODO
 
-        Eigen::Matrix<ad_scalar_t, 3, 3> tray_inertia =
-            cylinder_inertia_matrix<ad_scalar_t>(tray_mass, tray_radius,
-                                                 tray_height);
+        ad_mat3_t tray_inertia = cylinder_inertia_matrix<ad_scalar_t>(
+            tray_mass, tray_radius, tray_height);
         RigidBody<ad_scalar_t> tray_body(tray_mass, tray_inertia, tray_com);
 
         ad_scalar_t tray_r_tau =
             equilateral_triangle_inscribed_radius<ad_scalar_t>(ee_side_length);
-        Eigen::Matrix<ad_scalar_t, 2, 1> tray_support_offset =
-            Eigen::Matrix<ad_scalar_t, 2, 1>::Zero();
+        ad_vec2_t tray_support_offset = ad_vec2_t::Zero();
         CircleSupportArea<ad_scalar_t> tray_support_area(
             tray_r_tau, tray_support_offset, ad_scalar_t(0));
 

@@ -211,6 +211,7 @@ void MobileManipulatorInterface::loadSettings(
                                    usePreComputation, libraryFolder,
                                    recompileLibraries));
 
+    // This is for the dynamic obstacles specified via the reference trajectory
     problem_.stateSoftConstraintPtr->add(
         "obstacleAvoidance",
         getObstacleConstraint(*pinocchioInterfacePtr_, taskFile,
