@@ -10,6 +10,7 @@ from mm_pybullet_sim.util import dhtf, rot2d, pose_from_pos_quat, pose_to_pos_qu
 
 # TODO ideally we wouldn't be using both jaxlie and liegroups
 
+ROBOT_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/mm.urdf"
 
 UR10_JOINT_NAMES = [
     "ur10_arm_shoulder_pan_joint",
@@ -41,11 +42,7 @@ class SimulatedRobot:
         # but messes up the origins of the merged links, so this is not
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
-        self.uid = pyb.loadURDF(
-            "../assets/urdf/mm.urdf",
-            position,
-            orientation,
-        )
+        self.uid = pyb.loadURDF(ROBOT_URDF_PATH, position, orientation)
 
         self.dt = dt
 

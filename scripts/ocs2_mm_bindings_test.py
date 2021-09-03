@@ -32,7 +32,7 @@ ACC_LIM = 8
 MPC_DT = 0.1  # lookahead timestep of the controller
 MPC_STEPS = 20  # number of timesteps to lookahead
 SQP_ITER = 3  # number of iterations for the SQP solved by the controller
-CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
+CTRL_PERIOD = 30  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 15.0  # duration of trajectory (s)
 
@@ -92,6 +92,7 @@ def main():
 
     for name, obj in objects.items():
         print(f"{name} CoM = {obj.body.com}")
+    # return
 
     # desired quaternion
     # R_ed = SO3.from_z_radians(np.pi)
@@ -124,7 +125,8 @@ def main():
     x = np.concatenate((q, v))
     u = np.zeros(robot_model.ni)
 
-    target_times = [0, 2, 4, 6, 8, 10]
+    # target_times = [0, 2, 4, 6, 8, 10]
+    target_times = [0]
 
     # setup MPC and initial EE target pose
     mpc = mpc_interface("mpc")
@@ -137,14 +139,14 @@ def main():
         input_target.push_back(u)
 
     state_target = vector_array()
-    r_ew_w_d = np.array(r_ew_w) + [0, 0, 0]
+    r_ew_w_d = np.array(r_ew_w) + [2, 0, 0]
     Qd = np.array(Q_we)
     state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
-    state_target.push_back(np.concatenate((r_ew_w_d + [1, 0, 0], Qd, r_obs0)))
-    state_target.push_back(np.concatenate((r_ew_w_d + [2, 0, 0], Qd, r_obs0)))
-    state_target.push_back(np.concatenate((r_ew_w_d + [3, 0, 0], Qd, r_obs0)))
-    state_target.push_back(np.concatenate((r_ew_w_d + [4, 0, 0], Qd, r_obs0)))
-    state_target.push_back(np.concatenate((r_ew_w_d + [4, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w_d + [1, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w_d + [2, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w_d + [3, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w_d + [4, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w_d + [4, 0, 0], Qd, r_obs0)))
 
     target_trajectories = TargetTrajectories(t_target, state_target, input_target)
     mpc.reset(target_trajectories)

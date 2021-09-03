@@ -9,6 +9,9 @@ import mm_pybullet_sim.geometry as geometry
 import mm_pybullet_sim.bodies as bodies
 
 
+OBSTACLES_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/obstacles.urdf"
+
+
 EE_SIDE_LENGTH = 0.3
 EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 
@@ -100,8 +103,9 @@ class Simulation:
         pyb.loadURDF("plane.urdf", [0, 0, 0])
 
         # setup obstacles
-        obstacles_uid = pyb.loadURDF("/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/obstacles.urdf")
-        pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
+        # obstacles_uid = pyb.loadURDF(OBSTACLES_URDF_PATH)
+        # pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
+
         # pyb.setCollisionFilterGroupMask(obstacles_uid, -1, 0, 0)
 
     def object_setup(self, r_ew_w, obj_names):
@@ -155,7 +159,7 @@ class Simulation:
             )
             r_ow_w = r_ew_w + [
                 0.05,
-                0,
+                5,
                 2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05,
             ]
             objects["cuboid1"].bullet.reset_pose(position=r_ow_w)

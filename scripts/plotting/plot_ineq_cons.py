@@ -4,29 +4,25 @@ import matplotlib.pyplot as plt
 from mm_pybullet_sim.recording import DATA_DRIVE_PATH
 
 DATA_PATH = DATA_DRIVE_PATH / "balance_data_2021-09-02_21-29-09.npz"
-FIG_PATH = "ee_pose.pdf"
+FIG_PATH = "ineq_cons.pdf"
 
 
 def main():
     with np.load(DATA_PATH) as data:
         ts = data["ts"]
-        r_ew_ws = data["r_ew_ws"]
-        r_ew_wds = data["r_ew_wds"]
+        ineq_cons = data["ineq_cons"]
 
     fig = plt.figure(figsize=(3.25, 1.8))
     plt.rcParams.update({"font.size": 8, "text.usetex": True, "legend.fontsize": 8})
 
     # ax = plt.gca()
     plt.grid()
-    line_xd, = plt.plot(ts, r_ew_wds[:, 0], label="$x_d$", linestyle="--")
-    line_yd, = plt.plot(ts, r_ew_wds[:, 1], label="$y_d$", linestyle="--")
-    line_zd, = plt.plot(ts, r_ew_wds[:, 2], label="$z_d$", linestyle="--")
-    plt.plot(ts, r_ew_ws[:, 0], label="$x$", color=line_xd.get_color())
-    plt.plot(ts, r_ew_ws[:, 1], label="$y$", color=line_yd.get_color())
-    plt.plot(ts, r_ew_ws[:, 2], label="$z$", color=line_zd.get_color())
+    plt.plot(ts, ineq_cons[:, 0], label=r"$\mathrm{Normal}$")
+    plt.plot(ts, ineq_cons[:, 1], label=r"$\mathrm{Friction}$")
+    plt.plot(ts, ineq_cons[:, 2], label=r"$\mathrm{Tipping}$")
     plt.legend()
     plt.xlabel(r"$\mathrm{Time\ (s)}$")
-    plt.ylabel(r"$\mathrm{Position\ (m)}$")
+    plt.ylabel(r"$\mathrm{Balancing\ constraint\ value}$")
 
     # ax.set_xticks([0, 40, 80, 120, 160])
 

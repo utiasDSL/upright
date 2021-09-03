@@ -79,6 +79,12 @@ def pitch_from_quat(Q):
 #     s = np.sin(angle / 2)
 #     return np.append(axis * s, c)
 
+def quat_error(q):
+    xyz = q[:3]
+    w = q[3]
+    # this is just the angle part of an axis-angle
+    return 2 * np.arctan2(np.linalg.norm(xyz), w)
+
 
 def quat_multiply(q0, q1):
     """Hamilton product of two quaternions."""
