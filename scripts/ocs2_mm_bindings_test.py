@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Baseline tray balancing formulation."""
+import time
 import datetime
 import sys
 
@@ -80,18 +81,26 @@ def main():
     robot_model = RobotModel(MPC_DT, ROBOT_HOME)
 
     q, v = robot.joint_states()
-    r_ew_w, Q_we = robot_model.tool_pose(q)
-    v_ew_w, ω_ew_w = robot_model.tool_velocity(q, v)
+    # r_ew_w, Q_we = robot_model.tool_pose(q)
+    # v_ew_w, ω_ew_w = robot_model.tool_velocity(q, v)
+    r_ew_w, Q_we = robot.link_pose()
+    v_ew_w, ω_ew_w = robot.tool_velocity()
     r_tw_w, Q_wt = tray.bullet.get_pose()
     r_ow_w, Q_wo = obj.bullet.get_pose()
 
     # data recorder and plotter
     recorder = Recorder(
-        sim.dt, DURATION, RECORD_PERIOD, model=robot_model, n_balance_con=3
+        sim.dt,
+        DURATION,
+        RECORD_PERIOD,
+        control_period=CTRL_PERIOD,
+        model=robot_model,
+        n_balance_con=11,
     )
 
     for name, obj in objects.items():
         print(f"{name} CoM = {obj.body.com}")
+    # IPython.embed()
     # return
 
     # desired quaternion
@@ -131,8 +140,8 @@ def main():
     # setup MPC and initial EE target pose
     mpc = mpc_interface("mpc")
     t_target = scalar_array()
-    for time in target_times:
-        t_target.push_back(time)
+    for target_time in target_times:
+        t_target.push_back(target_time)
 
     input_target = vector_array()
     for _ in target_times:
@@ -158,7 +167,7 @@ def main():
     assert len(input_target) == len(target_times)
 
     # TODO sort out the final indices here, with recording
-    for i in range(N-1):
+    for i in range(N - 1):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
         mpc.setObservation(t, x, u)
@@ -166,10 +175,11 @@ def main():
         # TODO this should be set to reflect the MPC time step
         # we can increase it if the MPC rate is faster
         if i % CTRL_PERIOD == 0:
-            # t0 = time.time()
             robot.cmd_vel = v  # NOTE
+            t0 = time.time()
             mpc.advanceMpc()
-            # t1 = time.time()
+            t1 = time.time()
+            recorder.control_durations[i // CTRL_PERIOD] = t1 - t0
             # print(f"dt = {t1 - t0}")
 
         # evaluate the current MPC policy (returns an entire trajectory of
@@ -227,7 +237,10 @@ def main():
             recorder.Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
             recorder.Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
 
+        # print(f"cmd_vel before step = {robot.cmd_vel}")
         sim.step(step_robot=True)
+        _, v_test = robot.joint_states()
+        # print(f"v_base after step = {v_test[:3]}")
         t += sim.dt
         if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
             target_idx += 1
@@ -250,6 +263,7 @@ def main():
     recorder.plot_r_ot_t_error(last_sim_index)
     recorder.plot_balancing_constraints(last_sim_index)
     recorder.plot_commands(last_sim_index)
+    recorder.plot_control_durations()
 
     plt.show()
 

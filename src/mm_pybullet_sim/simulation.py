@@ -12,7 +12,7 @@ import mm_pybullet_sim.bodies as bodies
 OBSTACLES_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/obstacles.urdf"
 
 
-EE_SIDE_LENGTH = 0.3
+EE_SIDE_LENGTH = 0.2
 EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 
 GRAVITY_MAG = 9.81
@@ -159,13 +159,13 @@ class Simulation:
             )
             r_ow_w = r_ew_w + [
                 0.05,
-                5,
+                0,
                 2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05,
             ]
             objects["cuboid1"].bullet.reset_pose(position=r_ow_w)
             objects["tray"].children.append("cuboid1")
 
-            return objects
+        return objects
 
     def composite_setup(self, objects):
         tray = objects["tray"]

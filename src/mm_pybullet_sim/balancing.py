@@ -15,6 +15,8 @@ def object_balance_constraints(obj, C_we, ω_ew_w, a_ew_w, α_ew_w):
     ddC_we = (util.skew3(α_ew_w) + Sω_ew_w @ Sω_ew_w) @ C_we
 
     α = obj.body.mass * C_ew @ (a_ew_w + ddC_we @ obj.body.com - GRAVITY_VECTOR)
+
+    # TODO this assumes C_we = C_wt
     Iw = C_we @ obj.body.inertia @ C_we.T
     β = C_ew @ Sω_ew_w @ Iw @ ω_ew_w + obj.body.inertia @ C_ew @ α_ew_w
 

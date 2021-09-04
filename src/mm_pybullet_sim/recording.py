@@ -4,6 +4,8 @@ from pathlib import Path
 
 import mm_pybullet_sim.util as util
 
+import IPython
+
 DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/ICRA22")
 
 
@@ -14,12 +16,14 @@ class Recorder:
         duration,
         period,
         model,
+        control_period=1,
         n_balance_con=0,
         n_dynamic_obs=0,
         n_collision_pair=0,
     ):
         self.period = period
-        num_records = int(duration / (dt * period))
+        self.dt = dt
+        num_records = int(duration / (dt * period)) + 1
 
         def zeros(x):
             return np.zeros((num_records, x))
@@ -54,6 +58,11 @@ class Recorder:
         self.dynamic_obs_distance = zeros(n_dynamic_obs)
         self.collision_pair_distance = zeros(n_collision_pair)
 
+        # controller runs at a different frequency than the other recording
+        self.control_period = control_period
+        num_control_records = int(duration / (dt * control_period)) + 1
+        self.control_durations = np.zeros(num_control_records)
+
     def save(self, filename, use_data_drive=True):
         if use_data_drive:
             path = DATA_DRIVE_PATH / filename
@@ -79,6 +88,7 @@ class Recorder:
             Q_tos=self.Q_tos,
             dynamic_obs_distance=self.dynamic_obs_distance,
             collision_pair_distance=self.collision_pair_distance,
+            control_durations=self.control_durations,
         )
         print(f"Saved data to {filename}.")
 
@@ -230,3 +240,17 @@ class Recorder:
         plt.xlabel("Time (s)")
         plt.ylabel("Commanded joint acceleration")
         plt.title("Acceleration commands")
+
+    def plot_control_durations(self):
+        ts = np.arange(self.control_durations.shape[0]) * self.control_period * self.dt
+
+        print(f"max control time = {np.max(self.control_durations)}")
+        print(f"avg control time = {np.mean(self.control_durations)}")
+        print(f"avg without first = {np.mean(self.control_durations[1:])}")
+
+        plt.figure()
+        plt.plot(ts, self.control_durations)
+        plt.grid()
+        plt.xlabel("Time (s)")
+        plt.ylabel("Controller time (s)")
+        plt.title("Controller duration")
