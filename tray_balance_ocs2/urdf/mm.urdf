@@ -23,26 +23,6 @@
     <color rgba="0.15 0.15 0.15 1.0"/>
   </material>
 
-  <!-- <link name="obstacle1_link"> -->
-  <!--   <visual> -->
-  <!--     <origin rpy="0 0 0" xyz="0 0 0.5"/> -->
-  <!--     <geometry> -->
-  <!--       <cylinder length="1" radius="0.25"/> -->
-  <!--     </geometry> -->
-  <!--   </visual> -->
-  <!--   <collision> -->
-  <!--     <origin rpy="0 0 0" xyz="0 0 0.5"/> -->
-  <!--     <geometry> -->
-  <!--       <cylinder length="1" radius="0.25"/> -->
-  <!--     </geometry> -->
-  <!--   </collision> -->
-  <!-- </link> -->
-  <!-- <joint name="obstacle1_link_joint" type="fixed"> -->
-  <!--   <origin rpy="0 0 0" xyz="2 2 0"/> -->
-  <!--   <parent link="base_link"/> -->
-  <!--   <child link="obstacle1_link"/> -->
-  <!-- </joint> -->
-
   <link name="front_rocker_link">
     <visual>
       <origin rpy="1.57079632679 0 1.57079632679" xyz="0 0 0"/>
@@ -197,14 +177,14 @@
   </joint>
   <link name="chassis_link">
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.15"/>
-      <geometry>
-        <box size="1.0 0.8 0.3"/>
-      </geometry>
-      <!-- <origin xyz="0 0 0"/> -->
+      <!-- <origin rpy="0 0 0" xyz="0 0 0.15"/> -->
       <!-- <geometry> -->
-      <!--   <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/body.stl"/> -->
+      <!--   <box size="1.0 0.8 0.3"/> -->
       <!-- </geometry> -->
+      <!-- <origin xyz="0 0 0"/> -->
+      <geometry>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/body.stl"/>
+      </geometry>
       <material name="black"/>
     </visual>
     <collision>

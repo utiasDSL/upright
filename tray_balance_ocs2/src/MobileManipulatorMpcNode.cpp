@@ -34,6 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h"
 
+#include <tray_balance_constraints/inequality_constraints.h>
+
 using namespace ocs2;
 using namespace mobile_manipulator;
 
@@ -59,6 +61,40 @@ int main(int argc, char** argv) {
   std::shared_ptr<ocs2::RosReferenceManager> rosReferenceManagerPtr(
       new ocs2::RosReferenceManager(robotName, interface.getReferenceManagerPtr()));
   rosReferenceManagerPtr->subscribe(nodeHandle);
+
+    // scalar_t obj_mass(1.0);
+    // scalar_t obj_mu(0.5);
+    // scalar_t obj_com_height(0.2);
+    // scalar_t obj_zmp_margin(0.01);
+    // Eigen::Vector2d obj_support_offset = Eigen::Vector2d::Zero();
+    //
+    // // cuboid-specific params
+    // Eigen::Vector3d cuboid_side_lengths(0.2, 0.2, obj_com_height * 2);
+    // Eigen::Matrix3d cuboid_inertia =
+    //     cuboid_inertia_matrix(obj_mass, cuboid_side_lengths);
+    // // NOTE: this assumes that the cuboid is -0.05 offset
+    // Eigen::Vector3d cuboid_com(-0.05, 0, 0.25);
+    // RigidBody<scalar_t> cuboid_body(obj_mass, cuboid_inertia, cuboid_com);
+    // scalar_t cuboid_r_tau = circle_r_tau(cuboid_side_lengths(0) * 0.5);  // TODO
+    //
+    // std::vector<Eigen::Vector2d> vertices =
+    //     cuboid_support_vertices(cuboid_side_lengths);
+    // PolygonSupportArea<scalar_t> cuboid_support_area(
+    //     vertices, obj_support_offset, obj_zmp_margin);
+    // // CircleSupportArea<ad_scalar_t> cuboid_support_area(
+    // //     ad_scalar_t(0.1), obj_support_offset, obj_zmp_margin);
+    //
+    // BalancedObject<scalar_t> cuboid(
+    //     cuboid_body, obj_com_height, cuboid_support_area, cuboid_r_tau, obj_mu);
+    //
+    // // vector_t constraints = balancing_constraints<scalar_t>(
+    // //     C_we, angular_vel, linear_acc, angular_acc, {cuboid});
+    // Eigen::Vector2d zmp;
+    // zmp << 0.01, 0;
+    // vector_t zmp_cons = cuboid.support_area_ptr->zmp_constraints(zmp);
+    //
+    // std::cout << "cuboid ZMP constraints = " << zmp_cons << std::endl;
+    // throw std::runtime_error("stop!");
 
   // Launch MPC ROS node
   auto mpcPtr = interface.getMpc();

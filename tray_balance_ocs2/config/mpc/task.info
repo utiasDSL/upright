@@ -180,9 +180,9 @@ endEffectorCost
     (0,0)  1.0
     (1,1)  1.0
     (2,2)  1.0
-    (3,3)  1.0
-    (4,4)  1.0
-    (5,5)  1.0
+    (3,3)  0.1
+    (4,4)  0.1
+    (5,5)  0.1
   }
 
 }
@@ -200,14 +200,16 @@ selfCollision
   ; Self Collision pairs
   collisionLinkPairs
   {
+    ;[0] "chassis_link_0, obstacle1_link_0"
+    ;[1] "chassis_link_0, obstacle2_link_0"
+    ;[2] "chassis_link_0, obstacle3_link_0"
     ;[0] "chassis_link_0, ur10_arm_upper_arm_link_0"
-    [0] "chassis_link_0, obstacle1_link_0"
     ;[1] arm_base, ELBOW
     ;[2] "arm_base, WRIST_1"
   }
 
   ; minimum distance allowed between the pairs
-  minimumDistance  0.1
+  minimumDistance  0
 
   ; relaxed log barrier mu
   mu  1e-2
@@ -224,9 +226,9 @@ jointLimits
     lowerBound
     {
       ; positions
-      (0,0) -5.0  ; x
-      (1,0) -5.0  ; y
-      (2,0) -3.14159  ; angle
+      (0,0) -10.0  ; x
+      (1,0) -10.0  ; y
+      (2,0) -10.0  ; angle
       (3,0) -3.14159  ; SH_ROT
       (4,0) -3.14159  ; SH_FLE
       (5,0) -3.14159  ; EL_FLE
@@ -235,23 +237,23 @@ jointLimits
       (8,0) -3.14159  ; WR_ROT
 
       ; velocities
-      (9,0)  -0.5  ; x velocity
-      (10,0) -0.5  ; y velocity
-      (11,0) -0.5  ; angle velocity
-      (12,0) -1.0  ; SH_ROT
-      (13,0) -1.0  ; SH_FLE
-      (14,0) -1.0  ; EL_FLE
-      (15,0) -1.0  ; EL_ROT
-      (16,0) -1.0  ; WR_FLE
-      (17,0) -1.0  ; WR_ROT
+      (9,0)  -1.0  ; x velocity
+      (10,0) -1.0  ; y velocity
+      (11,0) -1.0  ; angle velocity
+      (12,0) -2.0  ; SH_ROT
+      (13,0) -2.0  ; SH_FLE
+      (14,0) -2.0  ; EL_FLE
+      (15,0) -2.0  ; EL_ROT
+      (16,0) -2.0  ; WR_FLE
+      (17,0) -2.0  ; WR_ROT
     }
 
     upperBound
     {
       ; positions
-      (0,0) 5.0  ; x
-      (1,0) 5.0  ; y
-      (2,0) 3.14159  ; angle
+      (0,0) 10.0  ; x
+      (1,0) 10.0  ; y
+      (2,0) 10.0  ; angle
       (3,0) 3.14159  ; SH_ROT
       (4,0) 3.14159  ; SH_FLE
       (5,0) 3.14159  ; EL_FLE
@@ -260,15 +262,15 @@ jointLimits
       (8,0) 3.14159  ; WR_ROT
 
       ; velocities
-      (9,0)  0.5  ; x velocity
-      (10,0) 0.5  ; y velocity
-      (11,0) 0.5  ; angle velocity
-      (12,0) 1.0  ; SH_ROT
-      (13,0) 1.0  ; SH_FLE
-      (14,0) 1.0  ; EL_FLE
-      (15,0) 1.0  ; EL_ROT
-      (16,0) 1.0  ; WR_FLE
-      (17,0) 1.0  ; WR_ROT
+      (9,0)  1.0  ; x velocity
+      (10,0) 1.0  ; y velocity
+      (11,0) 1.0  ; angle velocity
+      (12,0) 2.0  ; SH_ROT
+      (13,0) 2.0  ; SH_FLE
+      (14,0) 2.0  ; EL_FLE
+      (15,0) 2.0  ; EL_ROT
+      (16,0) 2.0  ; WR_FLE
+      (17,0) 2.0  ; WR_ROT
     }
 
     mu  0.01
@@ -279,70 +281,34 @@ jointLimits
   {
     lowerBound
     {
-      (0,0) -1.0  ; x velocity
-      (1,0) -1.0  ; y velocity
-      (2,0) -1.0  ; angle velocity
-      (3,0) -2.0  ; SH_ROT
-      (4,0) -2.0  ; SH_FLE
-      (5,0) -2.0  ; EL_FLE
-      (6,0) -2.0  ; EL_ROT
-      (7,0) -2.0  ; WR_FLE
-      (8,0) -2.0  ; WR_ROT
+      (0,0) -2.0  ; x velocity
+      (1,0) -2.0  ; y velocity
+      (2,0) -2.0  ; angle velocity
+      (3,0) -4.0  ; SH_ROT
+      (4,0) -4.0  ; SH_FLE
+      (5,0) -4.0  ; EL_FLE
+      (6,0) -4.0  ; EL_ROT
+      (7,0) -4.0  ; WR_FLE
+      (8,0) -4.0  ; WR_ROT
     }
 
     upperBound
     {
-      (0,0) 1.0  ; x velocity
-      (1,0) 1.0  ; y velocity
-      (2,0) 1.0  ; angle velocity
-      (3,0) 2.0  ; SH_ROT
-      (4,0) 2.0  ; SH_FLE
-      (5,0) 2.0  ; EL_FLE
-      (6,0) 2.0  ; EL_ROT
-      (7,0) 2.0  ; WR_FLE
-      (8,0) 2.0  ; WR_ROT
+      (0,0) 2.0  ; x velocity
+      (1,0) 2.0  ; y velocity
+      (2,0) 2.0  ; angle velocity
+      (3,0) 4.0  ; SH_ROT
+      (4,0) 4.0  ; SH_FLE
+      (5,0) 4.0  ; EL_FLE
+      (6,0) 4.0  ; EL_ROT
+      (7,0) 4.0  ; WR_FLE
+      (8,0) 4.0  ; WR_ROT
     }
 
     mu  0.01
     delta  1e-3
   }
 }
-
-; TODO: these can likely be more generous
-; jointAccelerationLimits
-; {
-;   lowerBound
-;   {
-;     (0,0) -1.0  ; x velocity
-;     (1,0) -1.0  ; y velocity
-;     (2,0) -1.0  ; angle velocity
-;     (3,0) -2.0  ; SH_ROT
-;     (4,0) -2.0  ; SH_FLE
-;     (5,0) -2.0  ; EL_FLE
-;     (6,0) -2.0  ; EL_ROT
-;     (7,0) -2.0  ; WR_FLE
-;     (8,0) -2.0  ; WR_ROT
-;   }
-; 
-;   upperBound
-;   {
-;     (0,0) 1.0  ; x velocity
-;     (1,0) 1.0  ; y velocity
-;     (2,0) 1.0  ; angle velocity
-;     (3,0) 2.0  ; SH_ROT
-;     (4,0) 2.0  ; SH_FLE
-;     (5,0) 2.0  ; EL_FLE
-;     (6,0) 2.0  ; EL_ROT
-;     (7,0) 2.0  ; WR_FLE
-;     (8,0) 2.0  ; WR_ROT
-;   }
-; 
-;   ; relaxed log barrier mu
-;   mu  0.01
-; 
-;   ; relaxed log barrier delta
-;   delta  1e-3
-; }
 
 trayBalanceConstraints
 {

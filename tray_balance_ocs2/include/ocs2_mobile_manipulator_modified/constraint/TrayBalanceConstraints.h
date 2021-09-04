@@ -51,7 +51,9 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
 
     size_t getNumConstraints(scalar_t time) const override {
         // TODO this depends on the configuration at hand
-        return 3;
+        size_t n_tray_con = 2 + 1;
+        size_t n_cuboid_con = 2 + 4;
+        return n_tray_con + n_cuboid_con;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
@@ -80,29 +82,37 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_scalar_t cylinder_height = obj_com_height * 2;
         ad_scalar_t cylinder_r_tau = circle_r_tau(cylinder_radius);
         ad_vec3_t cylinder_com(ad_scalar_t(0), ad_scalar_t(0),
-                               ad_scalar_t(0.2));  // TODO
+                               ad_scalar_t(0.25));  // TODO
         ad_mat3_t cylinder_inertia =
             cylinder_inertia_matrix(obj_mass, cylinder_radius, cylinder_height);
         RigidBody<ad_scalar_t> cylinder_body(obj_mass, cylinder_inertia,
                                              cylinder_com);
         CircleSupportArea<ad_scalar_t> cylinder_support_area(
-            cylinder_r_tau, obj_support_offset, obj_zmp_margin);
+            cylinder_radius, obj_support_offset, obj_zmp_margin);
 
         // cuboid-specific params
         ad_vec3_t cuboid_side_lengths(ad_scalar_t(0.2), ad_scalar_t(0.2),
                                       obj_com_height * 2);
         ad_mat3_t cuboid_inertia =
             cuboid_inertia_matrix(obj_mass, cuboid_side_lengths);
-        ad_vec3_t cuboid_com(ad_scalar_t(0), ad_scalar_t(0),
-                             ad_scalar_t(0.2));  // TODO
+        // NOTE: this assumes that the cuboid is -0.05 offset
+        ad_vec3_t cuboid_com(ad_scalar_t(-0.05), ad_scalar_t(0),
+                             ad_scalar_t(0.25));
         RigidBody<ad_scalar_t> cuboid_body(obj_mass, cuboid_inertia,
                                            cuboid_com);
         ad_scalar_t cuboid_r_tau =
             circle_r_tau(cuboid_side_lengths(0) * 0.5);  // TODO
+
         std::vector<ad_vec2_t> vertices =
             cuboid_support_vertices(cuboid_side_lengths);
         PolygonSupportArea<ad_scalar_t> cuboid_support_area(
             vertices, obj_support_offset, obj_zmp_margin);
+        // CircleSupportArea<ad_scalar_t> cuboid_support_area(
+        //     ad_scalar_t(0.1), obj_support_offset, obj_zmp_margin);
+
+        BalancedObject<ad_scalar_t> cuboid(cuboid_body, obj_com_height,
+                                           cuboid_support_area, cuboid_r_tau,
+                                           obj_mu);
 
         ad_scalar_t tray_mass(0.5);
         ad_scalar_t tray_com_height(0.01);
@@ -111,7 +121,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_scalar_t tray_mu(0.5);
         ad_scalar_t ee_side_length(0.3);
         ad_vec3_t tray_com(3);  // wrt the EE frame
-        tray_com << ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.067);  // TODO
+        tray_com << ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.04);
 
         ad_mat3_t tray_inertia = cylinder_inertia_matrix<ad_scalar_t>(
             tray_mass, tray_radius, tray_height);
@@ -126,9 +136,11 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         BalancedObject<ad_scalar_t> tray(
             tray_body, tray_com_height, tray_support_area, tray_r_tau, tray_mu);
 
-        // TODO single object for now
-        ad_vector_t constraints = inequality_constraints<ad_scalar_t>(
-            C_we, angular_vel, linear_acc, angular_acc, tray);
+        auto composite = BalancedObject<ad_scalar_t>::compose({tray,
+        cuboid});
+
+        ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
+            C_we, angular_vel, linear_acc, angular_acc, {composite, cuboid});
         return constraints;
     }
 

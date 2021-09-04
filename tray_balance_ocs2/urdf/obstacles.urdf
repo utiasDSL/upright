@@ -1,20 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <robot name="Obstacles">
+  <link name="obstacle_base_link"></link>
+
   <link name="obstacle1_link">
     <visual>
-      <origin rpy="0 0 0" xyz="1.25 0 0.25"/>
+      <origin rpy="0 0 0" xyz="1.5 0.5 0.25"/>
       <geometry>
-        <cylinder length="0.5" radius="0.25"/>
+        <cylinder length="0.5" radius="0.5"/>
       </geometry>
       <material name="Red">
         <color rgba="1.0 0.0 0.0 1.0"/>
       </material>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="1.25 0 0.25"/>
+      <origin rpy="0 0 0" xyz="1.5 0.5 0.25"/>
       <geometry>
-        <cylinder length="0.5" radius="0.25"/>
+        <cylinder length="0.5" radius="0.5"/>
       </geometry>
     </collision>
   </link>
+  <joint name="obstacle1_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="obstacle1_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="obstacle2_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="2.5 -1.5 0.25"/>
+      <geometry>
+        <cylinder length="0.5" radius="0.5"/>
+      </geometry>
+      <material name="Red">
+        <color rgba="1.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="2.5 -1.5 0.25"/>
+      <geometry>
+        <cylinder length="0.5" radius="0.5"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="obstacle2_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="obstacle2_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="obstacle3_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="3.5 0.5 0.25"/>
+      <geometry>
+        <cylinder length="0.5" radius="0.5"/>
+      </geometry>
+      <material name="Red">
+        <color rgba="1.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="3.5 0.5 0.25"/>
+      <geometry>
+        <cylinder length="0.5" radius="0.5"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="obstacle3_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="obstacle3_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
 </robot>
