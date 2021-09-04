@@ -612,7 +612,7 @@
   </link>
 
   <joint name="tool0_tcp_fixed_joint" type="fixed">
-    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.290"/>
+    <origin rpy="0.0 0.0 3.14159" xyz="0.0 0.0 0.290"/>
     <parent link="ur10_arm_tool0"/>
     <child link="thing_tool"/>
   </joint>
@@ -621,11 +621,16 @@
 <!-- h = 0.08660254037844387 -->
 <!-- r = 0.17320508075688773 -->
 
+<!-- s = 0.2 -->
+<!-- h = 0.0577 -->
+<!-- r = 0.1155 -->
+
   <!-- Custom tool for tray balancing -->
-  <!-- Frame: z forward, x up, y right -->
+  <!-- When oriented forward, the frame has: z forward, x down, y left -->
+  <!-- When oriented up (i.e. for balancing): z up, x forward, y left -->
   <link name="thing_tool">
     <visual>
-      <origin rpy="0 0 0" xyz="0.1732 0 0"/>
+      <origin rpy="0 0 0" xyz="0.1155 0 0"/>
       <geometry>
         <sphere radius="0.03"/>
       </geometry>
@@ -633,7 +638,7 @@
     </visual>
 
     <visual>
-      <origin rpy="0 0 0" xyz="-0.0866 0.15 0"/>
+      <origin rpy="0 0 0" xyz="-0.0577 0.1 0"/>
       <geometry>
         <sphere radius="0.03"/>
       </geometry>
@@ -641,7 +646,7 @@
     </visual>
 
     <visual>
-      <origin rpy="0 0 0" xyz="-0.0866 -0.15 0"/>
+      <origin rpy="0 0 0" xyz="-0.0577 -0.1 0"/>
       <geometry>
         <sphere radius="0.03"/>
       </geometry>
@@ -649,21 +654,21 @@
     </visual>
 
     <collision>
-      <origin rpy="0 0 0" xyz="0.1732 0 0"/>
+      <origin rpy="0 0 0" xyz="0.1155 0 0"/>
       <geometry>
         <sphere radius="0.03"/>
       </geometry>
     </collision>
 
     <collision>
-      <origin rpy="0 0 0" xyz="-0.0866 0.15 0"/>
+      <origin rpy="0 0 0" xyz="-0.0577 0.1 0"/>
       <geometry>
         <sphere radius="0.03"/>
       </geometry>
     </collision>
 
     <collision>
-      <origin rpy="0 0 0" xyz="-0.0866 -0.15 0"/>
+      <origin rpy="0 0 0" xyz="-0.0577 -0.1 0"/>
       <geometry>
         <sphere radius="0.03"/>
       </geometry>

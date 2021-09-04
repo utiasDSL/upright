@@ -51,7 +51,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
 
     size_t getNumConstraints(scalar_t time) const override {
         // TODO this depends on the configuration at hand
-        size_t n_tray_con = 2 + 1;
+        size_t n_tray_con = 2 + 3;
         size_t n_cuboid_con = 2 + 4;
         return n_tray_con + n_cuboid_con;
     }
@@ -74,7 +74,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_scalar_t obj_mass(1.0);
         ad_scalar_t obj_mu(0.5);
         ad_scalar_t obj_com_height(0.2);
-        ad_scalar_t obj_zmp_margin(0.01);
+        ad_scalar_t obj_zmp_margin(0.0);
         ad_vec2_t obj_support_offset = ad_vec2_t::Zero();
 
         // cylinder-specific params
@@ -119,7 +119,8 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_scalar_t tray_height = tray_com_height * 2;
         ad_scalar_t tray_radius(0.25);
         ad_scalar_t tray_mu(0.5);
-        ad_scalar_t ee_side_length(0.3);
+        ad_scalar_t ee_side_length(0.2);
+        ad_scalar_t tray_zmp_margin(0.01);
         ad_vec3_t tray_com(3);  // wrt the EE frame
         tray_com << ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.04);
 
@@ -130,14 +131,18 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_scalar_t tray_r_tau =
             equilateral_triangle_inscribed_radius<ad_scalar_t>(ee_side_length);
         ad_vec2_t tray_support_offset = ad_vec2_t::Zero();
-        CircleSupportArea<ad_scalar_t> tray_support_area(
-            tray_r_tau, tray_support_offset, ad_scalar_t(0));
+
+        // CircleSupportArea<ad_scalar_t> tray_support_area(
+        //     tray_r_tau, tray_support_offset, ad_scalar_t(0));
+        std::vector<ad_vec2_t> tray_support_vertices =
+            equilateral_triangle_support_vertices(ee_side_length);
+        PolygonSupportArea<ad_scalar_t> tray_support_area(
+            tray_support_vertices, tray_support_offset, tray_zmp_margin);
 
         BalancedObject<ad_scalar_t> tray(
             tray_body, tray_com_height, tray_support_area, tray_r_tau, tray_mu);
 
-        auto composite = BalancedObject<ad_scalar_t>::compose({tray,
-        cuboid});
+        auto composite = BalancedObject<ad_scalar_t>::compose({tray, cuboid});
 
         ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
             C_we, angular_vel, linear_acc, angular_acc, {composite, cuboid});
