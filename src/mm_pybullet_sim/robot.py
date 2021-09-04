@@ -6,11 +6,13 @@ import pybullet as pyb
 from liegroups import SO3
 import jaxlie
 
+import IPython
+
 from mm_pybullet_sim.util import dhtf, rot2d, pose_from_pos_quat, pose_to_pos_quat, skew3
 
 # TODO ideally we wouldn't be using both jaxlie and liegroups
 
-ROBOT_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/mm.urdf"
+ROBOT_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/mm_pyb.urdf"
 
 UR10_JOINT_NAMES = [
     "ur10_arm_shoulder_pan_joint",
@@ -55,6 +57,7 @@ class SimulatedRobot:
             info = pyb.getJointInfo(self.uid, i)
             name = info[1].decode("utf-8")
             self.joints[name] = info
+            print(name)
 
         # get the indices for the UR10 joints
         self.ur10_joint_indices = []
@@ -67,6 +70,12 @@ class SimulatedRobot:
 
         # TODO may need to also set spinningFriction
         pyb.changeDynamics(self.uid, self.tool_idx, lateralFriction=1.0)
+
+        # pyb.changeDynamics(self.uid, -1, linearDamping=0, angularDamping=0)
+
+        # pyb.changeDynamics(self.uid, -1, mass=0)
+        # for i in range(-1, pyb.getNumJoints(self.uid)):
+        #     pyb.changeDynamics(self.uid, i, mass=0)
 
     def reset_base_pose(self, qb):
         base_pos = [qb[0], qb[1], 0]
@@ -129,8 +138,8 @@ class SimulatedRobot:
     def command_acceleration(self, cmd_acc):
         """Command acceleration of the robot's joints."""
         # TODO for some reason feeding back v doesn't work
-        # _, v = self.joint_states()
-        # self.cmd_vel = v
+        _, v = self.joint_states()
+        self.cmd_vel = v
         C_wb = self._base_rotation_matrix()
         base_acc = C_wb.dot(cmd_acc[:3])
         self.cmd_acc = np.concatenate((base_acc, cmd_acc[3:]))
@@ -200,27 +209,31 @@ class SimulatedRobot:
 
         if q is None:
             q, _ = self.joint_states()
-        z = [0.0] * 6
-        qa = list(q[3:])
+        # z = [0.0] * 9
+        # qa = list(q[3:])
+        z = list(np.zeros_like(q))
+        q = list(q)
 
         # Only actuated joints are used for computing the Jacobian (i.e. just
         # the arm)
         tool_offset = [0, 0, 0]
-        Jv, Jw = pyb.calculateJacobian(self.uid, self.tool_idx, tool_offset, qa, z, z)
+        Jv, Jw = pyb.calculateJacobian(self.uid, self.tool_idx, tool_offset, q, z, z)
+
+        # import IPython; IPython.embed()
 
         # combine, reorder, and remove columns for base z, roll, and pitch (the
         # full 6-DOF of the base is included in pybullet's Jacobian, but we
         # don't want all of it)
         J = np.vstack((Jv, Jw))
-        J = np.hstack((J[:, 3:5], J[:, 2, np.newaxis], J[:, 6:]))
+        # J = np.hstack((J[:, 3:5], J[:, 2, np.newaxis], J[:, 6:]))
 
         # pybullet calculates the Jacobian w.r.t. the base link, so we need to
         # rotate everything but the first two columns into the world frame
         # (note first two columns are constant)
-        yaw = q[2]
-        C_wb = SO3.rotz(yaw)
-        R = np.kron(np.eye(2), C_wb.as_matrix())
-        J = np.hstack((J[:, :2], R @ J[:, 2:]))
+        # yaw = q[2]
+        # C_wb = SO3.rotz(yaw)
+        # R = np.kron(np.eye(2), C_wb.as_matrix())
+        # J = np.hstack((J[:, :2], R @ J[:, 2:]))
 
         return J
 
