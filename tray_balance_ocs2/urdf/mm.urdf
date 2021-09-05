@@ -170,8 +170,9 @@
     <axis xyz="0 1 0"/>
   </joint>
   <link name="base_link"/>
+    <!-- 0.01 z-offset is to match the pyb URDF, which requires a small offset to avoid ground collisions. -->
   <joint name="base_link_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 0 0" xyz="0 0 0.01"/>
     <parent link="base_link"/>
     <child link="chassis_link"/>
   </joint>

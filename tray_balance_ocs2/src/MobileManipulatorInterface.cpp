@@ -94,20 +94,6 @@ PinocchioInterface MobileManipulatorInterface::buildPinocchioInterface(
     rootJoint.addJoint(pinocchio::JointModelPY());
     rootJoint.addJoint(pinocchio::JointModelRZ());
 
-    // TODO try loading another URDF with the obstacles, and adding it to the
-    // existing model with given root joint
-    // PinocchioInterface pinocchio_interface =
-    // getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);
-    // PinocchioInterface::Model pinocchio_model =
-    // pinocchio_interface.getModel();
-    //
-    // pinocchio::JointModelComposite even_rootier_joint;
-
-    // TODO this doesn't make sense, because the root joint has these DOFs
-    // added
-
-    // return pinocchio_interface;
-
     return getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);
 }
 
