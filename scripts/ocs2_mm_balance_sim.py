@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import pybullet as pyb
 
 import mm_pybullet_sim.util as util
-from mm_pybullet_sim.robot import RobotModel
 import mm_pybullet_sim.balancing as balancing
 from mm_pybullet_sim.simulation import MobileManipulatorSimulation, ROBOT_HOME
 from mm_pybullet_sim.recording import Recorder
@@ -25,14 +24,8 @@ from ocs2_mobile_manipulator_modified import (
 import IPython
 
 
-# EE motion parameters
-VEL_LIM = 4
-ACC_LIM = 8
-
 # simulation parameters
-MPC_DT = 0.1  # lookahead timestep of the controller
-MPC_STEPS = 20  # number of timesteps to lookahead
-SQP_ITER = 3  # number of iterations for the SQP solved by the controller
+SIM_DT = 0.001
 CTRL_PERIOD = 30  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 15.0  # duration of trajectory (s)
@@ -69,17 +62,14 @@ class Obstacle:
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    sim = MobileManipulatorSimulation(dt=0.001)
+    sim = MobileManipulatorSimulation(dt=SIM_DT)
 
-    N = int(DURATION / sim.dt) + 1
+    N = int(DURATION / sim.dt)
 
     # simulation objects and model
     robot, objects, composites = sim.setup(obj_names=["tray", "cuboid1"])
     tray = objects["tray"]
     obj = objects["cuboid1"]
-
-    # TODO we can get rid of this altogether for the OCS2 sims
-    robot_model = RobotModel(MPC_DT, ROBOT_HOME)
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
@@ -87,22 +77,20 @@ def main():
     r_tw_w, Q_wt = tray.bullet.get_pose()
     r_ow_w, Q_wo = obj.bullet.get_pose()
 
-    IPython.embed()
-
     # data recorder and plotter
     recorder = Recorder(
         sim.dt,
         DURATION,
         RECORD_PERIOD,
+        ns=robot.ns,
+        ni=robot.ni,
         control_period=CTRL_PERIOD,
-        model=robot_model,
         n_balance_con=11,
     )
-    recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot_model.ni))
+    recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
     for name, obj in objects.items():
         print(f"{name} CoM = {obj.body.com}")
-    # IPython.embed()
     # return
 
     # desired quaternion
@@ -134,7 +122,7 @@ def main():
     # initial time, state, and input
     t = 0
     x = np.concatenate((q, v))
-    u = np.zeros(robot_model.ni)
+    u = np.zeros(robot.ni)
 
     # target_times = [0, 2, 4, 6, 8, 10]
     target_times = [0]
@@ -169,7 +157,7 @@ def main():
     assert len(input_target) == len(target_times)
 
     # TODO sort out the final indices here, with recording
-    for i in range(N - 1):
+    for i in range(N):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
         mpc.setObservation(t, x, u)

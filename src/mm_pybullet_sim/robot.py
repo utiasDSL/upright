@@ -56,6 +56,8 @@ class SimulatedRobot:
         self.uid = pyb.loadURDF(ROBOT_URDF_PATH, position, orientation)
 
         self.dt = dt
+        self.ns = 18  # num state
+        self.ni = 9   # num inputs
 
         self.cmd_vel = np.zeros(9)
         self.cmd_acc = np.zeros_like(self.cmd_vel)

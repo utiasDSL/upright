@@ -15,7 +15,8 @@ class Recorder:
         dt,
         duration,
         period,
-        model,
+        ns,
+        ni,
         control_period=1,
         n_balance_con=0,
         n_dynamic_obs=0,
@@ -29,8 +30,8 @@ class Recorder:
             return np.zeros((num_records, x))
 
         self.ts = period * dt * np.arange(num_records)
-        self.us = zeros(model.ni)
-        self.xs = zeros(model.ns)
+        self.us = zeros(ni)
+        self.xs = zeros(ns)
         self.r_ew_ws = zeros(3)
         self.r_ew_wds = zeros(3)
         self.Q_wes = zeros(4)
