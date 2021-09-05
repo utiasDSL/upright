@@ -95,8 +95,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
                                       obj_com_height * 2);
         ad_mat3_t cuboid_inertia =
             cuboid_inertia_matrix(obj_mass, cuboid_side_lengths);
-        // NOTE: this assumes that the cuboid is -0.05 offset
-        ad_vec3_t cuboid_com(ad_scalar_t(-0.05), ad_scalar_t(0),
+        ad_vec3_t cuboid_com(ad_scalar_t(0.05), ad_scalar_t(0),
                              ad_scalar_t(0.25));
         RigidBody<ad_scalar_t> cuboid_body(obj_mass, cuboid_inertia,
                                            cuboid_com);
@@ -120,9 +119,9 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_scalar_t tray_radius(0.25);
         ad_scalar_t tray_mu(0.5);
         ad_scalar_t ee_side_length(0.2);
-        ad_scalar_t tray_zmp_margin(0.01);
+        ad_scalar_t tray_zmp_margin(0.0);
         ad_vec3_t tray_com(3);  // wrt the EE frame
-        tray_com << ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.04);
+        tray_com << ad_scalar_t(0.0), ad_scalar_t(0), ad_scalar_t(0.04);
 
         ad_mat3_t tray_inertia = cylinder_inertia_matrix<ad_scalar_t>(
             tray_mass, tray_radius, tray_height);
