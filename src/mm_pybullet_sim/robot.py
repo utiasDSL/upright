@@ -8,7 +8,13 @@ import jaxlie
 
 import IPython
 
-from mm_pybullet_sim.util import dhtf, rot2d, pose_from_pos_quat, pose_to_pos_quat, skew3
+from mm_pybullet_sim.util import (
+    dhtf,
+    rot2d,
+    pose_from_pos_quat,
+    pose_to_pos_quat,
+    skew3,
+)
 
 # TODO ideally we wouldn't be using both jaxlie and liegroups
 
@@ -122,10 +128,9 @@ class SimulatedRobot:
         # base_pose, _ = self._base_state()
         # yaw = base_pose[2]
         # C_wb = SO3.rotz(yaw)
-        C_wb = np.array([
-            [np.cos(yaw), -np.sin(yaw), 0],
-            [np.sin(yaw), np.cos(yaw), 0],
-            [0, 0, 1]])
+        C_wb = np.array(
+            [[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]]
+        )
         return C_wb
 
     # def _command_base_velocity(self, ub, bodyframe=True):
@@ -227,10 +232,17 @@ class SimulatedRobot:
         return np.array(pos), np.array(orn)
 
     def tool_velocity(self):
-        q, v = self.joint_states()
-        J = self.jacobian(q)
-        V = J @ v
-        return V[:3], V[3:]
+        # q, v = self.joint_states()
+        # J = self.jacobian(q)
+        # V = J @ v
+        # return V[:3], V[3:]
+        state = pyb.getLinkState(
+            self.uid,
+            self.tool_idx,
+            computeForwardKinematics=True,
+            computeLinkVelocity=True,
+        )
+        return state[-2], state[-1]
 
     def jacobian(self, q=None):
         """Get the end effector Jacobian at the current configuration."""
@@ -335,23 +347,25 @@ class RobotModel:
 
         # Angular Jacobian
         # joints xb and yb are prismatic, and so cause no angular velocity.
-        Jo = jnp.vstack((
-            jnp.zeros(3), jnp.zeros(3), z_θb, z_θ1, z_θ2, z_θ3, z_θ4, z_θ5, z_θ6
-        )).T
+        Jo = jnp.vstack(
+            (jnp.zeros(3), jnp.zeros(3), z_θb, z_θ1, z_θ2, z_θ3, z_θ4, z_θ5, z_θ6)
+        ).T
 
         # Linear Jacobian
         pe = translation(chain.T_w_tool)
-        Jp = jnp.vstack((
-            z_xb,
-            z_yb,
-            jnp.cross(z_θb, pe - translation(chain.T_w_θb)),
-            jnp.cross(z_θ1, pe - translation(chain.T_w_θ1)),
-            jnp.cross(z_θ2, pe - translation(chain.T_w_θ2)),
-            jnp.cross(z_θ3, pe - translation(chain.T_w_θ3)),
-            jnp.cross(z_θ4, pe - translation(chain.T_w_θ4)),
-            jnp.cross(z_θ5, pe - translation(chain.T_w_θ5)),
-            jnp.cross(z_θ6, pe - translation(chain.T_w_θ6)),
-        )).T
+        Jp = jnp.vstack(
+            (
+                z_xb,
+                z_yb,
+                jnp.cross(z_θb, pe - translation(chain.T_w_θb)),
+                jnp.cross(z_θ1, pe - translation(chain.T_w_θ1)),
+                jnp.cross(z_θ2, pe - translation(chain.T_w_θ2)),
+                jnp.cross(z_θ3, pe - translation(chain.T_w_θ3)),
+                jnp.cross(z_θ4, pe - translation(chain.T_w_θ4)),
+                jnp.cross(z_θ5, pe - translation(chain.T_w_θ5)),
+                jnp.cross(z_θ6, pe - translation(chain.T_w_θ6)),
+            )
+        ).T
 
         # Full Jacobian
         return jnp.vstack((Jp, Jo))
