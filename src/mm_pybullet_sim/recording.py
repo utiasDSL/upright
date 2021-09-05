@@ -254,3 +254,18 @@ class Recorder:
         plt.xlabel("Time (s)")
         plt.ylabel("Controller time (s)")
         plt.title("Controller duration")
+
+    def plot_cmd_vs_real_vel(self, last_sim_index):
+        s, ts = self._slice_records(last_sim_index)
+
+        plt.figure()
+        for j in range(3):
+            plt.plot(ts, self.xs[s, 9+j], label=f"$v_{j+1}$")
+        for j in range(3):
+            plt.plot(ts, self.cmd_vels[s, j], label=f"$vcmd_{j+1}$")
+        plt.grid()
+        plt.legend()
+        plt.xlabel("Time (s)")
+        plt.ylabel("Velocity")
+        plt.title("Actual and commanded velocity")
+

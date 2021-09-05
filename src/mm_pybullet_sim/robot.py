@@ -77,8 +77,8 @@ class SimulatedRobot:
         # NOTE: this just makes the robot unable to move apparently
         # for i in range(pyb.getNumJoints(self.uid)):
         #     pyb.changeDynamics(self.uid, i, mass=0)
-        for i in range(pyb.getNumJoints(self.uid)):
-            pyb.changeDynamics(self.uid, i, linearDamping=0, angularDamping=0)
+        # for i in range(pyb.getNumJoints(self.uid)):
+        #     pyb.changeDynamics(self.uid, i, linearDamping=0, angularDamping=0)
 
         # TODO may need to also set spinningFriction
         pyb.changeDynamics(self.uid, self.tool_idx, lateralFriction=1.0)

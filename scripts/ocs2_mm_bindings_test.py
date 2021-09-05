@@ -97,6 +97,7 @@ def main():
         model=robot_model,
         n_balance_con=11,
     )
+    recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot_model.ni))
 
     for name, obj in objects.items():
         print(f"{name} CoM = {obj.body.com}")
@@ -237,6 +238,8 @@ def main():
             recorder.Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
             recorder.Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
 
+            recorder.cmd_vels[idx, :] = robot.cmd_vel
+
         # print(f"cmd_vel before step = {robot.cmd_vel}")
         sim.step(step_robot=True)
         # _, v_test = robot.joint_states()
@@ -264,6 +267,7 @@ def main():
     recorder.plot_balancing_constraints(last_sim_index)
     recorder.plot_commands(last_sim_index)
     recorder.plot_control_durations()
+    recorder.plot_cmd_vs_real_vel(last_sim_index)
 
     plt.show()
 
