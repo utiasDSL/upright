@@ -8,6 +8,8 @@ import mm_pybullet_sim.util as util
 import mm_pybullet_sim.geometry as geometry
 import mm_pybullet_sim.bodies as bodies
 
+import IPython
+
 
 OBSTACLES_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/obstacles.urdf"
 
@@ -205,6 +207,7 @@ class FloatingEESimulation(Simulation):
 
         # need to set the CoM after the sim has been settled, so objects are in
         # their proper positions
+        r_ew_w, Q_we = robot.get_pose()
         for obj in objects.values():
             r_ow_w, _ = obj.bullet.get_pose()
             obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
@@ -234,6 +237,7 @@ class MobileManipulatorSimulation(Simulation):
 
         # arm gets bumped by the above settling, so we reset it again
         robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
+        # robot.reset_joint_configuration(ROBOT_HOME)
 
         r_ew_w, _ = robot.link_pose()
         objects = super().object_setup(r_ew_w, obj_names)

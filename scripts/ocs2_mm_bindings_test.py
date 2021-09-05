@@ -239,8 +239,8 @@ def main():
 
         # print(f"cmd_vel before step = {robot.cmd_vel}")
         sim.step(step_robot=True)
-        _, v_test = robot.joint_states()
-        # print(f"v_base after step = {v_test[:3]}")
+        # _, v_test = robot.joint_states()
+        # print(f"v after step = {v_test}")
         t += sim.dt
         if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
             target_idx += 1

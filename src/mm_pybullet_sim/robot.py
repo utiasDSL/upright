@@ -14,6 +14,8 @@ from mm_pybullet_sim.util import dhtf, rot2d, pose_from_pos_quat, pose_to_pos_qu
 
 ROBOT_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/mm_pyb.urdf"
 
+BASE_JOINT_NAMES = ["x_to_world_joint", "y_to_x_joint", "base_to_y_joint"]
+
 UR10_JOINT_NAMES = [
     "ur10_arm_shoulder_pan_joint",
     "ur10_arm_shoulder_lift_joint",
@@ -22,6 +24,8 @@ UR10_JOINT_NAMES = [
     "ur10_arm_wrist_2_joint",
     "ur10_arm_wrist_3_joint",
 ]
+
+ROBOT_JOINT_NAMES = BASE_JOINT_NAMES + UR10_JOINT_NAMES
 
 TOOL_JOINT_NAME = "tool0_tcp_fixed_joint"
 
@@ -57,33 +61,35 @@ class SimulatedRobot:
             info = pyb.getJointInfo(self.uid, i)
             name = info[1].decode("utf-8")
             self.joints[name] = info
-            print(name)
 
         # get the indices for the UR10 joints
-        self.ur10_joint_indices = []
-        for name in UR10_JOINT_NAMES:
+        self.robot_joint_indices = []
+        for name in ROBOT_JOINT_NAMES:
             idx = self.joints[name][0]
-            self.ur10_joint_indices.append(idx)
+            self.robot_joint_indices.append(idx)
 
         # Link index (of the tool, in this case) is the same as the joint
         self.tool_idx = self.joints[TOOL_JOINT_NAME][0]
 
-        # TODO may need to also set spinningFriction
-        pyb.changeDynamics(self.uid, self.tool_idx, lateralFriction=1.0)
-
         # pyb.changeDynamics(self.uid, -1, linearDamping=0, angularDamping=0)
 
         # pyb.changeDynamics(self.uid, -1, mass=0)
-        # for i in range(-1, pyb.getNumJoints(self.uid)):
+        # NOTE: this just makes the robot unable to move apparently
+        # for i in range(pyb.getNumJoints(self.uid)):
         #     pyb.changeDynamics(self.uid, i, mass=0)
+        for i in range(pyb.getNumJoints(self.uid)):
+            pyb.changeDynamics(self.uid, i, linearDamping=0, angularDamping=0)
 
-    def reset_base_pose(self, qb):
-        base_pos = [qb[0], qb[1], 0]
-        base_orn = pyb.getQuaternionFromEuler([0, 0, qb[2]])
-        pyb.resetBasePositionAndOrientation(self.uid, base_pos, base_orn)
+        # TODO may need to also set spinningFriction
+        pyb.changeDynamics(self.uid, self.tool_idx, lateralFriction=1.0)
 
+    # def reset_base_pose(self, qb):
+    #     base_pos = [qb[0], qb[1], 0]
+    #     base_orn = pyb.getQuaternionFromEuler([0, 0, qb[2]])
+    #     pyb.resetBasePositionAndOrientation(self.uid, base_pos, base_orn)
+    #
     def reset_arm_joints(self, qa):
-        for idx, angle in zip(self.ur10_joint_indices, qa):
+        for idx, angle in zip(self.robot_joint_indices[3:], qa):
             pyb.resetJointState(self.uid, idx, angle)
 
     def reset_joint_configuration(self, q):
@@ -92,54 +98,72 @@ class SimulatedRobot:
         It is best not to do this during a simulation, as this overrides are
         dynamic effects.
         """
-        self.reset_base_pose(q[:3])
-        self.reset_arm_joints(q[3:])
+        # self.reset_base_pose(q[:3])
+        # self.reset_arm_joints(q[3:])
+        for idx, angle in zip(self.robot_joint_indices, q):
+            pyb.resetJointState(self.uid, idx, angle)
 
-    def _command_arm_velocity(self, ua):
-        """Command arm joint velocities."""
-        pyb.setJointMotorControlArray(
-            self.uid,
-            self.ur10_joint_indices,
-            controlMode=pyb.VELOCITY_CONTROL,
-            targetVelocities=ua,
-        )
+    # def _command_arm_velocity(self, ua):
+    #     """Command arm joint velocities."""
+    #     pyb.setJointMotorControlArray(
+    #         self.uid,
+    #         self.ur10_joint_indices,
+    #         controlMode=pyb.VELOCITY_CONTROL,
+    #         targetVelocities=ua,
+    #     )
 
     def _base_rotation_matrix(self):
         """Get rotation matrix for the base.
 
         This is just the rotation about the z-axis by the yaw angle.
         """
-        base_pose, _ = self._base_state()
-        yaw = base_pose[2]
-        C_wb = SO3.rotz(yaw)
+        state = pyb.getJointState(self.uid, self.robot_joint_indices[2])
+        yaw = state[0]
+        # base_pose, _ = self._base_state()
+        # yaw = base_pose[2]
+        # C_wb = SO3.rotz(yaw)
+        C_wb = np.array([
+            [np.cos(yaw), -np.sin(yaw), 0],
+            [np.sin(yaw), np.cos(yaw), 0],
+            [0, 0, 1]])
         return C_wb
 
-    def _command_base_velocity(self, ub, bodyframe=True):
-        """Command base velocity.
-
-        The input ub = [vx, vy, wz] is in body coordinates, unless
-        bodyframe=False. Then it is in world coordinates.
-        """
-        # map from body coordinates to world coordinates for pybullet
-        if bodyframe:
-            C_wb = self._base_rotation_matrix()
-            linear = C_wb.dot([ub[0], ub[1], 0])
-        else:
-            linear = [ub[0], ub[1], 0]
-
-        angular = [0, 0, ub[2]]
-        pyb.resetBaseVelocity(self.uid, linear, angular)
+    # def _command_base_velocity(self, ub, bodyframe=True):
+    #     """Command base velocity.
+    #
+    #     The input ub = [vx, vy, wz] is in body coordinates, unless
+    #     bodyframe=False. Then it is in world coordinates.
+    #     """
+    #     # map from body coordinates to world coordinates for pybullet
+    #     if bodyframe:
+    #         C_wb = self._base_rotation_matrix()
+    #         linear = C_wb.dot([ub[0], ub[1], 0])
+    #     else:
+    #         linear = [ub[0], ub[1], 0]
+    #
+    #     angular = [0, 0, ub[2]]
+    #     pyb.resetBaseVelocity(self.uid, linear, angular)
 
     def command_velocity(self, u, bodyframe=True):
         """Command the velocity of the robot's joints."""
-        self._command_base_velocity(u[:3], bodyframe=bodyframe)
-        self._command_arm_velocity(u[3:])
+        if bodyframe:
+            C_wb = self._base_rotation_matrix()
+            ub = u[:3]
+            u[:3] = C_wb @ ub
+        pyb.setJointMotorControlArray(
+            self.uid,
+            self.robot_joint_indices,
+            controlMode=pyb.VELOCITY_CONTROL,
+            targetVelocities=list(u),
+        )
+        # self._command_base_velocity(u[:3], bodyframe=bodyframe)
+        # self._command_arm_velocity(u[3:])
 
     def command_acceleration(self, cmd_acc):
         """Command acceleration of the robot's joints."""
         # TODO for some reason feeding back v doesn't work
-        _, v = self.joint_states()
-        self.cmd_vel = v
+        # _, v = self.joint_states()
+        # self.cmd_vel = v
         C_wb = self._base_rotation_matrix()
         base_acc = C_wb.dot(cmd_acc[:3])
         self.cmd_acc = np.concatenate((base_acc, cmd_acc[3:]))
@@ -147,33 +171,35 @@ class SimulatedRobot:
     def step(self):
         """One step of the physics engine."""
         self.cmd_vel += self.dt * self.cmd_acc
+        # acceleration is already in the body frame, so no need to rotate the
+        # velocity
         self.command_velocity(self.cmd_vel, bodyframe=False)
 
-    def _base_state(self):
-        """Get the state of the base.
-
-        Returns a tuple (q, v), where q is the 3-dim 2D pose of the base and
-        v is the 3-dim twist of joint velocities.
-        """
-        position, quaternion = pyb.getBasePositionAndOrientation(self.uid)
-        linear_vel, angular_vel = pyb.getBaseVelocity(self.uid)
-
-        yaw = pyb.getEulerFromQuaternion(quaternion)[2]
-        pose2d = [position[0], position[1], yaw]
-        twist2d = [linear_vel[0], linear_vel[1], angular_vel[2]]
-
-        return pose2d, twist2d
-
-    def _arm_state(self):
-        """Get the state of the arm.
-
-        Returns a tuple (q, v), where q is the 6-dim array of joint angles and
-        v is the 6-dim array of joint velocities.
-        """
-        states = pyb.getJointStates(self.uid, self.ur10_joint_indices)
-        ur10_positions = [state[0] for state in states]
-        ur10_velocities = [state[1] for state in states]
-        return ur10_positions, ur10_velocities
+    # def _base_state(self):
+    #     """Get the state of the base.
+    #
+    #     Returns a tuple (q, v), where q is the 3-dim 2D pose of the base and
+    #     v is the 3-dim twist of joint velocities.
+    #     """
+    #     position, quaternion = pyb.getBasePositionAndOrientation(self.uid)
+    #     linear_vel, angular_vel = pyb.getBaseVelocity(self.uid)
+    #
+    #     yaw = pyb.getEulerFromQuaternion(quaternion)[2]
+    #     pose2d = [position[0], position[1], yaw]
+    #     twist2d = [linear_vel[0], linear_vel[1], angular_vel[2]]
+    #
+    #     return pose2d, twist2d
+    #
+    # def _arm_state(self):
+    #     """Get the state of the arm.
+    #
+    #     Returns a tuple (q, v), where q is the 6-dim array of joint angles and
+    #     v is the 6-dim array of joint velocities.
+    #     """
+    #     states = pyb.getJointStates(self.uid, self.ur10_joint_indices)
+    #     ur10_positions = [state[0] for state in states]
+    #     ur10_velocities = [state[1] for state in states]
+    #     return ur10_positions, ur10_velocities
 
     def joint_states(self):
         """Get the current state of the joints.
@@ -181,9 +207,13 @@ class SimulatedRobot:
         Return a tuple (q, v), where q is the n-dim array of positions and v is
         the n-dim array of velocities.
         """
-        qb, vb = self._base_state()
-        qa, va = self._arm_state()
-        return np.concatenate((qb, qa)), np.concatenate((vb, va))
+        states = pyb.getJointStates(self.uid, self.robot_joint_indices)
+        q = np.array([state[0] for state in states])
+        v = np.array([state[1] for state in states])
+        return q, v
+        # qb, vb = self._base_state()
+        # qa, va = self._arm_state()
+        # return np.concatenate((qb, qa)), np.concatenate((vb, va))
 
     def link_pose(self, link_idx=None):
         """Get the pose of a particular link in the world frame.
