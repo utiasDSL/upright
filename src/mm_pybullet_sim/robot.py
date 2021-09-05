@@ -3,7 +3,6 @@ import jax
 import jax.numpy as jnp
 from jax.scipy.linalg import block_diag
 import pybullet as pyb
-from liegroups import SO3
 import jaxlie
 
 import IPython
@@ -89,11 +88,6 @@ class SimulatedRobot:
         # TODO may need to also set spinningFriction
         pyb.changeDynamics(self.uid, self.tool_idx, lateralFriction=1.0)
 
-    # def reset_base_pose(self, qb):
-    #     base_pos = [qb[0], qb[1], 0]
-    #     base_orn = pyb.getQuaternionFromEuler([0, 0, qb[2]])
-    #     pyb.resetBasePositionAndOrientation(self.uid, base_pos, base_orn)
-    #
     def reset_arm_joints(self, qa):
         for idx, angle in zip(self.robot_joint_indices[3:], qa):
             pyb.resetJointState(self.uid, idx, angle)
@@ -104,19 +98,8 @@ class SimulatedRobot:
         It is best not to do this during a simulation, as this overrides are
         dynamic effects.
         """
-        # self.reset_base_pose(q[:3])
-        # self.reset_arm_joints(q[3:])
         for idx, angle in zip(self.robot_joint_indices, q):
             pyb.resetJointState(self.uid, idx, angle)
-
-    # def _command_arm_velocity(self, ua):
-    #     """Command arm joint velocities."""
-    #     pyb.setJointMotorControlArray(
-    #         self.uid,
-    #         self.ur10_joint_indices,
-    #         controlMode=pyb.VELOCITY_CONTROL,
-    #         targetVelocities=ua,
-    #     )
 
     def _base_rotation_matrix(self):
         """Get rotation matrix for the base.
@@ -125,29 +108,10 @@ class SimulatedRobot:
         """
         state = pyb.getJointState(self.uid, self.robot_joint_indices[2])
         yaw = state[0]
-        # base_pose, _ = self._base_state()
-        # yaw = base_pose[2]
-        # C_wb = SO3.rotz(yaw)
         C_wb = np.array(
             [[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]]
         )
         return C_wb
-
-    # def _command_base_velocity(self, ub, bodyframe=True):
-    #     """Command base velocity.
-    #
-    #     The input ub = [vx, vy, wz] is in body coordinates, unless
-    #     bodyframe=False. Then it is in world coordinates.
-    #     """
-    #     # map from body coordinates to world coordinates for pybullet
-    #     if bodyframe:
-    #         C_wb = self._base_rotation_matrix()
-    #         linear = C_wb.dot([ub[0], ub[1], 0])
-    #     else:
-    #         linear = [ub[0], ub[1], 0]
-    #
-    #     angular = [0, 0, ub[2]]
-    #     pyb.resetBaseVelocity(self.uid, linear, angular)
 
     def command_velocity(self, u, bodyframe=True):
         """Command the velocity of the robot's joints."""
@@ -161,8 +125,6 @@ class SimulatedRobot:
             controlMode=pyb.VELOCITY_CONTROL,
             targetVelocities=list(u),
         )
-        # self._command_base_velocity(u[:3], bodyframe=bodyframe)
-        # self._command_arm_velocity(u[3:])
 
     def command_acceleration(self, cmd_acc):
         """Command acceleration of the robot's joints."""
@@ -180,32 +142,6 @@ class SimulatedRobot:
         # velocity
         self.command_velocity(self.cmd_vel, bodyframe=False)
 
-    # def _base_state(self):
-    #     """Get the state of the base.
-    #
-    #     Returns a tuple (q, v), where q is the 3-dim 2D pose of the base and
-    #     v is the 3-dim twist of joint velocities.
-    #     """
-    #     position, quaternion = pyb.getBasePositionAndOrientation(self.uid)
-    #     linear_vel, angular_vel = pyb.getBaseVelocity(self.uid)
-    #
-    #     yaw = pyb.getEulerFromQuaternion(quaternion)[2]
-    #     pose2d = [position[0], position[1], yaw]
-    #     twist2d = [linear_vel[0], linear_vel[1], angular_vel[2]]
-    #
-    #     return pose2d, twist2d
-    #
-    # def _arm_state(self):
-    #     """Get the state of the arm.
-    #
-    #     Returns a tuple (q, v), where q is the 6-dim array of joint angles and
-    #     v is the 6-dim array of joint velocities.
-    #     """
-    #     states = pyb.getJointStates(self.uid, self.ur10_joint_indices)
-    #     ur10_positions = [state[0] for state in states]
-    #     ur10_velocities = [state[1] for state in states]
-    #     return ur10_positions, ur10_velocities
-
     def joint_states(self):
         """Get the current state of the joints.
 
@@ -216,9 +152,6 @@ class SimulatedRobot:
         q = np.array([state[0] for state in states])
         v = np.array([state[1] for state in states])
         return q, v
-        # qb, vb = self._base_state()
-        # qa, va = self._arm_state()
-        # return np.concatenate((qb, qa)), np.concatenate((vb, va))
 
     def link_pose(self, link_idx=None):
         """Get the pose of a particular link in the world frame.
@@ -231,52 +164,27 @@ class SimulatedRobot:
         pos, orn = state[0], state[1]
         return np.array(pos), np.array(orn)
 
-    def tool_velocity(self):
-        # q, v = self.joint_states()
-        # J = self.jacobian(q)
-        # V = J @ v
-        # return V[:3], V[3:]
+    def link_velocity(self, link_idx=None):
+        if link_idx is None:
+            link_idx = self.tool_idx
         state = pyb.getLinkState(
             self.uid,
-            self.tool_idx,
-            computeForwardKinematics=True,
+            link_idx,
             computeLinkVelocity=True,
         )
-        return state[-2], state[-1]
+        return np.array(state[-2]), np.array(state[-1])
 
     def jacobian(self, q=None):
         """Get the end effector Jacobian at the current configuration."""
-        # Don't allow querying of arbitrary configurations, because the pose in
-        # the world (i.e. base pose) cannot be specified.
 
         if q is None:
             q, _ = self.joint_states()
-        # z = [0.0] * 9
-        # qa = list(q[3:])
         z = list(np.zeros_like(q))
         q = list(q)
 
-        # Only actuated joints are used for computing the Jacobian (i.e. just
-        # the arm)
         tool_offset = [0, 0, 0]
         Jv, Jw = pyb.calculateJacobian(self.uid, self.tool_idx, tool_offset, q, z, z)
-
-        # import IPython; IPython.embed()
-
-        # combine, reorder, and remove columns for base z, roll, and pitch (the
-        # full 6-DOF of the base is included in pybullet's Jacobian, but we
-        # don't want all of it)
         J = np.vstack((Jv, Jw))
-        # J = np.hstack((J[:, 3:5], J[:, 2, np.newaxis], J[:, 6:]))
-
-        # pybullet calculates the Jacobian w.r.t. the base link, so we need to
-        # rotate everything but the first two columns into the world frame
-        # (note first two columns are constant)
-        # yaw = q[2]
-        # C_wb = SO3.rotz(yaw)
-        # R = np.kron(np.eye(2), C_wb.as_matrix())
-        # J = np.hstack((J[:, :2], R @ J[:, 2:]))
-
         return J
 
 

@@ -239,6 +239,8 @@ class MobileManipulatorSimulation(Simulation):
         robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
         # robot.reset_joint_configuration(ROBOT_HOME)
 
+        # self.settle(1.0)
+
         r_ew_w, _ = robot.link_pose()
         objects = super().object_setup(r_ew_w, obj_names)
 

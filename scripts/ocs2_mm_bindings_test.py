@@ -78,15 +78,16 @@ def main():
     tray = objects["tray"]
     obj = objects["cuboid1"]
 
+    # TODO we can get rid of this altogether for the OCS2 sims
     robot_model = RobotModel(MPC_DT, ROBOT_HOME)
 
     q, v = robot.joint_states()
-    # r_ew_w, Q_we = robot_model.tool_pose(q)
-    # v_ew_w, ω_ew_w = robot_model.tool_velocity(q, v)
     r_ew_w, Q_we = robot.link_pose()
-    v_ew_w, ω_ew_w = robot.tool_velocity()
+    v_ew_w, ω_ew_w = robot.link_velocity()
     r_tw_w, Q_wt = tray.bullet.get_pose()
     r_ow_w, Q_wo = obj.bullet.get_pose()
+
+    IPython.embed()
 
     # data recorder and plotter
     recorder = Recorder(
@@ -176,7 +177,7 @@ def main():
         # TODO this should be set to reflect the MPC time step
         # we can increase it if the MPC rate is faster
         if i % CTRL_PERIOD == 0:
-            robot.cmd_vel = v  # NOTE
+            # robot.cmd_vel = v  # NOTE
             t0 = time.time()
             mpc.advanceMpc()
             t1 = time.time()
@@ -196,12 +197,8 @@ def main():
         if recorder.now_is_the_time(i):
             idx = recorder.record_index(i)
 
-            # r_ew_w, Q_we = robot_model.tool_pose(q)
-            # v_ew_w, ω_ew_w = robot_model.tool_velocity(q, v)
-
-            # this is *much* faster than computing via the model
             r_ew_w, Q_we = robot.link_pose()
-            v_ew_w, ω_ew_w = robot.tool_velocity()
+            v_ew_w, ω_ew_w = robot.link_velocity()
             recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
                 "trayBalance", t, x, u
             )
