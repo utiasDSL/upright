@@ -93,6 +93,7 @@ class ObstacleConstraint final : public StateConstraint {
 
         // here we are only worrying about obstacle and the objects, not any
         // other part of the robot
+        // TODO this could be numerically unstable
         vector_t constraints(getNumConstraints(time));
         constraints << vec.norm() - r;
         // std::cout << "obstacle constraint = " << constraints << std::endl;

@@ -198,11 +198,11 @@ void MobileManipulatorInterface::loadSettings(
                                    recompileLibraries));
 
     // This is for the dynamic obstacles specified via the reference trajectory
-    problem_.stateSoftConstraintPtr->add(
-        "obstacleAvoidance",
-        getObstacleConstraint(*pinocchioInterfacePtr_, taskFile,
-                              "obstacleAvoidance", usePreComputation,
-                              libraryFolder, recompileLibraries));
+    // problem_.stateSoftConstraintPtr->add(
+    //     "obstacleAvoidance",
+    //     getObstacleConstraint(*pinocchioInterfacePtr_, taskFile,
+    //                           "obstacleAvoidance", usePreComputation,
+    //                           libraryFolder, recompileLibraries));
 
     problem_.softConstraintPtr->add(
         "trayBalance",
@@ -539,9 +539,11 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
 
     // geometryInterface.addCollisionLinkPairs(pinocchioInterface,
     //                                         collisionLinkPairs);
-    // for (int i = 0; i < geometry_model.ngeoms; ++i) {
-    //     std::cout << geometry_model.geometryObjects[i].name << std::endl;
-    // }
+    pinocchio::GeometryModel& geometry_model =
+        geometryInterface.getGeometryModel();
+    for (int i = 0; i < geometry_model.ngeoms; ++i) {
+        std::cout << geometry_model.geometryObjects[i].name << std::endl;
+    }
     //
     // auto obs1_id = geometry_model.getGeometryId("obstacle1_link_0");
     // auto chassis_id = geometry_model.getGeometryId("chassis_link_0");

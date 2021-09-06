@@ -37,6 +37,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
 #include <ocs2_self_collision/visualization/GeometryInterfaceVisualization.h>
 
+#include <fstream>
+
 namespace ocs2 {
 namespace mobile_manipulator {
 
@@ -47,9 +49,12 @@ class MobileManipulatorDummyVisualization final : public DummyObserver {
         const MobileManipulatorInterface& interface)
         : pinocchioInterface_(interface.getPinocchioInterface()) {
         launchVisualizerNode(nodeHandle);
+        outfile.open("/home/adam/debug_log.txt");
     }
 
-    ~MobileManipulatorDummyVisualization() override = default;
+    ~MobileManipulatorDummyVisualization() override {
+        outfile.close();
+    }
 
     void update(const SystemObservation& observation,
                 const PrimalSolution& policy,
@@ -77,12 +82,15 @@ class MobileManipulatorDummyVisualization final : public DummyObserver {
     ros::Publisher constrolInfoPublisher_;
 
     std::unique_ptr<GeometryInterfaceVisualization> geometryVisualization_;
+
+    std::ofstream outfile;
 };
 
 // TODO(mspieler): move somewhere else
 Eigen::VectorXd getArmJointPositions(Eigen::VectorXd state);
 Eigen::Vector3d getBasePosition(Eigen::VectorXd state);
 Eigen::Quaterniond getBaseOrientation(Eigen::VectorXd state);
+
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2

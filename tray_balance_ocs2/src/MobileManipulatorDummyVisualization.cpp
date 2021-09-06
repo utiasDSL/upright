@@ -50,6 +50,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <tray_balance_msgs/TrayBalanceControllerInfo.h>
 
+#include <ocs2_mobile_manipulator_modified/constraint/TrayBalanceConstraints.h>
+#include <tray_balance_constraints/inequality_constraints.h>
+
 namespace ocs2 {
 namespace mobile_manipulator {
 
@@ -135,7 +138,8 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
         ros::package::getPath("ocs2_mobile_manipulator_modified") +
         "/urdf/obstacles.urdf";
     PinocchioInterface pinocchioInterface =
-        MobileManipulatorInterface::buildPinocchioInterface(urdfPath, obstacle_urdfPath);
+        MobileManipulatorInterface::buildPinocchioInterface(urdfPath,
+                                                            obstacle_urdfPath);
     // TODO(perry) get the collision pairs from the task.info file to match the
     // current mpc setup
     // TODO need to get the real geom interface
@@ -147,7 +151,7 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
         ros::package::getPath("ocs2_mobile_manipulator_modified") +
         "/urdf/obstacles.urdf";
     pinocchio::GeometryModel obs_geom_model =
-       MobileManipulatorInterface::build_geometry_model(obstacle_urdf_path);
+        MobileManipulatorInterface::build_geometry_model(obstacle_urdf_path);
     geometryInterface.addGeometryObjects(obs_geom_model);
 
     geometryVisualization_.reset(new GeometryInterfaceVisualization(
@@ -196,6 +200,33 @@ void MobileManipulatorDummyVisualization::publishObservation(
         {"ur10_arm_wrist_2_joint", j_arm(4)},
         {"ur10_arm_wrist_3_joint", j_arm(5)}};
     robotStatePublisherPtr_->publishTransforms(jointPositions, timeStamp);
+
+    const pinocchio::ReferenceFrame rf =
+        pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
+    const auto& model = pinocchioInterface_.getModel();
+    auto& data = pinocchioInterface_.getData();
+
+    pinocchio::forwardKinematics(
+        model, data, observation.state.head<NUM_DOFS>(),
+        observation.state.tail<NUM_DOFS>(), observation.input);
+    pinocchio::updateFramePlacements(model, data);
+    const auto eeIndex = model.getBodyId("thing_tool");  // WRIST_2
+
+    const Mat3<scalar_t> C_we = data.oMf[eeIndex].rotation();
+    const Vec3<scalar_t> angular_vel =
+        pinocchio::getFrameVelocity(model, data, eeIndex, rf).angular();
+    const Vec3<scalar_t> linear_acc =
+        pinocchio::getFrameAcceleration(model, data, eeIndex, rf).linear();
+    const Vec3<scalar_t> angular_acc =
+        pinocchio::getFrameAcceleration(model, data, eeIndex, rf).angular();
+
+    BalancedObject<scalar_t> tray = build_tray_object<scalar_t>();
+
+    vector_t zmp = compute_zmp(C_we, angular_vel, linear_acc, angular_acc, tray);
+
+    outfile << "zmp = " << zmp << std::endl;
+
+    // throw std::runtime_error("stop!");
 
     // publish info about the controller
     // TODO it would be better to have this in some interface instead
