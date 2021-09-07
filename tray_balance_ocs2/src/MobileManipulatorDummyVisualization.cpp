@@ -201,32 +201,37 @@ void MobileManipulatorDummyVisualization::publishObservation(
         {"ur10_arm_wrist_3_joint", j_arm(5)}};
     robotStatePublisherPtr_->publishTransforms(jointPositions, timeStamp);
 
-    const pinocchio::ReferenceFrame rf =
-        pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
-    const auto& model = pinocchioInterface_.getModel();
-    auto& data = pinocchioInterface_.getData();
-
-    pinocchio::forwardKinematics(
-        model, data, observation.state.head<NUM_DOFS>(),
-        observation.state.tail<NUM_DOFS>(), observation.input);
-    pinocchio::updateFramePlacements(model, data);
-    const auto eeIndex = model.getBodyId("thing_tool");  // WRIST_2
-
-    const Mat3<scalar_t> C_we = data.oMf[eeIndex].rotation();
-    const Vec3<scalar_t> angular_vel =
-        pinocchio::getFrameVelocity(model, data, eeIndex, rf).angular();
-    const Vec3<scalar_t> linear_acc =
-        pinocchio::getFrameAcceleration(model, data, eeIndex, rf).linear();
-    const Vec3<scalar_t> angular_acc =
-        pinocchio::getFrameAcceleration(model, data, eeIndex, rf).angular();
-
-    BalancedObject<scalar_t> tray = build_tray_object<scalar_t>();
-
-    vector_t zmp = compute_zmp(C_we, angular_vel, linear_acc, angular_acc, tray);
-
-    outfile << "zmp = " << zmp << std::endl;
-
-    // throw std::runtime_error("stop!");
+    // const pinocchio::ReferenceFrame rf =
+    //     pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
+    // const auto& model = pinocchioInterface_.getModel();
+    // auto& data = pinocchioInterface_.getData();
+    //
+    // pinocchio::forwardKinematics(
+    //     model, data, observation.state.head<NUM_DOFS>(),
+    //     observation.state.tail<NUM_DOFS>(), observation.input);
+    // pinocchio::updateFramePlacements(model, data);
+    // const auto eeIndex = model.getBodyId("thing_tool");  // WRIST_2
+    //
+    // const Mat3<scalar_t> C_we = data.oMf[eeIndex].rotation();
+    // const Vec3<scalar_t> angular_vel =
+    //     pinocchio::getFrameVelocity(model, data, eeIndex, rf).angular();
+    // const Vec3<scalar_t> linear_acc =
+    //     pinocchio::getFrameClassicalAcceleration(model, data, eeIndex, rf).linear();
+    // const Vec3<scalar_t> angular_acc =
+    //     pinocchio::getFrameClassicalAcceleration(model, data, eeIndex, rf).angular();
+    //
+    // BalancedObject<scalar_t> tray = build_tray_object<scalar_t>();
+    //
+    // vector_t zmp = compute_zmp(C_we, angular_vel, linear_acc, angular_acc, tray);
+    //
+    // outfile << "t = " << observation.time << std::endl;
+    // outfile << "x = " << observation.state.transpose() << std::endl;
+    // outfile << "u = " << observation.input.transpose() << std::endl;
+    // outfile << "C_we = " << C_we << std::endl;
+    // outfile << "angular_vel = " << angular_vel.transpose() << std::endl;
+    // outfile << "linear_acc = " << linear_acc.transpose() << std::endl;
+    // outfile << "angular_acc = " << angular_acc.transpose() << std::endl;
+    // outfile << "zmp = " << zmp.transpose() << std::endl << std::endl;
 
     // publish info about the controller
     // TODO it would be better to have this in some interface instead
