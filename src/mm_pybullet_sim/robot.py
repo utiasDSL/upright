@@ -15,8 +15,6 @@ from mm_pybullet_sim.util import (
     skew3,
 )
 
-# TODO ideally we wouldn't be using both jaxlie and liegroups
-
 ROBOT_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/mm_pyb.urdf"
 
 BASE_JOINT_NAMES = ["x_to_world_joint", "y_to_x_joint", "base_to_y_joint"]
@@ -193,9 +191,9 @@ class SimulatedRobot:
 class KinematicChain:
     """All transforms on the robot kinematic chain for a given configuration."""
 
-    T_w_b = dhtf(np.pi / 2, 0, 0, np.pi / 2)
+    T_w_b = dhtf(np.pi / 2, 0, 0.01, np.pi / 2)
     T_θb_θ1 = dhtf(0, PX, PZ, -np.pi / 2) @ dhtf(0, 0, PY, np.pi / 2)
-    T_θ6_tool = dhtf(0, 0, D7, 0)
+    T_θ6_tool = dhtf(np.pi, 0, D7, 0)
 
     def __init__(self, q):
         self.T_xb = dhtf(np.pi / 2, 0, q[0], np.pi / 2)
@@ -258,24 +256,33 @@ class RobotModel:
         # Angular Jacobian
         # joints xb and yb are prismatic, and so cause no angular velocity.
         Jo = jnp.vstack(
-            (jnp.zeros(3), jnp.zeros(3), z_θb, z_θ1, z_θ2, z_θ3, z_θ4, z_θ5, z_θ6)
+            (jnp.zeros(3), jnp.zeros(3), z_yb, z_θb, z_θ1, z_θ2, z_θ3, z_θ4, z_θ5)
         ).T
 
         # Linear Jacobian
-        pe = translation(chain.T_w_tool)
-        Jp = jnp.vstack(
-            (
-                z_xb,
-                z_yb,
-                jnp.cross(z_θb, pe - translation(chain.T_w_θb)),
-                jnp.cross(z_θ1, pe - translation(chain.T_w_θ1)),
-                jnp.cross(z_θ2, pe - translation(chain.T_w_θ2)),
-                jnp.cross(z_θ3, pe - translation(chain.T_w_θ3)),
-                jnp.cross(z_θ4, pe - translation(chain.T_w_θ4)),
-                jnp.cross(z_θ5, pe - translation(chain.T_w_θ5)),
-                jnp.cross(z_θ6, pe - translation(chain.T_w_θ6)),
-            )
-        ).T
+
+        # pe = translation(chain.T_w_tool)
+        def ee_position(q):
+            return self.tool_pose_matrix(q)[:3, 3]
+
+        # TODO the manual implementation below is not correct -- fix at some
+        # point
+        Jp = jax.jit(jax.jacfwd(ee_position))(q)
+        # Jp = jnp.vstack(
+        #     (
+        #         z_xb,
+        #         z_yb,
+        #         jnp.cross(z_θb, pe - translation(chain.T_w_θb)),
+        #         jnp.cross(z_θ1, pe - translation(chain.T_w_θ1)),
+        #         jnp.cross(z_θ2, pe - translation(chain.T_w_θ2)),
+        #         jnp.cross(z_θ3, pe - translation(chain.T_w_θ3)),
+        #         jnp.cross(z_θ4, pe - translation(chain.T_w_θ4)),
+        #         jnp.cross(z_θ5, pe - translation(chain.T_w_θ5)),
+        #         jnp.cross(z_θ6, pe - translation(chain.T_w_θ6)),
+        #     )
+        # ).T
+
+        # IPython.embed()
 
         # Full Jacobian
         return jnp.vstack((Jp, Jo))
@@ -301,7 +308,8 @@ class RobotModel:
         # J = self.jacobian(q)
         # print(J.shape)
         # print(dq.shape)
-        # TODO this would be much faster if we let pybullet do it
+        # NOTE it is much faster to let pybullet do this, so do that unless
+        # there is good reason not too
         return pose_to_pos_quat(self.jacobian(q) @ v)
 
     def tool_acceleration(self, x, u):
@@ -309,8 +317,8 @@ class RobotModel:
 
         x = [q, dq] is the joint state.
         """
-        q, dq = x[: self.ni], x[self.ni :]
-        return self.jacobian(q) @ u + dq @ self.dJdq(q) @ dq
+        q, v = x[: self.ni], x[self.ni :]
+        return self.jacobian(q) @ u + v @ self.dJdq(q) @ v
 
     def tangent(self, x, u):
         """Tangent vector dx = f(x, u)."""

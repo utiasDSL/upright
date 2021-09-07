@@ -12,6 +12,9 @@ import mm_pybullet_sim.util as util
 import mm_pybullet_sim.balancing as balancing
 from mm_pybullet_sim.simulation import MobileManipulatorSimulation, ROBOT_HOME
 from mm_pybullet_sim.recording import Recorder
+import mm_pybullet_sim.geometry as geometry
+
+from mm_pybullet_sim.robot import RobotModel
 
 from ocs2_mobile_manipulator_modified import (
     mpc_interface,
@@ -21,6 +24,7 @@ from ocs2_mobile_manipulator_modified import (
     TargetTrajectories,
 )
 
+from liegroups import SO3
 import IPython
 
 
@@ -28,7 +32,7 @@ import IPython
 SIM_DT = 0.001
 CTRL_PERIOD = 30  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 15.0  # duration of trajectory (s)
+DURATION = 10.0  # duration of trajectory (s)
 
 
 class Obstacle:
@@ -71,6 +75,12 @@ def main():
     tray = objects["tray"]
     obj = objects["cuboid1"]
 
+    robot_model = RobotModel(0.3, ROBOT_HOME)
+    s = 0.2
+    r = geometry.equilateral_triangle_inscribed_radius(s)
+    support_vertices = np.array([[2 * r, 0], [-r, 0.5 * s], [-r, -0.5 * s]])
+    support = geometry.PolygonSupportArea(support_vertices)
+
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
     v_ew_w, ω_ew_w = robot.link_velocity()
@@ -85,23 +95,13 @@ def main():
         ns=robot.ns,
         ni=robot.ni,
         control_period=CTRL_PERIOD,
-        n_balance_con=11,
+        n_balance_con=5,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
     for name, obj in objects.items():
         print(f"{name} CoM = {obj.body.com}")
-    # return
-
-    # desired quaternion
-    # R_ed = SO3.from_z_radians(np.pi)
-    # # R_ed = SO3.identity()
-    # R_we = SO3.from_quaternion_xyzw(Q_we)
-    # R_wd = R_we.multiply(R_ed)
-    # Qd = R_wd.as_quaternion_xyzw()
-    # Qd_inv = R_wd.inverse().as_quaternion_xyzw()
-    #
-    # recorder.Q_des[0, :] = util.quat_multiply(Qd_inv, Q_we)
+    IPython.embed()
 
     r_obs0 = np.array(r_ew_w) + [0, -10, 0]
     v_obs = np.array([0, 0.4, 0])
@@ -138,8 +138,11 @@ def main():
         input_target.push_back(u)
 
     state_target = vector_array()
-    r_ew_w_d = np.array(r_ew_w) + [2, 0, 0]
-    Qd = np.array(Q_we)
+    # r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
+    # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
+    r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
+    # r_ew_w_d = np.array([0, -3, 1])
+    Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
     state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
     # state_target.push_back(np.concatenate((r_ew_w_d + [1, 0, 0], Qd, r_obs0)))
     # state_target.push_back(np.concatenate((r_ew_w_d + [2, 0, 0], Qd, r_obs0)))
@@ -156,7 +159,6 @@ def main():
     assert len(t_target) == len(target_times)
     assert len(input_target) == len(target_times)
 
-    # TODO sort out the final indices here, with recording
     for i in range(N):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
@@ -197,13 +199,8 @@ def main():
             #     "selfCollision", t, x
             # )
 
-            r_tw_w, Q_wt = tray.bullet.get_pose()
-            r_ow_w, Q_wo = obj.bullet.get_pose()
-
             r_ew_w_d = state_target[target_idx][:3]
-
-            # orientation error
-            # Q_de = util.quat_multiply(Qd_inv, Q_we)
+            Q_we_d = state_target[target_idx][3:7]
 
             # record
             recorder.us[idx, :] = u
@@ -211,17 +208,29 @@ def main():
             recorder.r_ew_wds[idx, :] = r_ew_w_d
             recorder.r_ew_ws[idx, :] = r_ew_w
             recorder.Q_wes[idx, :] = Q_we
-            # recorder.Q_des[idx, :] = Q_de
+            recorder.Q_weds[idx, :] = Q_we_d
             recorder.v_ew_ws[idx, :] = v_ew_w
             recorder.ω_ew_ws[idx, :] = ω_ew_w
-            recorder.r_tw_ws[idx, :] = r_tw_w
 
-            recorder.r_te_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
-            recorder.r_oe_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
-            recorder.r_ot_ts[idx, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
-            recorder.Q_ets[idx, :] = util.calc_Q_et(Q_we, Q_wt)
-            recorder.Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
-            recorder.Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
+            r_tw_w, Q_wt = tray.bullet.get_pose()
+            recorder.r_tw_ws[idx, :] = r_tw_w
+            recorder.Q_wts[idx, :] = Q_wt
+
+            if len(objects) > 1:
+                r_ow_w, Q_wo = obj.bullet.get_pose()
+                recorder.r_ow_ws[idx, :] = r_ow_w
+                recorder.Q_wos[idx, :] = Q_wo
+
+            # TODO it would be best to avoid recording these directly, but
+            # calculate them as needed from recorded data later. Otherwise, you
+            # cannot easily recover from weird issues like rotation error
+            # changing the frame and blowing up position error
+            # recorder.r_te_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
+            # recorder.r_oe_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+            # recorder.r_ot_ts[idx, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
+            # recorder.Q_ets[idx, :] = util.calc_Q_et(Q_we, Q_wt)
+            # recorder.Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
+            # recorder.Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
 
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
@@ -233,7 +242,57 @@ def main():
         if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
             target_idx += 1
 
-        # if i % 300 == 0:
+        # if t > 9:
+        #     IPython.embed()
+        #     return
+        # if i % 100 == 0:
+        #     x2 = np.array(
+        #         [
+        #             -0.00254792,
+        #             0.00192868,
+        #             0.00280538,
+        #             -0.00306004,
+        #             -2.35072,
+        #             -1.56611,
+        #             -0.805204,
+        #             -1.55025,
+        #             1.5504,
+        #             -0.0317851,
+        #             0.00444487,
+        #             0.0561903,
+        #             -0.0399788,
+        #             0.0906232,
+        #             0.118043,
+        #             -0.379447,
+        #             0.393679,
+        #             -0.391596,
+        #         ]
+        #     )
+        #     u2 = np.array(
+        #         [
+        #             0.189066,
+        #             -0.522982,
+        #             0.684831,
+        #             -0.227833,
+        #             1.16463,
+        #             1.79072,
+        #             -3.8395,
+        #             3.91105,
+        #             -3.90864,
+        #         ]
+        #     )
+        #     q2, v2 = x2[:9], x2[9:]
+        #     T_we2 = robot_model.tool_pose_matrix(q2)
+        #     V_ew_w2 = robot_model.tool_velocity(q2, v2)
+        #     A_ew_w2 = robot_model.tool_acceleration(x2, u2)
+        #     J2 = robot.jacobian(q2)
+        #     V_J = J2 @ v2
+        #
+        #     r_ew_w, Q_we = robot.link_pose()
+        #     C_we = SO3.from_quaternion(Q_we, ordering="xyzw").as_matrix()
+        #     v_ew_w, ω_ew_w = robot.link_velocity()
+        #     A = robot_model.tool_acceleration(x, u)
+        #     zmp = balancing.object_balance_constraints(tray, C_we, ω_ew_w, A[:3], A[3:])
         #     IPython.embed()
 
     print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
@@ -244,11 +303,11 @@ def main():
 
     last_sim_index = i
     recorder.plot_ee_position(last_sim_index)
-    # recorder.plot_ee_orientation(last_sim_index)
+    recorder.plot_ee_orientation(last_sim_index)
     recorder.plot_ee_velocity(last_sim_index)
     recorder.plot_r_te_e_error(last_sim_index)
-    recorder.plot_r_oe_e_error(last_sim_index)
-    recorder.plot_r_ot_t_error(last_sim_index)
+    # recorder.plot_r_oe_e_error(last_sim_index)
+    # recorder.plot_r_ot_t_error(last_sim_index)
     recorder.plot_balancing_constraints(last_sim_index)
     recorder.plot_commands(last_sim_index)
     recorder.plot_control_durations()

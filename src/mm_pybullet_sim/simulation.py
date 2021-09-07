@@ -21,10 +21,10 @@ GRAVITY_MAG = 9.81
 GRAVITY_VECTOR = np.array([0, 0, -GRAVITY_MAG])
 
 # tray parameters
-TRAY_RADIUS = 0.25
-TRAY_MASS = 0.5
+TRAY_RADIUS = 0.2
+TRAY_MASS = 1
 TRAY_MU = 0.5
-TRAY_COM_HEIGHT = 0.01
+TRAY_COM_HEIGHT = 0.3
 
 OBJ_MASS = 1
 OBJ_TRAY_MU = 0.5
@@ -160,7 +160,7 @@ class Simulation:
                 bullet_mu=OBJ_TRAY_MU_BULLET, color=(0, 1, 0, 1)
             )
             r_ow_w = r_ew_w + [
-                0.05,
+                0.05 - 10,
                 0,
                 2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05,
             ]

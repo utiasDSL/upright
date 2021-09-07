@@ -90,7 +90,7 @@ def quat_multiply(q0, q1):
     """Hamilton product of two quaternions."""
     R0 = SO3.from_quaternion_xyzw(q0)
     R1 = SO3.from_quaternion_xyzw(q1)
-    return R0.multiply(R1).as_quaternion_xyzw()
+    return np.array(R0.multiply(R1).as_quaternion_xyzw())
 
 
 def skew1(x):

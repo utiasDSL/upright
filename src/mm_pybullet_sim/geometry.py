@@ -66,13 +66,14 @@ class PolygonSupportArea:
     def zmp_constraints_numpy(self, zmp):
         N = self.vertices.shape[0]
 
+        # TODO offset is not handled
         g = np.zeros(N)
         for i in range(N - 1):
             v1 = self.vertices[i, :]
             v2 = self.vertices[i + 1, :]
             g[i] = PolygonSupportArea.edge_zmp_constraint(zmp, v1, v2, self.margin)
         g[-1] = PolygonSupportArea.edge_zmp_constraint(
-            zmp, self.vertices[-1, :], self.vertices[0, :]
+            zmp, self.vertices[-1, :], self.vertices[0, :], self.margin
         )
         return g
 
@@ -83,6 +84,7 @@ class CircleSupportArea:
     offset: the 2D vector pointing from the projection of the CoM on the
     support plane to the center of the support area
     """
+
     num_constraints = 1
 
     def __init__(self, radius, offset=(0, 0), margin=0):
@@ -105,3 +107,29 @@ class CircleSupportArea:
     def zmp_constraints_scaled(self, αz_zmp, αz):
         e = αz_zmp - αz * self.offset
         return jnp.array([(αz * (self.radius - self.margin)) ** 2 - e @ e])
+
+
+if __name__ == "__main__":
+    import IPython
+    import matplotlib.pyplot as plt
+
+    s = 0.2
+    r = equilateral_triangle_inscribed_radius(s)
+    αz = 5
+    vertices = αz * np.array([[2 * r, 0], [-r, 0.5 * s], [-r, -0.5 * s]])
+    support = PolygonSupportArea(vertices)
+    points = αz * np.array([[0.05, 0.05], [-0.06, 0], [0.05, -0.05]])
+
+    for i, point in enumerate(points):
+        d = support.zmp_constraints_numpy(point)
+        print(f"Point {i} = {d}")
+
+    plt.plot(vertices[:, 0], vertices[:, 1], "o", color="k")
+    plt.plot(
+        np.append(vertices[:, 0], vertices[0, 0]),
+        np.append(vertices[:, 1], vertices[0, 1]),
+        color="k",
+    )
+    plt.plot(points[:, 0], points[:, 1], "o", color="r")
+    plt.grid()
+    plt.show()

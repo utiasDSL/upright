@@ -7,8 +7,10 @@ import jax
 import mm_pybullet_sim.util as util
 from mm_pybullet_sim.simulation import GRAVITY_VECTOR
 
+import IPython
 
-@partial(jax.jit, static_argnums=(0,))
+
+# @partial(jax.jit, static_argnums=(0,))
 def object_balance_constraints(obj, C_we, ω_ew_w, a_ew_w, α_ew_w):
     C_ew = C_we.T
     Sω_ew_w = util.skew3(ω_ew_w)
@@ -26,6 +28,8 @@ def object_balance_constraints(obj, C_we, ω_ew_w, a_ew_w, α_ew_w):
     r_z = -obj.com_height
     S = np.array([[0, 1], [-1, 0]])
     zmp = (r_z * α[:2] - S @ β[:2]) / α[2]  # TODO numerical issues?
+    # IPython.embed()
+    return np.array(zmp)
     # h3 = obj.support_area.zmp_constraints_scaled(zmp, α[2])
     h3 = obj.support_area.zmp_constraints(zmp)
 
