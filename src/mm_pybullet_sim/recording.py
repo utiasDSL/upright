@@ -165,13 +165,13 @@ class Recorder:
     def plot_r_te_e_error(self, last_sim_index):
         s, ts = self._slice_records(last_sim_index)
 
-        r_te_es = np.zeros_like(self.r_tw_ws)
+        r_te_es = np.zeros_like(self.r_tw_ws[s, :])
         for i in range(r_te_es.shape[0]):
             C_ew = SO3.from_quaternion(self.Q_wes[i, :], ordering="xyzw").inv()
             r_te_es[i, :] = C_ew.dot(self.r_tw_ws[i, :] - self.r_ew_ws[i, :])
+        r_te_e_err = r_te_es - r_te_es[0, :]
 
         plt.figure()
-        r_te_e_err = r_te_es[s, :] - r_te_es[0, :]
         plt.plot(ts, r_te_e_err[:, 0], label="$x$")
         plt.plot(ts, r_te_e_err[:, 1], label="$y$")
         plt.plot(ts, r_te_e_err[:, 2], label="$z$")
@@ -183,7 +183,7 @@ class Recorder:
         Q_te0 = util.quat_multiply(
             util.quat_inverse(self.Q_wts[0, :]), self.Q_wes[0, :]
         )
-        Q_et_err = np.zeros_like(self.Q_wts)
+        Q_et_err = np.zeros_like(self.Q_wts[s, :])
         for i in range(Q_et_err.shape[0]):
             Q_et = util.quat_multiply(
                 util.quat_inverse(self.Q_wes[i, :]), self.Q_wts[i, :]
@@ -238,7 +238,7 @@ class Recorder:
 
         plt.figure()
         for j in range(self.ineq_cons.shape[1]):
-            plt.plot(ts, self.ineq_cons[s, j], label=f"$g_{j+1}$")
+            plt.plot(ts, self.ineq_cons[s, j], label=f"$g_{{{j+1}}}$")
         plt.grid()
         plt.legend()
         plt.xlabel("Time (s)")
@@ -257,15 +257,21 @@ class Recorder:
         plt.ylabel("Commanded joint acceleration")
         plt.title("Acceleration commands")
 
-    def plot_control_durations(self):
-        ts = np.arange(self.control_durations.shape[0]) * self.control_period * self.dt
+    def plot_control_durations(self, last_sim_index):
+        last_record_index = last_sim_index // self.control_period
+        ts = np.arange(last_record_index + 1) * self.control_period * self.dt
 
-        print(f"max control time = {np.max(self.control_durations)}")
-        print(f"avg control time = {np.mean(self.control_durations)}")
-        print(f"avg without first = {np.mean(self.control_durations[1:])}")
+        durations = self.control_durations[: last_record_index + 1]
+
+        print(f"max control time = {np.max(durations)}")
+        print(f"avg control time = {np.mean(durations)}")
+        print(f"avg without first = {np.mean(durations[1:])}")
+
+        # print("inside plot_control_durations")
+        # IPython.embed()
 
         plt.figure()
-        plt.plot(ts, self.control_durations)
+        plt.plot(ts, durations)
         plt.grid()
         plt.xlabel("Time (s)")
         plt.ylabel("Controller time (s)")
@@ -275,12 +281,24 @@ class Recorder:
         s, ts = self._slice_records(last_sim_index)
 
         plt.figure()
-        for j in range(3):
-            plt.plot(ts, self.xs[s, 9 + j], label=f"$v_{j+1}$")
-        for j in range(3):
-            plt.plot(ts, self.cmd_vels[s, j], label=f"$vcmd_{j+1}$")
+        for j in range(9):
+            plt.plot(ts, self.xs[s, 9 + j], label=f"$v_{{{j+1}}}$")
+        for j in range(9):
+            plt.plot(ts, self.cmd_vels[s, j], label=f"$v_{{cmd_{j+1}}}$")
         plt.grid()
         plt.legend()
         plt.xlabel("Time (s)")
         plt.ylabel("Velocity")
         plt.title("Actual and commanded velocity")
+
+    def plot_joint_config(self, last_sim_index):
+        s, ts = self._slice_records(last_sim_index)
+
+        plt.figure()
+        for j in range(9):
+            plt.plot(ts, self.xs[s, j], label=f"$q_{j+1}$")
+        plt.grid()
+        plt.legend()
+        plt.xlabel("Time (s)")
+        plt.ylabel("Joint position")
+        plt.title("Joint configuration")

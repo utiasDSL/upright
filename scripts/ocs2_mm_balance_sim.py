@@ -9,12 +9,8 @@ import matplotlib.pyplot as plt
 import pybullet as pyb
 
 import mm_pybullet_sim.util as util
-import mm_pybullet_sim.balancing as balancing
-from mm_pybullet_sim.simulation import MobileManipulatorSimulation, ROBOT_HOME
+from mm_pybullet_sim.simulation import MobileManipulatorSimulation
 from mm_pybullet_sim.recording import Recorder
-import mm_pybullet_sim.geometry as geometry
-
-from mm_pybullet_sim.robot import RobotModel
 
 from ocs2_mobile_manipulator_modified import (
     mpc_interface,
@@ -24,13 +20,12 @@ from ocs2_mobile_manipulator_modified import (
     TargetTrajectories,
 )
 
-from liegroups import SO3
 import IPython
 
 
 # simulation parameters
 SIM_DT = 0.001
-CTRL_PERIOD = 30  # generate new control signal every CTRL_PERIOD timesteps
+CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 10.0  # duration of trajectory (s)
 
@@ -71,21 +66,16 @@ def main():
     N = int(DURATION / sim.dt)
 
     # simulation objects and model
-    robot, objects, composites = sim.setup(obj_names=["tray", "cuboid1"])
+    robot, objects, composites = sim.setup(obj_names=["tray", "cuboid1", "cuboid2"])
     tray = objects["tray"]
-    obj = objects["cuboid1"]
-
-    robot_model = RobotModel(0.3, ROBOT_HOME)
-    s = 0.2
-    r = geometry.equilateral_triangle_inscribed_radius(s)
-    support_vertices = np.array([[2 * r, 0], [-r, 0.5 * s], [-r, -0.5 * s]])
-    support = geometry.PolygonSupportArea(support_vertices)
+    cuboid1 = objects["cuboid1"]
+    # cylinder1 = objects["cylinder1"]
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
     v_ew_w, ω_ew_w = robot.link_velocity()
     r_tw_w, Q_wt = tray.bullet.get_pose()
-    r_ow_w, Q_wo = obj.bullet.get_pose()
+    r_ow_w, Q_wo = cuboid1.bullet.get_pose()
 
     # data recorder and plotter
     recorder = Recorder(
@@ -95,7 +85,7 @@ def main():
         ns=robot.ns,
         ni=robot.ni,
         control_period=CTRL_PERIOD,
-        n_balance_con=5,
+        n_balance_con=17,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -120,7 +110,7 @@ def main():
     # r_obs5 = obstacle.sample_position(5)
 
     # initial time, state, and input
-    t = 0
+    t = 0.0
     x = np.concatenate((q, v))
     u = np.zeros(robot.ni)
 
@@ -138,11 +128,13 @@ def main():
         input_target.push_back(u)
 
     state_target = vector_array()
+    r_ew_w_d = np.array(r_ew_w) + [2, 0, 0]
     # r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
     # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
-    r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
+    # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
     # r_ew_w_d = np.array([0, -3, 1])
-    Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
+    Qd = Q_we
+    # Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
     state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
     # state_target.push_back(np.concatenate((r_ew_w_d + [1, 0, 0], Qd, r_obs0)))
     # state_target.push_back(np.concatenate((r_ew_w_d + [2, 0, 0], Qd, r_obs0)))
@@ -168,20 +160,40 @@ def main():
         # we can increase it if the MPC rate is faster
         if i % CTRL_PERIOD == 0:
             # robot.cmd_vel = v  # NOTE
-            t0 = time.time()
-            mpc.advanceMpc()
-            t1 = time.time()
+            try:
+                t0 = time.time()
+                mpc.advanceMpc()
+                t1 = time.time()
+            except RuntimeError as e:
+                print(e)
+                IPython.embed()
+                i -= 1  # for the recorder
+                break
             recorder.control_durations[i // CTRL_PERIOD] = t1 - t0
-            # print(f"dt = {t1 - t0}")
 
         # evaluate the current MPC policy (returns an entire trajectory of
         # waypoints, starting from the current time)
-        t_result = scalar_array()
-        x_result = vector_array()
-        u_result = vector_array()
-        mpc.getMpcSolution(t_result, x_result, u_result)
+        # t_result = scalar_array()
+        # x_result = vector_array()
+        # u_result = vector_array()
+        # mpc.getMpcSolution(t_result, x_result, u_result)
 
-        u = u_result[0]
+        # As far as I can tell, evaluateMpcSolution actually computes the input
+        # for the particular time and state (the input is often at least
+        # state-varying in DDP, with linear feedback on state error). OTOH,
+        # getMpcSolution just gives the current MPC policy trajectory over the
+        # entire time horizon, without accounting for the given state. So it is
+        # like doing feedforward input only, which is bad.
+        opt_x = np.zeros(robot.ns)
+        opt_u = np.zeros(robot.ni)
+        mpc.evaluateMpcSolution(t, x, opt_x, opt_u)
+
+        # if np.linalg.norm(u_result[0] - opt_u) > 0.01:
+        #     print("different input!")
+        #     IPython.embed()
+
+        # u = u_result[0]
+        u = opt_u
         robot.command_acceleration(u)
 
         if recorder.now_is_the_time(i):
@@ -217,11 +229,16 @@ def main():
             recorder.Q_wts[idx, :] = Q_wt
 
             if len(objects) > 1:
-                r_ow_w, Q_wo = obj.bullet.get_pose()
+                r_ow_w, Q_wo = cuboid1.bullet.get_pose()
                 recorder.r_ow_ws[idx, :] = r_ow_w
                 recorder.Q_wos[idx, :] = Q_wo
 
             recorder.cmd_vels[idx, :] = robot.cmd_vel
+
+            if (recorder.ineq_cons[idx, :] < -1).any():
+                print("constraint less than -1")
+                IPython.embed()
+                break
 
         # print(f"cmd_vel before step = {robot.cmd_vel}")
         sim.step(step_robot=True)
@@ -252,8 +269,9 @@ def main():
     # recorder.plot_r_ot_t_error(last_sim_index)
     recorder.plot_balancing_constraints(last_sim_index)
     recorder.plot_commands(last_sim_index)
-    recorder.plot_control_durations()
+    recorder.plot_control_durations(last_sim_index)
     recorder.plot_cmd_vs_real_vel(last_sim_index)
+    recorder.plot_joint_config(last_sim_index)
 
     plt.show()
 

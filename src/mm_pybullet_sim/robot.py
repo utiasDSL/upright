@@ -76,8 +76,6 @@ class SimulatedRobot:
         # Link index (of the tool, in this case) is the same as the joint
         self.tool_idx = self.joints[TOOL_JOINT_NAME][0]
 
-        # pyb.changeDynamics(self.uid, -1, linearDamping=0, angularDamping=0)
-
         # pyb.changeDynamics(self.uid, -1, mass=0)
         # NOTE: this just makes the robot unable to move apparently
         # for i in range(pyb.getNumJoints(self.uid)):

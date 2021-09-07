@@ -20,18 +20,33 @@ EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LEN
 GRAVITY_MAG = 9.81
 GRAVITY_VECTOR = np.array([0, 0, -GRAVITY_MAG])
 
+EE_MU = 1.0
+
 # tray parameters
 TRAY_RADIUS = 0.2
 TRAY_MASS = 1
 TRAY_MU = 0.5
-TRAY_COM_HEIGHT = 0.3
+TRAY_COM_HEIGHT = 0.01
+TRAY_MU_BULLET = TRAY_MU / EE_MU
 
-OBJ_MASS = 1
-OBJ_TRAY_MU = 0.5
-OBJ_TRAY_MU_BULLET = OBJ_TRAY_MU / TRAY_MU
-OBJ_RADIUS = 0.1
-OBJ_SIDE_LENGTHS = (0.2, 0.2, 0.4)
-OBJ_COM_HEIGHT = 0.2
+CUBOID1_MASS = 1
+CUBOID1_TRAY_MU = 0.5
+CUBOID1_MU_BULLET = CUBOID1_TRAY_MU / TRAY_MU_BULLET
+CUBOID1_COM_HEIGHT = 0.2
+CUBOID1_SIDE_LENGTHS = (0.2, 0.2, 2 * CUBOID1_COM_HEIGHT)
+
+CUBOID2_MASS = 1
+CUBOID2_TRAY_MU = 0.5
+CUBOID2_MU_BULLET = CUBOID2_TRAY_MU / CUBOID1_MU_BULLET
+CUBOID2_COM_HEIGHT = 0.2
+CUBOID2_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID2_COM_HEIGHT)
+
+CYLINDER_MASS = 1
+CYLINDER_SUPPORT_MU = 0.5
+CYLINDER_MU_BULLET = CYLINDER_SUPPORT_MU / CUBOID1_MU_BULLET
+CYLINDER_RADIUS = 0.05
+CYLINDER_COM_HEIGHT = 0.2
+
 OBJ_ZMP_MARGIN = 0.01
 
 BASE_HOME = [0, 0, 0]
@@ -120,7 +135,7 @@ class Simulation:
             mass=TRAY_MASS,
             radius=TRAY_RADIUS,
             height=2 * TRAY_COM_HEIGHT,
-            mu=TRAY_MU,
+            mu=TRAY_MU_BULLET,
         )
         objects["tray"].add_to_sim(bullet_mu=TRAY_MU)
         r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
@@ -128,44 +143,77 @@ class Simulation:
 
         if "cylinder1" in obj_names:
             objects["cylinder1"] = bodies.Cylinder(
-                r_tau=geometry.circle_r_tau(OBJ_RADIUS),
+                r_tau=geometry.circle_r_tau(CYLINDER_RADIUS),
                 support_area=geometry.CircleSupportArea(
-                    OBJ_RADIUS, margin=OBJ_ZMP_MARGIN
+                    CYLINDER_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
-                mass=OBJ_MASS,
-                radius=OBJ_RADIUS,
-                height=2 * OBJ_COM_HEIGHT,
-                mu=OBJ_TRAY_MU,
+                mass=CYLINDER_MASS,
+                radius=CYLINDER_RADIUS,
+                height=2 * CYLINDER_COM_HEIGHT,
+                mu=CYLINDER_SUPPORT_MU,
             )
             objects["cylinder1"].add_to_sim(
-                bullet_mu=OBJ_TRAY_MU_BULLET, color=(0, 1, 0, 1)
+                bullet_mu=CYLINDER_MU_BULLET, color=(1, 0, 0, 1)
             )
-            r_ow_w = r_ew_w + [0, 0, 2 * TRAY_COM_HEIGHT + OBJ_COM_HEIGHT + 0.05]
+            r_ow_w = r_ew_w + [
+                0,
+                0,
+                2 * TRAY_COM_HEIGHT
+                + CUBOID1_SIDE_LENGTHS[2]
+                + CYLINDER_COM_HEIGHT
+                + 0.05,
+            ]
             objects["cylinder1"].bullet.reset_pose(position=r_ow_w)
             objects["tray"].children.append("cylinder1")
 
         if "cuboid1" in obj_names:
             support = geometry.PolygonSupportArea(
-                geometry.cuboid_support_vertices(OBJ_SIDE_LENGTHS),
+                geometry.cuboid_support_vertices(CUBOID1_SIDE_LENGTHS),
                 margin=OBJ_ZMP_MARGIN,
             )
             objects["cuboid1"] = bodies.Cuboid(
-                r_tau=geometry.circle_r_tau(OBJ_RADIUS),  # TODO
+                r_tau=geometry.circle_r_tau(CUBOID1_SIDE_LENGTHS[0] * 0.5),  # TODO
                 support_area=support,
-                mass=OBJ_MASS,
-                side_lengths=OBJ_SIDE_LENGTHS,
-                mu=OBJ_TRAY_MU,
+                mass=CUBOID1_MASS,
+                side_lengths=CUBOID1_SIDE_LENGTHS,
+                mu=CUBOID1_TRAY_MU,
             )
             objects["cuboid1"].add_to_sim(
-                bullet_mu=OBJ_TRAY_MU_BULLET, color=(0, 1, 0, 1)
+                bullet_mu=CUBOID1_MU_BULLET, color=(0, 1, 0, 1)
             )
             r_ow_w = r_ew_w + [
-                0.05 - 10,
                 0,
-                2 * TRAY_COM_HEIGHT + 0.5 * OBJ_SIDE_LENGTHS[2] + 0.05,
+                0,
+                2 * TRAY_COM_HEIGHT + 0.5 * CUBOID1_SIDE_LENGTHS[2] + 0.05,
             ]
             objects["cuboid1"].bullet.reset_pose(position=r_ow_w)
             objects["tray"].children.append("cuboid1")
+
+        if "cuboid2" in obj_names:
+            support = geometry.PolygonSupportArea(
+                geometry.cuboid_support_vertices(CUBOID2_SIDE_LENGTHS),
+                margin=OBJ_ZMP_MARGIN,
+            )
+            objects["cuboid2"] = bodies.Cuboid(
+                r_tau=geometry.circle_r_tau(CUBOID2_SIDE_LENGTHS[0] * 0.5),  # TODO
+                support_area=support,
+                mass=CUBOID2_MASS,
+                side_lengths=CUBOID2_SIDE_LENGTHS,
+                mu=CUBOID2_TRAY_MU,
+            )
+            objects["cuboid2"].add_to_sim(
+                bullet_mu=CUBOID2_MU_BULLET, color=(1, 0, 0, 1)
+            )
+            r_ow_w = r_ew_w + [
+                0,
+                0,
+                2 * TRAY_COM_HEIGHT
+                + CUBOID1_SIDE_LENGTHS[2]
+                + 0.5 * CUBOID2_SIDE_LENGTHS[2]
+                + 0.05,
+            ]
+            objects["cuboid2"].bullet.reset_pose(position=r_ow_w)
+            objects["tray"].children.append("cuboid2")
 
         return objects
 
@@ -253,6 +301,7 @@ class MobileManipulatorSimulation(Simulation):
             r_ow_w, _ = obj.bullet.get_pose()
             obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
 
-        composites = super().composite_setup(objects)
+        # composites = super().composite_setup(objects)
+        composites = None
 
         return robot, objects, composites
