@@ -260,14 +260,13 @@ class RobotModel:
         ).T
 
         # Linear Jacobian
-
-        # pe = translation(chain.T_w_tool)
         def ee_position(q):
             return self.tool_pose_matrix(q)[:3, 3]
 
         # TODO the manual implementation below is not correct -- fix at some
         # point
         Jp = jax.jit(jax.jacfwd(ee_position))(q)
+        # pe = translation(chain.T_w_tool)
         # Jp = jnp.vstack(
         #     (
         #         z_xb,
@@ -281,8 +280,6 @@ class RobotModel:
         #         jnp.cross(z_θ6, pe - translation(chain.T_w_θ6)),
         #     )
         # ).T
-
-        # IPython.embed()
 
         # Full Jacobian
         return jnp.vstack((Jp, Jo))
@@ -304,10 +301,6 @@ class RobotModel:
 
         x = [q, dq] is the joint state.
         """
-        # q, dq = x[: self.ni], x[self.ni :]
-        # J = self.jacobian(q)
-        # print(J.shape)
-        # print(dq.shape)
         # NOTE it is much faster to let pybullet do this, so do that unless
         # there is good reason not too
         return pose_to_pos_quat(self.jacobian(q) @ v)

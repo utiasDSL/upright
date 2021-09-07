@@ -221,17 +221,6 @@ def main():
                 recorder.r_ow_ws[idx, :] = r_ow_w
                 recorder.Q_wos[idx, :] = Q_wo
 
-            # TODO it would be best to avoid recording these directly, but
-            # calculate them as needed from recorded data later. Otherwise, you
-            # cannot easily recover from weird issues like rotation error
-            # changing the frame and blowing up position error
-            # recorder.r_te_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_tw_w)
-            # recorder.r_oe_es[idx, :] = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
-            # recorder.r_ot_ts[idx, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
-            # recorder.Q_ets[idx, :] = util.calc_Q_et(Q_we, Q_wt)
-            # recorder.Q_eos[idx, :] = util.calc_Q_et(Q_we, Q_wo)
-            # recorder.Q_tos[idx, :] = util.calc_Q_et(Q_wt, Q_wo)
-
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
         # print(f"cmd_vel before step = {robot.cmd_vel}")
@@ -246,53 +235,6 @@ def main():
         #     IPython.embed()
         #     return
         # if i % 100 == 0:
-        #     x2 = np.array(
-        #         [
-        #             -0.00254792,
-        #             0.00192868,
-        #             0.00280538,
-        #             -0.00306004,
-        #             -2.35072,
-        #             -1.56611,
-        #             -0.805204,
-        #             -1.55025,
-        #             1.5504,
-        #             -0.0317851,
-        #             0.00444487,
-        #             0.0561903,
-        #             -0.0399788,
-        #             0.0906232,
-        #             0.118043,
-        #             -0.379447,
-        #             0.393679,
-        #             -0.391596,
-        #         ]
-        #     )
-        #     u2 = np.array(
-        #         [
-        #             0.189066,
-        #             -0.522982,
-        #             0.684831,
-        #             -0.227833,
-        #             1.16463,
-        #             1.79072,
-        #             -3.8395,
-        #             3.91105,
-        #             -3.90864,
-        #         ]
-        #     )
-        #     q2, v2 = x2[:9], x2[9:]
-        #     T_we2 = robot_model.tool_pose_matrix(q2)
-        #     V_ew_w2 = robot_model.tool_velocity(q2, v2)
-        #     A_ew_w2 = robot_model.tool_acceleration(x2, u2)
-        #     J2 = robot.jacobian(q2)
-        #     V_J = J2 @ v2
-        #
-        #     r_ew_w, Q_we = robot.link_pose()
-        #     C_we = SO3.from_quaternion(Q_we, ordering="xyzw").as_matrix()
-        #     v_ew_w, ω_ew_w = robot.link_velocity()
-        #     A = robot_model.tool_acceleration(x, u)
-        #     zmp = balancing.object_balance_constraints(tray, C_we, ω_ew_w, A[:3], A[3:])
         #     IPython.embed()
 
     print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
