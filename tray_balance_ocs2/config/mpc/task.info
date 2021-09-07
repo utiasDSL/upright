@@ -77,8 +77,8 @@ mpc
 
   solutionTimeWindow             -1   ; [s]
 
-  mpcDesiredFrequency            30   ; [Hz]
-  mrtDesiredFrequency            40   ; [Hz]
+  mpcDesiredFrequency            10   ; [Hz]
+  mrtDesiredFrequency            10   ; [Hz]
 }
 
 ; initial state
@@ -180,8 +180,8 @@ endEffectorCost
     (0,0)  1.0
     (1,1)  1.0
     (2,2)  1.0
-    (3,3)  0.1
-    (4,4)  0.1
+    (3,3)  0.0
+    (4,4)  0.0
     (5,5)  1.0
   }
 
@@ -212,11 +212,8 @@ selfCollision
   ; minimum distance allowed between the pairs
   minimumDistance  0
 
-  ; relaxed log barrier mu
-  mu  1e-2
-
-  ; relaxed log barrier delta
-  delta  1e-3
+  mu    1e-2
+  delta 1e-3
 }
 
 
@@ -274,8 +271,8 @@ jointLimits
       (17,0) 2.0  ; WR_ROT
     }
 
-    mu  0.01
-    delta  1e-3
+    mu    1e-2
+    delta 1e-3
   }
 
   input
@@ -306,13 +303,13 @@ jointLimits
       (8,0) 4.0  ; WR_ROT
     }
 
-    mu  0.01
-    delta  1e-3
+    mu    1e-2
+    delta 1e-3
   }
 }
 
 trayBalanceConstraints
 {
-  mu 1e-1
+  mu    1e-1
   delta 1e-3
 }
