@@ -67,17 +67,12 @@ def main():
 
     # simulation objects and model
     robot, objects, composites = sim.setup(
-        obj_names=["tray", "cuboid1", "cuboid2", "cuboid3"]
+        obj_names=["tray"]
     )
-    tray = objects["tray"]
-    cuboid1 = objects["cuboid1"]
-    # cylinder1 = objects["cylinder1"]
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
     v_ew_w, ω_ew_w = robot.link_velocity()
-    # r_tw_w, Q_wt = tray.bullet.get_pose()
-    # r_ow_w, Q_wo = cuboid1.bullet.get_pose()
 
     # data recorder and plotter
     recorder = Recorder(
@@ -88,7 +83,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=23,
+        n_balance_con=5,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -227,15 +222,6 @@ def main():
                 recorder.r_ow_ws[j, idx, :] = r
                 recorder.Q_wos[j, idx, :] = Q
 
-            # r_tw_w, Q_wt = tray.bullet.get_pose()
-            # recorder.r_tw_ws[idx, :] = r_tw_w
-            # recorder.Q_wts[idx, :] = Q_wt
-            #
-            # if len(objects) > 1:
-            #     r_ow_w, Q_wo = cuboid1.bullet.get_pose()
-            #     recorder.r_ow_ws[idx, :] = r_ow_w
-            #     recorder.Q_wos[idx, :] = Q_wo
-
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
             if (recorder.ineq_cons[idx, :] < -1).any():
@@ -259,8 +245,12 @@ def main():
 
     print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
 
-    if "--save" in sys.argv:
-        fname = "balance_data_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    if sys.argv[1] == "--save":
+        if len(sys.argv) > 2:
+            prefix = sys.argv[2]
+        else:
+            prefix = "data"
+        fname = prefix + "_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         recorder.save(fname)
 
     last_sim_index = i

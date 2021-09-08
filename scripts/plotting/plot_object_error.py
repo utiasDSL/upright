@@ -2,17 +2,64 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from mm_pybullet_sim.recording import DATA_DRIVE_PATH
-from mm_pybullet_sim.util import quat_inverse, quat_multiply, quat_error
+import mm_pybullet_sim.util as util
+from liegroups import SO3
 
-DATA_PATH = DATA_DRIVE_PATH / "balance_data_2021-09-02_21-29-09.npz"
+DATA_PATH = DATA_DRIVE_PATH / "balance_data_2021-09-08_21-27-10.npz"
 FIG_PATH = "obj_error.pdf"
+
+
+def plot_object_error(ts, r_ew_ws, Q_wes, r_ow_ws, Q_wos):
+    r_oe_es = np.zeros_like(r_ow_ws)
+    for i in range(r_oe_es.shape[0]):
+        C_ew = SO3.from_quaternion(Q_wes[i, :], ordering="xyzw").inv()
+        r_oe_es[i, :] = C_ew.dot(r_ow_ws[i, :] - r_ew_ws[i, :])
+    r_oe_e_err = r_oe_es - r_oe_es[0, :]
+    print(f"max position error = {np.max(r_oe_e_err)}")
+
+    plt.figure()
+    # plt.plot(ts, r_oe_e_err[:, 0], label="$x$")
+    # plt.plot(ts, r_oe_e_err[:, 1], label="$y$")
+    # plt.plot(ts, r_oe_e_err[:, 2], label="$z$")
+    plt.plot(ts, np.linalg.norm(r_oe_e_err, axis=1), label="Position error")
+
+    # the rotation between EE and tray should be constant throughout the
+    # tracjectory, so there error is the deviation from the starting
+    # orientation
+    Q_oe0 = util.quat_multiply(
+            util.quat_inverse(Q_wos[0, :]), Q_wes[0, :]
+    )
+    Q_eo_err = np.zeros(Q_wos.shape[0])
+    for i in range(Q_eo_err.shape[0]):
+        Q_eo = util.quat_multiply(
+            util.quat_inverse(Q_wes[i, :]), Q_wos[i, :]
+        )
+        Q_eo_err[i] = util.quat_error(util.quat_multiply(Q_oe0, Q_eo))
+    print(f"max angle error = {np.max(Q_eo_err)}")
+
+    # plt.plot(ts, Q_eo_err[:, 0], label="$Q_x$")
+    # plt.plot(ts, Q_eo_err[:, 1], label="$Q_y$")
+    # plt.plot(ts, Q_eo_err[:, 2], label="$Q_z$")
+    plt.plot(ts, Q_eo_err, label="Angle error")
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time (s)")
+    plt.ylabel("Error")
 
 
 def main():
     with np.load(DATA_PATH) as data:
         ts = data["ts"]
-        r_te_es = data["r_te_es"]
-        Q_ets = data["Q_ets"]
+        r_ew_ws = data["r_ew_ws"]
+        Q_wes = data["Q_wes"]
+        r_ow_ws = data["r_ow_ws"]
+        Q_wos = data["Q_wos"]
+
+    for i in range(r_ow_ws.shape[0]):
+        plot_object_error(ts, r_ew_ws, Q_wes, r_ow_ws[i, :, :], Q_wos[i, :, :])
+    plt.show()
+    return
+
 
     fig = plt.figure(figsize=(3.25, 1.8))
     plt.rcParams.update({"font.size": 8, "text.usetex": True, "legend.fontsize": 8})

@@ -47,15 +47,6 @@ class Recorder:
         # inequality constraints for balancing
         self.ineq_cons = zeros(n_balance_con)
 
-        # self.r_te_es = zeros(3)
-        # self.Q_ets = zeros(4)
-        #
-        # self.r_oe_es = zeros(3)
-        # self.Q_eos = zeros(4)
-        #
-        # self.r_ot_ts = zeros(3)
-        # self.Q_tos = zeros(4)
-
         # TODO this may need more thinking if I add more collision pairs with
         # the dynamic obstacle
         # NOTE be careful in that these are not necessarily raw distance
@@ -77,6 +68,7 @@ class Recorder:
             path,
             ts=self.ts,
             us=self.us,
+            xs=self.xs,
             r_ew_ws=self.r_ew_ws,
             r_ew_wds=self.r_ew_wds,
             Q_wes=self.Q_wes,
@@ -90,7 +82,7 @@ class Recorder:
             collision_pair_distance=self.collision_pair_distance,
             control_durations=self.control_durations,
         )
-        print(f"Saved data to {filename}.")
+        print(f"Saved data to {path}.")
 
     def now_is_the_time(self, sim_index):
         return sim_index % self.period == 0
