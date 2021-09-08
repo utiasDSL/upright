@@ -66,7 +66,9 @@ def main():
     N = int(DURATION / sim.dt)
 
     # simulation objects and model
-    robot, objects, composites = sim.setup(obj_names=["tray", "cuboid1", "cuboid2"])
+    robot, objects, composites = sim.setup(
+        obj_names=["tray", "cuboid1", "cuboid2", "cuboid3"]
+    )
     tray = objects["tray"]
     cuboid1 = objects["cuboid1"]
     # cylinder1 = objects["cylinder1"]
@@ -74,8 +76,8 @@ def main():
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
     v_ew_w, ω_ew_w = robot.link_velocity()
-    r_tw_w, Q_wt = tray.bullet.get_pose()
-    r_ow_w, Q_wo = cuboid1.bullet.get_pose()
+    # r_tw_w, Q_wt = tray.bullet.get_pose()
+    # r_ow_w, Q_wo = cuboid1.bullet.get_pose()
 
     # data recorder and plotter
     recorder = Recorder(
@@ -84,8 +86,9 @@ def main():
         RECORD_PERIOD,
         ns=robot.ns,
         ni=robot.ni,
+        n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=17,
+        n_balance_con=23,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -128,8 +131,8 @@ def main():
         input_target.push_back(u)
 
     state_target = vector_array()
-    r_ew_w_d = np.array(r_ew_w) + [2, 0, 0]
-    # r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
+    # r_ew_w_d = np.array(r_ew_w) + [2, 0, 0]
+    r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
     # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
     # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
     # r_ew_w_d = np.array([0, -3, 1])
@@ -177,6 +180,7 @@ def main():
         # x_result = vector_array()
         # u_result = vector_array()
         # mpc.getMpcSolution(t_result, x_result, u_result)
+        # u = u_result[0]
 
         # As far as I can tell, evaluateMpcSolution actually computes the input
         # for the particular time and state (the input is often at least
@@ -184,16 +188,10 @@ def main():
         # getMpcSolution just gives the current MPC policy trajectory over the
         # entire time horizon, without accounting for the given state. So it is
         # like doing feedforward input only, which is bad.
-        opt_x = np.zeros(robot.ns)
-        opt_u = np.zeros(robot.ni)
-        mpc.evaluateMpcSolution(t, x, opt_x, opt_u)
+        x_opt = np.zeros(robot.ns)
+        u = np.zeros(robot.ni)
+        mpc.evaluateMpcSolution(t, x, x_opt, u)
 
-        # if np.linalg.norm(u_result[0] - opt_u) > 0.01:
-        #     print("different input!")
-        #     IPython.embed()
-
-        # u = u_result[0]
-        u = opt_u
         robot.command_acceleration(u)
 
         if recorder.now_is_the_time(i):
@@ -224,14 +222,19 @@ def main():
             recorder.v_ew_ws[idx, :] = v_ew_w
             recorder.ω_ew_ws[idx, :] = ω_ew_w
 
-            r_tw_w, Q_wt = tray.bullet.get_pose()
-            recorder.r_tw_ws[idx, :] = r_tw_w
-            recorder.Q_wts[idx, :] = Q_wt
+            for j, obj in enumerate(objects.values()):
+                r, Q = obj.bullet.get_pose()
+                recorder.r_ow_ws[j, idx, :] = r
+                recorder.Q_wos[j, idx, :] = Q
 
-            if len(objects) > 1:
-                r_ow_w, Q_wo = cuboid1.bullet.get_pose()
-                recorder.r_ow_ws[idx, :] = r_ow_w
-                recorder.Q_wos[idx, :] = Q_wo
+            # r_tw_w, Q_wt = tray.bullet.get_pose()
+            # recorder.r_tw_ws[idx, :] = r_tw_w
+            # recorder.Q_wts[idx, :] = Q_wt
+            #
+            # if len(objects) > 1:
+            #     r_ow_w, Q_wo = cuboid1.bullet.get_pose()
+            #     recorder.r_ow_ws[idx, :] = r_ow_w
+            #     recorder.Q_wos[idx, :] = Q_wo
 
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
@@ -264,9 +267,8 @@ def main():
     recorder.plot_ee_position(last_sim_index)
     recorder.plot_ee_orientation(last_sim_index)
     recorder.plot_ee_velocity(last_sim_index)
-    recorder.plot_r_te_e_error(last_sim_index)
-    # recorder.plot_r_oe_e_error(last_sim_index)
-    # recorder.plot_r_ot_t_error(last_sim_index)
+    for j in range(len(objects)):
+        recorder.plot_object_error(last_sim_index, j)
     recorder.plot_balancing_constraints(last_sim_index)
     recorder.plot_commands(last_sim_index)
     recorder.plot_control_durations(last_sim_index)

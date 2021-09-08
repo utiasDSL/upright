@@ -18,6 +18,7 @@ class Recorder:
         period,
         ns,
         ni,
+        n_objects,
         control_period=1,
         n_balance_con=0,
         n_dynamic_obs=0,
@@ -40,11 +41,8 @@ class Recorder:
         self.v_ew_ws = zeros(3)
         self.ω_ew_ws = zeros(3)
 
-        self.r_tw_ws = zeros(3)
-        self.Q_wts = zeros(4)
-
-        self.r_ow_ws = zeros(3)
-        self.Q_wos = zeros(4)
+        self.r_ow_ws = np.zeros((n_objects, self.num_records, 3))
+        self.Q_wos = np.zeros((n_objects, self.num_records, 4))
 
         # inequality constraints for balancing
         self.ineq_cons = zeros(n_balance_con)
@@ -85,8 +83,6 @@ class Recorder:
             Q_weds=self.Q_weds,
             v_ew_ws=self.v_ew_ws,
             ω_ew_ws=self.ω_ew_ws,
-            r_tw_ws=self.r_tw_ws,
-            Q_wts=self.Q_wts,
             r_ow_ws=self.r_ow_ws,
             Q_wos=self.Q_wos,
             ineq_cons=self.ineq_cons,
@@ -162,42 +158,45 @@ class Recorder:
         plt.ylabel("Velocity")
         plt.title("End effector velocity")
 
-    def plot_r_te_e_error(self, last_sim_index):
+    def plot_object_error(self, last_sim_index, obj_index):
         s, ts = self._slice_records(last_sim_index)
 
-        r_te_es = np.zeros_like(self.r_tw_ws[s, :])
-        for i in range(r_te_es.shape[0]):
+        r_ow_ws = self.r_ow_ws[obj_index, s, :]
+        Q_wos = self.Q_wos[obj_index, s, :]
+
+        r_oe_es = np.zeros_like(r_ow_ws)
+        for i in range(r_oe_es.shape[0]):
             C_ew = SO3.from_quaternion(self.Q_wes[i, :], ordering="xyzw").inv()
-            r_te_es[i, :] = C_ew.dot(self.r_tw_ws[i, :] - self.r_ew_ws[i, :])
-        r_te_e_err = r_te_es - r_te_es[0, :]
+            r_oe_es[i, :] = C_ew.dot(r_ow_ws[i, :] - self.r_ew_ws[i, :])
+        r_oe_e_err = r_oe_es - r_oe_es[0, :]
 
         plt.figure()
-        plt.plot(ts, r_te_e_err[:, 0], label="$x$")
-        plt.plot(ts, r_te_e_err[:, 1], label="$y$")
-        plt.plot(ts, r_te_e_err[:, 2], label="$z$")
-        plt.plot(ts, np.linalg.norm(r_te_e_err, axis=1), label="$||r||$")
+        plt.plot(ts, r_oe_e_err[:, 0], label="$x$")
+        plt.plot(ts, r_oe_e_err[:, 1], label="$y$")
+        plt.plot(ts, r_oe_e_err[:, 2], label="$z$")
+        plt.plot(ts, np.linalg.norm(r_oe_e_err, axis=1), label="$||r||$")
 
         # the rotation between EE and tray should be constant throughout the
         # tracjectory, so there error is the deviation from the starting
         # orientation
-        Q_te0 = util.quat_multiply(
-            util.quat_inverse(self.Q_wts[0, :]), self.Q_wes[0, :]
+        Q_oe0 = util.quat_multiply(
+                util.quat_inverse(Q_wos[0, :]), self.Q_wes[0, :]
         )
-        Q_et_err = np.zeros_like(self.Q_wts[s, :])
-        for i in range(Q_et_err.shape[0]):
-            Q_et = util.quat_multiply(
-                util.quat_inverse(self.Q_wes[i, :]), self.Q_wts[i, :]
+        Q_eo_err = np.zeros_like(Q_wos)
+        for i in range(Q_eo_err.shape[0]):
+            Q_eo = util.quat_multiply(
+                util.quat_inverse(self.Q_wes[i, :]), Q_wos[i, :]
             )
-            Q_et_err[i, :] = util.quat_multiply(Q_te0, Q_et)
+            Q_eo_err[i, :] = util.quat_multiply(Q_oe0, Q_eo)
 
-        plt.plot(ts, Q_et_err[:, 0], label="$Q_x$")
-        plt.plot(ts, Q_et_err[:, 1], label="$Q_y$")
-        plt.plot(ts, Q_et_err[:, 2], label="$Q_z$")
+        plt.plot(ts, Q_eo_err[:, 0], label="$Q_x$")
+        plt.plot(ts, Q_eo_err[:, 1], label="$Q_y$")
+        plt.plot(ts, Q_eo_err[:, 2], label="$Q_z$")
         plt.grid()
         plt.legend()
         plt.xlabel("Time (s)")
-        plt.ylabel("Tray-EE error")
-        plt.title("Tray-EE error")
+        plt.ylabel("Error")
+        plt.title(f"Object {obj_index} error")
 
     def plot_r_oe_e_error(self, last_sim_index):
         s, ts = self._slice_records(last_sim_index)
