@@ -125,14 +125,19 @@ def main():
     for _ in target_times:
         input_target.push_back(u)
 
-    state_target = vector_array()
-    # r_ew_w_d = np.array(r_ew_w) + [2, 0, 0]
-    r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
+    # goal 1
+    # r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
+    # Qd = Q_we
+
+    # goal 2
     # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
-    # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
-    # r_ew_w_d = np.array([0, -3, 1])
-    Qd = Q_we
-    # Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
+    # Qd = Q_we
+
+    # goal 3
+    r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
+    Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
+
+    state_target = vector_array()
     state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
     # state_target.push_back(np.concatenate((r_ew_w_d + [1, 0, 0], Qd, r_obs0)))
     # state_target.push_back(np.concatenate((r_ew_w_d + [2, 0, 0], Qd, r_obs0)))
@@ -224,10 +229,10 @@ def main():
 
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
-            if (recorder.ineq_cons[idx, :] < -1).any():
-                print("constraint less than -1")
-                IPython.embed()
-                break
+            # if (recorder.ineq_cons[idx, :] < -1).any():
+            #     print("constraint less than -1")
+            #     IPython.embed()
+            #     break
 
         # print(f"cmd_vel before step = {robot.cmd_vel}")
         sim.step(step_robot=True)

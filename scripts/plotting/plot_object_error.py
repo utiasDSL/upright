@@ -5,7 +5,9 @@ from mm_pybullet_sim.recording import DATA_DRIVE_PATH
 import mm_pybullet_sim.util as util
 from liegroups import SO3
 
-DATA_PATH = DATA_DRIVE_PATH / "balance_data_2021-09-08_21-27-10.npz"
+import IPython
+
+DATA_PATH = DATA_DRIVE_PATH / "h1.0_goal2_nf_2021-09-09_00-00-08.npz"
 FIG_PATH = "obj_error.pdf"
 
 
@@ -15,13 +17,14 @@ def plot_object_error(ts, r_ew_ws, Q_wes, r_ow_ws, Q_wos):
         C_ew = SO3.from_quaternion(Q_wes[i, :], ordering="xyzw").inv()
         r_oe_es[i, :] = C_ew.dot(r_ow_ws[i, :] - r_ew_ws[i, :])
     r_oe_e_err = r_oe_es - r_oe_es[0, :]
-    print(f"max position error = {np.max(r_oe_e_err)}")
+    r_err_norm = np.linalg.norm(r_oe_e_err, axis=1)
+    print(f"max position error = {np.max(r_err_norm)}")
 
     plt.figure()
     # plt.plot(ts, r_oe_e_err[:, 0], label="$x$")
     # plt.plot(ts, r_oe_e_err[:, 1], label="$y$")
     # plt.plot(ts, r_oe_e_err[:, 2], label="$z$")
-    plt.plot(ts, np.linalg.norm(r_oe_e_err, axis=1), label="Position error")
+    plt.plot(ts, r_err_norm, label="Position error")
 
     # the rotation between EE and tray should be constant throughout the
     # tracjectory, so there error is the deviation from the starting
