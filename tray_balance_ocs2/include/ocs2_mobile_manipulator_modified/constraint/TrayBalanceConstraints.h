@@ -19,7 +19,7 @@ namespace mobile_manipulator {
 // TODO can this be a class? convenient for defining, say, num_constraints
 template <typename Scalar>
 BalancedObject<Scalar> build_tray_object() {
-    Scalar tray_mass(1.0);
+    Scalar tray_mass(0.5);
     Scalar tray_com_height(0.01);
     Scalar tray_height = tray_com_height * 2;
     Scalar tray_radius(0.2);
@@ -27,7 +27,7 @@ BalancedObject<Scalar> build_tray_object() {
     Scalar ee_side_length(0.2);
     Scalar tray_zmp_margin(0.0);
     Vec3<Scalar> tray_com(3);  // wrt the EE frame
-    tray_com << Scalar(0.0), Scalar(0), Scalar(0.03);
+    tray_com << Scalar(0), Scalar(0), tray_com_height + Scalar(0.02);
 
     Mat3<Scalar> tray_inertia =
         cylinder_inertia_matrix<Scalar>(tray_mass, tray_radius, tray_height);
@@ -51,20 +51,22 @@ BalancedObject<Scalar> build_tray_object() {
 
 template <typename Scalar>
 BalancedObject<Scalar> build_cuboid_object() {
-    Scalar cuboid_mass(1.0);
+    Scalar cuboid_mass(0.5);
     Scalar cuboid_mu(0.5);
-    Scalar cuboid_com_height(0.1);
+    Scalar cuboid_com_height(0.075);
     Scalar cuboid_zmp_margin(0.0);
     Vec2<Scalar> cuboid_support_offset = Vec2<Scalar>::Zero();
-    Vec3<Scalar> cuboid_side_lengths(Scalar(0.2), Scalar(0.2),
+    Vec3<Scalar> cuboid_side_lengths(Scalar(0.15), Scalar(0.15),
                                      cuboid_com_height * 2);
     Mat3<Scalar> cuboid_inertia =
         cuboid_inertia_matrix(cuboid_mass, cuboid_side_lengths);
-    Vec3<Scalar> cuboid_com(Scalar(0), Scalar(0), Scalar(0.24));
+    Vec3<Scalar> cuboid_com(Scalar(0), Scalar(0), Scalar(0.115));
     RigidBody<Scalar> cuboid_body(cuboid_mass, cuboid_inertia, cuboid_com);
 
     // TODO should try using a cuboid r_tau
-    Scalar cuboid_r_tau = circle_r_tau(cuboid_side_lengths(0) * 0.5);
+    // Scalar cuboid_r_tau = circle_r_tau(cuboid_side_lengths(0) * 0.5);
+    Scalar cuboid_r_tau =
+        rectangle_r_tau(cuboid_side_lengths(0), cuboid_side_lengths(1));
 
     std::vector<Vec2<Scalar>> cuboid_vertices =
         cuboid_support_vertices(cuboid_side_lengths);
@@ -78,20 +80,51 @@ BalancedObject<Scalar> build_cuboid_object() {
 
 template <typename Scalar>
 BalancedObject<Scalar> build_cuboid_object2() {
-    Scalar cuboid_mass(1.0);
+    Scalar cuboid_mass(0.5);
     Scalar cuboid_mu(0.5);
-    Scalar cuboid_com_height(0.1);
+    Scalar cuboid_com_height(0.075);
     Scalar cuboid_zmp_margin(0.0);
     Vec2<Scalar> cuboid_support_offset = Vec2<Scalar>::Zero();
     Vec3<Scalar> cuboid_side_lengths(Scalar(0.15), Scalar(0.15),
                                      cuboid_com_height * 2);
     Mat3<Scalar> cuboid_inertia =
         cuboid_inertia_matrix(cuboid_mass, cuboid_side_lengths);
-    Vec3<Scalar> cuboid_com(Scalar(0), Scalar(0), Scalar(0.64));
+    Vec3<Scalar> cuboid_com(Scalar(0), Scalar(0), Scalar(0.265));
     RigidBody<Scalar> cuboid_body(cuboid_mass, cuboid_inertia, cuboid_com);
 
     // TODO should try using a cuboid r_tau
-    Scalar cuboid_r_tau = circle_r_tau(cuboid_side_lengths(0) * 0.5);
+    // Scalar cuboid_r_tau = circle_r_tau(cuboid_side_lengths(0) * 0.5);
+    Scalar cuboid_r_tau =
+        rectangle_r_tau(cuboid_side_lengths(0), cuboid_side_lengths(1));
+
+    std::vector<Vec2<Scalar>> cuboid_vertices =
+        cuboid_support_vertices(cuboid_side_lengths);
+    PolygonSupportArea<Scalar> cuboid_support_area(
+        cuboid_vertices, cuboid_support_offset, cuboid_zmp_margin);
+
+    BalancedObject<Scalar> cuboid(cuboid_body, cuboid_com_height,
+                                  cuboid_support_area, cuboid_r_tau, cuboid_mu);
+    return cuboid;
+}
+
+template <typename Scalar>
+BalancedObject<Scalar> build_cuboid_object3() {
+    Scalar cuboid_mass(0.5);
+    Scalar cuboid_mu(0.5);
+    Scalar cuboid_com_height(0.075);
+    Scalar cuboid_zmp_margin(0.0);
+    Vec2<Scalar> cuboid_support_offset = Vec2<Scalar>::Zero();
+    Vec3<Scalar> cuboid_side_lengths(Scalar(0.1), Scalar(0.1),
+                                     cuboid_com_height * 2);
+    Mat3<Scalar> cuboid_inertia =
+        cuboid_inertia_matrix(cuboid_mass, cuboid_side_lengths);
+    Vec3<Scalar> cuboid_com(Scalar(0), Scalar(0), Scalar(0.415));
+    RigidBody<Scalar> cuboid_body(cuboid_mass, cuboid_inertia, cuboid_com);
+
+    // TODO should try using a cuboid r_tau
+    // Scalar cuboid_r_tau = circle_r_tau(cuboid_side_lengths(0) * 0.5);
+    Scalar cuboid_r_tau =
+        rectangle_r_tau(cuboid_side_lengths(0), cuboid_side_lengths(1));
 
     std::vector<Vec2<Scalar>> cuboid_vertices =
         cuboid_support_vertices(cuboid_side_lengths);
@@ -165,7 +198,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         size_t n_tray_con = 2 + 3;
         size_t n_cuboid_con = 2 + 4;
         size_t n_cylinder_con = 2 + 1;
-        return n_tray_con + 2 * n_cuboid_con;
+        return n_tray_con + 3 * n_cuboid_con;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
@@ -184,22 +217,33 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
 
         // BalancedObject<ad_scalar_t> cylinder =
         //     build_cylinder_object<ad_scalar_t>();
+        BalancedObject<ad_scalar_t> tray = build_tray_object<ad_scalar_t>();
         BalancedObject<ad_scalar_t> cuboid1 =
             build_cuboid_object<ad_scalar_t>();
         BalancedObject<ad_scalar_t> cuboid2 =
             build_cuboid_object2<ad_scalar_t>();
-        BalancedObject<ad_scalar_t> tray = build_tray_object<ad_scalar_t>();
+        BalancedObject<ad_scalar_t> cuboid3 =
+            build_cuboid_object3<ad_scalar_t>();
 
-        auto composite1 =
-            BalancedObject<ad_scalar_t>::compose({tray, cuboid1, cuboid2});
-        auto composite2 =
-            BalancedObject<ad_scalar_t>::compose({cuboid1, cuboid2});
-        // auto composite1 =
-        //     BalancedObject<ad_scalar_t>::compose({tray, cuboid});
+        // auto composite_tray_cuboid1 =
+        //     BalancedObject<ad_scalar_t>::compose({tray, cuboid1});
 
+        // auto composite_tray_cuboid12 =
+        //     BalancedObject<ad_scalar_t>::compose({tray, cuboid1, cuboid2});
+        // auto composite_cuboid12 =
+        //     BalancedObject<ad_scalar_t>::compose({cuboid1, cuboid2});
+
+        auto composite_tray_cuboid123 =
+            BalancedObject<ad_scalar_t>::compose({tray, cuboid1, cuboid2, cuboid3});
+        auto composite_cuboid123 =
+            BalancedObject<ad_scalar_t>::compose({cuboid1, cuboid2, cuboid3});
+        auto composite_cuboid23 =
+            BalancedObject<ad_scalar_t>::compose({cuboid2, cuboid3});
+
+         // {composite_tray_cuboid123, composite_cuboid123, composite_cuboid23, cuboid3});
         ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
             C_we, angular_vel, linear_acc, angular_acc,
-            {composite1, composite2, cuboid2});
+         {composite_tray_cuboid123, composite_cuboid123, composite_cuboid23, cuboid3});
         return constraints;
     }
 

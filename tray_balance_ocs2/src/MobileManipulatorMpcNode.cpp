@@ -40,27 +40,28 @@ using namespace ocs2;
 using namespace mobile_manipulator;
 
 int main(int argc, char** argv) {
-  const std::string robotName = "mobile_manipulator";
+    const std::string robotName = "mobile_manipulator";
 
-  // task file
-  std::vector<std::string> programArgs{};
-  ::ros::removeROSArgs(argc, argv, programArgs);
-  if (programArgs.size() <= 1) {
-    throw std::runtime_error("No task file specified. Aborting.");
-  }
-  std::string taskFileFolderName = std::string(programArgs[1]);
+    // task file
+    std::vector<std::string> programArgs{};
+    ::ros::removeROSArgs(argc, argv, programArgs);
+    if (programArgs.size() <= 1) {
+        throw std::runtime_error("No task file specified. Aborting.");
+    }
+    std::string taskFileFolderName = std::string(programArgs[1]);
 
-  // Initialize ros node
-  ros::init(argc, argv, robotName + "_mpc");
-  ros::NodeHandle nodeHandle;
+    // Initialize ros node
+    ros::init(argc, argv, robotName + "_mpc");
+    ros::NodeHandle nodeHandle;
 
-  // Robot interface
-  MobileManipulatorInterface interface(taskFileFolderName);
+    // Robot interface
+    MobileManipulatorInterface interface(taskFileFolderName);
 
-  // Ros ReferenceManager
-  std::shared_ptr<ocs2::RosReferenceManager> rosReferenceManagerPtr(
-      new ocs2::RosReferenceManager(robotName, interface.getReferenceManagerPtr()));
-  rosReferenceManagerPtr->subscribe(nodeHandle);
+    // Ros ReferenceManager
+    std::shared_ptr<ocs2::RosReferenceManager> rosReferenceManagerPtr(
+        new ocs2::RosReferenceManager(robotName,
+                                      interface.getReferenceManagerPtr()));
+    rosReferenceManagerPtr->subscribe(nodeHandle);
 
     // scalar_t obj_mass(1.0);
     // scalar_t obj_mu(0.5);
@@ -75,7 +76,8 @@ int main(int argc, char** argv) {
     // // NOTE: this assumes that the cuboid is -0.05 offset
     // Eigen::Vector3d cuboid_com(-0.05, 0, 0.25);
     // RigidBody<scalar_t> cuboid_body(obj_mass, cuboid_inertia, cuboid_com);
-    // scalar_t cuboid_r_tau = circle_r_tau(cuboid_side_lengths(0) * 0.5);  // TODO
+    // scalar_t cuboid_r_tau = circle_r_tau(cuboid_side_lengths(0) * 0.5);  //
+    // TODO
     //
     // std::vector<Eigen::Vector2d> vertices =
     //     cuboid_support_vertices(cuboid_side_lengths);
@@ -85,7 +87,8 @@ int main(int argc, char** argv) {
     // //     ad_scalar_t(0.1), obj_support_offset, obj_zmp_margin);
     //
     // BalancedObject<scalar_t> cuboid(
-    //     cuboid_body, obj_com_height, cuboid_support_area, cuboid_r_tau, obj_mu);
+    //     cuboid_body, obj_com_height, cuboid_support_area, cuboid_r_tau,
+    //     obj_mu);
     //
     // // vector_t constraints = balancing_constraints<scalar_t>(
     // //     C_we, angular_vel, linear_acc, angular_acc, {cuboid});
@@ -96,11 +99,20 @@ int main(int argc, char** argv) {
     // std::cout << "cuboid ZMP constraints = " << zmp_cons << std::endl;
     // throw std::runtime_error("stop!");
 
-  // Launch MPC ROS node
-  auto mpcPtr = interface.getMpc();
-  mpcPtr->getSolverPtr()->setReferenceManager(rosReferenceManagerPtr);
-  MPC_ROS_Interface mpcNode(*mpcPtr, robotName);
-  mpcNode.launchNodes(nodeHandle);
+    // scalar_t w = 0.1;
+    // scalar_t h = 0.1;
+    // scalar_t r = 0.5 * w;
+    // std::cout << "circle r_tau = " << circle_r_tau(r) << std::endl;
+    // std::cout << "rectangle r_tau = " << rectangle_r_tau(w, h) << std::endl;
+    // std::cout << "rectangle r_tau = " << rectangle_r_tau(h, w) << std::endl;
 
-  return 0;
+    // throw std::runtime_error("stop!");
+
+    // Launch MPC ROS node
+    auto mpcPtr = interface.getMpc();
+    mpcPtr->getSolverPtr()->setReferenceManager(rosReferenceManagerPtr);
+    MPC_ROS_Interface mpcNode(*mpcPtr, robotName);
+    mpcNode.launchNodes(nodeHandle);
+
+    return 0;
 }
