@@ -67,12 +67,16 @@ def main():
 
     # simulation objects and model
     robot, objects, composites = sim.setup(
-        obj_names=["tray"]
+        # obj_names=["tray", "cuboid1", "cuboid2", "cuboid3"]
+        obj_names=["tray", "cylinder1", "cylinder2"]
     )
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
     v_ew_w, ω_ew_w = robot.link_velocity()
+
+    n_balance_con_tray = 5
+    n_balance_con_obj = 6
 
     # data recorder and plotter
     recorder = Recorder(
@@ -83,7 +87,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=5,
+        n_balance_con=n_balance_con_tray + 2 * n_balance_con_obj
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -130,12 +134,12 @@ def main():
     # Qd = Q_we
 
     # goal 2
-    # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
-    # Qd = Q_we
+    r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
+    Qd = Q_we
 
     # goal 3
-    r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
-    Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
+    # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
+    # Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
 
     state_target = vector_array()
     state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
@@ -250,7 +254,7 @@ def main():
 
     print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
 
-    if sys.argv[1] == "--save":
+    if len(sys.argv) > 1 and sys.argv[1] == "--save":
         if len(sys.argv) > 2:
             prefix = sys.argv[2]
         else:

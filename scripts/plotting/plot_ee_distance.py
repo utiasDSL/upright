@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from mm_pybullet_sim.recording import DATA_DRIVE_PATH
+import mm_pybullet_sim.util as util
+from liegroups import SO3
 
 import IPython
 
@@ -33,7 +35,9 @@ HEIGHT_100CM_PATHS = [
     )
 ]
 
-FIG_PATH = "ee_distance.pdf"
+# EXTRA_PATH = DATA_DRIVE_PATH / "h1.7_goal1_all_2021-09-09_17-04-22.npz"
+
+FIG_PATH = "/home/adam/phd/papers/icra22/figures/ee_distance.pdf"
 
 
 class TrajectoryData:
@@ -42,9 +46,23 @@ class TrajectoryData:
             self.ts = data["ts"]
             self.r_ew_ws = data["r_ew_ws"]
             self.r_ew_wds = data["r_ew_wds"]
+            self.Q_wes = data["Q_wes"]
+            self.Q_weds = data["Q_weds"]
 
         self.r_ew_w_err = self.r_ew_wds - self.r_ew_ws
         self.r_ew_w_err_norm = np.linalg.norm(self.r_ew_w_err, axis=1)
+
+        self.Q_des = np.zeros_like(self.Q_wes)
+        self.rpy_des = np.zeros((self.Q_wes.shape[0], 3))
+        self.angle_err = np.zeros(self.Q_wes.shape[0])
+        for i in range(self.Q_des.shape[0]):
+            self.Q_des[i, :] = util.quat_multiply(
+                util.quat_inverse(self.Q_weds[i, :]), self.Q_wes[i, :]
+            )
+            self.rpy_des[i, :] = SO3.from_quaternion(
+                self.Q_des[i, :], ordering="xyzw"
+            ).to_rpy()
+            self.angle_err[i] = util.quat_error(self.Q_des[i, :])
 
         if tf is not None:
             for i in range(self.ts.shape[0]):
@@ -56,6 +74,7 @@ class TrajectoryData:
 
         self.ts_cut = self.ts[:data_length]
         self.r_ew_w_err_norm_cut = self.r_ew_w_err_norm[:data_length]
+        self.angle_err_cut = self.angle_err[:data_length]
 
         # for i in range(err_norm.shape[0]):
         #     if err_norm[i] <= 0.01:
@@ -65,9 +84,52 @@ class TrajectoryData:
 
 def main():
     # load the data
-    height_2cm_data = [TrajectoryData(path, tf=4) for path in HEIGHT_2CM_PATHS]
-    height_20cm_data = [TrajectoryData(path, tf=4) for path in HEIGHT_20CM_PATHS]
-    height_100cm_data = [TrajectoryData(path, tf=4) for path in HEIGHT_100CM_PATHS]
+    tf = 3
+    height_2cm_data = [TrajectoryData(path, tf=tf) for path in HEIGHT_2CM_PATHS]
+    height_20cm_data = [TrajectoryData(path, tf=tf) for path in HEIGHT_20CM_PATHS]
+    height_100cm_data = [TrajectoryData(path, tf=tf) for path in HEIGHT_100CM_PATHS]
+
+    # extra_data = TrajectoryData(EXTRA_PATH, tf=4)
+
+    # plt.figure()
+    # plt.plot(
+    #     height_2cm_data[0].ts_cut,
+    #     height_2cm_data[0].angle_err_cut,
+    #     label=r"$2\ \mathrm{cm}$",
+    # )
+    # plt.plot(
+    #     height_20cm_data[0].ts_cut,
+    #     height_20cm_data[0].angle_err_cut,
+    #     label=r"$20\ \mathrm{cm}$",
+    # )
+    # plt.plot(
+    #     height_100cm_data[0].ts_cut,
+    #     height_100cm_data[0].angle_err_cut,
+    #     label=r"$100\ \mathrm{cm}$",
+    # )
+    # plt.legend()
+    # plt.grid()
+    # plt.xlabel("Time (s)")
+    # plt.ylabel("Orientation error (rad)")
+    # plt.title("Orientation error norm")
+    #
+    # plt.figure()
+    # plt.plot(height_2cm_data[0].ts, height_2cm_data[0].rpy_des[:, 0], label="x")
+    # plt.plot(height_2cm_data[0].ts, height_2cm_data[0].rpy_des[:, 1], label="y")
+    # plt.plot(height_2cm_data[0].ts, height_2cm_data[0].rpy_des[:, 2], label="z")
+    # plt.legend()
+    # plt.xlabel("Time (s)")
+    # plt.ylabel("Orientation error (rad)")
+    # plt.title("Orientation error (2cm)")
+    #
+    # plt.figure()
+    # plt.plot(height_100cm_data[0].ts, height_100cm_data[0].rpy_des[:, 0], label="x")
+    # plt.plot(height_100cm_data[0].ts, height_100cm_data[0].rpy_des[:, 1], label="y")
+    # plt.plot(height_100cm_data[0].ts, height_100cm_data[0].rpy_des[:, 2], label="z")
+    # plt.legend()
+    # plt.xlabel("Time (s)")
+    # plt.ylabel("Orientation error (rad)")
+    # plt.title("Orientation error (100cm)")
 
     fig = plt.figure(figsize=(3.25, 1.5))
     plt.rcParams.update({"font.size": 8, "text.usetex": True, "legend.fontsize": 8})
@@ -76,65 +138,65 @@ def main():
     plt.plot(
         height_2cm_data[0].ts_cut,
         height_2cm_data[0].r_ew_w_err_norm_cut,
-        label=r"$2\ \mathrm{cm}$",
+        label=r"$\mathrm{Short}$",
     )
-    plt.plot(
-        height_20cm_data[0].ts_cut,
-        height_20cm_data[0].r_ew_w_err_norm_cut,
-        label=r"$20\ \mathrm{cm}$",
-    )
+    # plt.plot(
+    #     height_20cm_data[0].ts_cut,
+    #     height_20cm_data[0].r_ew_w_err_norm_cut,
+    #     label=r"$20\ \mathrm{cm}$",
+    # )
     plt.plot(
         height_100cm_data[0].ts_cut,
         height_100cm_data[0].r_ew_w_err_norm_cut,
-        label=r"$100\ \mathrm{cm}$",
+        label=r"$\mathrm{Tall}$",
     )
     plt.ylabel(r"$\mathrm{Distance\ (m)}$")
     plt.title(r"$\mathrm{Goal\ 1}$")
-    ax1.set_xticks([0, 1.5, 3])
+    ax1.set_xticks([0, 1, 2, 3])
 
     ax2 = plt.subplot(132)
     plt.plot(
         height_2cm_data[1].ts_cut,
         height_2cm_data[1].r_ew_w_err_norm_cut,
-        label=r"$2\ \mathrm{cm}$",
+        label=r"$\mathrm{Short}$",
     )
-    plt.plot(
-        height_20cm_data[1].ts_cut,
-        height_20cm_data[1].r_ew_w_err_norm_cut,
-        label=r"$20\ \mathrm{cm}$",
-    )
+    # plt.plot(
+    #     height_20cm_data[1].ts_cut,
+    #     height_20cm_data[1].r_ew_w_err_norm_cut,
+    #     label=r"$20\ \mathrm{cm}$",
+    # )
     plt.plot(
         height_100cm_data[1].ts_cut,
         height_100cm_data[1].r_ew_w_err_norm_cut,
-        label=r"$100\ \mathrm{cm}$",
+        label=r"$\mathrm{Tall}$",
     )
     plt.xlabel(r"$\mathrm{Time\ (s)}$")
     plt.title(r"$\mathrm{Goal\ 2}$")
     ax2.set_yticks([])
     ax2.set_yticklabels([])
-    ax2.set_xticks([0, 1.5, 3])
+    ax2.set_xticks([0, 1, 2, 3])
 
     ax3 = plt.subplot(133)
     plt.plot(
         height_2cm_data[2].ts_cut,
         height_2cm_data[2].r_ew_w_err_norm_cut,
-        label=r"$2\ \mathrm{cm}$",
+        label=r"$\mathrm{Short}$",
     )
-    plt.plot(
-        height_20cm_data[2].ts_cut,
-        height_20cm_data[2].r_ew_w_err_norm_cut,
-        label=r"$20\ \mathrm{cm}$",
-    )
+    # plt.plot(
+    #     height_20cm_data[2].ts_cut,
+    #     height_20cm_data[2].r_ew_w_err_norm_cut,
+    #     label=r"$20\ \mathrm{cm}$",
+    # )
     plt.plot(
         height_100cm_data[2].ts_cut,
         height_100cm_data[2].r_ew_w_err_norm_cut,
-        label=r"$100\ \mathrm{cm}$",
+        label=r"$\mathrm{Tall}$",
     )
     plt.legend()
     plt.title(r"$\mathrm{Goal\ 3}$")
     ax3.set_yticks([])
     ax3.set_yticklabels([])
-    ax3.set_xticks([0, 1.5, 3])
+    ax3.set_xticks([0, 1, 2, 3])
 
     fig.tight_layout(pad=0.1)
     fig.savefig(FIG_PATH)

@@ -68,17 +68,6 @@ def pitch_from_quat(Q):
     return SO3.from_quaternion_xyzw(Q).compute_pitch_radians()
 
 
-# def quat_from_axis_angle(a, np=np):
-#     """Compute quaternion from an axis-angle."""
-#     # NOTE: this is not written for jax: use jaxlie instead
-#     angle = np.linalg.norm(a)
-#     if np.isclose(angle, 0):
-#         return np.array([0, 0, 0, 1])
-#     axis = a / angle
-#     c = np.cos(angle / 2)
-#     s = np.sin(angle / 2)
-#     return np.append(axis * s, c)
-
 def quat_error(q):
     xyz = q[:3]
     w = q[3]
