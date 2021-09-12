@@ -27,7 +27,7 @@ import IPython
 SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 10.0  # duration of trajectory (s)
+DURATION = 20.0  # duration of trajectory (s)
 
 
 class Obstacle:
@@ -68,13 +68,15 @@ def main():
     # simulation objects and model
     robot, objects, composites = sim.setup(
         # obj_names=["tray", "cuboid1", "cuboid2", "cuboid3"]
-        obj_names=["tray", "cylinder1", "cylinder2"]
+        obj_names=["tray", "cylinder1", "cylinder2", "cylinder3"]
+        # obj_names=["tray"]
     )
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
     v_ew_w, ω_ew_w = robot.link_velocity()
 
+    n_collision_pair = 29
     n_balance_con_tray = 5
     n_balance_con_obj = 6
 
@@ -87,7 +89,8 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=n_balance_con_tray + 2 * n_balance_con_obj
+        n_balance_con=n_balance_con_tray + 3 * n_balance_con_obj,
+        n_collision_pair=n_collision_pair,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -116,8 +119,8 @@ def main():
     x = np.concatenate((q, v))
     u = np.zeros(robot.ni)
 
-    # target_times = [0, 2, 4, 6, 8, 10]
-    target_times = [0]
+    target_times = np.array([0, 2, 4, 6, 8, 10])
+    # target_times = [0]
 
     # setup MPC and initial EE target pose
     mpc = mpc_interface("mpc")
@@ -134,20 +137,30 @@ def main():
     # Qd = Q_we
 
     # goal 2
-    r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
-    Qd = Q_we
+    # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
+    # Qd = Q_we
 
     # goal 3
     # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
     # Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
 
+    # state_target = vector_array()
+    # state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
+
     state_target = vector_array()
-    state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w_d + [1, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w_d + [2, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w_d + [3, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w_d + [4, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w_d + [4, 0, 0], Qd, r_obs0)))
+    Qd = Q_we
+    state_target.push_back(np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w + [5, 0, 0], Qd, r_obs0)))
+
+    # state_target.push_back(np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)))
 
     target_trajectories = TargetTrajectories(t_target, state_target, input_target)
     mpc.reset(target_trajectories)
@@ -209,9 +222,9 @@ def main():
             # recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
             #     "obstacleAvoidance", t, x
             # )
-            # recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
-            #     "selfCollision", t, x
-            # )
+            recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
+                "selfCollision", t, x
+            )
 
             r_ew_w_d = state_target[target_idx][:3]
             Q_we_d = state_target[target_idx][3:7]

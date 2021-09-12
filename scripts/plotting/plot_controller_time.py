@@ -146,7 +146,9 @@ def main():
 
     fig = plt.figure(figsize=(3.25, 1.5))
     # fig, ax = plt.subplots(1, 2, sharex=True, figsize=(3.25, 1.5))
-    plt.rcParams.update({"font.size": 8, "text.usetex": True, "legend.fontsize": 8})
+    plt.rcParams.update(
+        {"font.size": 8, "text.usetex": True, "legend.fontsize": 8, "axes.titlesize": 8}
+    )
 
     # plot for objects in a flat configuration
     ax1 = plt.subplot(121)

@@ -37,7 +37,7 @@ HEIGHT_100CM_PATHS = [
 
 # EXTRA_PATH = DATA_DRIVE_PATH / "h1.7_goal1_all_2021-09-09_17-04-22.npz"
 
-FIG_PATH = "/home/adam/phd/papers/icra22/figures/ee_distance.pdf"
+FIG_PATH = "/home/adam/phd/papers/icra22/figures/ee_convergence.pdf"
 
 
 class TrajectoryData:
@@ -132,7 +132,9 @@ def main():
     # plt.title("Orientation error (100cm)")
 
     fig = plt.figure(figsize=(3.25, 1.5))
-    plt.rcParams.update({"font.size": 8, "text.usetex": True, "legend.fontsize": 8})
+    plt.rcParams.update(
+        {"font.size": 8, "text.usetex": True, "legend.fontsize": 8, "axes.titlesize": 8}
+    )
 
     ax1 = plt.subplot(131)
     plt.plot(
