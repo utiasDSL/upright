@@ -605,9 +605,9 @@
   <!-- Collision element to protect the balanced objects -->
   <link name="balanced_object_collision_link">
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.07"/>
+      <origin rpy="0 0 0" xyz="0 0 0.1"/>
       <geometry>
-        <cylinder length="0.2" radius="0.25"/>
+        <cylinder length="0.25" radius="0.25"/>
       </geometry>
       <material name="seethrough"/>
     </visual>
