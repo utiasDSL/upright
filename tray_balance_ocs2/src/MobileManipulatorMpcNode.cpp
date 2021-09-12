@@ -106,6 +106,10 @@ int main(int argc, char** argv) {
     // std::cout << "rectangle r_tau = " << rectangle_r_tau(w, h) << std::endl;
     // std::cout << "rectangle r_tau = " << rectangle_r_tau(h, w) << std::endl;
 
+    // std::cout << "loc 1 = " << equilateral_triangle_cup_location(0.2, 0.08, 0) << std::endl;
+    // std::cout << "loc 2 = " << equilateral_triangle_cup_location(0.2, 0.08, 1) << std::endl;
+    // std::cout << "loc 3 = " << equilateral_triangle_cup_location(0.2, 0.08, 2) << std::endl;
+
     // throw std::runtime_error("stop!");
 
     // Launch MPC ROS node

@@ -23,7 +23,7 @@
     <color rgba="0.15 0.15 0.15 1.0"/>
   </material>
   <material name="seethrough">
-    <color rgba="0.5 0.5 0.5 0.5"/>
+    <color rgba="1.0 0.0 0.0 0.5"/>
   </material>
 
   <link name="front_rocker_link">
@@ -697,15 +697,15 @@
   <!-- Collision element to protect the balanced objects -->
   <link name="balanced_object_collision_link">
     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0.02"/>
+      <origin rpy="0 0 0" xyz="0 0 0.07"/>
       <geometry>
-        <cylinder length="0.1" radius="0.25"/>
+        <cylinder length="0.2" radius="0.25"/>
       </geometry>
     </collision>
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.02"/>
+      <origin rpy="0 0 0" xyz="0 0 0.07"/>
       <geometry>
-        <cylinder length="0.1" radius="0.25"/>
+        <cylinder length="0.2" radius="0.25"/>
       </geometry>
       <material name="seethrough"/>
     </visual>
@@ -741,13 +741,13 @@
   <!-- Collision cylinder for the upper arm link -->
   <link name="upper_arm_collision_link">
     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0.325"/>
+      <origin rpy="0 0 0" xyz="0 -0.05 0.325"/>
       <geometry>
         <cylinder length="0.65" radius="0.06"/>
       </geometry>
     </collision>
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.325"/>
+      <origin rpy="0 0 0" xyz="0 -0.05 0.325"/>
       <geometry>
         <cylinder length="0.65" radius="0.06"/>
       </geometry>
@@ -763,13 +763,13 @@
   <!-- Collision sphere for the elbow -->
   <link name="elbow_collision_link">
     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0.06 0"/>
       <geometry>
         <sphere radius="0.15"/>
       </geometry>
     </collision>
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0.06 0"/>
       <geometry>
         <sphere radius="0.15"/>
       </geometry>
@@ -824,6 +824,28 @@
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="ur10_arm_wrist_3_link"/>
     <child link="wrist_collision_link"/>
+  </joint>
+
+  <!-- Collision rectangle for the base -->
+  <link name="base_collision_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0.15"/>
+      <geometry>
+        <box size="1.0 0.8 0.3"/>
+      </geometry>
+      <material name="seethrough"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0.15"/>
+      <geometry>
+        <box size="1.0 0.8 0.3"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="base_collision_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0.01"/>
+    <parent link="base_link"/>
+    <child link="base_collision_link"/>
   </joint>
 
 </robot>
