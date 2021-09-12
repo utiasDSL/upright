@@ -53,11 +53,11 @@ class ObstacleConstraint final : public StateConstraint {
         : StateConstraint(ConstraintOrder::Linear),
           endEffectorKinematicsPtr_(endEffectorKinematics.clone()),
           referenceManagerPtr_(&referenceManager) {
-        if (endEffectorKinematics.getIds().size() != 1) {
-            throw std::runtime_error(
-                "[EndEffectorConstraint] endEffectorKinematics has wrong "
-                "number of end effector IDs.");
-        }
+        // if (endEffectorKinematics.getIds().size() != 1) {
+        //     throw std::runtime_error(
+        //         "[EndEffectorConstraint] endEffectorKinematics has wrong "
+        //         "number of end effector IDs.");
+        // }
         pinocchioEEKinPtr_ = dynamic_cast<PinocchioEndEffectorKinematics*>(
             endEffectorKinematicsPtr_.get());
     }
@@ -70,7 +70,7 @@ class ObstacleConstraint final : public StateConstraint {
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        return 1;  // TODO
+        return 2;  // TODO
     }
 
     vector_t getValue(scalar_t time, const vector_t& state,
@@ -79,23 +79,25 @@ class ObstacleConstraint final : public StateConstraint {
             referenceManagerPtr_->getTargetTrajectories();
         vector3_t obstacle_pos =
             interpolate_obstacle_position(time, targetTrajectories);
-        vector3_t ee_pos =
-            endEffectorKinematicsPtr_->getPosition(state).front();
-        vector3_t vec = ee_pos - obstacle_pos;
 
-        scalar_t r_objects = 0.25;
+        std::vector<vector3_t> ee_positions =
+            endEffectorKinematicsPtr_->getPosition(state);
+
+        std::vector<scalar_t> r_collision_spheres = {0.25, 0.15};
         scalar_t r_obstacle = 0.1;
         scalar_t r_safety = 0.1;
-        scalar_t r = r_objects + r_obstacle + r_safety;
 
-        // std::cout << "vec = " << vec << std::endl;
-        // std::cout << "obs pos = " << obstacle_pos << std::endl;
+        vector_t constraints(getNumConstraints(time));
+        for (int i = 0; i < ee_positions.size(); ++i) {
+            vector3_t vec = ee_positions[i] - obstacle_pos;
+            scalar_t r = r_collision_spheres[i] + r_obstacle + r_safety;
+            constraints(i) = vec.norm() - r;
+        }
 
         // here we are only worrying about obstacle and the objects, not any
         // other part of the robot
         // TODO this could be numerically unstable
-        vector_t constraints(getNumConstraints(time));
-        constraints << vec.norm() - r;
+        // constraints << vec.norm() - r;
         // std::cout << "obstacle constraint = " << constraints << std::endl;
         return constraints;
     }
@@ -111,17 +113,22 @@ class ObstacleConstraint final : public StateConstraint {
             referenceManagerPtr_->getTargetTrajectories();
         vector3_t obstacle_pos =
             interpolate_obstacle_position(time, targetTrajectories);
-        const auto ee_pos =
-            endEffectorKinematicsPtr_->getPositionLinearApproximation(state)
-                .front();
-        vector3_t vec = ee_pos.f - obstacle_pos;
-
-        // std::cout << "[getLinearApproximation] one" << std::endl;
 
         // the .f part is just the value
         approximation.f = getValue(time, state, preComputation);
-        approximation.dfdx = vec.transpose() * ee_pos.dfdx / vec.norm();
 
+        const auto ee_positions =
+            endEffectorKinematicsPtr_->getPositionLinearApproximation(state);
+
+        for (int i = 0; i < ee_positions.size(); ++i) {
+            vector3_t vec = ee_positions[i].f - obstacle_pos;
+            approximation.dfdx.row(i) = vec.transpose() * ee_positions[i].dfdx / vec.norm();
+            // scalar_t r = r_collision_spheres[i] + r_obstacle + r_safety;
+            // constraints(i) = vec.norm() - r;
+        }
+
+        // vector3_t vec = ee_pos.f - obstacle_pos;
+        // std::cout << "[getLinearApproximation] one" << std::endl;
         // std::cout << "[getLinearApproximation] two" << std::endl;
 
         return approximation;
