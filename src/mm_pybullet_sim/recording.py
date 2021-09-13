@@ -293,3 +293,15 @@ class Recorder:
         plt.xlabel("Time (s)")
         plt.ylabel("Joint position")
         plt.title("Joint configuration")
+
+    def plot_dynamic_obs_dist(self, last_sim_index):
+        s, ts = self._slice_records(last_sim_index)
+
+        plt.figure()
+        for j in range(self.dynamic_obs_distance.shape[1]):
+            plt.plot(ts, self.dynamic_obs_distance[s, j], label=f"$d_{j+1}$")
+        plt.grid()
+        plt.legend()
+        plt.xlabel("Time (s)")
+        plt.ylabel("Distance (m)")
+        plt.title("Dynamic obstacle distance")

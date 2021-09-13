@@ -27,7 +27,7 @@ import IPython
 SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 20.0  # duration of trajectory (s)
+DURATION = 10.0  # duration of trajectory (s)
 
 
 class Obstacle:
@@ -76,7 +76,6 @@ def main():
     r_ew_w, Q_we = robot.link_pose()
     v_ew_w, ω_ew_w = robot.link_velocity()
 
-    n_collision_pair = 29
     n_balance_con_tray = 5
     n_balance_con_obj = 6
 
@@ -90,7 +89,8 @@ def main():
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
         n_balance_con=n_balance_con_tray + 3 * n_balance_con_obj,
-        n_collision_pair=n_collision_pair,
+        n_collision_pair=1,  # 29
+        n_dynamic_obs=3,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -98,8 +98,8 @@ def main():
         print(f"{name} CoM = {obj.body.com}")
     IPython.embed()
 
-    r_obs0 = np.array(r_ew_w) + [0, -10, 0]
-    v_obs = np.array([0, 0.4, 0])
+    r_obs0 = np.array(r_ew_w) + [0, -1, 0]
+    v_obs = np.array([0, 1.0, 0])
     obs_radius = 0.1
     obs_collision_uid = pyb.createCollisionShape(
         shapeType=pyb.GEOM_SPHERE,
@@ -112,15 +112,13 @@ def main():
     )
     obstacle = Obstacle(r_obs0, -1, obs_visual_uid, velocity=v_obs)
 
-    # r_obs5 = obstacle.sample_position(5)
-
     # initial time, state, and input
     t = 0.0
     x = np.concatenate((q, v))
     u = np.zeros(robot.ni)
 
-    target_times = np.array([0, 2, 4, 6, 8, 10])
-    # target_times = [0]
+    # target_times = np.array([0, 2, 4, 6, 8, 10])
+    target_times = [0, 5]
 
     # setup MPC and initial EE target pose
     mpc = mpc_interface("mpc")
@@ -131,6 +129,11 @@ def main():
     input_target = vector_array()
     for _ in target_times:
         input_target.push_back(u)
+
+    # stationary
+    r_obsf = obstacle.sample_position(target_times[-1])
+    r_ew_w_d = r_ew_w
+    Qd = Q_we
 
     # goal 1
     # r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
@@ -144,23 +147,47 @@ def main():
     # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
     # Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
 
-    # state_target = vector_array()
-    # state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
-
+    # start with the obstacle out of the way
+    r_obs_out_of_the_way = r_ew_w + [0, -10, 0]
     state_target = vector_array()
-    Qd = Q_we
-    state_target.push_back(np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)))
-    state_target.push_back(np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)))
-    state_target.push_back(np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)))
-    state_target.push_back(np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)))
-    state_target.push_back(np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)))
-    state_target.push_back(np.concatenate((r_ew_w + [5, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs_out_of_the_way)))
+    state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs_out_of_the_way)))
 
-    # state_target.push_back(np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)))
+    target_times_obs1 = [0, 5]
+    target_times_obs2 = [2, 7]
+
+    t_target_obs1 = scalar_array()
+    t_target_obs1.push_back(target_times_obs1[0])
+    t_target_obs1.push_back(target_times_obs1[1])
+
+    t_target_obs2 = scalar_array()
+    t_target_obs2.push_back(target_times_obs2[0])
+    t_target_obs2.push_back(target_times_obs2[1])
+
+    state_target_obs1 = vector_array()
+    state_target_obs1.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
+    state_target_obs1.push_back(np.concatenate((r_ew_w_d, Qd, r_obsf)))
+
+    state_target_obs2 = state_target_obs1
+
+    # obstacle appears at t = 0
+    target_trajectories_obs1 = TargetTrajectories(
+        t_target_obs1, state_target_obs1, input_target
+    )
+
+    # obstacle appears at t = 2
+    target_trajectories_obs2 = TargetTrajectories(
+        t_target_obs2, state_target_obs2, input_target
+    )
+
+    # state_target = vector_array()
+    # Qd = Q_we
     # state_target.push_back(np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)))
+    # state_target.push_back(np.concatenate((r_ew_w + [5, 0, 0], Qd, r_obs0)))
 
     target_trajectories = TargetTrajectories(t_target, state_target, input_target)
     mpc.reset(target_trajectories)
@@ -219,9 +246,9 @@ def main():
             recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
                 "trayBalance", t, x, u
             )
-            # recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
-            #     "obstacleAvoidance", t, x
-            # )
+            recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
+                "obstacleAvoidance", t, x
+            )
             recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
                 "selfCollision", t, x
             )
@@ -251,18 +278,24 @@ def main():
             #     IPython.embed()
             #     break
 
-        # print(f"cmd_vel before step = {robot.cmd_vel}")
         sim.step(step_robot=True)
-        # _, v_test = robot.joint_states()
-        # print(f"v after step = {v_test}")
         t += sim.dt
-        if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
-            target_idx += 1
+
+        if i == 0:
+            mpc.setTargetTrajectories(target_trajectories_obs1)
+        elif i == 2000:
+            # reset the obstacle to use again
+            pyb.resetBasePositionAndOrientation(obstacle.uid, list(r_obs0), (0, 0, 0, 1))
+            pyb.resetBaseVelocity(obstacle.uid, linearVelocity=list(obstacle.velocity))
+            mpc.setTargetTrajectories(target_trajectories_obs2)
+
+        # if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
+        #     target_idx += 1
 
         # if t > 9:
         #     IPython.embed()
         #     return
-        # if i % 100 == 0:
+        # if i % 1000 == 0:
         #     IPython.embed()
 
     print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
@@ -286,6 +319,7 @@ def main():
     recorder.plot_control_durations(last_sim_index)
     recorder.plot_cmd_vs_real_vel(last_sim_index)
     recorder.plot_joint_config(last_sim_index)
+    recorder.plot_dynamic_obs_dist(last_sim_index)
 
     plt.show()
 
