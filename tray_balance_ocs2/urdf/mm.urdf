@@ -785,13 +785,13 @@
   <!-- Collision cylinder for the forearm link -->
   <link name="forearm_collision_link">
     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0.3"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <cylinder length="0.6" radius="0.06"/>
       </geometry>
     </collision>
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.3"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <cylinder length="0.6" radius="0.06"/>
       </geometry>
@@ -799,7 +799,7 @@
     </visual>
   </link>
   <joint name="forearm_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 0 0" xyz="0 0 0.3"/>
     <parent link="ur10_arm_forearm_link"/>
     <child link="forearm_collision_link"/>
   </joint>
@@ -846,6 +846,27 @@
     <origin rpy="0 0 0" xyz="0 0 0.01"/>
     <parent link="base_link"/>
     <child link="base_collision_link"/>
+  </joint>
+
+  <link name="forearm_collision_sphere_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.15"/>
+      </geometry>
+      <material name="seethrough"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.15"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="forearm_collision_sphere_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0.34"/>
+    <parent link="ur10_arm_forearm_link"/>
+    <child link="forearm_collision_sphere_link"/>
   </joint>
 
 </robot>

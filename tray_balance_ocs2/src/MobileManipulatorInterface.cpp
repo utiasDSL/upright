@@ -368,13 +368,15 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getObstacleConstraint(
     scalar_t mu = 1e-3;  // TODO can I increase this?
     scalar_t delta = 1e-3;
 
-    std::vector<std::string> collision_link_names = {"thing_tool", "wrist_collision_link"};
+    std::vector<std::string> collision_link_names = {
+        "thing_tool", "wrist_collision_link", "forearm_collision_sphere_link"};
 
     // TODO there are a bunch of these now; should reuse
     MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
     PinocchioEndEffectorKinematicsCppAd eeKinematics(
-        pinocchioInterface, pinocchioMappingCppAd, collision_link_names, STATE_DIM, INPUT_DIM,
-        "obstacle_ee_kinematics", libraryFolder, recompileLibraries, false);
+        pinocchioInterface, pinocchioMappingCppAd, collision_link_names,
+        STATE_DIM, INPUT_DIM, "obstacle_ee_kinematics", libraryFolder,
+        recompileLibraries, false);
     std::unique_ptr<StateConstraint> constraint(
         new ObstacleConstraint(eeKinematics, *referenceManagerPtr_));
 

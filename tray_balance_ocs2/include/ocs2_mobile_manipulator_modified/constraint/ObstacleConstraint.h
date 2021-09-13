@@ -70,7 +70,7 @@ class ObstacleConstraint final : public StateConstraint {
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        return 2;  // TODO
+        return 3;  // TODO
     }
 
     vector_t getValue(scalar_t time, const vector_t& state,
@@ -83,9 +83,9 @@ class ObstacleConstraint final : public StateConstraint {
         std::vector<vector3_t> ee_positions =
             endEffectorKinematicsPtr_->getPosition(state);
 
-        std::vector<scalar_t> r_collision_spheres = {0.25, 0.15};
+        std::vector<scalar_t> r_collision_spheres = {0.25, 0.15, 0.15};
         scalar_t r_obstacle = 0.1;
-        scalar_t r_safety = 0.1;
+        scalar_t r_safety = 0.0;
 
         vector_t constraints(getNumConstraints(time));
         for (int i = 0; i < ee_positions.size(); ++i) {
@@ -123,8 +123,6 @@ class ObstacleConstraint final : public StateConstraint {
         for (int i = 0; i < ee_positions.size(); ++i) {
             vector3_t vec = ee_positions[i].f - obstacle_pos;
             approximation.dfdx.row(i) = vec.transpose() * ee_positions[i].dfdx / vec.norm();
-            // scalar_t r = r_collision_spheres[i] + r_obstacle + r_safety;
-            // constraints(i) = vec.norm() - r;
         }
 
         // vector3_t vec = ee_pos.f - obstacle_pos;
