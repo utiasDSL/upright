@@ -23,7 +23,7 @@
     <color rgba="0.15 0.15 0.15 1.0"/>
   </material>
   <material name="seethrough">
-    <color rgba="1.0 0.0 0.0 0.5"/>
+    <color rgba="0.0 1.0 0.0 0.25"/>
   </material>
 
   <link name="world_link">
@@ -605,9 +605,13 @@
   <!-- Collision element to protect the balanced objects -->
   <link name="balanced_object_collision_link">
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.1"/>
+      <!-- <origin rpy="0 0 0" xyz="0 0 0.1"/> -->
+      <!-- <geometry> -->
+      <!--   <cylinder length="0.25" radius="0.25"/> -->
+      <!-- </geometry> -->
+      <origin rpy="0 0 0" xyz="0 0 0.02"/>
       <geometry>
-        <cylinder length="0.25" radius="0.25"/>
+        <cylinder length="0.1" radius="0.25"/>
       </geometry>
       <material name="seethrough"/>
     </visual>
@@ -637,7 +641,7 @@
   <!-- Collision cylinder for the forearm link -->
   <link name="forearm_collision_link">
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0 0.3"/>
       <geometry>
         <cylinder length="0.6" radius="0.06"/>
       </geometry>
@@ -645,7 +649,7 @@
     </visual>
   </link>
   <joint name="forearm_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.3"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="ur10_arm_forearm_link"/>
     <child link="forearm_collision_link"/>
   </joint>
@@ -666,50 +670,65 @@
     <child link="wrist_collision_link"/>
   </joint>
 
-  <link name="base_collision_link">
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.15"/>
-      <geometry>
-        <box size="1.0 0.8 0.3"/>
-      </geometry>
-      <material name="seethrough"/>
-    </visual>
-  </link>
-  <joint name="base_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.01"/>
-    <parent link="base_link"/>
-    <child link="base_collision_link"/>
-  </joint>
+  <!-- <link name="base_collision_link"> -->
+  <!--   <visual> -->
+  <!--     <origin rpy="0 0 0" xyz="0 0 0.15"/> -->
+  <!--     <geometry> -->
+  <!--       <box size="1.0 0.8 0.3"/> -->
+  <!--     </geometry> -->
+  <!--     <material name="seethrough"/> -->
+  <!--   </visual> -->
+  <!-- </link> -->
+  <!-- <joint name="base_collision_joint" type="fixed"> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0.01"/> -->
+  <!--   <parent link="base_link"/> -->
+  <!--   <child link="base_collision_link"/> -->
+  <!-- </joint> -->
 
   <!-- Extra collision spheres for the dynamic obstacle task -->
-  <link name="balanced_object_collision_sphere_link">
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.25"/>
-      </geometry>
-      <material name="seethrough"/>
-    </visual>
-  </link>
-  <joint name="balanced_object_collision_sphere_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
-    <parent link="thing_tool"/>
-    <child link="balanced_object_collision_sphere_link"/>
-  </joint>
-
-  <link name="forearm_collision_sphere_link">
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.15"/>
-      </geometry>
-      <material name="seethrough"/>
-    </visual>
-  </link>
-  <joint name="forearm_collision_sphere_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.34"/>
-    <parent link="ur10_arm_forearm_link"/>
-    <child link="forearm_collision_sphere_link"/>
-  </joint>
+  <!-- <link name="balanced_object_collision_sphere_link"> -->
+  <!--   <visual> -->
+  <!--     <origin rpy="0 0 0" xyz="0 0 0"/> -->
+  <!--     <geometry> -->
+  <!--       <sphere radius="0.25"/> -->
+  <!--     </geometry> -->
+  <!--     <material name="seethrough"/> -->
+  <!--   </visual> -->
+  <!-- </link> -->
+  <!-- <joint name="balanced_object_collision_sphere_joint" type="fixed"> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
+  <!--   <parent link="thing_tool"/> -->
+  <!--   <child link="balanced_object_collision_sphere_link"/> -->
+  <!-- </joint> -->
+  <!--  -->
+  <!-- <link name="forearm_collision_sphere_link1"> -->
+  <!--   <visual> -->
+  <!--     <origin rpy="0 0 0" xyz="0 0 0"/> -->
+  <!--     <geometry> -->
+  <!--       <sphere radius="0.15"/> -->
+  <!--     </geometry> -->
+  <!--     <material name="seethrough"/> -->
+  <!--   </visual> -->
+  <!-- </link> -->
+  <!-- <joint name="forearm_collision_sphere_joint1" type="fixed"> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0.2"/> -->
+  <!--   <parent link="ur10_arm_forearm_link"/> -->
+  <!--   <child link="forearm_collision_sphere_link1"/> -->
+  <!-- </joint> -->
+  <!--  -->
+  <!-- <link name="forearm_collision_sphere_link2"> -->
+  <!--   <visual> -->
+  <!--     <origin rpy="0 0 0" xyz="0 0 0"/> -->
+  <!--     <geometry> -->
+  <!--       <sphere radius="0.15"/> -->
+  <!--     </geometry> -->
+  <!--     <material name="seethrough"/> -->
+  <!--   </visual> -->
+  <!-- </link> -->
+  <!-- <joint name="forearm_collision_sphere_joint2" type="fixed"> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0.4"/> -->
+  <!--   <parent link="ur10_arm_forearm_link"/> -->
+  <!--   <child link="forearm_collision_sphere_link2"/> -->
+  <!-- </joint> -->
 
 </robot>

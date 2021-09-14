@@ -198,11 +198,11 @@ void MobileManipulatorInterface::loadSettings(
                                    recompileLibraries));
 
     // This is for the dynamic obstacles specified via the reference trajectory
-    problem_.stateSoftConstraintPtr->add(
-        "obstacleAvoidance",
-        getObstacleConstraint(*pinocchioInterfacePtr_, taskFile,
-                              "obstacleAvoidance", usePreComputation,
-                              libraryFolder, recompileLibraries));
+    // problem_.stateSoftConstraintPtr->add(
+    //     "obstacleAvoidance",
+    //     getObstacleConstraint(*pinocchioInterfacePtr_, taskFile,
+    //                           "obstacleAvoidance", usePreComputation,
+    //                           libraryFolder, recompileLibraries));
 
     problem_.softConstraintPtr->add(
         "trayBalance",
@@ -369,7 +369,8 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getObstacleConstraint(
     scalar_t delta = 1e-3;
 
     std::vector<std::string> collision_link_names = {
-        "thing_tool", "wrist_collision_link", "forearm_collision_sphere_link"};
+        "thing_tool", "elbow_collision_link", "forearm_collision_sphere_link1",
+        "forearm_collision_sphere_link2", "wrist_collision_link"};
 
     // TODO there are a bunch of these now; should reuse
     MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
