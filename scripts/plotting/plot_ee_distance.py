@@ -10,6 +10,14 @@ from liegroups import SO3
 import IPython
 
 DATA_PATH = DATA_DRIVE_PATH / "single-object"
+NO_OBJ_PATHS = [
+    DATA_DRIVE_PATH / "new-multi-object" / filename
+    for filename in [
+        "no_obj_goal1_2021-09-14_20-51-52.npz",
+        "no_obj_goal2_2021-09-14_20-46-27.npz",
+        "no_obj_goal3_2021-09-14_20-49-17.npz",
+    ]
+]
 HEIGHT_2CM_PATHS = [
     DATA_PATH / "height-0.02" / filename
     for filename in (
@@ -88,6 +96,7 @@ def main():
     height_2cm_data = [TrajectoryData(path, tf=tf) for path in HEIGHT_2CM_PATHS]
     height_20cm_data = [TrajectoryData(path, tf=tf) for path in HEIGHT_20CM_PATHS]
     height_100cm_data = [TrajectoryData(path, tf=tf) for path in HEIGHT_100CM_PATHS]
+    no_obj_data = [TrajectoryData(path, tf=tf) for path in NO_OBJ_PATHS]
 
     # extra_data = TrajectoryData(EXTRA_PATH, tf=4)
 
@@ -138,6 +147,11 @@ def main():
 
     ax1 = plt.subplot(131)
     plt.plot(
+        no_obj_data[0].ts_cut,
+        no_obj_data[0].r_ew_w_err_norm_cut,
+        label=r"$\mathrm{None}$",
+    )
+    plt.plot(
         height_2cm_data[0].ts_cut,
         height_2cm_data[0].r_ew_w_err_norm_cut,
         label=r"$\mathrm{Short}$",
@@ -157,6 +171,11 @@ def main():
     ax1.set_xticks([0, 1, 2, 3])
 
     ax2 = plt.subplot(132)
+    plt.plot(
+        no_obj_data[1].ts_cut,
+        no_obj_data[1].r_ew_w_err_norm_cut,
+        label=r"$\mathrm{None}$",
+    )
     plt.plot(
         height_2cm_data[1].ts_cut,
         height_2cm_data[1].r_ew_w_err_norm_cut,
@@ -179,6 +198,11 @@ def main():
     ax2.set_xticks([0, 1, 2, 3])
 
     ax3 = plt.subplot(133)
+    plt.plot(
+        no_obj_data[2].ts_cut,
+        no_obj_data[2].r_ew_w_err_norm_cut,
+        label=r"$\mathrm{None}$",
+    )
     plt.plot(
         height_2cm_data[2].ts_cut,
         height_2cm_data[2].r_ew_w_err_norm_cut,
