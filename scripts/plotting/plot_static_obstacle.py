@@ -9,7 +9,7 @@ from liegroups import SO3
 
 import IPython
 
-DATA_PATH = DATA_DRIVE_PATH / "flat3_static_obstacles_2021-09-12_20-42-29.npz"
+DATA_PATH = DATA_DRIVE_PATH / "static_obs_2021-09-13_02-25-11.npz"
 
 FIG_PATH = "/home/adam/phd/papers/icra22/figures/static_obstacles.pdf"
 
@@ -39,13 +39,12 @@ class TrajectoryData:
         #     ).to_rpy()
         #     self.angle_err[i] = util.quat_error(self.Q_des[i, :])
 
+        data_length = self.ts.shape[0]
         if tf is not None:
             for i in range(self.ts.shape[0]):
                 if self.ts[i] > tf:
                     data_length = i
                     break
-        else:
-            data_length = self.ts.shape[0]
 
         self.ts_cut = self.ts[:data_length]
         self.collision_pair_distance_cut = self.collision_pair_distance[:data_length]
@@ -70,7 +69,7 @@ def main():
     tf = 10
     data = TrajectoryData(DATA_PATH, tf=tf)
 
-    fig = plt.figure(figsize=(3.25, 2))
+    fig = plt.figure(figsize=(3.25, 1.8))
     plt.rcParams.update(
         {"font.size": 8, "text.usetex": True, "legend.fontsize": 8, "axes.titlesize": 8}
     )
@@ -83,23 +82,26 @@ def main():
     plt.plot(data.ts_cut, data.min_arm_clearance, label=r"$\mathrm{Arm}$")
     plt.plot(data.ts_cut, data.min_obj_clearance, label=r"$\mathrm{Objects}$")
 
-    plt.ylabel(r"$\mathrm{Clearance\ (m)}$")
-    plt.legend(labelspacing=0.3)
+    plt.ylabel(r"$\mathrm{Clearance}$" "\n" r"$\mathrm{(m)}$")
+    plt.legend(labelspacing=0.3, handlelength=1, loc=(0.47, 0.3))
     ax1.set_xticks([])
     ax1.set_xticklabels([])
+    ax1.set_yticks([0, 0.5, 1])
+    ax1.yaxis.set_label_coords(-0.11, 0.5)
 
     ax2 = plt.subplot(212)
     ax2.axhline(0, color=(0.75, 0.75, 0.75))
     plt.plot(data.ts_cut, data.r_ew_w_err_cut[:, 0], label="$x$", color=colors[3])
     plt.plot(data.ts_cut, data.r_ew_w_err_cut[:, 1], label="$y$", color=colors[4])
     plt.plot(data.ts_cut, data.r_ew_w_err_cut[:, 2], label="$z$", color=colors[5])
-    plt.legend(labelspacing=0.3)
+    plt.legend(labelspacing=0.3, handlelength=1, loc=(0.75, 0.3))
     plt.xlabel(r"$\mathrm{Time\ (s)}$")
-    plt.ylabel(r"$\mathrm{EE\ error\ (m)}$")
+    plt.ylabel(r"$\mathrm{EE\ error}$" "\n" r"$\mathrm{(m)}$")
+    ax2.yaxis.set_label_coords(-0.11, 0.5)
 
-    fig.align_ylabels()
+    # fig.align_ylabels()
     fig.tight_layout(pad=0.1)
-    fig.savefig(FIG_PATH)
+    fig.savefig(FIG_PATH, bbox_inches="tight")
     print("Saved figure to {}".format(FIG_PATH))
 
     plt.show()

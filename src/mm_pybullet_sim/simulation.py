@@ -55,15 +55,15 @@ CYLINDER1_COM_HEIGHT = 0.075
 
 CYLINDER2_MASS = 0.5
 CYLINDER2_SUPPORT_MU = 0.5
-CYLINDER2_MU_BULLET = CYLINDER2_SUPPORT_MU / TRAY_MU_BULLET
-# CYLINDER2_MU_BULLET = CYLINDER2_SUPPORT_MU / CYLINDER1_MU_BULLET
+CYLINDER2_MU_BULLET = CYLINDER2_SUPPORT_MU / TRAY_MU_BULLET  # for flat
+# CYLINDER2_MU_BULLET = CYLINDER2_SUPPORT_MU / CYLINDER1_MU_BULLET  # for stacked
 CYLINDER2_RADIUS = 0.05
 CYLINDER2_COM_HEIGHT = 0.075
 
 CYLINDER3_MASS = 0.5
 CYLINDER3_SUPPORT_MU = 0.5
-CYLINDER3_MU_BULLET = CYLINDER3_SUPPORT_MU / TRAY_MU_BULLET
-# CYLINDER3_MU_BULLET = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET
+CYLINDER3_MU_BULLET = CYLINDER3_SUPPORT_MU / TRAY_MU_BULLET  # for flat
+# CYLINDER3_MU_BULLET = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET  # for stacked
 CYLINDER3_RADIUS = 0.05
 CYLINDER3_COM_HEIGHT = 0.075
 
@@ -136,6 +136,14 @@ class Simulation:
         #     cameraTargetPosition=(1.028, 0.075, 0.666),
         # )
 
+        # for taking pictures of the dynamic obstacle avoidance task
+        # pyb.resetDebugVisualizerCamera(
+        #     cameraDistance=1.8,
+        #     cameraYaw=147.6,
+        #     cameraPitch=-29,
+        #     cameraTargetPosition=[1.28, 0.045, 0.647],
+        # )
+
         # get rid of extra parts of the GUI
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
 
@@ -148,8 +156,8 @@ class Simulation:
         pyb.loadURDF("plane.urdf", [0, 0, 0])
 
         # setup obstacles
-        obstacles_uid = pyb.loadURDF(OBSTACLES_URDF_PATH)
-        pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
+        # obstacles_uid = pyb.loadURDF(OBSTACLES_URDF_PATH)
+        # pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
 
         # pyb.setCollisionFilterGroupMask(obstacles_uid, -1, 0, 0)
 
@@ -184,9 +192,9 @@ class Simulation:
                 mass=TRAY_MASS,
                 radius=TRAY_RADIUS,
                 height=2 * TRAY_COM_HEIGHT,
-                mu=TRAY_MU_BULLET,
+                mu=TRAY_MU,
             )
-            objects["tray"].add_to_sim(bullet_mu=TRAY_MU, color=(0.122, 0.467, 0.706, 1))
+            objects["tray"].add_to_sim(bullet_mu=TRAY_MU_BULLET, color=(0.122, 0.467, 0.706, 1))
             r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
             objects["tray"].bullet.reset_pose(position=r_tw_w)
 
@@ -206,6 +214,8 @@ class Simulation:
             objects["cylinder1"].add_to_sim(
                 bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1)
             )
+
+            # flat
             r_ow_w = r_ew_w + [
                 c1[0],
                 c1[1],
@@ -213,6 +223,8 @@ class Simulation:
                 + CYLINDER1_COM_HEIGHT
                 + 0.05,
             ]
+
+            # stacked
             # r_ow_w = r_ew_w + [
             #     0,
             #     0,
@@ -237,6 +249,8 @@ class Simulation:
             objects["cylinder2"].add_to_sim(
                 bullet_mu=CYLINDER2_MU_BULLET, color=(0.173, 0.627, 0.173, 1)
             )
+
+            # flat
             r_ow_w = r_ew_w + [
                 c2[0],
                 c2[1],
@@ -244,6 +258,8 @@ class Simulation:
                 + CYLINDER2_COM_HEIGHT
                 + 0.05,
             ]
+
+            # stacked
             # r_ow_w = r_ew_w + [
             #     0,
             #     0,
@@ -269,6 +285,8 @@ class Simulation:
             objects["cylinder3"].add_to_sim(
                 bullet_mu=CYLINDER3_MU_BULLET, color=(0.839, 0.153, 0.157, 1)
             )
+
+            # flat
             r_ow_w = r_ew_w + [
                 c3[0],
                 c3[1],
@@ -276,6 +294,8 @@ class Simulation:
                 + CYLINDER3_COM_HEIGHT
                 + 0.05,
             ]
+
+            # stacked
             # r_ow_w = r_ew_w + [
             #     0,
             #     0,

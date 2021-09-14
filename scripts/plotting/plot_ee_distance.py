@@ -131,7 +131,7 @@ def main():
     # plt.ylabel("Orientation error (rad)")
     # plt.title("Orientation error (100cm)")
 
-    fig = plt.figure(figsize=(3.25, 1.5))
+    fig = plt.figure(figsize=(3.25, 1.25))
     plt.rcParams.update(
         {"font.size": 8, "text.usetex": True, "legend.fontsize": 8, "axes.titlesize": 8}
     )
@@ -152,7 +152,7 @@ def main():
         height_100cm_data[0].r_ew_w_err_norm_cut,
         label=r"$\mathrm{Tall}$",
     )
-    plt.ylabel(r"$\mathrm{Distance\ (m)}$")
+    plt.ylabel(r"$\mathrm{EE\ distance}$" "\n" r"$\mathrm{to\ goal\ (m)}$")
     plt.title(r"$\mathrm{Goal\ 1}$")
     ax1.set_xticks([0, 1, 2, 3])
 
@@ -194,7 +194,7 @@ def main():
         height_100cm_data[2].r_ew_w_err_norm_cut,
         label=r"$\mathrm{Tall}$",
     )
-    plt.legend()
+    plt.legend(handlelength=1)
     plt.title(r"$\mathrm{Goal\ 3}$")
     ax3.set_yticks([])
     ax3.set_yticklabels([])

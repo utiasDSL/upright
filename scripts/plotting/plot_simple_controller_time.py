@@ -9,9 +9,7 @@ from liegroups import SO3
 
 import IPython
 
-DATA_PATH = DATA_DRIVE_PATH / "flat3_static_obstacles_2021-09-12_20-42-29.npz"
-
-FIG_PATH = "/home/adam/phd/papers/icra22/figures/controller_time.pdf"
+DATA_PATH = DATA_DRIVE_PATH / "multi-object/tray_only_goal2_2021-09-11_18-35-52.npz"
 
 RECORD_PERIOD = 10
 CTRL_PERIOD = 50
@@ -30,27 +28,24 @@ class TrajectoryData:
         r_ew_w_err_norm = np.linalg.norm(r_ew_w_err, axis=1)
 
         data_length = self.control_durations.shape[0]
+        record_data_length = self.ts.shape[0]
         if tf is not None:
             for i in range(self.ts.shape[0]):
                 if self.ts[i] > tf:
                     # we have to translate from record time to control time
                     data_length = int(i * RECORD_PERIOD / CTRL_PERIOD) + 1
+                    record_data_length = i + 1
                     break
-        # for i in range(r_ew_w_err_norm.shape[0]):
-        #     if r_ew_w_err_norm[i] <= 0.01:
-        #         print(f"convergence time = {self.ts[i]} s")
-        #         data_length = int(i * RECORD_PERIOD / CTRL_PERIOD) + 1
-        #         break
-        # print(f"data_length = {data_length}")
+        print(f"data_length = {data_length}")
 
-        # print(f"avg all = {np.mean(self.control_durations) * 1000} ms")
-        # print(f"avg all no first = {np.mean(self.control_durations[1:]) * 1000} ms")
-        # print(f"avg cut = {np.mean(self.control_durations[:data_length]) * 1000} ms")
-        # print(
-        #     f"avg cut no first = {np.mean(self.control_durations[1:data_length]) * 1000} ms"
-        # )
+        print(f"avg all = {np.mean(self.control_durations) * 1000} ms")
+        print(f"avg all no first = {np.mean(self.control_durations[1:]) * 1000} ms")
+        print(f"avg cut = {np.mean(self.control_durations[:data_length]) * 1000} ms")
+        print(
+            f"avg cut no first = {np.mean(self.control_durations[1:data_length]) * 1000} ms"
+        )
 
-        self.ts_cut = self.ts[:data_length]
+        self.ts_cut = self.ts[slice(0, record_data_length, int(CTRL_PERIOD / RECORD_PERIOD))]
         self.control_durations_cut = self.control_durations[:data_length] * 1000
         self.avg_control_time = (
             np.mean(self.control_durations[1:data_length]) * 1000
@@ -66,114 +61,6 @@ def main():
     plt.xlabel("Time (s)")
     plt.ylabel("Control duration (ms)")
     plt.grid()
-    plt.show()
-    return
-
-    # stack2_goal2_data = [
-    #     stack2_data[1],
-    #     TrajectoryData(STACK2_GOAL2_PATHS_EXTRA[0], tf=4),
-    #     TrajectoryData(STACK2_GOAL2_PATHS_EXTRA[1], tf=4),
-    # ]
-    # for datum in stack2_goal2_data:
-    #     print(datum.avg_control_time)
-
-    fig = plt.figure(figsize=(3.25, 1.5))
-    # fig, ax = plt.subplots(1, 2, sharex=True, figsize=(3.25, 1.5))
-    plt.rcParams.update(
-        {"font.size": 8, "text.usetex": True, "legend.fontsize": 8, "axes.titlesize": 8}
-    )
-
-    # plot for objects in a flat configuration
-    ax1 = plt.subplot(121)
-    plt.plot(
-        [1, 2, 3, 4],
-        [
-            tray_only_data[0].avg_control_time,
-            cups1_data[0].avg_control_time,
-            cups2_data[0].avg_control_time,
-            cups3_data[0].avg_control_time,
-        ],
-        label=r"$\mathrm{Goal\ 1}$",
-    )
-    plt.plot(
-        [1, 2, 3, 4],
-        [
-            tray_only_data[1].avg_control_time,
-            cups1_data[1].avg_control_time,
-            cups2_data[1].avg_control_time,
-            cups3_data[1].avg_control_time,
-        ],
-        label=r"$\mathrm{Goal\ 2}$",
-    )
-    plt.plot(
-        [1, 2, 3, 4],
-        [
-            tray_only_data[2].avg_control_time,
-            cups1_data[2].avg_control_time,
-            cups2_data[2].avg_control_time,
-            cups3_data[2].avg_control_time,
-        ],
-        label=r"$\mathrm{Goal\ 3}$",
-    )
-    # plt.xlabel(r"$\mathrm{Number\ of\ Objects}$")
-    plt.ylabel(r"$\mathrm{Time\ (ms)}$")
-    plt.title(r"$\mathrm{Flat}$")
-    ylim = [15, 29]
-    yticks = [16, 20, 24, 28]
-    ax1.set_xticks([1, 2, 3, 4])
-    ax1.set_yticks(yticks)
-    plt.ylim(ylim)
-
-    # plot for objects stacked atop one another
-    ax2 = plt.subplot(122)
-    plt.plot(
-        [1, 2, 3, 4],
-        [
-            tray_only_data[0].avg_control_time,
-            stack1_data[0].avg_control_time,
-            stack2_data[0].avg_control_time,
-            stack3_data[0].avg_control_time,
-        ],
-        label=r"$\mathrm{Goal\ 1}$",
-    )
-    plt.plot(
-        [1, 2, 3, 4],
-        [
-            tray_only_data[1].avg_control_time,
-            stack1_data[1].avg_control_time,
-            stack2_data[1].avg_control_time,
-            stack3_data[1].avg_control_time,
-        ],
-        label=r"$\mathrm{Goal\ 2}$",
-    )
-    plt.plot(
-        [1, 2, 3, 4],
-        [
-            tray_only_data[2].avg_control_time,
-            stack1_data[2].avg_control_time,
-            stack2_data[2].avg_control_time,
-            stack3_data[2].avg_control_time,
-        ],
-        label=r"$\mathrm{Goal\ 3}$",
-    )
-    # plt.xlabel(r"$\mathrm{Time\ (ms)}$")
-    plt.title(r"$\mathrm{Stacked}$")
-    # ax2.set_yticks(yticks)
-    ax2.set_yticks([])
-    ax2.set_yticklabels([])
-    ax2.set_xticks([1, 2, 3, 4])
-    plt.xlabel("N")
-    plt.ylim(ylim)
-    ax2.xaxis.label.set_color((0, 0, 0, 0))
-    plt.legend(loc="upper right", labelspacing=0.3, borderpad=0.3)
-
-    # manually specify the common x-label
-    fig.text(0.5, 0.04, r"$\mathrm{Number\ of\ Objects}$", ha="center", va="center")
-
-    fig.tight_layout(pad=0.1, w_pad=0.5)
-    fig.savefig(FIG_PATH)
-    print("Saved figure to {}".format(FIG_PATH))
-
     plt.show()
 
 

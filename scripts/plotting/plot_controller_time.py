@@ -80,7 +80,7 @@ CUPS3_PATHS = [
     )
 ]
 
-FIG_PATH = "/home/adam/phd/papers/icra22/figures/controller_time.pdf"
+FIG_PATH = "/home/adam/phd/papers/icra22/figures/controller_time_bar.pdf"
 
 RECORD_PERIOD = 10
 CTRL_PERIOD = 50
@@ -152,17 +152,20 @@ def main():
 
     # plot for objects in a flat configuration
     ax1 = plt.subplot(121)
-    plt.plot(
-        [1, 2, 3, 4],
+    width = 0.2
+    plt.bar(
+        np.array([1, 2, 3, 4]) - width,
         [
             tray_only_data[0].avg_control_time,
             cups1_data[0].avg_control_time,
             cups2_data[0].avg_control_time,
             cups3_data[0].avg_control_time,
         ],
+        width=width,
+        align="center",
         label=r"$\mathrm{Goal\ 1}$",
     )
-    plt.plot(
+    plt.bar(
         [1, 2, 3, 4],
         [
             tray_only_data[1].avg_control_time,
@@ -170,20 +173,24 @@ def main():
             cups2_data[1].avg_control_time,
             cups3_data[1].avg_control_time,
         ],
+        width=width,
+        align="center",
         label=r"$\mathrm{Goal\ 2}$",
     )
-    plt.plot(
-        [1, 2, 3, 4],
+    plt.bar(
+        np.array([1, 2, 3, 4]) + width,
         [
             tray_only_data[2].avg_control_time,
             cups1_data[2].avg_control_time,
             cups2_data[2].avg_control_time,
             cups3_data[2].avg_control_time,
         ],
+        width=width,
+        align="center",
         label=r"$\mathrm{Goal\ 3}$",
     )
     # plt.xlabel(r"$\mathrm{Number\ of\ Objects}$")
-    plt.ylabel(r"$\mathrm{Time\ (ms)}$")
+    plt.ylabel(r"$\mathrm{Computation}$" "\n" r"$\mathrm{time\ (ms)}$")
     plt.title(r"$\mathrm{Flat}$")
     ylim = [15, 29]
     yticks = [16, 20, 24, 28]
@@ -193,17 +200,19 @@ def main():
 
     # plot for objects stacked atop one another
     ax2 = plt.subplot(122)
-    plt.plot(
-        [1, 2, 3, 4],
+    plt.bar(
+        np.array([1, 2, 3, 4]) - width,
         [
             tray_only_data[0].avg_control_time,
             stack1_data[0].avg_control_time,
             stack2_data[0].avg_control_time,
             stack3_data[0].avg_control_time,
         ],
+        width=width,
+        align="center",
         label=r"$\mathrm{Goal\ 1}$",
     )
-    plt.plot(
+    plt.bar(
         [1, 2, 3, 4],
         [
             tray_only_data[1].avg_control_time,
@@ -211,16 +220,20 @@ def main():
             stack2_data[1].avg_control_time,
             stack3_data[1].avg_control_time,
         ],
+        width=width,
+        align="center",
         label=r"$\mathrm{Goal\ 2}$",
     )
-    plt.plot(
-        [1, 2, 3, 4],
+    plt.bar(
+        np.array([1, 2, 3, 4]) + width,
         [
             tray_only_data[2].avg_control_time,
             stack1_data[2].avg_control_time,
             stack2_data[2].avg_control_time,
             stack3_data[2].avg_control_time,
         ],
+        width=width,
+        align="center",
         label=r"$\mathrm{Goal\ 3}$",
     )
     # plt.xlabel(r"$\mathrm{Time\ (ms)}$")
@@ -232,10 +245,10 @@ def main():
     plt.xlabel("N")
     plt.ylim(ylim)
     ax2.xaxis.label.set_color((0, 0, 0, 0))
-    plt.legend(loc="upper right", labelspacing=0.3, borderpad=0.3)
+    plt.legend(loc=(0.5, 0.54), labelspacing=0.3, borderpad=0.3, handlelength=1)
 
     # manually specify the common x-label
-    fig.text(0.5, 0.04, r"$\mathrm{Number\ of\ Objects}$", ha="center", va="center")
+    fig.text(0.5, 0.04, r"$\mathrm{Number\ of\ objects}$", ha="center", va="center")
 
     fig.tight_layout(pad=0.1, w_pad=0.5)
     fig.savefig(FIG_PATH)

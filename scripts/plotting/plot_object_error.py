@@ -7,7 +7,7 @@ from liegroups import SO3
 
 import IPython
 
-DATA_PATH = DATA_DRIVE_PATH / "h1.0_goal2_nf_2021-09-09_00-00-08.npz"
+DATA_PATH = DATA_DRIVE_PATH / "single-object/height-1.00/h1.0_goal2_all_2021-09-08_23-35-55.npz"
 FIG_PATH = "obj_error.pdf"
 
 
@@ -93,8 +93,8 @@ def main():
     # ax.set_xticks([0, 40, 80, 120, 160])
 
     fig.tight_layout(pad=0.1)
-    fig.savefig(FIG_PATH)
-    print("Saved figure to {}".format(FIG_PATH))
+    # fig.savefig(FIG_PATH)
+    # print("Saved figure to {}".format(FIG_PATH))
 
     plt.show()
 
