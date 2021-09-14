@@ -1,6 +1,7 @@
 # This script plots the EE distance (to the goal) vs. time for the single
 # object of varying heights.
 import numpy as np
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 
 from mm_pybullet_sim.recording import DATA_DRIVE_PATH
@@ -80,7 +81,8 @@ CUPS3_PATHS = [
     )
 ]
 
-FIG_PATH = "/home/adam/phd/papers/icra22/figures/controller_time_bar.pdf"
+FIG_PATH = "/home/adam/phd/papers/icra22/figures/controller_time_box.pdf"
+# FIG_PATH = "controller_time_box.pdf"
 
 RECORD_PERIOD = 10
 CTRL_PERIOD = 50
@@ -119,15 +121,51 @@ class TrajectoryData:
         #     f"avg cut no first = {np.mean(self.control_durations[1:data_length]) * 1000} ms"
         # )
 
-        self.avg_control_time = (
-            np.mean(self.control_durations[1:data_length]) * 1000
-        )  # in ms
+        self.control_durations_cut = self.control_durations[1:data_length] * 1000
+        self.avg_control_time = np.mean(self.control_durations_cut)  # in ms
+
+
+def set_box_colors(bp, colors):
+    plt.setp(bp["boxes"][0], color=colors[0])
+    plt.setp(bp["caps"][0], color=colors[0])
+    plt.setp(bp["caps"][1], color=colors[0])
+    plt.setp(bp["whiskers"][0], color=colors[0])
+    plt.setp(bp["whiskers"][1], color=colors[0])
+    # try:
+    #     plt.setp(bp['fliers'][0], markeredgecolor='blue')
+    #     plt.setp(bp['fliers'][1], markeredgecolor='blue')
+    # except IndexError:
+    #     pass
+    plt.setp(bp["medians"][0], color=colors[0])
+
+    for flier in bp["fliers"]:
+        plt.setp(flier, markersize=1)
+
+    plt.setp(bp["boxes"][1], color=colors[1])
+    plt.setp(bp["caps"][2], color=colors[1])
+    plt.setp(bp["caps"][3], color=colors[1])
+    plt.setp(bp["whiskers"][2], color=colors[1])
+    plt.setp(bp["whiskers"][3], color=colors[1])
+    # try:
+    #     plt.setp(bp['fliers'][2], markeredgecolor='red')
+    #     plt.setp(bp['fliers'][3], markeredgecolor='red')
+    # except IndexError:
+    #     pass
+    plt.setp(bp["medians"][1], color=colors[1])
+
+    plt.setp(bp["boxes"][2], color=colors[2])
+    plt.setp(bp["caps"][4], color=colors[2])
+    plt.setp(bp["caps"][5], color=colors[2])
+    plt.setp(bp["whiskers"][4], color=colors[2])
+    plt.setp(bp["whiskers"][5], color=colors[2])
+    plt.setp(bp["medians"][2], color=colors[2])
 
 
 def main():
     # load the data
     tray_only_data = [TrajectoryData(path, tf=4) for path in TRAY_ONLY_PATHS]
 
+    # NOTE: I renamed this to "flat" in the paper
     cups1_data = [TrajectoryData(path, tf=4) for path in CUPS1_PATHS]
     cups2_data = [TrajectoryData(path, tf=4) for path in CUPS2_PATHS]
     cups3_data = [TrajectoryData(path, tf=4) for path in CUPS3_PATHS]
@@ -136,13 +174,41 @@ def main():
     stack2_data = [TrajectoryData(path, tf=4) for path in STACK2_PATHS]
     stack3_data = [TrajectoryData(path, tf=4) for path in STACK3_PATHS]
 
-    # stack2_goal2_data = [
-    #     stack2_data[1],
-    #     TrajectoryData(STACK2_GOAL2_PATHS_EXTRA[0], tf=4),
-    #     TrajectoryData(STACK2_GOAL2_PATHS_EXTRA[1], tf=4),
-    # ]
-    # for datum in stack2_goal2_data:
-    #     print(datum.avg_control_time)
+    prop_cycle = plt.rcParams["axes.prop_cycle"]
+    colors = prop_cycle.by_key()["color"]
+
+    ### Flat Configuration ###
+
+    # plt.figure()
+    # # goal 1 data = index 0
+    # ax = plt.gca()
+    # width = 0.2
+    # offset = np.array([-width, 0, width])
+    # bp1 = plt.boxplot(
+    #     [data.control_durations_cut for data in tray_only_data], positions=1 + offset
+    # )
+    # set_box_colors(bp1, colors)
+    #
+    # bp2 = plt.boxplot(
+    #     [data.control_durations_cut for data in cups1_data], positions=2 + offset
+    # )
+    # set_box_colors(bp2, colors)
+    #
+    # bp3 = plt.boxplot(
+    #     [data.control_durations_cut for data in cups2_data], positions=3 + offset,
+    # )
+    # set_box_colors(bp3, colors)
+    #
+    # bp4 = plt.boxplot(
+    #     [data.control_durations_cut for data in cups3_data], positions=4 + offset,
+    # )
+    # set_box_colors(bp4, colors)
+    #
+    # plt.xlabel("Number of objects")
+    # ax.set_xticks([1, 2, 3, 4])
+    # ax.set_xticklabels([1, 2, 3, 4])
+    # plt.show()
+    # return
 
     fig = plt.figure(figsize=(3.25, 1.5))
     # fig, ax = plt.subplots(1, 2, sharex=True, figsize=(3.25, 1.5))
@@ -153,99 +219,82 @@ def main():
     # plot for objects in a flat configuration
     ax1 = plt.subplot(121)
     width = 0.2
-    plt.bar(
-        np.array([1, 2, 3, 4]) - width,
-        [
-            tray_only_data[0].avg_control_time,
-            cups1_data[0].avg_control_time,
-            cups2_data[0].avg_control_time,
-            cups3_data[0].avg_control_time,
-        ],
-        width=width,
-        align="center",
-        label=r"$\mathrm{Goal\ 1}$",
+    offset = np.array([-width, 0, width])
+    bp1 = plt.boxplot(
+        [data.control_durations_cut for data in tray_only_data], positions=1 + offset
     )
-    plt.bar(
-        [1, 2, 3, 4],
-        [
-            tray_only_data[1].avg_control_time,
-            cups1_data[1].avg_control_time,
-            cups2_data[1].avg_control_time,
-            cups3_data[1].avg_control_time,
-        ],
-        width=width,
-        align="center",
-        label=r"$\mathrm{Goal\ 2}$",
+    set_box_colors(bp1, colors)
+
+    bp2 = plt.boxplot(
+        [data.control_durations_cut for data in cups1_data], positions=2 + offset
     )
-    plt.bar(
-        np.array([1, 2, 3, 4]) + width,
-        [
-            tray_only_data[2].avg_control_time,
-            cups1_data[2].avg_control_time,
-            cups2_data[2].avg_control_time,
-            cups3_data[2].avg_control_time,
-        ],
-        width=width,
-        align="center",
-        label=r"$\mathrm{Goal\ 3}$",
+    set_box_colors(bp2, colors)
+
+    bp3 = plt.boxplot(
+        [data.control_durations_cut for data in cups2_data],
+        positions=3 + offset,
     )
-    # plt.xlabel(r"$\mathrm{Number\ of\ Objects}$")
+    set_box_colors(bp3, colors)
+
+    bp4 = plt.boxplot(
+        [data.control_durations_cut for data in cups3_data],
+        positions=4 + offset,
+    )
+    set_box_colors(bp4, colors)
     plt.ylabel(r"$\mathrm{Computation}$" "\n" r"$\mathrm{time\ (ms)}$")
     plt.title(r"$\mathrm{Flat}$")
-    ylim = [15, 29]
+    ylim = [10, 70]
     yticks = [16, 20, 24, 28]
     ax1.set_xticks([1, 2, 3, 4])
-    ax1.set_yticks(yticks)
+    ax1.set_xticklabels([1, 2, 3, 4])
+    # ax1.set_yticks(yticks)
     plt.ylim(ylim)
 
     # plot for objects stacked atop one another
     ax2 = plt.subplot(122)
-    plt.bar(
-        np.array([1, 2, 3, 4]) - width,
-        [
-            tray_only_data[0].avg_control_time,
-            stack1_data[0].avg_control_time,
-            stack2_data[0].avg_control_time,
-            stack3_data[0].avg_control_time,
-        ],
-        width=width,
-        align="center",
-        label=r"$\mathrm{Goal\ 1}$",
+    bp1 = plt.boxplot(
+        [data.control_durations_cut for data in tray_only_data], positions=1 + offset
     )
-    plt.bar(
-        [1, 2, 3, 4],
-        [
-            tray_only_data[1].avg_control_time,
-            stack1_data[1].avg_control_time,
-            stack2_data[1].avg_control_time,
-            stack3_data[1].avg_control_time,
-        ],
-        width=width,
-        align="center",
-        label=r"$\mathrm{Goal\ 2}$",
+    set_box_colors(bp1, colors)
+
+    bp2 = plt.boxplot(
+        [data.control_durations_cut for data in stack1_data], positions=2 + offset
     )
-    plt.bar(
-        np.array([1, 2, 3, 4]) + width,
-        [
-            tray_only_data[2].avg_control_time,
-            stack1_data[2].avg_control_time,
-            stack2_data[2].avg_control_time,
-            stack3_data[2].avg_control_time,
-        ],
-        width=width,
-        align="center",
-        label=r"$\mathrm{Goal\ 3}$",
+    set_box_colors(bp2, colors)
+
+    bp3 = plt.boxplot(
+        [data.control_durations_cut for data in stack2_data],
+        positions=3 + offset,
     )
-    # plt.xlabel(r"$\mathrm{Time\ (ms)}$")
+    set_box_colors(bp3, colors)
+
+    bp4 = plt.boxplot(
+        [data.control_durations_cut for data in stack3_data],
+        positions=4 + offset,
+    )
+    set_box_colors(bp4, colors)
     plt.title(r"$\mathrm{Stacked}$")
     # ax2.set_yticks(yticks)
     ax2.set_yticks([])
     ax2.set_yticklabels([])
     ax2.set_xticks([1, 2, 3, 4])
+    ax2.set_xticklabels([1, 2, 3, 4])
     plt.xlabel("N")
     plt.ylim(ylim)
     ax2.xaxis.label.set_color((0, 0, 0, 0))
-    plt.legend(loc=(0.5, 0.54), labelspacing=0.3, borderpad=0.3, handlelength=1)
+
+    goal1_patch = mpatches.Patch(color=colors[0], label=r"$\mathrm{Goal\ 1}$")
+    goal2_patch = mpatches.Patch(color=colors[1], label=r"$\mathrm{Goal\ 2}$")
+    goal3_patch = mpatches.Patch(color=colors[2], label=r"$\mathrm{Goal\ 3}$")
+    handles = [goal1_patch, goal2_patch, goal3_patch]
+
+    plt.legend(
+        handles=handles,
+        loc=(0.5, 0.54),
+        labelspacing=0.3,
+        borderpad=0.3,
+        handlelength=1,
+    )
 
     # manually specify the common x-label
     fig.text(0.5, 0.04, r"$\mathrm{Number\ of\ objects}$", ha="center", va="center")
