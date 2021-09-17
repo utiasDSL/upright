@@ -110,13 +110,16 @@ class Simulation:
         pyb.stepSimulation()
 
     def record_video(self, file_name):
-        self.video_file_name = file_name
+        self.video_file_name = str(file_name)
 
     def basic_setup(self):
         if EE_INSCRIBED_RADIUS < TRAY_MU * TRAY_COM_HEIGHT:
             print("warning: w < μh")
 
         pyb.connect(pyb.GUI)
+        # pyb.connect(
+        #     pyb.GUI, options='--width=1280 --height=720 --mp4="test.mp4" --mp4fps=1000'
+        # )
 
         pyb.setGravity(0, 0, -GRAVITY_MAG)
         pyb.setTimeStep(self.dt)
@@ -146,6 +149,7 @@ class Simulation:
 
         # get rid of extra parts of the GUI
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
+        # pyb.configureDebugVisualizer(pyb.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
 
         # record video
         if self.video_file_name is not None:
@@ -194,7 +198,9 @@ class Simulation:
                 height=2 * TRAY_COM_HEIGHT,
                 mu=TRAY_MU,
             )
-            objects["tray"].add_to_sim(bullet_mu=TRAY_MU_BULLET, color=(0.122, 0.467, 0.706, 1))
+            objects["tray"].add_to_sim(
+                bullet_mu=TRAY_MU_BULLET, color=(0.122, 0.467, 0.706, 1)
+            )
             r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
             objects["tray"].bullet.reset_pose(position=r_tw_w)
 
@@ -219,9 +225,7 @@ class Simulation:
             r_ow_w = r_ew_w + [
                 c1[0],
                 c1[1],
-                2 * TRAY_COM_HEIGHT
-                + CYLINDER1_COM_HEIGHT
-                + 0.05,
+                2 * TRAY_COM_HEIGHT + CYLINDER1_COM_HEIGHT + 0.05,
             ]
 
             # stacked
@@ -254,9 +258,7 @@ class Simulation:
             r_ow_w = r_ew_w + [
                 c2[0],
                 c2[1],
-                2 * TRAY_COM_HEIGHT
-                + CYLINDER2_COM_HEIGHT
-                + 0.05,
+                2 * TRAY_COM_HEIGHT + CYLINDER2_COM_HEIGHT + 0.05,
             ]
 
             # stacked
@@ -290,9 +292,7 @@ class Simulation:
             r_ow_w = r_ew_w + [
                 c3[0],
                 c3[1],
-                2 * TRAY_COM_HEIGHT
-                + CYLINDER3_COM_HEIGHT
-                + 0.05,
+                2 * TRAY_COM_HEIGHT + CYLINDER3_COM_HEIGHT + 0.05,
             ]
 
             # stacked

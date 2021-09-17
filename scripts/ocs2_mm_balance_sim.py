@@ -3,10 +3,13 @@
 import time
 import datetime
 import sys
+import os
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as pyb
+from PIL import Image
 
 import mm_pybullet_sim.util as util
 from mm_pybullet_sim.simulation import MobileManipulatorSimulation
@@ -28,6 +31,18 @@ SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 10.0  # duration of trajectory (s)
+
+TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/ICRA22/")
+VIDEO_PATH = VIDEO_DIR / ("static_obstacles_" + TIMESTAMP)
+
+FRAMES_PATH = VIDEO_PATH
+VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
+VIDEO_WIDTH = 1280
+VIDEO_HEIGHT = 720
+
+# print(VIDEO_PATH)
+# IPython.embed()
 
 
 class Obstacle:
@@ -62,6 +77,26 @@ def main():
     np.set_printoptions(precision=3, suppress=True)
 
     sim = MobileManipulatorSimulation(dt=SIM_DT)
+    # sim.record_video(VIDEO_PATH)
+
+    os.makedirs(FRAMES_PATH)
+    cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+        distance=4.6,
+        yaw=5.2,
+        pitch=-27,
+        roll=0,
+        cameraTargetPosition=[1.18, 0.11, 0.05],
+        upAxisIndex=2,
+    )
+
+    # cameraDistance=4.6,
+    # cameraYaw=5.2,
+    # cameraPitch=-27,
+    # cameraTargetPosition=[1.18, 0.11, 0.05],
+
+    cam_proj_matrix = pyb.computeProjectionMatrixFOV(
+        fov=60.0, aspect=VIDEO_WIDTH / VIDEO_HEIGHT, nearVal=0.1, farVal=1000.0
+    )
 
     N = int(DURATION / sim.dt)
 
@@ -87,7 +122,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=n_balance_con_tray + 3 * n_balance_con_obj,
+        n_balance_con=n_balance_con_tray + 0 * n_balance_con_obj,
         n_collision_pair=29,
         n_dynamic_obs=0,
     )
@@ -201,6 +236,8 @@ def main():
     assert len(t_target) == len(target_times)
     assert len(input_target) == len(target_times)
 
+    frame_num = 0
+
     for i in range(N):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
@@ -282,6 +319,7 @@ def main():
             #     break
 
         sim.step(step_robot=True)
+        # pyb.configureDebugVisualizer(pyb.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
         t += sim.dt
 
         # if i == 0:
@@ -295,11 +333,20 @@ def main():
         # if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
         #     target_idx += 1
 
-        # if t > 9:
-        #     IPython.embed()
-        #     return
-        if i % 500 == 0:
-            IPython.embed()
+        if i % VIDEO_PERIOD == 0:
+            (w, h, rgb, dep, seg) = pyb.getCameraImage(
+                width=VIDEO_WIDTH,
+                height=VIDEO_HEIGHT,
+                shadow=1,
+                viewMatrix=cam_view_matrix,
+                projectionMatrix=cam_proj_matrix,
+                flags=pyb.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
+                renderer=pyb.ER_BULLET_HARDWARE_OPENGL,
+            )
+            img = Image.fromarray(np.reshape(rgb, (h, w, 4)), "RGBA")
+            img.save(FRAMES_PATH / ("frame_" + str(frame_num) + ".png"))
+            # print(f"Saved frame {frame_num}")
+            frame_num += 1
 
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
@@ -309,23 +356,23 @@ def main():
             prefix = sys.argv[2]
         else:
             prefix = "data"
-        fname = prefix + "_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        fname = prefix + "_" + TIMESTAMP
         recorder.save(fname)
 
-    last_sim_index = i
-    recorder.plot_ee_position(last_sim_index)
-    recorder.plot_ee_orientation(last_sim_index)
-    recorder.plot_ee_velocity(last_sim_index)
-    for j in range(len(objects)):
-        recorder.plot_object_error(last_sim_index, j)
-    recorder.plot_balancing_constraints(last_sim_index)
-    recorder.plot_commands(last_sim_index)
-    recorder.plot_control_durations(last_sim_index)
-    recorder.plot_cmd_vs_real_vel(last_sim_index)
-    recorder.plot_joint_config(last_sim_index)
-    recorder.plot_dynamic_obs_dist(last_sim_index)
-
-    plt.show()
+    # last_sim_index = i
+    # recorder.plot_ee_position(last_sim_index)
+    # recorder.plot_ee_orientation(last_sim_index)
+    # recorder.plot_ee_velocity(last_sim_index)
+    # for j in range(len(objects)):
+    #     recorder.plot_object_error(last_sim_index, j)
+    # recorder.plot_balancing_constraints(last_sim_index)
+    # recorder.plot_commands(last_sim_index)
+    # recorder.plot_control_durations(last_sim_index)
+    # recorder.plot_cmd_vs_real_vel(last_sim_index)
+    # recorder.plot_joint_config(last_sim_index)
+    # recorder.plot_dynamic_obs_dist(last_sim_index)
+    #
+    # plt.show()
 
 
 if __name__ == "__main__":
