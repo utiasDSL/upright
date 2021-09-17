@@ -156,8 +156,8 @@ class Simulation:
         pyb.loadURDF("plane.urdf", [0, 0, 0])
 
         # setup obstacles
-        # obstacles_uid = pyb.loadURDF(OBSTACLES_URDF_PATH)
-        # pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
+        obstacles_uid = pyb.loadURDF(OBSTACLES_URDF_PATH)
+        pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
 
         # pyb.setCollisionFilterGroupMask(obstacles_uid, -1, 0, 0)
 

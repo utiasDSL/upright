@@ -67,8 +67,8 @@ def main():
 
     # simulation objects and model
     robot, objects, composites = sim.setup(
-        # obj_names=["tray", "cylinder1", "cylinder2", "cylinder3"]
-        obj_names=[]
+        obj_names=["tray", "cylinder1", "cylinder2", "cylinder3"]
+        # obj_names=[]
     )
 
     q, v = robot.joint_states()
@@ -87,9 +87,9 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=0,  #n_balance_con_tray + 1 * n_balance_con_obj,
-        n_collision_pair=1,  # 29
-        n_dynamic_obs=0
+        n_balance_con=n_balance_con_tray + 3 * n_balance_con_obj,
+        n_collision_pair=29,
+        n_dynamic_obs=0,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -117,8 +117,8 @@ def main():
     x = np.concatenate((q, v))
     u = np.zeros(robot.ni)
 
-    # target_times = np.array([0, 2, 4, 6, 8, 10])
-    target_times = [0]  # TODO
+    target_times = np.array([0, 2, 4, 6, 8, 10])
+    # target_times = [0]  # TODO
 
     # setup MPC and initial EE target pose
     mpc = mpc_interface("mpc")
@@ -131,8 +131,8 @@ def main():
         input_target.push_back(u)
 
     # goal 1
-    r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
-    Qd = Q_we
+    # r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
+    # Qd = Q_we
 
     # goal 2
     # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
@@ -142,8 +142,8 @@ def main():
     # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
     # Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
 
-    state_target = vector_array()
-    state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
+    # state_target = vector_array()
+    # state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
 
     # stationary
     # r_ew_w_d = r_ew_w
@@ -183,14 +183,14 @@ def main():
     #     t_target_obs2, state_target_obs2, input_target
     # )
 
-    # state_target = vector_array()
-    # Qd = Q_we
-    # state_target.push_back(np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [5, 0, 0], Qd, r_obs0)))
+    state_target = vector_array()
+    Qd = Q_we
+    state_target.push_back(np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)))
+    state_target.push_back(np.concatenate((r_ew_w + [5, 0, 0], Qd, r_obs0)))
 
     target_trajectories = TargetTrajectories(t_target, state_target, input_target)
     mpc.reset(target_trajectories)
@@ -246,15 +246,15 @@ def main():
 
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
-            # recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
-            #     "trayBalance", t, x, u
-            # )
+            recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
+                "trayBalance", t, x, u
+            )
             # recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
             #     "obstacleAvoidance", t, x
             # )
-            # recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
-            #     "selfCollision", t, x
-            # )
+            recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
+                "selfCollision", t, x
+            )
 
             r_ew_w_d = state_target[target_idx][:3]
             Q_we_d = state_target[target_idx][3:7]
@@ -298,8 +298,8 @@ def main():
         # if t > 9:
         #     IPython.embed()
         #     return
-        # if i % 500 == 0:
-        #     IPython.embed()
+        if i % 500 == 0:
+            IPython.embed()
 
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")

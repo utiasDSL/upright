@@ -9,16 +9,21 @@ from liegroups import SO3
 
 import IPython
 
-DATA_PATH = DATA_DRIVE_PATH / "multi-object/tray_only_goal2_2021-09-11_18-35-52.npz"
+# DATA_PATH = DATA_DRIVE_PATH / "dynamic_obs_photo_op_2021-09-13_20-19-18.npz"
+# CTRL_PERIOD = 100
+# TF = 4
+
+DATA_PATH = DATA_DRIVE_PATH / "static_obs_2021-09-13_02-25-11.npz"
+CTRL_PERIOD = 50
+TF = 10
 
 RECORD_PERIOD = 10
-CTRL_PERIOD = 50
 
 
 class TrajectoryData:
     def __init__(self, path, tf=None):
         with np.load(path) as data:
-            self.control_durations = data["control_durations"]
+            self.control_durations = data["control_durations"][:-1]  # last element is zero?
 
             self.ts = data["ts"]
             self.r_ew_ws = data["r_ew_ws"]
@@ -34,7 +39,7 @@ class TrajectoryData:
                 if self.ts[i] > tf:
                     # we have to translate from record time to control time
                     data_length = int(i * RECORD_PERIOD / CTRL_PERIOD) + 1
-                    record_data_length = i + 1
+                    record_data_length = i
                     break
         print(f"data_length = {data_length}")
 
@@ -54,7 +59,7 @@ class TrajectoryData:
 
 def main():
     # load the data
-    data = TrajectoryData(DATA_PATH, tf=4)
+    data = TrajectoryData(DATA_PATH, tf=TF)
 
     plt.figure()
     plt.plot(data.ts_cut, data.control_durations_cut)

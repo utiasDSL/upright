@@ -94,7 +94,7 @@ def main():
     # load the data
     tf = 3
     height_2cm_data = [TrajectoryData(path, tf=tf) for path in HEIGHT_2CM_PATHS]
-    height_20cm_data = [TrajectoryData(path, tf=tf) for path in HEIGHT_20CM_PATHS]
+    # height_20cm_data = [TrajectoryData(path, tf=tf) for path in HEIGHT_20CM_PATHS]
     height_100cm_data = [TrajectoryData(path, tf=tf) for path in HEIGHT_100CM_PATHS]
     no_obj_data = [TrajectoryData(path, tf=tf) for path in NO_OBJ_PATHS]
 
