@@ -695,36 +695,36 @@
   </link>
 
   <!-- Collision element to protect the balanced objects -->
-  <!-- <link name="balanced_object_collision_link"> -->
-  <!--   <collision> -->
-  <!--     <origin rpy="0 0 0" xyz="0 0 0.1"/> -->
-  <!--     <geometry> -->
-  <!--       <cylinder length="0.25" radius="0.25"/> -->
-  <!--     </geometry> -->
-  <!--   </collision> -->
-  <!--   <visual> -->
-  <!--     <origin rpy="0 0 0" xyz="0 0 0.1"/> -->
-  <!--     <geometry> -->
-  <!--       <cylinder length="0.25" radius="0.25"/> -->
-  <!--     </geometry> -->
-  <!--     <material name="seethrough"/> -->
-  <!--   </visual> -->
-  <!-- </link> -->
   <link name="balanced_object_collision_link">
     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0.02"/>
+      <origin rpy="0 0 0" xyz="0 0 0.1"/>
       <geometry>
-        <cylinder length="0.1" radius="0.25"/>
+        <cylinder length="0.25" radius="0.25"/>
       </geometry>
     </collision>
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.02"/>
+      <origin rpy="0 0 0" xyz="0 0 0.1"/>
       <geometry>
-        <cylinder length="0.1" radius="0.25"/>
+        <cylinder length="0.25" radius="0.25"/>
       </geometry>
       <material name="seethrough"/>
     </visual>
   </link>
+  <!-- <link name="balanced_object_collision_link"> -->
+  <!--   <collision> -->
+  <!--     <origin rpy="0 0 0" xyz="0 0 0.02"/> -->
+  <!--     <geometry> -->
+  <!--       <cylinder length="0.1" radius="0.25"/> -->
+  <!--     </geometry> -->
+  <!--   </collision> -->
+  <!--   <visual> -->
+  <!--     <origin rpy="0 0 0" xyz="0 0 0.02"/> -->
+  <!--     <geometry> -->
+  <!--       <cylinder length="0.1" radius="0.25"/> -->
+  <!--     </geometry> -->
+  <!--     <material name="seethrough"/> -->
+  <!--   </visual> -->
+  <!-- </link> -->
   <joint name="balanced_object_collision_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="thing_tool"/>
