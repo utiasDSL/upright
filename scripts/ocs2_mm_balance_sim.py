@@ -34,7 +34,7 @@ DURATION = 10.0  # duration of trajectory (s)
 
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/ICRA22/")
-VIDEO_PATH = VIDEO_DIR / ("static_obstacles_" + TIMESTAMP)
+VIDEO_PATH = VIDEO_DIR / ("dynamic_obstacle_" + TIMESTAMP)
 
 FRAMES_PATH = VIDEO_PATH
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
@@ -43,6 +43,8 @@ VIDEO_HEIGHT = 720
 
 # print(VIDEO_PATH)
 # IPython.embed()
+
+RECORD_VIDEO = False
 
 
 class Obstacle:
@@ -79,24 +81,50 @@ def main():
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     # sim.record_video(VIDEO_PATH)
 
-    os.makedirs(FRAMES_PATH)
-    cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
-        distance=4.6,
-        yaw=5.2,
-        pitch=-27,
-        roll=0,
-        cameraTargetPosition=[1.18, 0.11, 0.05],
-        upAxisIndex=2,
-    )
+    if RECORD_VIDEO:
+        os.makedirs(FRAMES_PATH)
+        # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+        #     distance=4.6,
+        #     yaw=5.2,
+        #     pitch=-27,
+        #     roll=0,
+        #     cameraTargetPosition=[1.18, 0.11, 0.05],
+        #     upAxisIndex=2,
+        # )
 
-    # cameraDistance=4.6,
-    # cameraYaw=5.2,
-    # cameraPitch=-27,
-    # cameraTargetPosition=[1.18, 0.11, 0.05],
+        # static obstacle course POV #1
+        # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+        #     distance=3.6,
+        #     yaw=-39.6,
+        #     pitch=-38.2,
+        #     roll=0,
+        #     cameraTargetPosition=[1.66, -0.31, 0.03],
+        #     upAxisIndex=2,
+        # )
 
-    cam_proj_matrix = pyb.computeProjectionMatrixFOV(
-        fov=60.0, aspect=VIDEO_WIDTH / VIDEO_HEIGHT, nearVal=0.1, farVal=1000.0
-    )
+        # static obstacle course POV #2
+        # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+        #     distance=3.4,
+        #     yaw=10.0,
+        #     pitch=-23.4,
+        #     roll=0,
+        #     cameraTargetPosition=[2.77, 0.043, 0.142],
+        #     upAxisIndex=2,
+        # )
+
+        # static obstacle course POV #3
+        cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+            distance=4.8,
+            yaw=87.6,
+            pitch=-13.4,
+            roll=0,
+            cameraTargetPosition=[2.77, 0.043, 0.142],
+            upAxisIndex=2,
+        )
+
+        cam_proj_matrix = pyb.computeProjectionMatrixFOV(
+            fov=60.0, aspect=VIDEO_WIDTH / VIDEO_HEIGHT, nearVal=0.1, farVal=1000.0
+        )
 
     N = int(DURATION / sim.dt)
 
@@ -122,7 +150,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=n_balance_con_tray + 0 * n_balance_con_obj,
+        n_balance_con=n_balance_con_tray + 3 * n_balance_con_obj,
         n_collision_pair=29,
         n_dynamic_obs=0,
     )
@@ -333,7 +361,7 @@ def main():
         # if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
         #     target_idx += 1
 
-        if i % VIDEO_PERIOD == 0:
+        if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
             (w, h, rgb, dep, seg) = pyb.getCameraImage(
                 width=VIDEO_WIDTH,
                 height=VIDEO_HEIGHT,
@@ -351,6 +379,7 @@ def main():
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
 
+    # save logged data
     if len(sys.argv) > 1 and sys.argv[1] == "--save":
         if len(sys.argv) > 2:
             prefix = sys.argv[2]

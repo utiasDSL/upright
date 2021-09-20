@@ -116,20 +116,19 @@ class Simulation:
         if EE_INSCRIBED_RADIUS < TRAY_MU * TRAY_COM_HEIGHT:
             print("warning: w < μh")
 
-        pyb.connect(pyb.GUI)
-        # pyb.connect(
-        #     pyb.GUI, options='--width=1280 --height=720 --mp4="test.mp4" --mp4fps=1000'
-        # )
+        # pyb.connect(pyb.GUI)
+        pyb.connect(pyb.GUI, options="--width=1280 --height=720")
 
         pyb.setGravity(0, 0, -GRAVITY_MAG)
         pyb.setTimeStep(self.dt)
 
-        pyb.resetDebugVisualizerCamera(
-            cameraDistance=4.6,
-            cameraYaw=5.2,
-            cameraPitch=-27,
-            cameraTargetPosition=[1.18, 0.11, 0.05],
-        )
+        # default
+        # pyb.resetDebugVisualizerCamera(
+        #     cameraDistance=4.6,
+        #     cameraYaw=5.2,
+        #     cameraPitch=-27,
+        #     cameraTargetPosition=[1.18, 0.11, 0.05],
+        # )
 
         # for close-ups shots of the EE / objects
         # pyb.resetDebugVisualizerCamera(
@@ -140,11 +139,35 @@ class Simulation:
         # )
 
         # for taking pictures of the dynamic obstacle avoidance task
+        pyb.resetDebugVisualizerCamera(
+            cameraDistance=1.8,
+            cameraYaw=147.6,
+            cameraPitch=-29,
+            cameraTargetPosition=[1.28, 0.045, 0.647],
+        )
+
+        # static obstacle course POV #1
         # pyb.resetDebugVisualizerCamera(
-        #     cameraDistance=1.8,
-        #     cameraYaw=147.6,
-        #     cameraPitch=-29,
-        #     cameraTargetPosition=[1.28, 0.045, 0.647],
+        #     cameraDistance=3.6,
+        #     cameraYaw=-39.6,
+        #     cameraPitch=-38.2,
+        #     cameraTargetPosition=[1.66, -0.31, 0.03],
+        # )
+
+        # static obstacle course POV #2
+        # pyb.resetDebugVisualizerCamera(
+        #     cameraDistance=3.4,
+        #     cameraYaw=10.0,
+        #     cameraPitch=-23.4,
+        #     cameraTargetPosition=[2.77, 0.043, 0.142],
+        # )
+
+        # static obstacle course POV #3
+        # pyb.resetDebugVisualizerCamera(
+        #     cameraDistance=4.8,
+        #     cameraYaw=87.6,
+        #     cameraPitch=-13.4,
+        #     cameraTargetPosition=[2.77, 0.043, 0.142],
         # )
 
         # get rid of extra parts of the GUI
@@ -160,8 +183,8 @@ class Simulation:
         pyb.loadURDF("plane.urdf", [0, 0, 0])
 
         # setup obstacles
-        obstacles_uid = pyb.loadURDF(OBSTACLES_URDF_PATH)
-        pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
+        # obstacles_uid = pyb.loadURDF(OBSTACLES_URDF_PATH)
+        # pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
 
         # pyb.setCollisionFilterGroupMask(obstacles_uid, -1, 0, 0)
 
