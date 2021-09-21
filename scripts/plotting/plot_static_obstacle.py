@@ -10,7 +10,6 @@ from liegroups import SO3
 import IPython
 
 DATA_PATH = DATA_DRIVE_PATH / "static_obs_2021-09-13_02-25-11.npz"
-
 FIG_PATH = "/home/adam/phd/papers/icra22/figures/static_obstacles.pdf"
 
 
@@ -45,6 +44,8 @@ class TrajectoryData:
                 if self.ts[i] > tf:
                     data_length = i
                     break
+
+        IPython.embed()
 
         self.ts_cut = self.ts[:data_length]
         self.collision_pair_distance_cut = self.collision_pair_distance[:data_length]

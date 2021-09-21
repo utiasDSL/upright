@@ -80,34 +80,6 @@ def main():
 
     if RECORD_VIDEO:
         os.makedirs(FRAMES_PATH)
-        # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
-        #     distance=4.6,
-        #     yaw=5.2,
-        #     pitch=-27,
-        #     roll=0,
-        #     cameraTargetPosition=[1.18, 0.11, 0.05],
-        #     upAxisIndex=2,
-        # )
-
-        # static obstacle course POV #1
-        # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
-        #     distance=3.6,
-        #     yaw=-39.6,
-        #     pitch=-38.2,
-        #     roll=0,
-        #     cameraTargetPosition=[1.66, -0.31, 0.03],
-        #     upAxisIndex=2,
-        # )
-
-        # static obstacle course POV #2
-        # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
-        #     distance=3.4,
-        #     yaw=10.0,
-        #     pitch=-23.4,
-        #     roll=0,
-        #     cameraTargetPosition=[2.77, 0.043, 0.142],
-        #     upAxisIndex=2,
-        # )
 
         # static obstacle course POV #3
         # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
@@ -196,7 +168,6 @@ def main():
     x = np.concatenate((q, v))
     u = np.zeros(robot.ni)
 
-    # target_times = np.array([0, 2, 4, 6, 8, 10])
     target_times = [0, 5]  # TODO
 
     # setup MPC and initial EE target pose
@@ -208,26 +179,6 @@ def main():
     input_target = vector_array()
     for _ in target_times:
         input_target.push_back(u)
-
-    #### Pose-to-pose motions ####
-
-    # r_obs0 = np.array(r_ew_w) + [0, -10, 0]
-    # goal 1
-    # r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
-    # Qd = Q_we
-
-    # goal 2
-    # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
-    # Qd = Q_we
-
-    # goal 3
-    # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
-    # Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
-
-    # state_target = vector_array()
-    # state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
-
-    #### Trajectory for dynamic obstacles ####
 
     # stationary
     r_ew_w_d = r_ew_w
@@ -267,18 +218,6 @@ def main():
         t_target_obs2, state_target_obs2, input_target
     )
 
-
-    #### Trajectory for stationary obstacles ####
-
-    # state_target = vector_array()
-    # Qd = Q_we
-    # state_target.push_back(np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)))
-    # state_target.push_back(np.concatenate((r_ew_w + [5, 0, 0], Qd, r_obs0)))
-
     target_trajectories = TargetTrajectories(t_target, state_target, input_target)
     mpc.reset(target_trajectories)
 
@@ -295,7 +234,7 @@ def main():
         x = np.concatenate((q, v))
         mpc.setObservation(t, x, u)
 
-        # TODO this should be set to reflect the MPC time step
+        # this should be set to reflect the MPC time step
         # we can increase it if the MPC rate is faster
         if i % CTRL_PERIOD == 0:
             # robot.cmd_vel = v  # NOTE
@@ -309,14 +248,6 @@ def main():
                 i -= 1  # for the recorder
                 break
             recorder.control_durations[i // CTRL_PERIOD] = t1 - t0
-
-        # evaluate the current MPC policy (returns an entire trajectory of
-        # waypoints, starting from the current time)
-        # t_result = scalar_array()
-        # x_result = vector_array()
-        # u_result = vector_array()
-        # mpc.getMpcSolution(t_result, x_result, u_result)
-        # u = u_result[0]
 
         # As far as I can tell, evaluateMpcSolution actually computes the input
         # for the particular time and state (the input is often at least
@@ -365,11 +296,6 @@ def main():
 
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
-            # if (recorder.ineq_cons[idx, :] < -1).any():
-            #     print("constraint less than -1")
-            #     IPython.embed()
-            #     break
-
         sim.step(step_robot=True)
         t += sim.dt
 
@@ -382,9 +308,6 @@ def main():
             pyb.resetBasePositionAndOrientation(obstacle.uid, list(r_obs0), (0, 0, 0, 1))
             pyb.resetBaseVelocity(obstacle.uid, linearVelocity=list(obstacle.velocity))
             mpc.setTargetTrajectories(target_trajectories_obs2)
-
-        # if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
-        #     target_idx += 1
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
             (w, h, rgb, dep, seg) = pyb.getCameraImage(

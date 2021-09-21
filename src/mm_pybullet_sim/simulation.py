@@ -55,15 +55,15 @@ CYLINDER1_COM_HEIGHT = 0.075
 
 CYLINDER2_MASS = 0.5
 CYLINDER2_SUPPORT_MU = 0.5
-CYLINDER2_MU_BULLET = CYLINDER2_SUPPORT_MU / TRAY_MU_BULLET  # for flat
-# CYLINDER2_MU_BULLET = CYLINDER2_SUPPORT_MU / CYLINDER1_MU_BULLET  # for stacked
+# CYLINDER2_MU_BULLET = CYLINDER2_SUPPORT_MU / TRAY_MU_BULLET  # for flat
+CYLINDER2_MU_BULLET = CYLINDER2_SUPPORT_MU / CYLINDER1_MU_BULLET  # for stacked
 CYLINDER2_RADIUS = 0.05
 CYLINDER2_COM_HEIGHT = 0.075
 
 CYLINDER3_MASS = 0.5
 CYLINDER3_SUPPORT_MU = 0.5
-CYLINDER3_MU_BULLET = CYLINDER3_SUPPORT_MU / TRAY_MU_BULLET  # for flat
-# CYLINDER3_MU_BULLET = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET  # for stacked
+# CYLINDER3_MU_BULLET = CYLINDER3_SUPPORT_MU / TRAY_MU_BULLET  # for flat
+CYLINDER3_MU_BULLET = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET  # for stacked
 CYLINDER3_RADIUS = 0.05
 CYLINDER3_COM_HEIGHT = 0.075
 
@@ -139,12 +139,21 @@ class Simulation:
         # )
 
         # for taking pictures of the dynamic obstacle avoidance task
-        pyb.resetDebugVisualizerCamera(
-            cameraDistance=1.8,
-            cameraYaw=147.6,
-            cameraPitch=-29,
-            cameraTargetPosition=[1.28, 0.045, 0.647],
-        )
+        # also dynamic obstacle POV #1
+        # pyb.resetDebugVisualizerCamera(
+        #     cameraDistance=1.8,
+        #     cameraYaw=147.6,
+        #     cameraPitch=-29,
+        #     cameraTargetPosition=[1.28, 0.045, 0.647],
+        # )
+
+        # dynamic obstacle POV #2
+        # pyb.resetDebugVisualizerCamera(
+        #     cameraDistance=2.6,
+        #     cameraYaw=-3.2,
+        #     cameraPitch=-20.6,
+        #     cameraTargetPosition=[1.28, 0.045, 0.647],
+        # )
 
         # static obstacle course POV #1
         # pyb.resetDebugVisualizerCamera(
@@ -169,6 +178,20 @@ class Simulation:
         #     cameraPitch=-13.4,
         #     cameraTargetPosition=[2.77, 0.043, 0.142],
         # )
+
+        # single- and multi-object POV
+        # pyb.resetDebugVisualizerCamera(
+        #     cameraDistance=3,
+        #     cameraYaw=26,
+        #     cameraPitch=-30.6,
+        #     cameraTargetPosition=[1.28, 0.045, 0.647],
+        # )
+        pyb.resetDebugVisualizerCamera(
+            cameraDistance=4,
+            cameraYaw=42,
+            cameraPitch=-35.8,
+            cameraTargetPosition=[1.28, 0.045, 0.647],
+        )
 
         # get rid of extra parts of the GUI
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
@@ -245,20 +268,20 @@ class Simulation:
             )
 
             # flat
-            r_ow_w = r_ew_w + [
-                c1[0],
-                c1[1],
-                2 * TRAY_COM_HEIGHT + CYLINDER1_COM_HEIGHT + 0.05,
-            ]
+            # r_ow_w = r_ew_w + [
+            #     c1[0],
+            #     c1[1],
+            #     2 * TRAY_COM_HEIGHT + CYLINDER1_COM_HEIGHT + 0.05,
+            # ]
 
             # stacked
-            # r_ow_w = r_ew_w + [
-            #     0,
-            #     0,
-            #     2 * TRAY_COM_HEIGHT
-            #     + CYLINDER1_COM_HEIGHT
-            #     + 0.05,
-            # ]
+            r_ow_w = r_ew_w + [
+                0,
+                0,
+                2 * TRAY_COM_HEIGHT
+                + CYLINDER1_COM_HEIGHT
+                + 0.05,
+            ]
             objects["cylinder1"].bullet.reset_pose(position=r_ow_w)
             objects["tray"].children.append("cylinder1")
 
@@ -278,21 +301,21 @@ class Simulation:
             )
 
             # flat
-            r_ow_w = r_ew_w + [
-                c2[0],
-                c2[1],
-                2 * TRAY_COM_HEIGHT + CYLINDER2_COM_HEIGHT + 0.05,
-            ]
+            # r_ow_w = r_ew_w + [
+            #     c2[0],
+            #     c2[1],
+            #     2 * TRAY_COM_HEIGHT + CYLINDER2_COM_HEIGHT + 0.05,
+            # ]
 
             # stacked
-            # r_ow_w = r_ew_w + [
-            #     0,
-            #     0,
-            #     2 * TRAY_COM_HEIGHT
-            #     + 2 * CYLINDER1_COM_HEIGHT
-            #     + CYLINDER2_COM_HEIGHT
-            #     + 0.05,
-            # ]
+            r_ow_w = r_ew_w + [
+                0,
+                0,
+                2 * TRAY_COM_HEIGHT
+                + 2 * CYLINDER1_COM_HEIGHT
+                + CYLINDER2_COM_HEIGHT
+                + 0.05,
+            ]
             objects["cylinder2"].bullet.reset_pose(position=r_ow_w)
             objects["tray"].children.append("cylinder2")
 
@@ -312,22 +335,22 @@ class Simulation:
             )
 
             # flat
-            r_ow_w = r_ew_w + [
-                c3[0],
-                c3[1],
-                2 * TRAY_COM_HEIGHT + CYLINDER3_COM_HEIGHT + 0.05,
-            ]
+            # r_ow_w = r_ew_w + [
+            #     c3[0],
+            #     c3[1],
+            #     2 * TRAY_COM_HEIGHT + CYLINDER3_COM_HEIGHT + 0.05,
+            # ]
 
             # stacked
-            # r_ow_w = r_ew_w + [
-            #     0,
-            #     0,
-            #     2 * TRAY_COM_HEIGHT
-            #     + 2 * CYLINDER1_COM_HEIGHT
-            #     + 2 * CYLINDER2_COM_HEIGHT
-            #     + CYLINDER3_COM_HEIGHT
-            #     + 0.05,
-            # ]
+            r_ow_w = r_ew_w + [
+                0,
+                0,
+                2 * TRAY_COM_HEIGHT
+                + 2 * CYLINDER1_COM_HEIGHT
+                + 2 * CYLINDER2_COM_HEIGHT
+                + CYLINDER3_COM_HEIGHT
+                + 0.05,
+            ]
             objects["cylinder3"].bullet.reset_pose(position=r_ow_w)
             objects["tray"].children.append("cylinder3")
 
@@ -438,7 +461,7 @@ class FloatingEESimulation(Simulation):
         # setup floating end effector
         robot = EndEffector(self.dt, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
         self.robot = robot
-        util.debug_frame(0.1, robot.uid, -1)
+        # util.debug_frame(0.1, robot.uid, -1)
 
         r_ew_w, Q_we = robot.get_pose()
         objects = super().object_setup(r_ew_w, obj_names)
@@ -469,7 +492,7 @@ class MobileManipulatorSimulation(Simulation):
         # robot = EndEffector(self.dt, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
         robot = SimulatedRobot(self.dt)
         self.robot = robot
-        util.debug_frame(0.1, robot.uid, -1)
+        # util.debug_frame(0.1, robot.uid, -1)
         robot.reset_joint_configuration(ROBOT_HOME)
 
         # simulate briefly to let the robot settle down after being positioned
