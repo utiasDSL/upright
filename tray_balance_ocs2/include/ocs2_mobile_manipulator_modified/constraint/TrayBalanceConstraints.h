@@ -148,12 +148,12 @@ BalancedObject<Scalar> build_cylinder1() {
     Vec2<Scalar> cylinder_support_offset = Vec2<Scalar>::Zero();
 
     Vec3<Scalar> cylinder_com;
-    Scalar ee_side_length(0.2);
-    Vec2<Scalar> com_xy =
-        equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 0);
-    cylinder_com << com_xy, Scalar(0.115);
+    // Scalar ee_side_length(0.2);
+    // Vec2<Scalar> com_xy =
+    //     equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 0);
+    // cylinder_com << com_xy, Scalar(0.115);
 
-    // cylinder_com << Scalar(0), Scalar(0), Scalar(0.115);
+    cylinder_com << Scalar(0), Scalar(0), Scalar(0.115);
 
     Mat3<Scalar> cylinder_inertia = cylinder_inertia_matrix(
         cylinder_mass, cylinder_radius, cylinder_height);
@@ -188,12 +188,12 @@ BalancedObject<Scalar> build_cylinder2() {
     Vec2<Scalar> cylinder_support_offset = Vec2<Scalar>::Zero();
 
     Vec3<Scalar> cylinder_com;
-    Scalar ee_side_length(0.2);
-    Vec2<Scalar> com_xy =
-        equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 1);
-    cylinder_com << com_xy, Scalar(0.115);
+    // Scalar ee_side_length(0.2);
+    // Vec2<Scalar> com_xy =
+    //     equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 1);
+    // cylinder_com << com_xy, Scalar(0.115);
 
-    // cylinder_com << Scalar(0), Scalar(0), Scalar(0.265);
+    cylinder_com << Scalar(0), Scalar(0), Scalar(0.265);
 
     Mat3<Scalar> cylinder_inertia = cylinder_inertia_matrix(
         cylinder_mass, cylinder_radius, cylinder_height);
@@ -223,12 +223,12 @@ BalancedObject<Scalar> build_cylinder3() {
     Vec2<Scalar> cylinder_support_offset = Vec2<Scalar>::Zero();
 
     Vec3<Scalar> cylinder_com;
-    Scalar ee_side_length(0.2);
-    Vec2<Scalar> com_xy =
-        equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 2);
-    cylinder_com << com_xy, Scalar(0.115);
+    // Scalar ee_side_length(0.2);
+    // Vec2<Scalar> com_xy =
+    //     equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 2);
+    // cylinder_com << com_xy, Scalar(0.115);
 
-    // cylinder_com << Scalar(0), Scalar(0), Scalar(0.415);
+    cylinder_com << Scalar(0), Scalar(0), Scalar(0.415);
 
     Mat3<Scalar> cylinder_inertia = cylinder_inertia_matrix(
         cylinder_mass, cylinder_radius, cylinder_height);
@@ -291,7 +291,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         size_t n_tray_con = 2 + 3;
         size_t n_cuboid_con = 2 + 4;
         // size_t n_cylinder_con = 2 + 1;
-        return n_tray_con + 3 * n_cuboid_con;
+        return n_tray_con + 1 * n_cuboid_con;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
@@ -343,12 +343,12 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
 
         ///// Stack /////
 
-        // BalancedObject<ad_scalar_t> cylinder1 = build_cylinder1<ad_scalar_t>();
+        BalancedObject<ad_scalar_t> cylinder1 = build_cylinder1<ad_scalar_t>();
         // BalancedObject<ad_scalar_t> cylinder2 = build_cylinder2<ad_scalar_t>();
         // BalancedObject<ad_scalar_t> cylinder3 = build_cylinder3<ad_scalar_t>();
 
-        // auto composite_tray_cylinder1 =
-        //     BalancedObject<ad_scalar_t>::compose({tray, cylinder1});
+        auto composite_tray_cylinder1 =
+            BalancedObject<ad_scalar_t>::compose({tray, cylinder1});
 
         // auto composite_tray_cylinder12 =
         //     BalancedObject<ad_scalar_t>::compose({tray, cylinder1, cylinder2});
@@ -362,17 +362,17 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         // auto composite_cylinder23 =
         //     BalancedObject<ad_scalar_t>::compose({cylinder2, cylinder3});
 
-        // ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
-        //     C_we, angular_vel, linear_acc, angular_acc,
-        //     {composite_tray_cylinder1, cylinder1});
+        ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
+            C_we, angular_vel, linear_acc, angular_acc,
+            {composite_tray_cylinder1, cylinder1});
         // ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
         //     C_we, angular_vel, linear_acc, angular_acc, {tray});
 
         ///// Flat /////
 
-        BalancedObject<ad_scalar_t> cylinder1 = build_cylinder1<ad_scalar_t>();
-        BalancedObject<ad_scalar_t> cylinder2 = build_cylinder2<ad_scalar_t>();
-        BalancedObject<ad_scalar_t> cylinder3 = build_cylinder3<ad_scalar_t>();
+        // BalancedObject<ad_scalar_t> cylinder1 = build_cylinder1<ad_scalar_t>();
+        // BalancedObject<ad_scalar_t> cylinder2 = build_cylinder2<ad_scalar_t>();
+        // BalancedObject<ad_scalar_t> cylinder3 = build_cylinder3<ad_scalar_t>();
 
         // auto composite_tray_cylinder1 =
         //     BalancedObject<ad_scalar_t>::compose({tray, cylinder1});
@@ -381,13 +381,13 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         //     BalancedObject<ad_scalar_t>::compose({tray, cylinder1,
         //     cylinder2});
 
-        auto composite_tray_cylinder123 =
-            BalancedObject<ad_scalar_t>::compose({tray, cylinder1, cylinder2,
-            cylinder3});
+        // auto composite_tray_cylinder123 =
+        //     BalancedObject<ad_scalar_t>::compose({tray, cylinder1, cylinder2,
+        //     cylinder3});
 
-        ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
-            C_we, angular_vel, linear_acc, angular_acc,
-            {composite_tray_cylinder123, cylinder1, cylinder2, cylinder3});
+        // ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
+        //     C_we, angular_vel, linear_acc, angular_acc,
+        //     {composite_tray_cylinder123, cylinder1, cylinder2, cylinder3});
         // ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
         //     C_we, angular_vel, linear_acc, angular_acc, {tray});
 

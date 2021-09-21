@@ -204,11 +204,11 @@ void MobileManipulatorInterface::loadSettings(
     //                           "obstacleAvoidance", usePreComputation,
     //                           libraryFolder, recompileLibraries));
 
-    problem_.softConstraintPtr->add(
-        "trayBalance",
-        getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
-                                 "trayBalanceConstraints", usePreComputation,
-                                 libraryFolder, recompileLibraries));
+    // problem_.softConstraintPtr->add(
+    //     "trayBalance",
+    //     getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
+    //                              "trayBalanceConstraints", usePreComputation,
+    //                              libraryFolder, recompileLibraries));
 
     // Alternative EE pose matching formulated as a (soft) constraint
     // problem_.stateSoftConstraintPtr->add(
@@ -365,7 +365,7 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getObstacleConstraint(
     PinocchioInterface pinocchioInterface, const std::string& taskFile,
     const std::string& prefix, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
-    scalar_t mu = 1e-3;  // TODO can I increase this?
+    scalar_t mu = 1e-3;
     scalar_t delta = 1e-3;
 
     std::vector<std::string> collision_link_names = {
