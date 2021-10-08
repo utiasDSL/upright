@@ -55,7 +55,7 @@ class SimulatedRobot:
 
         self.dt = dt
         self.ns = 18  # num state
-        self.ni = 9   # num inputs
+        self.ni = 9  # num inputs
 
         self.cmd_vel = np.zeros(9)
         self.cmd_acc = np.zeros_like(self.cmd_vel)
@@ -189,34 +189,43 @@ class SimulatedRobot:
 class KinematicChain:
     """All transforms on the robot kinematic chain for a given configuration."""
 
-    T_w_b = dhtf(np.pi / 2, 0, 0.01, np.pi / 2)
-    T_θb_θ1 = dhtf(0, PX, PZ, -np.pi / 2) @ dhtf(0, 0, PY, np.pi / 2)
-    T_θ6_tool = dhtf(np.pi, 0, D7, 0)
+    # world to base
+    T0 = dhtf(np.pi / 2, 0, 0.01, np.pi / 2)
+    T_w_0 = T0
+
+    # base to arm
+    T4 = dhtf(0, PX, PZ, -np.pi / 2)
+    T5 = dhtf(0, 0, PY, np.pi / 2)
+
+    # tool offset
+    T12 = dhtf(np.pi, 0, D7, 0)
 
     def __init__(self, q):
-        self.T_xb = dhtf(np.pi / 2, 0, q[0], np.pi / 2)
-        self.T_yb = dhtf(np.pi / 2, 0, q[1], np.pi / 2)
-        self.T_θb = dhtf(q[2], 0, 0, 0)
+        self.T1 = dhtf(np.pi / 2, 0, q[0], np.pi / 2)
+        self.T2 = dhtf(np.pi / 2, 0, q[1], np.pi / 2)
+        self.T3 = dhtf(q[2], 0, 0, 0)
 
-        self.T_θ1 = dhtf(q[3], 0, D1, np.pi / 2)
-        self.T_θ2 = dhtf(q[4], A2, 0, 0)
-        self.T_θ3 = dhtf(q[5], A3, 0, 0)
-        self.T_θ4 = dhtf(q[6], 0, D4, np.pi / 2)
-        self.T_θ5 = dhtf(q[7], 0, D5, -np.pi / 2)
-        self.T_θ6 = dhtf(q[8], 0, D6, 0)
+        self.T6 = dhtf(q[3], 0, D1, np.pi / 2)
+        self.T7 = dhtf(q[4], A2, 0, 0)
+        self.T8 = dhtf(q[5], A3, 0, 0)
+        self.T9 = dhtf(q[6], 0, D4, np.pi / 2)
+        self.T10 = dhtf(q[7], 0, D5, -np.pi / 2)
+        self.T11 = dhtf(q[8], 0, D6, 0)
 
-        self.T_w_xb = self.T_w_b @ self.T_xb
-        self.T_w_yb = self.T_w_xb @ self.T_yb
-        self.T_w_θb = self.T_w_yb @ self.T_θb
+        self.T_w_1 = self.T_w_0 @ self.T1
+        self.T_w_2 = self.T_w_1 @ self.T2
+        self.T_w_3 = self.T_w_2 @ self.T3
 
-        self.T_w_θ1 = self.T_w_θb @ self.T_θb_θ1 @ self.T_θ1
-        self.T_w_θ2 = self.T_w_θ1 @ self.T_θ2
-        self.T_w_θ3 = self.T_w_θ2 @ self.T_θ3
-        self.T_w_θ4 = self.T_w_θ3 @ self.T_θ4
-        self.T_w_θ5 = self.T_w_θ4 @ self.T_θ5
-        self.T_w_θ6 = self.T_w_θ5 @ self.T_θ6
+        self.T_w_5 = self.T_w_3 @ self.T4 @ self.T5
+        self.T_w_6 = self.T_w_5 @ self.T6
+        self.T_w_7 = self.T_w_6 @ self.T7
+        self.T_w_8 = self.T_w_7 @ self.T8
+        self.T_w_9 = self.T_w_8 @ self.T9
+        self.T_w_10 = self.T_w_9 @ self.T10
+        self.T_w_11 = self.T_w_10 @ self.T11
 
-        self.T_w_tool = self.T_w_θ6 @ self.T_θ6_tool
+        self.T_w_12 = self.T_w_11 @ self.T12
+        self.T_w_tool = self.T_w_12
 
 
 class RobotModel:
@@ -237,47 +246,39 @@ class RobotModel:
             return T[:3, 3]
 
         chain = KinematicChain(q)
-        z0 = jnp.array([0, 0, 1])  # Unit vector along z-axis
+        z = np.array([0, 0, 1])  # Unit vector along z-axis
 
         # axis for each joint's angular velocity is the z-axis of the previous
         # transform
-        z_xb = rotation(chain.T_w_xb) @ z0
-        z_yb = rotation(chain.T_w_yb) @ z0
-        z_θb = rotation(chain.T_w_θb) @ z0
-        z_θ1 = rotation(chain.T_w_θ1) @ z0
-        z_θ2 = rotation(chain.T_w_θ2) @ z0
-        z_θ3 = rotation(chain.T_w_θ3) @ z0
-        z_θ4 = rotation(chain.T_w_θ4) @ z0
-        z_θ5 = rotation(chain.T_w_θ5) @ z0
-        z_θ6 = rotation(chain.T_w_θ6) @ z0
+        z0 = rotation(chain.T_w_0) @ z
+        z1 = rotation(chain.T_w_1) @ z
+        z2 = rotation(chain.T_w_2) @ z
+
+        z5 = rotation(chain.T_w_5) @ z
+        z6 = rotation(chain.T_w_6) @ z
+        z7 = rotation(chain.T_w_7) @ z
+        z8 = rotation(chain.T_w_8) @ z
+        z9 = rotation(chain.T_w_9) @ z
+        z10 = rotation(chain.T_w_10) @ z
 
         # Angular Jacobian
         # joints xb and yb are prismatic, and so cause no angular velocity.
-        Jo = jnp.vstack(
-            (jnp.zeros(3), jnp.zeros(3), z_yb, z_θb, z_θ1, z_θ2, z_θ3, z_θ4, z_θ5)
+        Jo = jnp.vstack((np.zeros(3), np.zeros(3), z2, z5, z6, z7, z8, z9, z10)).T
+
+        pe = translation(chain.T_w_tool)
+        Jp = jnp.vstack(
+            (
+                z0,
+                z1,
+                jnp.cross(z2, pe - translation(chain.T_w_2)),
+                jnp.cross(z5, pe - translation(chain.T_w_5)),
+                jnp.cross(z6, pe - translation(chain.T_w_6)),
+                jnp.cross(z7, pe - translation(chain.T_w_7)),
+                jnp.cross(z8, pe - translation(chain.T_w_8)),
+                jnp.cross(z9, pe - translation(chain.T_w_9)),
+                jnp.cross(z10, pe - translation(chain.T_w_10)),
+            )
         ).T
-
-        # Linear Jacobian
-        def ee_position(q):
-            return self.tool_pose_matrix(q)[:3, 3]
-
-        # TODO the manual implementation below is not correct -- fix at some
-        # point
-        Jp = jax.jit(jax.jacfwd(ee_position))(q)
-        # pe = translation(chain.T_w_tool)
-        # Jp = jnp.vstack(
-        #     (
-        #         z_xb,
-        #         z_yb,
-        #         jnp.cross(z_θb, pe - translation(chain.T_w_θb)),
-        #         jnp.cross(z_θ1, pe - translation(chain.T_w_θ1)),
-        #         jnp.cross(z_θ2, pe - translation(chain.T_w_θ2)),
-        #         jnp.cross(z_θ3, pe - translation(chain.T_w_θ3)),
-        #         jnp.cross(z_θ4, pe - translation(chain.T_w_θ4)),
-        #         jnp.cross(z_θ5, pe - translation(chain.T_w_θ5)),
-        #         jnp.cross(z_θ6, pe - translation(chain.T_w_θ6)),
-        #     )
-        # ).T
 
         # Full Jacobian
         return jnp.vstack((Jp, Jo))
