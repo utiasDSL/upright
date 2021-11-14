@@ -229,7 +229,7 @@ class KinematicChain:
 
 
 class RobotModel:
-    def __init__(self, dt, qd):
+    def __init__(self, dt):
         self.dt = dt
         self.ni = 9
         self.ns = 9 + 9
