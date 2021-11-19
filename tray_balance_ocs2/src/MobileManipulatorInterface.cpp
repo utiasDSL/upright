@@ -47,18 +47,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 #include <ocs2_self_collision/loadStdVectorOfPair.h>
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorDynamics.h>
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
-#include <ocs2_mobile_manipulator_modified/constraint/EndEffectorConstraint.h>
-#include <ocs2_mobile_manipulator_modified/constraint/JointAccelerationLimits.h>
-#include <ocs2_mobile_manipulator_modified/constraint/JointStateInputLimits.h>
-#include <ocs2_mobile_manipulator_modified/constraint/MobileManipulatorSelfCollisionConstraint.h>
-#include <ocs2_mobile_manipulator_modified/constraint/ObstacleConstraint.h>
-#include <ocs2_mobile_manipulator_modified/constraint/TrayBalanceConstraints.h>
-#include <ocs2_mobile_manipulator_modified/cost/EndEffectorCost.h>
-#include <ocs2_mobile_manipulator_modified/cost/QuadraticJointStateInputCost.h>
-#include <ocs2_mobile_manipulator_modified/definitions.h>
+#include <tray_balance_ocs2/MobileManipulatorDynamics.h>
+#include <tray_balance_ocs2/MobileManipulatorInterface.h>
+#include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
+#include <tray_balance_ocs2/constraint/EndEffectorConstraint.h>
+#include <tray_balance_ocs2/constraint/JointAccelerationLimits.h>
+#include <tray_balance_ocs2/constraint/JointStateInputLimits.h>
+#include <tray_balance_ocs2/constraint/MobileManipulatorSelfCollisionConstraint.h>
+#include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
+#include <tray_balance_ocs2/constraint/TrayBalanceConstraints.h>
+#include <tray_balance_ocs2/cost/EndEffectorCost.h>
+#include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
+#include <tray_balance_ocs2/definitions.h>
 
 #include <ros/package.h>
 
@@ -71,12 +71,12 @@ namespace mobile_manipulator {
 MobileManipulatorInterface::MobileManipulatorInterface(
     const std::string& taskFileFolderName) {
     const std::string taskFile =
-        ros::package::getPath("ocs2_mobile_manipulator_modified") + "/config/" +
+        ros::package::getPath("tray_balance_ocs2") + "/config/" +
         taskFileFolderName + "/task.info";
     std::cerr << "Loading task file: " << taskFile << std::endl;
 
     const std::string libraryFolder =
-        "/tmp/ocs2/ocs2_mobile_manipulator_modified";
+        "/tmp/ocs2/tray_balance_ocs2";
     std::cerr << "Generated library path: " << libraryFolder << std::endl;
 
     // load setting from config file
@@ -113,10 +113,10 @@ pinocchio::GeometryModel MobileManipulatorInterface::build_geometry_model(
 void MobileManipulatorInterface::loadSettings(
     const std::string& taskFile, const std::string& libraryFolder) {
     const std::string urdfPath =
-        ros::package::getPath("ocs2_mobile_manipulator_modified") +
+        ros::package::getPath("tray_balance_ocs2") +
         "/urdf/mm.urdf";
     const std::string obstacle_urdfPath =
-        ros::package::getPath("ocs2_mobile_manipulator_modified") +
+        ros::package::getPath("tray_balance_ocs2") +
         "/urdf/obstacles.urdf";
     std::cerr << "Load Pinocchio model from " << urdfPath << '\n';
 
@@ -509,7 +509,7 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
     // Add obstacle collision objects to the geometry model, so we can check
     // them against the robot.
     const std::string obstacle_urdf_path =
-        ros::package::getPath("ocs2_mobile_manipulator_modified") +
+        ros::package::getPath("tray_balance_ocs2") +
         "/urdf/obstacles.urdf";
     pinocchio::GeometryModel obs_geom_model =
         build_geometry_model(obstacle_urdf_path);

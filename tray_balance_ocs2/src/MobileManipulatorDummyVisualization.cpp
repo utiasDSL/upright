@@ -43,14 +43,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_ros_interfaces/common/RosMsgHelpers.h>
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorDummyVisualization.h>
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorReferenceTrajectory.h>
-#include <ocs2_mobile_manipulator_modified/definitions.h>
+#include <tray_balance_ocs2/MobileManipulatorDummyVisualization.h>
+#include <tray_balance_ocs2/MobileManipulatorInterface.h>
+#include <tray_balance_ocs2/MobileManipulatorReferenceTrajectory.h>
+#include <tray_balance_ocs2/definitions.h>
 
 #include <tray_balance_msgs/TrayBalanceControllerInfo.h>
 
-#include <ocs2_mobile_manipulator_modified/constraint/TrayBalanceConstraints.h>
+#include <tray_balance_ocs2/constraint/TrayBalanceConstraints.h>
 #include <tray_balance_constraints/inequality_constraints.h>
 
 namespace ocs2 {
@@ -132,10 +132,10 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
             "/mm/control_info", 1);
 
     const std::string urdfPath =
-        ros::package::getPath("ocs2_mobile_manipulator_modified") +
+        ros::package::getPath("tray_balance_ocs2") +
         "/urdf/mm.urdf";
     const std::string obstacle_urdfPath =
-        ros::package::getPath("ocs2_mobile_manipulator_modified") +
+        ros::package::getPath("tray_balance_ocs2") +
         "/urdf/obstacles.urdf";
     PinocchioInterface pinocchioInterface =
         MobileManipulatorInterface::buildPinocchioInterface(urdfPath,
@@ -148,7 +148,7 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
 
     PinocchioGeometryInterface geometryInterface(pinocchioInterface);
     const std::string obstacle_urdf_path =
-        ros::package::getPath("ocs2_mobile_manipulator_modified") +
+        ros::package::getPath("tray_balance_ocs2") +
         "/urdf/obstacles.urdf";
     pinocchio::GeometryModel obs_geom_model =
         MobileManipulatorInterface::build_geometry_model(obstacle_urdf_path);

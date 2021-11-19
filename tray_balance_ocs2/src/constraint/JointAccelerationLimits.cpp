@@ -27,7 +27,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#include <ocs2_mobile_manipulator_modified/constraint/JointAccelerationLimits.h>
+#include <tray_balance_ocs2/constraint/JointAccelerationLimits.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {

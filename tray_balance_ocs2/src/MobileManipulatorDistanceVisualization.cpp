@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_self_collision/loadStdVectorOfPair.h>
 #include <ocs2_self_collision/visualization/GeometryInterfaceVisualization.h>
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
+#include <tray_balance_ocs2/MobileManipulatorInterface.h>
 
 #include <ros/package.h>
 #include <ros/ros.h>
@@ -73,14 +73,14 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "distance_visualization");
   ros::NodeHandle nodeHandle;
 
-  const std::string urdfPath = ros::package::getPath("ocs2_mobile_manipulator_modified") + "/urdf/mm.urdf";
+  const std::string urdfPath = ros::package::getPath("tray_balance_ocs2") + "/urdf/mm.urdf";
   const std::string taskFileFolder = "mpc";
-  const std::string taskFile = ros::package::getPath("ocs2_mobile_manipulator_modified") + "/config/" + taskFileFolder + "/task.info";
+  const std::string taskFile = ros::package::getPath("tray_balance_ocs2") + "/config/" + taskFileFolder + "/task.info";
 
   std::cerr << "Loading task file: " << taskFile << std::endl;
 
   const std::string obstacle_urdfPath =
-      ros::package::getPath("ocs2_mobile_manipulator_modified") +
+      ros::package::getPath("tray_balance_ocs2") +
       "/urdf/obstacles.urdf";
   pInterface.reset(new PinocchioInterface(MobileManipulatorInterface::buildPinocchioInterface(urdfPath, obstacle_urdfPath)));
 

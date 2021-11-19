@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <ros/package.h>
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
+#include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <ocs2_self_collision/SelfCollision.h>
 #include <ocs2_self_collision/SelfCollisionCppAd.h>
 
@@ -66,8 +66,8 @@ class TestSelfCollision : public ::testing::Test {
   const vector_t jointPositon = (vector_t(9) << 1.0, 1.0, 0.5, 2.5, -1.0, 1.5, 0.0, 1.0, 0.0).finished();
   const std::vector<std::pair<size_t, size_t>> collisionPairs = {{1, 4}, {1, 6}, {1, 9}};
 
-  const std::string urdfPath = ros::package::getPath("ocs2_mobile_manipulator_modified") + "/urdf/mobile_manipulator.urdf";
-  const std::string libraryFolder = ros::package::getPath("ocs2_mobile_manipulator_modified") + "/auto_generated";
+  const std::string urdfPath = ros::package::getPath("tray_balance_ocs2") + "/urdf/mobile_manipulator.urdf";
+  const std::string libraryFolder = ros::package::getPath("tray_balance_ocs2") + "/auto_generated";
   const scalar_t minDistance = 0.1;
 
   PinocchioInterface pinocchioInterface;

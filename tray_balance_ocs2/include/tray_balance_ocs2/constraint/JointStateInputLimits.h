@@ -31,31 +31,52 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 
-#include <ocs2_mobile_manipulator_modified/definitions.h>
+#include <tray_balance_ocs2/definitions.h>
 
 #include <ocs2_core/constraint/StateInputConstraint.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class JointAccelerationLimits final : public StateInputConstraint {
+class JointStateInputLimits final : public StateInputConstraint {
    public:
-    JointAccelerationLimits() : StateInputConstraint(ConstraintOrder::Linear) {}
-    ~JointAccelerationLimits() override = default;
-    JointAccelerationLimits* clone() const override {
-        return new JointAccelerationLimits(*this);
+    JointStateInputLimits() : StateInputConstraint(ConstraintOrder::Linear) {}
+    ~JointStateInputLimits() override = default;
+    JointStateInputLimits* clone() const override {
+        return new JointStateInputLimits(*this);
     }
 
-    size_t getNumConstraints(scalar_t time) const override { return INPUT_DIM; }
+    size_t getNumConstraints(scalar_t time) const override {
+        return STATE_DIM + INPUT_DIM;
+    }
+
     vector_t getValue(scalar_t time, const vector_t& state,
                       const vector_t& input,
-                      const PreComputation&) const override;
+                      const PreComputation&) const override {
+        vector_t value(getNumConstraints(time));
+        value << state, input;
+        return value;
+    }
+
     VectorFunctionLinearApproximation getLinearApproximation(
         scalar_t time, const vector_t& state, const vector_t& input,
-        const PreComputation&) const override;
+        const PreComputation& precomp) const override {
+        VectorFunctionLinearApproximation limits(getNumConstraints(time),
+                                                 state.rows(), input.rows());
+        limits.f = getValue(time, state, input, precomp);
+        limits.dfdx.setZero();
+        limits.dfdx.topRows(state.rows()).setIdentity();
+        limits.dfdu.setZero();
+        limits.dfdu.bottomRows(input.rows()).setIdentity();
+
+        // std::cout << "limits.dfdx = " << limits.dfdx << std::endl;
+        // std::cout << "limits.dfdu = " << limits.dfdu << std::endl;
+
+        return limits;
+    }
 
    private:
-    JointAccelerationLimits(const JointAccelerationLimits& other) = default;
+    JointStateInputLimits(const JointStateInputLimits& other) = default;
 };
 
 }  // namespace mobile_manipulator

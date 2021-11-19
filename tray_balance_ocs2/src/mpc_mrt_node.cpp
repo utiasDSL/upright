@@ -38,8 +38,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
 #include <ocs2_ros_interfaces/synchronized_module/RosReferenceManager.h>
 
-#include "ocs2_mobile_manipulator_modified/MobileManipulatorDummyVisualization.h"
-#include "ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h"
+#include "tray_balance_ocs2/MobileManipulatorDummyVisualization.h"
+#include "tray_balance_ocs2/MobileManipulatorInterface.h"
 
 using namespace ocs2;
 using namespace mobile_manipulator;

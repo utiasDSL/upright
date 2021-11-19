@@ -36,8 +36,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorReferenceTrajectory.h>
-#include <ocs2_mobile_manipulator_modified/definitions.h>
+#include <tray_balance_ocs2/MobileManipulatorReferenceTrajectory.h>
+#include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {

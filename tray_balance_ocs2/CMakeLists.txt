@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(ocs2_mobile_manipulator_modified)
+project(tray_balance_ocs2)
 
 # Generate compile_commands.json for clang tools
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

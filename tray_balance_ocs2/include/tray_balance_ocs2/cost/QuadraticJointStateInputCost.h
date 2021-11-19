@@ -30,23 +30,29 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <ocs2_core/cost/QuadraticStateInputCost.h>
-#include <ocs2_mobile_manipulator_modified/definitions.h>
+#include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class QuadraticInputCost final : public QuadraticStateInputCost {
- public:
-  explicit QuadraticInputCost(matrix_t R) : QuadraticStateInputCost(matrix_t::Zero(STATE_DIM, STATE_DIM), std::move(R)) {}
-  ~QuadraticInputCost() override = default;
+class QuadraticJointStateInputCost final : public QuadraticStateInputCost {
+   public:
+    explicit QuadraticJointStateInputCost(matrix_t Q, matrix_t R)
+        : QuadraticStateInputCost(std::move(Q),
+                                  std::move(R)) {}
+    ~QuadraticJointStateInputCost() override = default;
 
-  QuadraticInputCost* clone() const override { return new QuadraticInputCost(*this); }
+    QuadraticJointStateInputCost* clone() const override {
+        return new QuadraticJointStateInputCost(*this);
+    }
 
-  std::pair<vector_t, vector_t> getStateInputDeviation(scalar_t time, const vector_t& state, const vector_t& input,
-                                                       const TargetTrajectories& targetTrajectories) const override {
-    const vector_t inputDeviation = input - targetTrajectories.getDesiredInput(time);
-    return {vector_t::Zero(STATE_DIM), inputDeviation};
-  }
+    std::pair<vector_t, vector_t> getStateInputDeviation(
+        scalar_t time, const vector_t& state, const vector_t& input,
+        const TargetTrajectories& targetTrajectories) const override {
+        // const vector_t inputDeviation =
+        //     input - targetTrajectories.getDesiredInput(time);
+        return {state, input};
+    }
 };
 
 }  // namespace mobile_manipulator

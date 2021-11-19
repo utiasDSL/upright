@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
+#include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {

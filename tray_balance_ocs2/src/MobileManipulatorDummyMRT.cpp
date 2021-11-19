@@ -27,9 +27,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************/
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorDummyVisualization.h>
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorReferenceTrajectory.h>
+#include <tray_balance_ocs2/MobileManipulatorDummyVisualization.h>
+#include <tray_balance_ocs2/MobileManipulatorInterface.h>
+#include <tray_balance_ocs2/MobileManipulatorReferenceTrajectory.h>
 
 #include <ocs2_mpc/SystemObservation.h>
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Dummy_Loop.h>

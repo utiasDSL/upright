@@ -27,8 +27,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
-#include <ocs2_mobile_manipulator_modified/constraint/EndEffectorConstraint.h>
+#include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
+#include <tray_balance_ocs2/constraint/EndEffectorConstraint.h>
 
 #include <ocs2_core/misc/LinearInterpolation.h>
 

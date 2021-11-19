@@ -4,14 +4,14 @@ Copyright (c) 2020, Farbod Farshidian. All rights reserved.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright notice, this
+ * Redistributions of source code must retain the above copyright notice, this
   list of conditions and the following disclaimer.
 
-* Redistributions in binary form must reproduce the above copyright notice,
+ * Redistributions in binary form must reproduce the above copyright notice,
   this list of conditions and the following disclaimer in the documentation
   and/or other materials provided with the distribution.
 
-* Neither the name of the copyright holder nor the names of its
+ * Neither the name of the copyright holder nor the names of its
   contributors may be used to endorse or promote products derived from
   this software without specific prior written permission.
 
@@ -29,30 +29,35 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <ocs2_core/cost/QuadraticStateInputCost.h>
-#include <ocs2_mobile_manipulator_modified/definitions.h>
+#include <ocs2_core/dynamics/SystemDynamicsBaseAD.h>
+
+#include <tray_balance_ocs2/definitions.h>
+#include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class QuadraticJointStateInputCost final : public QuadraticStateInputCost {
+class MobileManipulatorDynamics final : public SystemDynamicsBaseAD {
    public:
-    explicit QuadraticJointStateInputCost(matrix_t Q, matrix_t R)
-        : QuadraticStateInputCost(std::move(Q),
-                                  std::move(R)) {}
-    ~QuadraticJointStateInputCost() override = default;
+    using Base = SystemDynamicsBaseAD;
 
-    QuadraticJointStateInputCost* clone() const override {
-        return new QuadraticJointStateInputCost(*this);
+    explicit MobileManipulatorDynamics(
+        const std::string& modelName,
+        const std::string& modelFolder = "/tmp/ocs2",
+        bool recompileLibraries = true, bool verbose = true);
+
+    ~MobileManipulatorDynamics() override = default;
+
+    MobileManipulatorDynamics* clone() const override {
+        return new MobileManipulatorDynamics(*this);
     }
 
-    std::pair<vector_t, vector_t> getStateInputDeviation(
-        scalar_t time, const vector_t& state, const vector_t& input,
-        const TargetTrajectories& targetTrajectories) const override {
-        // const vector_t inputDeviation =
-        //     input - targetTrajectories.getDesiredInput(time);
-        return {state, input};
-    }
+    ad_vector_t systemFlowMap(ad_scalar_t time, const ad_vector_t& state,
+                              const ad_vector_t& input,
+                              const ad_vector_t& parameters) const override;
+
+   private:
+    MobileManipulatorDynamics(const MobileManipulatorDynamics& rhs) = default;
 };
 
 }  // namespace mobile_manipulator

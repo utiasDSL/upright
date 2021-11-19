@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <iostream>
 
-#include <ocs2_mobile_manipulator_modified/definitions.h>
+#include <tray_balance_ocs2/definitions.h>
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 
 namespace ocs2 {

@@ -35,10 +35,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <gtest/gtest.h>
 #include <ros/package.h>
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorPinocchioMapping.h>
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
-#include <ocs2_mobile_manipulator_modified/constraint/EndEffectorConstraint.h>
+#include <tray_balance_ocs2/MobileManipulatorInterface.h>
+#include <tray_balance_ocs2/MobileManipulatorPinocchioMapping.h>
+#include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
+#include <tray_balance_ocs2/constraint/EndEffectorConstraint.h>
 
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 
@@ -51,7 +51,7 @@ class testEndEffectorConstraint : public ::testing::Test {
   using vector3_t = EndEffectorConstraint::vector3_t;
 
   testEndEffectorConstraint() {
-    const std::string urdfPath = ros::package::getPath("ocs2_mobile_manipulator_modified") + "/urdf/mobile_manipulator.urdf";
+    const std::string urdfPath = ros::package::getPath("tray_balance_ocs2") + "/urdf/mobile_manipulator.urdf";
 
     const vector_t positionOrientation = (vector_t(7) << vector3_t::Zero(), quaternion_t(1, 0, 0, 0).coeffs()).finished();
     referenceManagerPtr.reset(new ReferenceManager(TargetTrajectories({0.0}, {positionOrientation})));

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorInterface.h>
-#include <ocs2_mobile_manipulator_modified/definitions.h>
+#include <tray_balance_ocs2/MobileManipulatorInterface.h>
+#include <tray_balance_ocs2/definitions.h>
 #include <ocs2_python_interface/PythonInterface.h>
 
 namespace ocs2 {

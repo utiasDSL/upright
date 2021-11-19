@@ -30,7 +30,7 @@
     <visual>
       <origin rpy="1.57079632679 0 1.57079632679" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/rocker.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/rocker.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -51,7 +51,7 @@
     <visual>
       <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/wheel.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/wheel.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -77,7 +77,7 @@
     <visual>
       <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/wheel.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/wheel.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -103,7 +103,7 @@
     <visual>
       <origin rpy="1.57079632679 0 1.57079632679" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/rocker.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/rocker.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -124,7 +124,7 @@
     <visual>
       <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/wheel.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/wheel.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -150,7 +150,7 @@
     <visual>
       <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/wheel.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/wheel.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -187,7 +187,7 @@
       <!-- </geometry> -->
       <!-- <origin xyz="0 0 0"/> -->
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/body.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/body.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -199,7 +199,7 @@
       </geometry>
       <!-- <origin xyz="0 0 0"/> -->
       <!-- <geometry> -->
-      <!--   <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/body&#45;collision.stl"/> -->
+      <!--   <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/body&#45;collision.stl"/> -->
       <!-- </geometry> -->
     </collision>
     <inertial>
@@ -223,7 +223,7 @@
     <visual>
       <origin rpy="0 0 3.14159265359" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/side-cover.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/side-cover.stl"/>
       </geometry>
       <material name="yellow"/>
     </visual>
@@ -232,7 +232,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/side-cover.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/side-cover.stl"/>
       </geometry>
       <material name="yellow"/>
     </visual>
@@ -246,7 +246,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/end-cover.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/end-cover.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -260,7 +260,7 @@
     <visual>
       <origin rpy="0 0 3.14159265359" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/end-cover.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/end-cover.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -279,7 +279,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/lights.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/lights.stl"/>
       </geometry>
       <material name="white"/>
     </visual>
@@ -288,7 +288,7 @@
     <visual>
       <origin rpy="0 0 3.14159265359" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/lights.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/lights.stl"/>
       </geometry>
       <material name="red"/>
     </visual>
@@ -302,14 +302,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/top.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/top.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/top.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/top.stl"/>
       </geometry>
     </collision>
   </link>
@@ -322,7 +322,7 @@
     <visual>
       <origin rpy="0 1.57079632679 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ridgeback/axle.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ridgeback/axle.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
@@ -349,7 +349,7 @@
   <link name="arch_link">
     <visual>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/tor11_mech.dae"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/tor11_mech.dae"/>
       </geometry>
     </visual>
     <!-- <collision> -->
@@ -372,7 +372,7 @@
   <link name="ur10_arm_base_link">
     <visual>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/visual/base.dae"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/visual/base.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -380,7 +380,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/collision/base.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/collision/base.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -400,7 +400,7 @@
   <link name="ur10_arm_shoulder_link">
     <visual>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/visual/shoulder.dae"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/visual/shoulder.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -408,7 +408,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/collision/shoulder.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/collision/shoulder.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -428,7 +428,7 @@
   <link name="ur10_arm_upper_arm_link">
     <visual>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/visual/upperarm.dae"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/visual/upperarm.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -436,7 +436,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/collision/upperarm.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/collision/upperarm.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -457,7 +457,7 @@
   <link name="ur10_arm_forearm_link">
     <visual>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/visual/forearm.dae"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/visual/forearm.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -465,7 +465,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/collision/forearm.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/collision/forearm.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -486,7 +486,7 @@
   <link name="ur10_arm_wrist_1_link">
     <visual>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/visual/wrist1.dae"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/visual/wrist1.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -494,7 +494,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/collision/wrist1.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/collision/wrist1.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -516,7 +516,7 @@
   <link name="ur10_arm_wrist_2_link">
     <visual>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/visual/wrist2.dae"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/visual/wrist2.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -524,7 +524,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/collision/wrist2.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/collision/wrist2.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -546,7 +546,7 @@
   <link name="ur10_arm_wrist_3_link">
     <visual>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/visual/wrist3.dae"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/visual/wrist3.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -554,7 +554,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/meshes/ur10/collision/wrist3.stl"/>
+        <mesh filename="file:///home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/tray_balance_ocs2/meshes/ur10/collision/wrist3.stl"/>
       </geometry>
     </collision>
     <inertial>

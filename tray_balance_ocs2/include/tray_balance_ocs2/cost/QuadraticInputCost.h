@@ -4,14 +4,14 @@ Copyright (c) 2020, Farbod Farshidian. All rights reserved.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
- * Redistributions of source code must retain the above copyright notice, this
+* Redistributions of source code must retain the above copyright notice, this
   list of conditions and the following disclaimer.
 
- * Redistributions in binary form must reproduce the above copyright notice,
+* Redistributions in binary form must reproduce the above copyright notice,
   this list of conditions and the following disclaimer in the documentation
   and/or other materials provided with the distribution.
 
- * Neither the name of the copyright holder nor the names of its
+* Neither the name of the copyright holder nor the names of its
   contributors may be used to endorse or promote products derived from
   this software without specific prior written permission.
 
@@ -29,36 +29,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <memory>
-
-#include <ocs2_mobile_manipulator_modified/MobileManipulatorPreComputation.h>
-#include <ocs2_self_collision/SelfCollisionConstraint.h>
+#include <ocs2_core/cost/QuadraticStateInputCost.h>
+#include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class MobileManipulatorSelfCollisionConstraint final
-    : public SelfCollisionConstraint {
-   public:
-    MobileManipulatorSelfCollisionConstraint(
-        const PinocchioStateInputMapping<scalar_t>& mapping,
-        PinocchioGeometryInterface pinocchioGeometryInterface,
-        scalar_t minimumDistance)
-        : SelfCollisionConstraint(
-              mapping, std::move(pinocchioGeometryInterface), minimumDistance) {
-    }
-    ~MobileManipulatorSelfCollisionConstraint() override = default;
-    MobileManipulatorSelfCollisionConstraint(
-        const MobileManipulatorSelfCollisionConstraint& other) = default;
-    MobileManipulatorSelfCollisionConstraint* clone() const {
-        return new MobileManipulatorSelfCollisionConstraint(*this);
-    }
+class QuadraticInputCost final : public QuadraticStateInputCost {
+ public:
+  explicit QuadraticInputCost(matrix_t R) : QuadraticStateInputCost(matrix_t::Zero(STATE_DIM, STATE_DIM), std::move(R)) {}
+  ~QuadraticInputCost() override = default;
 
-    const PinocchioInterface& getPinocchioInterface(
-        const PreComputation& preComputation) const override {
-        return cast<MobileManipulatorPreComputation>(preComputation)
-            .getPinocchioInterface();
-    }
+  QuadraticInputCost* clone() const override { return new QuadraticInputCost(*this); }
+
+  std::pair<vector_t, vector_t> getStateInputDeviation(scalar_t time, const vector_t& state, const vector_t& input,
+                                                       const TargetTrajectories& targetTrajectories) const override {
+    const vector_t inputDeviation = input - targetTrajectories.getDesiredInput(time);
+    return {vector_t::Zero(STATE_DIM), inputDeviation};
+  }
 };
 
 }  // namespace mobile_manipulator

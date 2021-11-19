@@ -2,8 +2,8 @@
 
 #include <memory>
 
-// #include <ocs2_mobile_manipulator_modified/constraint/TrayBalanceUtil.h>
-#include <ocs2_mobile_manipulator_modified/definitions.h>
+// #include <tray_balance_ocs2/constraint/TrayBalanceUtil.h>
+#include <tray_balance_ocs2/definitions.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_robotic_tools/common/SkewSymmetricMatrix.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
