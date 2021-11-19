@@ -69,15 +69,8 @@ namespace mobile_manipulator {
 /******************************************************************************************************/
 /******************************************************************************************************/
 MobileManipulatorInterface::MobileManipulatorInterface(
-    const std::string& taskFileFolderName) {
-    const std::string taskFile =
-        ros::package::getPath("tray_balance_ocs2") + "/config/" +
-        taskFileFolderName + "/task.info";
+    const std::string& taskFile, const std::string& libraryFolder) {
     std::cerr << "Loading task file: " << taskFile << std::endl;
-
-    const std::string libraryFolder =
-        "/tmp/ocs2/tray_balance_ocs2";
-    std::cerr << "Generated library path: " << libraryFolder << std::endl;
 
     // load setting from config file
     loadSettings(taskFile, libraryFolder);

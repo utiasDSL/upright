@@ -35,12 +35,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_core/initialization/Initializer.h>
 #include <ocs2_mpc/MPC_DDP.h>
 #include <ocs2_oc/oc_problem/OptimalControlProblem.h>
+#include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_robotic_tools/common/RobotInterface.h>
 
 #include <pinocchio/parsers/urdf.hpp>
 
-#include <tray_balance_ocs2/definitions.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
+#include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -55,7 +56,8 @@ class MobileManipulatorInterface final : public RobotInterface {
      * @param [in] taskFileFolderName: The name of the folder containing task
      * file
      */
-    explicit MobileManipulatorInterface(const std::string& taskFileFolderName);
+    explicit MobileManipulatorInterface(const std::string& taskFile,
+                                        const std::string& libraryFolder);
 
     const vector_t& getInitialState() { return initialState_; }
 
@@ -88,8 +90,8 @@ class MobileManipulatorInterface final : public RobotInterface {
     static PinocchioInterface buildPinocchioInterface(
         const std::string& urdfPath, const std::string& obstacle_urdfPath);
 
-
-    static pinocchio::GeometryModel build_geometry_model(const std::string& urdf_path);
+    static pinocchio::GeometryModel build_geometry_model(
+        const std::string& urdf_path);
 
    private:
     std::unique_ptr<StateInputCost> getQuadraticStateInputCost(

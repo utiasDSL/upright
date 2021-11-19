@@ -45,17 +45,18 @@ int main(int argc, char** argv) {
     // task file
     std::vector<std::string> programArgs{};
     ::ros::removeROSArgs(argc, argv, programArgs);
-    if (programArgs.size() <= 1) {
+    if (programArgs.size() <= 2) {
         throw std::runtime_error("No task file specified. Aborting.");
     }
-    std::string taskFileFolderName = std::string(programArgs[1]);
+    std::string taskFile = std::string(programArgs[1]);
+    std::string libraryFolder = std::string(programArgs[2]);
 
     // Initialize ros node
     ros::init(argc, argv, robotName + "_mpc");
     ros::NodeHandle nodeHandle;
 
     // Robot interface
-    MobileManipulatorInterface interface(taskFileFolderName);
+    MobileManipulatorInterface interface(taskFile, libraryFolder);
 
     // Ros ReferenceManager
     std::shared_ptr<ocs2::RosReferenceManager> rosReferenceManagerPtr(

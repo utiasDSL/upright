@@ -25,6 +25,7 @@
   <depend>ocs2_ros_interfaces</depend>
   <depend>ocs2_pinocchio_interface</depend>
   <depend>ocs2_self_collision</depend>
+  <depend>ocs2_self_collision_visualization</depend>
   <depend>pinocchio</depend>
   <depend>tray_balance_constraints</depend>
   <depend>tray_balance_msgs</depend>

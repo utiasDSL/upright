@@ -9,8 +9,8 @@ namespace mobile_manipulator {
 
 class MobileManipulatorPyBindings final : public PythonInterface {
  public:
-  explicit MobileManipulatorPyBindings(const std::string& taskFileFolder) {
-    MobileManipulatorInterface robot(taskFileFolder);
+  explicit MobileManipulatorPyBindings(const std::string& taskFile, const std::string& libraryFolder, const std::string urdfFile = "") {
+    MobileManipulatorInterface robot(taskFile, libraryFolder);
 
     // Set the reference manager -- otherwise there are problems with the
     // EndEffectorCost
