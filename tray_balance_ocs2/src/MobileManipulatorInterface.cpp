@@ -113,10 +113,10 @@ pinocchio::GeometryModel MobileManipulatorInterface::build_geometry_model(
 void MobileManipulatorInterface::loadSettings(
     const std::string& taskFile, const std::string& libraryFolder) {
     const std::string urdfPath =
-        ros::package::getPath("tray_balance_ocs2") +
+        ros::package::getPath("tray_balance_assets") +
         "/urdf/mm.urdf";
     const std::string obstacle_urdfPath =
-        ros::package::getPath("tray_balance_ocs2") +
+        ros::package::getPath("tray_balance_assets") +
         "/urdf/obstacles.urdf";
     std::cerr << "Load Pinocchio model from " << urdfPath << '\n';
 

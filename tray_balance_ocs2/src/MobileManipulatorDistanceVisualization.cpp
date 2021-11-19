@@ -73,14 +73,14 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "distance_visualization");
   ros::NodeHandle nodeHandle;
 
-  const std::string urdfPath = ros::package::getPath("tray_balance_ocs2") + "/urdf/mm.urdf";
+  const std::string urdfPath = ros::package::getPath("tray_balance_assets") + "/urdf/mm.urdf";
   const std::string taskFileFolder = "mpc";
   const std::string taskFile = ros::package::getPath("tray_balance_ocs2") + "/config/" + taskFileFolder + "/task.info";
 
   std::cerr << "Loading task file: " << taskFile << std::endl;
 
   const std::string obstacle_urdfPath =
-      ros::package::getPath("tray_balance_ocs2") +
+      ros::package::getPath("tray_balance_assets") +
       "/urdf/obstacles.urdf";
   pInterface.reset(new PinocchioInterface(MobileManipulatorInterface::buildPinocchioInterface(urdfPath, obstacle_urdfPath)));
 

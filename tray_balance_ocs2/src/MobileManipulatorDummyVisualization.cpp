@@ -132,10 +132,10 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
             "/mm/control_info", 1);
 
     const std::string urdfPath =
-        ros::package::getPath("tray_balance_ocs2") +
+        ros::package::getPath("tray_balance_assets") +
         "/urdf/mm.urdf";
     const std::string obstacle_urdfPath =
-        ros::package::getPath("tray_balance_ocs2") +
+        ros::package::getPath("tray_balance_assets") +
         "/urdf/obstacles.urdf";
     PinocchioInterface pinocchioInterface =
         MobileManipulatorInterface::buildPinocchioInterface(urdfPath,
