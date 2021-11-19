@@ -3,8 +3,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from mm_pybullet_sim.recording import DATA_DRIVE_PATH
-import mm_pybullet_sim.util as util
+from tray_balance_sim.recording import DATA_DRIVE_PATH
+import tray_balance_sim.util as util
 from liegroups import SO3
 
 import IPython

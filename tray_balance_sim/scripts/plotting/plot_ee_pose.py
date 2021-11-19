@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from mm_pybullet_sim.recording import DATA_DRIVE_PATH
+from tray_balance_sim.recording import DATA_DRIVE_PATH
 
 import IPython
 

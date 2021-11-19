@@ -5,7 +5,7 @@
 from distutils.core import setup
 from catkin_pkg.python_setup import generate_distutils_setup
 
-setup_args = generate_distutils_setup(packages=['mm_pybullet_sim'],
+setup_args = generate_distutils_setup(packages=['tray_balance_sim'],
                                       package_dir={'': 'src'})
 
 setup(**setup_args)

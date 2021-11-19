@@ -2,11 +2,11 @@ import numpy as np
 import pybullet as pyb
 import pybullet_data
 
-from mm_pybullet_sim.end_effector import EndEffector
-from mm_pybullet_sim.robot import SimulatedRobot
-import mm_pybullet_sim.util as util
-import mm_pybullet_sim.geometry as geometry
-import mm_pybullet_sim.bodies as bodies
+from tray_balance_sim.end_effector import EndEffector
+from tray_balance_sim.robot import SimulatedRobot
+import tray_balance_sim.util as util
+import tray_balance_sim.geometry as geometry
+import tray_balance_sim.bodies as bodies
 
 import IPython
 

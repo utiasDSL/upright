@@ -4,8 +4,8 @@ import numpy as np
 import jax.numpy as jnp
 import jax
 
-import mm_pybullet_sim.util as util
-from mm_pybullet_sim.simulation import GRAVITY_VECTOR
+import tray_balance_sim.util as util
+from tray_balance_sim.simulation import GRAVITY_VECTOR
 
 import IPython
 

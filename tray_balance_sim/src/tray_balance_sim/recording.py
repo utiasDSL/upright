@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from liegroups import SO3
 
-import mm_pybullet_sim.util as util
+import tray_balance_sim.util as util
 
 import IPython
 

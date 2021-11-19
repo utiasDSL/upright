@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 import pybullet as pyb
 from PIL import Image
 
-import mm_pybullet_sim.util as util
-from mm_pybullet_sim.simulation import MobileManipulatorSimulation
-from mm_pybullet_sim.recording import Recorder
+import tray_balance_sim.util as util
+from tray_balance_sim.simulation import MobileManipulatorSimulation
+from tray_balance_sim.recording import Recorder
 
 from ocs2_mobile_manipulator_modified import (
     mpc_interface,

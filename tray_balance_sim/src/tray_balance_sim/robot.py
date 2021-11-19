@@ -4,10 +4,11 @@ import jax.numpy as jnp
 from jax.scipy.linalg import block_diag
 import pybullet as pyb
 import jaxlie
+from pathlib import Path
 
 import IPython
 
-from mm_pybullet_sim.util import (
+from tray_balance_sim.util import (
     dhtf,
     rot2d,
     pose_from_pos_quat,
@@ -15,7 +16,8 @@ from mm_pybullet_sim.util import (
     skew3,
 )
 
-ROBOT_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/mm_pyb.urdf"
+# ROBOT_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/mm_pyb.urdf"
+ROBOT_URDF_PATH = (Path(__file__) / "../../assets/urdf/mm.urdf").resolve()
 
 BASE_JOINT_NAMES = ["x_to_world_joint", "y_to_x_joint", "base_to_y_joint"]
 

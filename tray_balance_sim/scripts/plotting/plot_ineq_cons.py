@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from mm_pybullet_sim.recording import DATA_DRIVE_PATH
+from tray_balance_sim.recording import DATA_DRIVE_PATH
 
 DATA_PATH = DATA_DRIVE_PATH / "balance_data_2021-09-02_21-29-09.npz"
 FIG_PATH = "ineq_cons.pdf"

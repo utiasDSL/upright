@@ -78,7 +78,7 @@ def main():
     # Qd_inv = R_wd.inverse().as_quaternion_xyzw()
     #
     # recorder.Q_des[0, :] = util.quat_multiply(Qd_inv, Q_we)
-    interface = ROSInterface("mm_pybullet_sim")
+    interface = ROSInterface("tray_balance_sim")
     rate = rospy.Rate(1. / sim.dt)
 
     i = 0

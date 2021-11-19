@@ -3,8 +3,8 @@ import jax.numpy as jnp
 import pybullet as pyb
 from jaxlie import SO3
 
-from mm_pybullet_sim.util import zoh
-from mm_pybullet_sim.geometry import equilateral_triangle_inscribed_radius
+from tray_balance_sim.util import zoh
+from tray_balance_sim.geometry import equilateral_triangle_inscribed_radius
 
 
 COLOR = (1, 0, 0, 1)

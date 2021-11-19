@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import pybullet as pyb
 import pybullet_data
 
-from mm_pybullet_sim.simulation import ROBOT_HOME
-from mm_pybullet_sim.robot import SimulatedRobot, RobotModel
+from tray_balance_sim.simulation import ROBOT_HOME
+from tray_balance_sim.robot import SimulatedRobot, RobotModel
 
 import IPython
 
