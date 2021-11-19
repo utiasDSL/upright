@@ -10,16 +10,16 @@ import matplotlib.pyplot as plt
 import pybullet as pyb
 import pybullet_data
 
-import sqp
-from util import (
+from tray_balance_sim import sqp
+from tray_balance_sim.util import (
     skew3,
     pose_error,
     pose_to_pos_quat,
     pose_from_pos_quat,
-    cylinder_inertia_matrix,
 )
-from tray import Tray
-from robot import SimulatedRobot, RobotModel
+# from tray_balance_sim.tray import Tray
+from tray_balance_sim.robot import SimulatedRobot, RobotModel
+from tray_balance_sim.bodies import cylinder_inertia_matrix
 
 import IPython
 

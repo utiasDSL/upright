@@ -1,10 +1,12 @@
+import os
+
 import numpy as np
 import jax
 import jax.numpy as jnp
 from jax.scipy.linalg import block_diag
 import pybullet as pyb
 import jaxlie
-from pathlib import Path
+import rospkg
 
 import IPython
 
@@ -17,7 +19,9 @@ from tray_balance_sim.util import (
 )
 
 # ROBOT_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/mm_pyb.urdf"
-ROBOT_URDF_PATH = (Path(__file__) / "../../assets/urdf/mm.urdf").resolve()
+
+rospack = rospkg.RosPack()
+ROBOT_URDF_PATH = os.path.join(rospack.get_path("tray_balance_assets"), "urdf", "mm_pyb.urdf")
 
 BASE_JOINT_NAMES = ["x_to_world_joint", "y_to_x_joint", "base_to_y_joint"]
 

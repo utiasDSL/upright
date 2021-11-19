@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="Obstacles">
+  <material name="table_color">
+    <color rgba="0.686 0.553 0.459 1.0"/>
+  </material>
+
+  <material name="chair_color">
+    <color rgba="0.5 0.5 0.5 1.0"/>
+  </material>
+
+  <material name="person_color">
+    <color rgba="0.122 0.467 0.706 1.0"/>
+  </material>
+
+  <link name="obstacle_base_link"></link>
+
+  <link name="table1_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="1.5 1.0 0.375"/>
+      <geometry>
+        <cylinder length="0.75" radius="0.5"/>
+      </geometry>
+      <material name="table_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="1.5 1.0 0.375"/>
+      <geometry>
+        <cylinder length="0.75" radius="0.5"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="table1_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="table1_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="chair1_1_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0.5 1.0 0.225"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.2"/>
+      </geometry>
+      <material name="chair_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0.5 1.0 0.225"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.2"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="chair1_1_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="chair1_1_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="chair1_2_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="2.0 1.7 0.225"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.2"/>
+      </geometry>
+      <material name="chair_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="2.0 1.7 0.225"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.2"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="chair1_2_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="chair1_2_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="table2_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="2.5 -2.5 0.375"/>
+      <geometry>
+        <cylinder length="0.75" radius="0.5"/>
+      </geometry>
+      <material name="table_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="2.5 -2.5 0.375"/>
+      <geometry>
+        <cylinder length="0.75" radius="0.5"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table2_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="table2_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="chair2_1_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="1.75 -1.8 0.675"/>
+      <geometry>
+        <cylinder length="1.35" radius="0.2"/>
+      </geometry>
+      <material name="person_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="1.75 -1.8 0.675"/>
+      <geometry>
+        <cylinder length="1.35" radius="0.2"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="chair2_1_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="chair2_1_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="table3_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="3.5 0.0 0.375"/>
+      <geometry>
+        <cylinder length="0.75" radius="0.5"/>
+      </geometry>
+      <material name="table_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="3.5 0.0 0.375"/>
+      <geometry>
+        <cylinder length="0.75" radius="0.5"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table3_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="table3_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="chair3_1_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="4.25 0.25 0.675"/>
+      <geometry>
+        <cylinder length="1.35" radius="0.2"/>
+      </geometry>
+      <material name="person_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="4.25 0.25 0.675"/>
+      <geometry>
+        <cylinder length="1.35" radius="0.2"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="chair3_1_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="chair3_1_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <!-- <link name="bar_link"> -->
+  <!--   <visual> -->
+  <!--     <origin rpy="0 0 0" xyz="3.5 -0.3 1.2"/> -->
+  <!--     <geometry> -->
+  <!--       <box size="0.2 1.0 0.2"/> -->
+  <!--     </geometry> -->
+  <!--     <material name="Blue"> -->
+  <!--       <color rgba="0.0 0.0 1.0 1.0"/> -->
+  <!--     </material> -->
+  <!--   </visual> -->
+  <!--   <collision> -->
+  <!--     <origin rpy="0 0 0" xyz="3.5 -0.3 1.2"/> -->
+  <!--     <geometry> -->
+  <!--       <box size="0.2 1.0 0.2"/> -->
+  <!--     </geometry> -->
+  <!--   </collision> -->
+  <!-- </link> -->
+  <!-- <joint name="bar_link_joint" type="fixed"> -->
+  <!--   <parent link="obstacle_base_link"/> -->
+  <!--   <child link="bar_link"/> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
+  <!-- </joint> -->
+
+  <link name="chair3_2_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="3.5 0.8 0.225"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.2"/>
+      </geometry>
+      <material name="chair_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="3.5 0.8 0.225"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.2"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="chair3_2_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="chair3_2_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="table4_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="4.5 -2.0 0.375"/>
+      <geometry>
+        <cylinder length="0.75" radius="0.5"/>
+      </geometry>
+      <material name="table_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="4.5 -2.0 0.375"/>
+      <geometry>
+        <cylinder length="0.75" radius="0.5"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table4_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="table4_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="chair4_1_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="4.5 -2.8 0.225"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.2"/>
+      </geometry>
+      <material name="chair_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="4.5 -2.8 0.225"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.2"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="chair4_1_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="chair4_1_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="chair4_2_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="5.25 -1.25 0.675"/>
+      <geometry>
+        <cylinder length="1.35" radius="0.2"/>
+      </geometry>
+      <material name="person_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="5.25 -1.25 0.675"/>
+      <geometry>
+        <cylinder length="1.35" radius="0.2"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="chair4_2_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="chair4_2_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <link name="table5_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="6.0 1.0 0.375"/>
+      <geometry>
+        <cylinder length="0.75" radius="0.5"/>
+      </geometry>
+      <material name="table_color"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="6.0 1.0 0.375"/>
+      <geometry>
+        <cylinder length="0.75" radius="0.5"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table5_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="table5_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+
+  <!-- <link name="chair5_1_link"> -->
+  <!--   <visual> -->
+  <!--     <origin rpy="0 0 0" xyz="6.0 0.0 0.225"/> -->
+  <!--     <geometry> -->
+  <!--       <cylinder length="0.45" radius="0.2"/> -->
+  <!--     </geometry> -->
+  <!--     <material name="Red"> -->
+  <!--       <color rgba="1.0 0.0 0.0 1.0"/> -->
+  <!--     </material> -->
+  <!--   </visual> -->
+  <!--   <collision> -->
+  <!--     <origin rpy="0 0 0" xyz="6.0 0.0 0.225"/> -->
+  <!--     <geometry> -->
+  <!--       <cylinder length="0.45" radius="0.2"/> -->
+  <!--     </geometry> -->
+  <!--   </collision> -->
+  <!-- </link> -->
+  <!-- <joint name="chair5_1_link_joint" type="fixed"> -->
+  <!--   <parent link="obstacle_base_link"/> -->
+  <!--   <child link="chair5_1_link"/> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
+  <!-- </joint> -->
+
+</robot>

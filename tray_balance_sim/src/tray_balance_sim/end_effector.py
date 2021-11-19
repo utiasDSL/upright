@@ -34,6 +34,8 @@ class EndEffector:
         radius=0.03,
     ):
         self.dt = dt
+        self.ns = 7 + 6  # num state
+        self.ni = 6  # num inputs
 
         # positions of each finger relative to center
         shift1, shift2, shift3 = ee_points(side_length)

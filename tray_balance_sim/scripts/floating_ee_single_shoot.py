@@ -8,12 +8,10 @@ from jaxlie import SO3
 import numpy as np
 import matplotlib.pyplot as plt
 
-import sqp
-import util
-from end_effector import EndEffectorModel
-import balancing
-from simulation import FloatingEESimulation
-from recording import Recorder
+from tray_balance_sim import sqp, util, balancing
+from tray_balance_sim.end_effector import EndEffectorModel
+from tray_balance_sim.simulation import FloatingEESimulation
+from tray_balance_sim.recording import Recorder
 
 import IPython
 
@@ -306,19 +304,24 @@ def main():
 
     # data recorder and plotter
     recorder = Recorder(
-        sim.dt, DURATION, RECORD_PERIOD, model=robot_model, problem=problem
+        sim.dt,
+        DURATION,
+        RECORD_PERIOD,
+        ns=robot.ns,
+        ni=robot.ni,
+        n_objects=len(objects),
     )
 
-    recorder.r_te_es[0, :] = tray.body.com
-    recorder.r_oe_es[0, :] = obj.body.com
-    recorder.r_ot_ts[0, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
-    recorder.Q_wes[0, :] = Q_we
-    recorder.Q_ets[0, :] = util.calc_Q_et(Q_we, Q_wt)
-    recorder.Q_eos[0, :] = util.calc_Q_et(Q_we, Q_wo)
-    recorder.Q_tos[0, :] = util.calc_Q_et(Q_wt, Q_wo)
-    recorder.r_ew_ws[0, :] = r_ew_w
-    recorder.v_ew_ws[0, :] = v_ew_w
-    recorder.ω_ew_ws[0, :] = ω_ew_w
+    # recorder.r_te_es[0, :] = tray.body.com
+    # recorder.r_oe_es[0, :] = obj.body.com
+    # recorder.r_ot_ts[0, :] = util.calc_r_te_e(r_tw_w, Q_wt, r_ow_w)
+    # recorder.Q_wes[0, :] = Q_we
+    # recorder.Q_ets[0, :] = util.calc_Q_et(Q_we, Q_wt)
+    # recorder.Q_eos[0, :] = util.calc_Q_et(Q_we, Q_wo)
+    # recorder.Q_tos[0, :] = util.calc_Q_et(Q_wt, Q_wo)
+    # recorder.r_ew_ws[0, :] = r_ew_w
+    # recorder.v_ew_ws[0, :] = v_ew_w
+    # recorder.ω_ew_ws[0, :] = ω_ew_w
 
     # reference trajectory
     # setpoints = np.array([[1, 0, -0.5], [2, 0, -0.5], [3, 0, 0.5]]) + r_ew_w
@@ -333,7 +336,7 @@ def main():
     Qd = R_wd.as_quaternion_xyzw()
     Qd_inv = R_wd.inverse().as_quaternion_xyzw()
 
-    recorder.Q_des[0, :] = util.quat_multiply(Qd_inv, Q_we)
+    # recorder.Q_des[0, :] = util.quat_multiply(Qd_inv, Q_we)
 
     # Construct the SQP controller
     controller = problem.scipy_controller()
