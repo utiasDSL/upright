@@ -18,8 +18,6 @@ from tray_balance_sim.util import (
     skew3,
 )
 
-# ROBOT_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/mm_pyb.urdf"
-
 rospack = rospkg.RosPack()
 ROBOT_URDF_PATH = os.path.join(rospack.get_path("tray_balance_assets"), "urdf", "mm_pyb.urdf")
 

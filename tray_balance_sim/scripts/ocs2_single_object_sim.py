@@ -10,20 +10,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as pyb
 from PIL import Image
+import rospkg
 
 import tray_balance_sim.util as util
 from tray_balance_sim.simulation import MobileManipulatorSimulation
 from tray_balance_sim.recording import Recorder
 
-from ocs2_mobile_manipulator_modified import (
+import IPython
+
+# IPython.embed()
+
+# hook into the bindings from the OCS2-based controller
+from tray_balance_ocs2.MobileManipulatorPyBindings import (
     mpc_interface,
     scalar_array,
     vector_array,
     matrix_array,
     TargetTrajectories,
 )
-
-import IPython
 
 
 # simulation parameters
@@ -41,7 +45,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 VIDEO_WIDTH = 1280
 VIDEO_HEIGHT = 720
 
-RECORD_VIDEO = True
+RECORD_VIDEO = False
 
 
 def main():
@@ -52,9 +56,7 @@ def main():
     N = int(DURATION / sim.dt)
 
     # simulation objects and model
-    robot, objects, composites = sim.setup(
-        obj_names=[]
-    )
+    robot, objects, composites = sim.setup(obj_names=[])
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
@@ -81,7 +83,7 @@ def main():
 
     for name, obj in objects.items():
         print(f"{name} CoM = {obj.body.com}")
-    IPython.embed()
+    # IPython.embed()
 
     if RECORD_VIDEO:
         os.makedirs(FRAMES_PATH)
@@ -107,7 +109,11 @@ def main():
     r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
     # setup MPC and initial EE target pose
-    mpc = mpc_interface("mpc")
+    rospack = rospkg.RosPack()
+    task_info_path = os.path.join(
+        rospack.get_path("tray_balance_ocs2"), "config", "mpc", "task.info"
+    )
+    mpc = mpc_interface(task_info_path, "/tmp/ocs2")
     t_target = scalar_array()
     for target_time in target_times:
         t_target.push_back(target_time)
@@ -157,8 +163,6 @@ def main():
 
     frame_num = 0
 
-    # IPython.embed()
-
     for i in range(N):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
@@ -198,9 +202,6 @@ def main():
             v_ew_w, ω_ew_w = robot.link_velocity()
             # recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
             #     "trayBalance", t, x, u
-            # )
-            # recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
-            #     "selfCollision", t, x
             # )
 
             r_ew_w_d = state_target[target_idx][:3]
