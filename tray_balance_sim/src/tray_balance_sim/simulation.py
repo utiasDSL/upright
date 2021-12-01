@@ -35,17 +35,17 @@ CUBOID1_MU_BULLET = CUBOID1_TRAY_MU / TRAY_MU_BULLET
 CUBOID1_COM_HEIGHT = 0.075
 CUBOID1_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID1_COM_HEIGHT)
 
-CUBOID2_MASS = 0.5
-CUBOID2_TRAY_MU = 0.5
-CUBOID2_MU_BULLET = CUBOID2_TRAY_MU / CUBOID1_MU_BULLET
-CUBOID2_COM_HEIGHT = 0.075
-CUBOID2_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID2_COM_HEIGHT)
-
-CUBOID3_MASS = 0.5
-CUBOID3_TRAY_MU = 0.5
-CUBOID3_MU_BULLET = CUBOID3_TRAY_MU / CUBOID2_MU_BULLET
-CUBOID3_COM_HEIGHT = 0.075
-CUBOID3_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID3_COM_HEIGHT)
+# CUBOID2_MASS = 0.5
+# CUBOID2_TRAY_MU = 0.5
+# CUBOID2_MU_BULLET = CUBOID2_TRAY_MU / CUBOID1_MU_BULLET
+# CUBOID2_COM_HEIGHT = 0.075
+# CUBOID2_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID2_COM_HEIGHT)
+#
+# CUBOID3_MASS = 0.5
+# CUBOID3_TRAY_MU = 0.5
+# CUBOID3_MU_BULLET = CUBOID3_TRAY_MU / CUBOID2_MU_BULLET
+# CUBOID3_COM_HEIGHT = 0.075
+# CUBOID3_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID3_COM_HEIGHT)
 
 CYLINDER1_MASS = 0.5
 CYLINDER1_SUPPORT_MU = 0.5
@@ -55,15 +55,15 @@ CYLINDER1_COM_HEIGHT = 0.075
 
 CYLINDER2_MASS = 0.5
 CYLINDER2_SUPPORT_MU = 0.5
-# CYLINDER2_MU_BULLET = CYLINDER2_SUPPORT_MU / TRAY_MU_BULLET  # for flat
-CYLINDER2_MU_BULLET = CYLINDER2_SUPPORT_MU / CYLINDER1_MU_BULLET  # for stacked
+CYLINDER2_MU_BULLET_FLAT = CYLINDER2_SUPPORT_MU / TRAY_MU_BULLET  # for flat
+CYLINDER2_MU_BULLET_STACKED = CYLINDER2_SUPPORT_MU / CYLINDER1_MU_BULLET  # for stacked
 CYLINDER2_RADIUS = 0.05
 CYLINDER2_COM_HEIGHT = 0.075
 
 CYLINDER3_MASS = 0.5
 CYLINDER3_SUPPORT_MU = 0.5
-# CYLINDER3_MU_BULLET = CYLINDER3_SUPPORT_MU / TRAY_MU_BULLET  # for flat
-CYLINDER3_MU_BULLET = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET  # for stacked
+CYLINDER3_MU_BULLET_FLAT = CYLINDER3_SUPPORT_MU / TRAY_MU_BULLET  # for flat
+CYLINDER3_MU_BULLET_STACKED = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET_STACKED  # for stacked
 CYLINDER3_RADIUS = 0.05
 CYLINDER3_COM_HEIGHT = 0.075
 
@@ -252,8 +252,9 @@ class Simulation:
 
         c1, c2, c3 = self.compute_cylinder_xy_positions(L=0.08)
 
-        if "cylinder1" in obj_names:
-            objects["cylinder1"] = bodies.Cylinder(
+        name = "stacked_cylinder1"
+        if name in obj_names:
+            objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER1_RADIUS),
                 support_area=geometry.CircleSupportArea(
                     CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
@@ -263,16 +264,9 @@ class Simulation:
                 height=2 * CYLINDER1_COM_HEIGHT,
                 mu=CYLINDER1_SUPPORT_MU,
             )
-            objects["cylinder1"].add_to_sim(
+            objects[name].add_to_sim(
                 bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1)
             )
-
-            # flat
-            # r_ow_w = r_ew_w + [
-            #     c1[0],
-            #     c1[1],
-            #     2 * TRAY_COM_HEIGHT + CYLINDER1_COM_HEIGHT + 0.05,
-            # ]
 
             # stacked
             r_ow_w = r_ew_w + [
@@ -282,11 +276,38 @@ class Simulation:
                 + CYLINDER1_COM_HEIGHT
                 + 0.05,
             ]
-            objects["cylinder1"].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append("cylinder1")
+            objects[name].bullet.reset_pose(position=r_ow_w)
+            objects["tray"].children.append(name)
 
-        if "cylinder2" in obj_names:
-            objects["cylinder2"] = bodies.Cylinder(
+        name = "flat_cylinder1"
+        if name in obj_names:
+            objects[name] = bodies.Cylinder(
+                r_tau=geometry.circle_r_tau(CYLINDER1_RADIUS),
+                support_area=geometry.CircleSupportArea(
+                    CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
+                ),
+                mass=CYLINDER1_MASS,
+                radius=CYLINDER1_RADIUS,
+                height=2 * CYLINDER1_COM_HEIGHT,
+                mu=CYLINDER1_SUPPORT_MU,
+            )
+            objects[name].add_to_sim(
+                bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1)
+            )
+
+            # flat
+            r_ow_w = r_ew_w + [
+                c1[0],
+                c1[1],
+                2 * TRAY_COM_HEIGHT + CYLINDER1_COM_HEIGHT + 0.05,
+            ]
+
+            objects[name].bullet.reset_pose(position=r_ow_w)
+            objects["tray"].children.append(name)
+
+        name = "stacked_cylinder2"
+        if name in obj_names:
+            objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER2_RADIUS),
                 support_area=geometry.CircleSupportArea(
                     CYLINDER2_RADIUS, margin=OBJ_ZMP_MARGIN
@@ -296,16 +317,9 @@ class Simulation:
                 height=2 * CYLINDER2_COM_HEIGHT,
                 mu=CYLINDER2_SUPPORT_MU,
             )
-            objects["cylinder2"].add_to_sim(
-                bullet_mu=CYLINDER2_MU_BULLET, color=(0.173, 0.627, 0.173, 1)
+            objects[name].add_to_sim(
+                bullet_mu=CYLINDER2_MU_BULLET_STACKED, color=(0.173, 0.627, 0.173, 1)
             )
-
-            # flat
-            # r_ow_w = r_ew_w + [
-            #     c2[0],
-            #     c2[1],
-            #     2 * TRAY_COM_HEIGHT + CYLINDER2_COM_HEIGHT + 0.05,
-            # ]
 
             # stacked
             r_ow_w = r_ew_w + [
@@ -316,11 +330,38 @@ class Simulation:
                 + CYLINDER2_COM_HEIGHT
                 + 0.05,
             ]
-            objects["cylinder2"].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append("cylinder2")
+            objects[name].bullet.reset_pose(position=r_ow_w)
+            objects["stacked_cylinder1"].children.append(name)
 
-        if "cylinder3" in obj_names:
-            objects["cylinder3"] = bodies.Cylinder(
+        name = "flat_cylinder2"
+        if name in obj_names:
+            objects[name] = bodies.Cylinder(
+                r_tau=geometry.circle_r_tau(CYLINDER2_RADIUS),
+                support_area=geometry.CircleSupportArea(
+                    CYLINDER2_RADIUS, margin=OBJ_ZMP_MARGIN
+                ),
+                mass=CYLINDER2_MASS,
+                radius=CYLINDER2_RADIUS,
+                height=2 * CYLINDER2_COM_HEIGHT,
+                mu=CYLINDER2_SUPPORT_MU,
+            )
+            objects[name].add_to_sim(
+                bullet_mu=CYLINDER2_MU_BULLET_FLAT, color=(0.173, 0.627, 0.173, 1)
+            )
+
+            # flat
+            r_ow_w = r_ew_w + [
+                c2[0],
+                c2[1],
+                2 * TRAY_COM_HEIGHT + CYLINDER2_COM_HEIGHT + 0.05,
+            ]
+
+            objects[name].bullet.reset_pose(position=r_ow_w)
+            objects["tray"].children.append(name)
+
+        name = "stacked_cylinder3"
+        if name in obj_names:
+            objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER3_RADIUS),
                 support_area=geometry.CircleSupportArea(
                     CYLINDER3_RADIUS, margin=OBJ_ZMP_MARGIN
@@ -330,16 +371,9 @@ class Simulation:
                 height=2 * CYLINDER3_COM_HEIGHT,
                 mu=CYLINDER3_SUPPORT_MU,
             )
-            objects["cylinder3"].add_to_sim(
-                bullet_mu=CYLINDER3_MU_BULLET, color=(0.839, 0.153, 0.157, 1)
+            objects[name].add_to_sim(
+                bullet_mu=CYLINDER3_MU_BULLET_STACKED, color=(0.839, 0.153, 0.157, 1)
             )
-
-            # flat
-            # r_ow_w = r_ew_w + [
-            #     c3[0],
-            #     c3[1],
-            #     2 * TRAY_COM_HEIGHT + CYLINDER3_COM_HEIGHT + 0.05,
-            # ]
 
             # stacked
             r_ow_w = r_ew_w + [
@@ -351,8 +385,34 @@ class Simulation:
                 + CYLINDER3_COM_HEIGHT
                 + 0.05,
             ]
-            objects["cylinder3"].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append("cylinder3")
+            objects[name].bullet.reset_pose(position=r_ow_w)
+            objects["tray"].children.append(name)
+
+        name = "flat_cylinder3"
+        if name in obj_names:
+            objects[name] = bodies.Cylinder(
+                r_tau=geometry.circle_r_tau(CYLINDER3_RADIUS),
+                support_area=geometry.CircleSupportArea(
+                    CYLINDER3_RADIUS, margin=OBJ_ZMP_MARGIN
+                ),
+                mass=CYLINDER3_MASS,
+                radius=CYLINDER3_RADIUS,
+                height=2 * CYLINDER3_COM_HEIGHT,
+                mu=CYLINDER3_SUPPORT_MU,
+            )
+            objects[name].add_to_sim(
+                bullet_mu=CYLINDER3_MU_BULLET_FLAT, color=(0.839, 0.153, 0.157, 1)
+            )
+
+            # flat
+            r_ow_w = r_ew_w + [
+                c3[0],
+                c3[1],
+                2 * TRAY_COM_HEIGHT + CYLINDER3_COM_HEIGHT + 0.05,
+            ]
+
+            objects[name].bullet.reset_pose(position=r_ow_w)
+            objects["tray"].children.append(name)
 
         if "cuboid1" in obj_names:
             support = geometry.PolygonSupportArea(

@@ -15,7 +15,7 @@ import tray_balance_sim.util as util
 from tray_balance_sim.simulation import MobileManipulatorSimulation
 from tray_balance_sim.recording import Recorder
 
-from ocs2_mobile_manipulator_modified import (
+from tray_balance_ocs2 import (
     mpc_interface,
     scalar_array,
     vector_array,
