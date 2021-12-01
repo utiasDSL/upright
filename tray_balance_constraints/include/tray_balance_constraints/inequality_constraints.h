@@ -6,8 +6,6 @@
 #include "tray_balance_constraints/types.h"
 #include "tray_balance_constraints/util.h"
 
-// constexpr size_t NUM_TRAY_BALANCE_CONSTRAINTS = 4;
-
 template <typename Scalar>
 Scalar circle_r_tau(Scalar radius) {
     return Scalar(2.0) * radius / Scalar(3.0);
@@ -17,7 +15,7 @@ template <typename Scalar>
 Scalar alpha_rect(Scalar w, Scalar h) {
     // alpha_rect for half of the rectangle
     Scalar d = sqrt(h * h + w * w);
-    return (w*h*d + w * w * w * (log(h + d) - log(w))) / 12.0;
+    return (w * h * d + w * w * w * (log(h + d) - log(w))) / 12.0;
 }
 
 template <typename Scalar>
@@ -156,22 +154,41 @@ struct BalancedObject {
     Scalar mu;
 };
 
-// template <typename Scalar>
-// class BalancingConstraints {
-//    public:
-//     BalancingConstraints(const std::vector<BalancedObject<Scalar>>& objects)
-//         : objects(objects) {}
-//
-//     Vector<Scalar> inequality_constraints(const Mat3<Scalar>& orientation,
-//                                           const Vec3<Scalar>& angular_vel,
-//                                           const Vec3<Scalar>& linear_acc,
-//                                           const Vec3<Scalar>& angular_acc,
-//                                           const BalancedObject<Scalar>&
-//                                           object);
-//
-//    protected:
-//     std::vector <BalancedObject<Scalar>>& objects;
-// };
+template <typename Scalar>
+Vec2<Scalar> compute_zmp(const Mat3<Scalar>& orientation,
+                         const Vec3<Scalar>& angular_vel,
+                         const Vec3<Scalar>& linear_acc,
+                         const Vec3<Scalar>& angular_acc,
+                         const BalancedObject<Scalar>& object) {
+    // Tray inertia (in the tray's own frame)
+    Mat3<Scalar> It = object.body.inertia;
+
+    Mat3<Scalar> C_we = orientation;
+    Mat3<Scalar> C_ew = C_we.transpose();
+
+    Mat3<Scalar> S_angular_vel = skew3<Scalar>(angular_vel);
+    Mat3<Scalar> S_angular_acc = skew3<Scalar>(angular_acc);
+    Mat3<Scalar> ddC_we =
+        (S_angular_acc + S_angular_vel * S_angular_vel) * C_we;
+
+    Vec3<Scalar> g;
+    g << Scalar(0), Scalar(0), Scalar(-9.81);
+
+    Vec3<Scalar> alpha =
+        object.body.mass * C_ew * (linear_acc + ddC_we * object.body.com - g);
+
+    Mat3<Scalar> Iw = C_we * It * C_ew;
+    Vec3<Scalar> beta =
+        C_ew * S_angular_vel * Iw * angular_vel + It * C_ew * angular_acc;
+
+    // tipping constraint
+    Eigen::Matrix<Scalar, 2, 2> S;
+    S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
+    Vec2<Scalar> zmp =
+        (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
+    // Vector<Scalar> h3 = object.support_area_ptr->zmp_constraints(zmp);
+    return zmp;
+}
 
 template <typename Scalar>
 Vector<Scalar> inequality_constraints(const Mat3<Scalar>& orientation,
@@ -207,7 +224,8 @@ Vector<Scalar> inequality_constraints(const Mat3<Scalar>& orientation,
     // Scalar h1 = sqrt(squared(object.mu * alpha(2)) - squared(alpha(0)) -
     //             squared(alpha(1)) - squared(beta(2) / object.r_tau) + eps);
     // Scalar h1 =
-    //     object.mu * alpha(2) - sqrt(squared(alpha(0)) + squared(alpha(1)) + eps);
+    //     object.mu * alpha(2) - sqrt(squared(alpha(0)) + squared(alpha(1)) +
+    //     eps);
     Scalar h1 =
         object.mu * alpha(2) - sqrt(squared(alpha(0)) + squared(alpha(1)) +
                                     squared(beta(2) / object.r_tau) + eps);
@@ -225,13 +243,14 @@ Vector<Scalar> inequality_constraints(const Mat3<Scalar>& orientation,
     // beta.head(2); Vector<Scalar> h3 =
     //     object.support_area_ptr->zmp_constraints_scaled(az_zmp, alpha(2));
 
-    Vector<Scalar> h3_ones = Vector<Scalar>::Ones(h3.rows());
+    // Vector<Scalar> h3_ones = Vector<Scalar>::Ones(h3.rows());
 
     Vector<Scalar> constraints(object.num_constraints());
     constraints << h1, h2, h3;
     return constraints;
 }
 
+// This is the external API to be called for multiple objects
 template <typename Scalar>
 Vector<Scalar> balancing_constraints(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
@@ -255,14 +274,28 @@ Vector<Scalar> balancing_constraints(
 }
 
 template <typename Scalar>
-Vec2<Scalar> compute_zmp(const Mat3<Scalar>& orientation,
-                         const Vec3<Scalar>& angular_vel,
-                         const Vec3<Scalar>& linear_acc,
-                         const Vec3<Scalar>& angular_acc,
-                         const BalancedObject<Scalar>& object) {
-    // Tray inertia (in the tray's own frame)
-    Mat3<Scalar> It = object.body.inertia;
+struct ParameterSet {
+    ParameterSet(const Vec3<Scalar>& center, const Scalar radius,
+                 const Scalar min_support_dist, const Scalar min_mu,
+                 const Scalar min_r_tau)
+        : center(center),
+          radius(radius),
+          min_support_dist(min_support_dist),
+          min_mu(min_mu),
+          min_r_tau(min_r_tau) {}
 
+    Vec3<Scalar> center;
+    Scalar radius;
+    Scalar min_support_dist;
+    Scalar min_mu;
+    Scalar min_r_tau;
+};
+
+template <typename Scalar>
+Vector<Scalar> robust_balancing_constraints(
+    const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
+    const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
+    const ParameterSet<Scalar>& param_set) {
     Mat3<Scalar> C_we = orientation;
     Mat3<Scalar> C_ew = C_we.transpose();
 
@@ -274,18 +307,45 @@ Vec2<Scalar> compute_zmp(const Mat3<Scalar>& orientation,
     Vec3<Scalar> g;
     g << Scalar(0), Scalar(0), Scalar(-9.81);
 
-    Vec3<Scalar> alpha =
-        object.body.mass * C_ew * (linear_acc + ddC_we * object.body.com - g);
+    Eigen::Matrix<Scalar, 2, 3> S_xy;
+    S_xy << Scalar(1), Scalar(0), Scalar(0), Scalar(0), Scalar(1), Scalar(0);
+    Scalar alpha_xy_max =
+        (S_xy * C_ew * (linear_acc + ddC_we * param_set.center - g)).norm() +
+        param_set.radius * (S_xy * C_ew * ddC_we).norm();
 
-    Mat3<Scalar> Iw = C_we * It * C_ew;
-    Vec3<Scalar> beta =
-        C_ew * S_angular_vel * Iw * angular_vel + It * C_ew * angular_acc;
+    Vec3<Scalar> z;
+    z << Scalar(0), Scalar(0), Scalar(1);
+    Scalar alpha_z_min =
+        (C_ew * (linear_acc +
+                 ddC_we * (param_set.center -
+                           ddC_we.transpose() * C_ew.transpose() * z) -
+                 g))(2);
 
-    // tipping constraint
-    Eigen::Matrix<Scalar, 2, 2> S;
-    S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
-    Vec2<Scalar> zmp =
-        (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
-    // Vector<Scalar> h3 = object.support_area_ptr->zmp_constraints(zmp);
-    return zmp;
+    Scalar beta_max = param_set.radius * param_set.radius *
+                      (angular_vel.squaredNorm() + angular_acc.norm());
+
+    Scalar eps(0.01);
+
+    // TODO: there will definitely be some numerical issues here
+    // one option is to do some approximations: norm(x) <= sqrt(x.T * x + eps)
+
+    // friction
+    // Scalar h1 = (Scalar(1) + squared(param_set.min_mu)) *
+    // squared(alpha_z_min) -
+    //             squared(alpha_xy_max) - squared(beta_max / param_set.min_r_tau);
+    Scalar h1 =
+        sqrt(Scalar(1) + squared(param_set.min_mu)) * alpha_z_min -
+        sqrt(squared(alpha_xy_max) - squared(beta_max / param_set.min_r_tau) + eps);
+
+    // contact
+    Scalar h2 = alpha_z_min;
+
+    // zmp
+    Scalar h3 = alpha_z_min * param_set.min_support_dist -
+                (param_set.center(2) + param_set.radius) * alpha_xy_max -
+                beta_max;
+
+    Vector<Scalar> constraints(3);
+    constraints << h1, h2, h3;
+    return constraints;
 }

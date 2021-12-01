@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Baseline tray balancing formulation."""
+"""Testing of the robust balancing constraints"""
 import time
 import datetime
 import sys
@@ -17,8 +17,6 @@ from tray_balance_sim.simulation import MobileManipulatorSimulation
 from tray_balance_sim.recording import Recorder
 
 import IPython
-
-# IPython.embed()
 
 # hook into the bindings from the OCS2-based controller
 from tray_balance_ocs2.MobileManipulatorPyBindings import (
