@@ -307,11 +307,20 @@ Vector<Scalar> robust_balancing_constraints(
     Vec3<Scalar> g;
     g << Scalar(0), Scalar(0), Scalar(-9.81);
 
+    Scalar eps(0.01);
+
+    // TODO .norm() computes Frobenius norm for matrices, which is not actually
+    // what we want
+    Scalar alpha_max =
+        epsilon_norm<Scalar>(linear_acc + ddC_we * param_set.center - g, eps) +
+        param_set.radius * epsilon_norm<Scalar>(ddC_we, eps);
+
     Eigen::Matrix<Scalar, 2, 3> S_xy;
     S_xy << Scalar(1), Scalar(0), Scalar(0), Scalar(0), Scalar(1), Scalar(0);
     Scalar alpha_xy_max =
-        (S_xy * C_ew * (linear_acc + ddC_we * param_set.center - g)).norm() +
-        param_set.radius * (S_xy * C_ew * ddC_we).norm();
+        epsilon_norm<Scalar>(
+            S_xy * C_ew * (linear_acc + ddC_we * param_set.center - g), eps) +
+        param_set.radius * epsilon_norm<Scalar>(S_xy * C_ew * ddC_we, eps);
 
     Vec3<Scalar> z;
     z << Scalar(0), Scalar(0), Scalar(1);
@@ -321,10 +330,9 @@ Vector<Scalar> robust_balancing_constraints(
                            ddC_we.transpose() * C_ew.transpose() * z) -
                  g))(2);
 
-    Scalar beta_max = param_set.radius * param_set.radius *
-                      (angular_vel.squaredNorm() + angular_acc.norm());
-
-    Scalar eps(0.01);
+    Scalar beta_max =
+        param_set.radius * param_set.radius *
+        (angular_vel.dot(angular_vel) + epsilon_norm<Scalar>(angular_acc, eps));
 
     // TODO: there will definitely be some numerical issues here
     // one option is to do some approximations: norm(x) <= sqrt(x.T * x + eps)
@@ -332,10 +340,11 @@ Vector<Scalar> robust_balancing_constraints(
     // friction
     // Scalar h1 = (Scalar(1) + squared(param_set.min_mu)) *
     // squared(alpha_z_min) -
-    //             squared(alpha_xy_max) - squared(beta_max / param_set.min_r_tau);
-    Scalar h1 =
-        sqrt(Scalar(1) + squared(param_set.min_mu)) * alpha_z_min -
-        sqrt(squared(alpha_xy_max) - squared(beta_max / param_set.min_r_tau) + eps);
+    //             squared(alpha_xy_max) - squared(beta_max /
+    //             param_set.min_r_tau);
+    Scalar h1 = sqrt(Scalar(1) + squared(param_set.min_mu)) * alpha_z_min -
+                sqrt(squared(alpha_max) -
+                     squared(beta_max / param_set.min_r_tau) + eps);
 
     // contact
     Scalar h2 = alpha_z_min;

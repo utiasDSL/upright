@@ -54,14 +54,13 @@ def main():
     N = int(DURATION / sim.dt)
 
     # simulation objects and model
-    robot, objects, composites = sim.setup(obj_names=["tray", "stacked_cylinder1"])
+    robot, objects, composites = sim.setup(
+        obj_names=["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
+    )
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
     v_ew_w, ω_ew_w = robot.link_velocity()
-
-    n_balance_con_tray = 5
-    n_balance_con_obj = 6
 
     # data recorder and plotter
     recorder = Recorder(
@@ -72,8 +71,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        # n_balance_con=n_balance_con_tray + 1 * n_balance_con_obj,
-        n_balance_con=0,
+        n_balance_con=3,
         n_collision_pair=1,
         n_dynamic_obs=0,
     )
@@ -198,9 +196,9 @@ def main():
 
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
-            # recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
-            #     "trayBalance", t, x, u
-            # )
+            recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
+                "trayBalance", t, x, u
+            )
 
             r_ew_w_d = state_target[target_idx][:3]
             Q_we_d = state_target[target_idx][3:7]
@@ -222,16 +220,8 @@ def main():
 
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
-            # if (recorder.ineq_cons[idx, :] < -1).any():
-            #     print("constraint less than -1")
-            #     IPython.embed()
-            #     break
-
         sim.step(step_robot=True)
         t += sim.dt
-
-        # if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
-        #     target_idx += 1
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
             (w, h, rgb, dep, seg) = pyb.getCameraImage(

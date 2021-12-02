@@ -1,6 +1,8 @@
+import os
 import numpy as np
 import pybullet as pyb
 import pybullet_data
+import rospkg
 
 from tray_balance_sim.end_effector import EndEffector
 from tray_balance_sim.robot import SimulatedRobot
@@ -11,8 +13,10 @@ import tray_balance_sim.bodies as bodies
 import IPython
 
 
-OBSTACLES_URDF_PATH = "/home/adam/phd/code/mm/ocs2_noetic/catkin_ws/src/ocs2_mobile_manipulator_modified/urdf/obstacles.urdf"
-
+rospack = rospkg.RosPack()
+OBSTACLES_URDF_PATH = os.path.join(
+    rospack.get_path("tray_balance_assets"), "urdf", "obstacles.urdf"
+)
 
 EE_SIDE_LENGTH = 0.2
 EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
@@ -35,18 +39,6 @@ CUBOID1_MU_BULLET = CUBOID1_TRAY_MU / TRAY_MU_BULLET
 CUBOID1_COM_HEIGHT = 0.075
 CUBOID1_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID1_COM_HEIGHT)
 
-# CUBOID2_MASS = 0.5
-# CUBOID2_TRAY_MU = 0.5
-# CUBOID2_MU_BULLET = CUBOID2_TRAY_MU / CUBOID1_MU_BULLET
-# CUBOID2_COM_HEIGHT = 0.075
-# CUBOID2_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID2_COM_HEIGHT)
-#
-# CUBOID3_MASS = 0.5
-# CUBOID3_TRAY_MU = 0.5
-# CUBOID3_MU_BULLET = CUBOID3_TRAY_MU / CUBOID2_MU_BULLET
-# CUBOID3_COM_HEIGHT = 0.075
-# CUBOID3_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID3_COM_HEIGHT)
-
 CYLINDER1_MASS = 0.5
 CYLINDER1_SUPPORT_MU = 0.5
 CYLINDER1_MU_BULLET = CYLINDER1_SUPPORT_MU / TRAY_MU_BULLET
@@ -55,15 +47,15 @@ CYLINDER1_COM_HEIGHT = 0.075
 
 CYLINDER2_MASS = 0.5
 CYLINDER2_SUPPORT_MU = 0.5
-CYLINDER2_MU_BULLET_FLAT = CYLINDER2_SUPPORT_MU / TRAY_MU_BULLET  # for flat
-CYLINDER2_MU_BULLET_STACKED = CYLINDER2_SUPPORT_MU / CYLINDER1_MU_BULLET  # for stacked
+CYLINDER2_MU_BULLET_FLAT = CYLINDER2_SUPPORT_MU / TRAY_MU_BULLET
+CYLINDER2_MU_BULLET_STACKED = CYLINDER2_SUPPORT_MU / CYLINDER1_MU_BULLET
 CYLINDER2_RADIUS = 0.05
 CYLINDER2_COM_HEIGHT = 0.075
 
 CYLINDER3_MASS = 0.5
 CYLINDER3_SUPPORT_MU = 0.5
-CYLINDER3_MU_BULLET_FLAT = CYLINDER3_SUPPORT_MU / TRAY_MU_BULLET  # for flat
-CYLINDER3_MU_BULLET_STACKED = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET_STACKED  # for stacked
+CYLINDER3_MU_BULLET_FLAT = CYLINDER3_SUPPORT_MU / TRAY_MU_BULLET
+CYLINDER3_MU_BULLET_STACKED = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET_STACKED
 CYLINDER3_RADIUS = 0.05
 CYLINDER3_COM_HEIGHT = 0.075
 
@@ -105,11 +97,13 @@ class Simulation:
             t += self.dt
 
     def step(self, step_robot=True):
+        """Step the simulation forward one timestep."""
         if step_robot:
             self.robot.step()
         pyb.stepSimulation()
 
     def record_video(self, file_name):
+        """Record a video of the simulation to the given file."""
         self.video_file_name = str(file_name)
 
     def basic_setup(self):
@@ -436,59 +430,6 @@ class Simulation:
             ]
             objects["cuboid1"].bullet.reset_pose(position=r_ow_w)
             objects["tray"].children.append("cuboid1")
-
-        if "cuboid2" in obj_names:
-            support = geometry.PolygonSupportArea(
-                geometry.cuboid_support_vertices(CUBOID2_SIDE_LENGTHS),
-                margin=OBJ_ZMP_MARGIN,
-            )
-            objects["cuboid2"] = bodies.Cuboid(
-                r_tau=geometry.circle_r_tau(CUBOID2_SIDE_LENGTHS[0] * 0.5),  # TODO
-                support_area=support,
-                mass=CUBOID2_MASS,
-                side_lengths=CUBOID2_SIDE_LENGTHS,
-                mu=CUBOID2_TRAY_MU,
-            )
-            objects["cuboid2"].add_to_sim(
-                bullet_mu=CUBOID2_MU_BULLET, color=(1, 0, 0, 1)
-            )
-            r_ow_w = r_ew_w + [
-                0,
-                0,
-                2 * TRAY_COM_HEIGHT
-                + CUBOID1_SIDE_LENGTHS[2]
-                + 0.5 * CUBOID2_SIDE_LENGTHS[2]
-                + 0.05,
-            ]
-            objects["cuboid2"].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append("cuboid2")
-
-        if "cuboid3" in obj_names:
-            support = geometry.PolygonSupportArea(
-                geometry.cuboid_support_vertices(CUBOID3_SIDE_LENGTHS),
-                margin=OBJ_ZMP_MARGIN,
-            )
-            objects["cuboid3"] = bodies.Cuboid(
-                r_tau=geometry.circle_r_tau(CUBOID3_SIDE_LENGTHS[0] * 0.5),  # TODO
-                support_area=support,
-                mass=CUBOID3_MASS,
-                side_lengths=CUBOID3_SIDE_LENGTHS,
-                mu=CUBOID3_TRAY_MU,
-            )
-            objects["cuboid3"].add_to_sim(
-                bullet_mu=CUBOID3_MU_BULLET, color=(1, 0, 1, 1)
-            )
-            r_ow_w = r_ew_w + [
-                0,
-                0,
-                2 * TRAY_COM_HEIGHT
-                + CUBOID1_SIDE_LENGTHS[2]
-                + CUBOID2_SIDE_LENGTHS[2]
-                + 0.5 * CUBOID3_SIDE_LENGTHS[2]
-                + 0.05,
-            ]
-            objects["cuboid3"].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append("cuboid3")
 
         return objects
 
