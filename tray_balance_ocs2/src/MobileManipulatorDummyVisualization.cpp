@@ -133,7 +133,7 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
 
     const std::string urdfPath =
         ros::package::getPath("tray_balance_assets") +
-        "/urdf/mm.urdf";
+        "/urdf/mm_ocs2.urdf";
     const std::string obstacle_urdfPath =
         ros::package::getPath("tray_balance_assets") +
         "/urdf/obstacles.urdf";
@@ -148,7 +148,7 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
 
     PinocchioGeometryInterface geometryInterface(pinocchioInterface);
     const std::string obstacle_urdf_path =
-        ros::package::getPath("tray_balance_ocs2") +
+        ros::package::getPath("tray_balance_assets") +
         "/urdf/obstacles.urdf";
     pinocchio::GeometryModel obs_geom_model =
         MobileManipulatorInterface::build_geometry_model(obstacle_urdf_path);

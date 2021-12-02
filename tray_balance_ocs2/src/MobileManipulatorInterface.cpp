@@ -107,7 +107,7 @@ void MobileManipulatorInterface::loadSettings(
     const std::string& taskFile, const std::string& libraryFolder) {
     const std::string urdfPath =
         ros::package::getPath("tray_balance_assets") +
-        "/urdf/mm.urdf";
+        "/urdf/mm_ocs2.urdf";
     const std::string obstacle_urdfPath =
         ros::package::getPath("tray_balance_assets") +
         "/urdf/obstacles.urdf";
@@ -116,6 +116,8 @@ void MobileManipulatorInterface::loadSettings(
     pinocchioInterfacePtr_.reset(new PinocchioInterface(
         buildPinocchioInterface(urdfPath, obstacle_urdfPath)));
     std::cerr << *pinocchioInterfacePtr_;
+
+    std::cerr << "taskFile = " << taskFile << std::endl;
 
     bool usePreComputation = true;
     bool recompileLibraries = true;
@@ -197,11 +199,11 @@ void MobileManipulatorInterface::loadSettings(
     //                           "obstacleAvoidance", usePreComputation,
     //                           libraryFolder, recompileLibraries));
 
-    // problem_.softConstraintPtr->add(
-    //     "trayBalance",
-    //     getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
-    //                              "trayBalanceConstraints", usePreComputation,
-    //                              libraryFolder, recompileLibraries));
+    problem_.softConstraintPtr->add(
+        "trayBalance",
+        getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
+                                 "trayBalanceConstraints", usePreComputation,
+                                 libraryFolder, recompileLibraries));
 
     // Alternative EE pose matching formulated as a (soft) constraint
     // problem_.stateSoftConstraintPtr->add(
@@ -502,7 +504,7 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
     // Add obstacle collision objects to the geometry model, so we can check
     // them against the robot.
     const std::string obstacle_urdf_path =
-        ros::package::getPath("tray_balance_ocs2") +
+        ros::package::getPath("tray_balance_assets") +
         "/urdf/obstacles.urdf";
     pinocchio::GeometryModel obs_geom_model =
         build_geometry_model(obstacle_urdf_path);
