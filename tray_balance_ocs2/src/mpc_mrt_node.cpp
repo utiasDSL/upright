@@ -229,7 +229,7 @@ int main(int argc, char** argv) {
     std::shared_ptr<mobile_manipulator::MobileManipulatorDummyVisualization>
         dummyVisualization(
             new mobile_manipulator::MobileManipulatorDummyVisualization(
-                nodeHandle, interface));
+                nodeHandle, interface, taskFile));
     control_loop.subscribeObservers({dummyVisualization});
 
     control_loop.loop(init_target_trajectory);

@@ -59,6 +59,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
 #include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
 #include <tray_balance_ocs2/definitions.h>
+#include <tray_balance_ocs2/util.h>
 
 #include <ros/package.h>
 
@@ -105,24 +106,27 @@ pinocchio::GeometryModel MobileManipulatorInterface::build_geometry_model(
 /******************************************************************************************************/
 void MobileManipulatorInterface::loadSettings(
     const std::string& taskFile, const std::string& libraryFolder) {
-    const std::string urdfPath =
-        ros::package::getPath("tray_balance_assets") +
-        "/urdf/mm_ocs2.urdf";
-    const std::string obstacle_urdfPath =
-        ros::package::getPath("tray_balance_assets") +
-        "/urdf/obstacles.urdf";
-    std::cerr << "Load Pinocchio model from " << urdfPath << '\n';
-
-    pinocchioInterfacePtr_.reset(new PinocchioInterface(
-        buildPinocchioInterface(urdfPath, obstacle_urdfPath)));
-    std::cerr << *pinocchioInterfacePtr_;
-
     std::cerr << "taskFile = " << taskFile << std::endl;
-
-    bool usePreComputation = true;
-    bool recompileLibraries = true;
     boost::property_tree::ptree pt;
     boost::property_tree::read_info(taskFile, pt);
+
+    /*
+     * URDF files
+     */
+    std::string robot_urdf_path, obstacle_urdf_path;
+    std::tie(robot_urdf_path, obstacle_urdf_path) = load_urdf_paths(taskFile);
+    std::cerr << "Robot URDF: " << robot_urdf_path << std::endl;
+    std::cerr << "Obstacle URDF: " << obstacle_urdf_path << std::endl;
+
+    pinocchioInterfacePtr_.reset(new PinocchioInterface(
+        buildPinocchioInterface(robot_urdf_path, obstacle_urdf_path)));
+    std::cerr << *pinocchioInterfacePtr_;
+
+    /*
+     * Model settings
+     */
+    bool usePreComputation = true;
+    bool recompileLibraries = true;
     std::cerr << "\n #### Model Settings:";
     std::cerr << "\n #### "
                  "============================================================="
@@ -188,9 +192,9 @@ void MobileManipulatorInterface::loadSettings(
 
     problem_.stateSoftConstraintPtr->add(
         "selfCollision",
-        getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, urdfPath,
-                                   usePreComputation, libraryFolder,
-                                   recompileLibraries));
+        getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile,
+                                   robot_urdf_path, usePreComputation,
+                                   libraryFolder, recompileLibraries));
 
     // This is for the dynamic obstacles specified via the reference trajectory
     // problem_.stateSoftConstraintPtr->add(
@@ -503,9 +507,8 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
 
     // Add obstacle collision objects to the geometry model, so we can check
     // them against the robot.
-    const std::string obstacle_urdf_path =
-        ros::package::getPath("tray_balance_assets") +
-        "/urdf/obstacles.urdf";
+    std::string obstacle_urdf_path;
+    std::tie(std::ignore, obstacle_urdf_path) = load_urdf_paths(taskFile);
     pinocchio::GeometryModel obs_geom_model =
         build_geometry_model(obstacle_urdf_path);
     geometryInterface.addGeometryObjects(obs_geom_model);

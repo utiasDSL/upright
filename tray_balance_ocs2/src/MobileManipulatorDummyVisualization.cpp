@@ -47,6 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <tray_balance_ocs2/MobileManipulatorReferenceTrajectory.h>
 #include <tray_balance_ocs2/definitions.h>
+#include <tray_balance_ocs2/util.h>
 
 #include <tray_balance_msgs/TrayBalanceControllerInfo.h>
 
@@ -104,7 +105,7 @@ void assignIncreasingId(It firstIt, It lastIt, int startId = 0) {
 /******************************************************************************************************/
 /******************************************************************************************************/
 void MobileManipulatorDummyVisualization::launchVisualizerNode(
-    ros::NodeHandle& nodeHandle) {
+    ros::NodeHandle& nodeHandle, const std::string& taskFile) {
     // load a kdl-tree from the urdf robot description and initialize the robot
     // state publisher
     const std::string urdfName = "robot_description";
@@ -131,15 +132,12 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
         nodeHandle.advertise<tray_balance_msgs::TrayBalanceControllerInfo>(
             "/mm/control_info", 1);
 
-    const std::string urdfPath =
-        ros::package::getPath("tray_balance_assets") +
-        "/urdf/mm_ocs2.urdf";
-    const std::string obstacle_urdfPath =
-        ros::package::getPath("tray_balance_assets") +
-        "/urdf/obstacles.urdf";
+    std::string robot_urdf_path, obstacle_urdf_path;
+    std::tie(robot_urdf_path, obstacle_urdf_path) = load_urdf_paths(taskFile);
+
     PinocchioInterface pinocchioInterface =
-        MobileManipulatorInterface::buildPinocchioInterface(urdfPath,
-                                                            obstacle_urdfPath);
+        MobileManipulatorInterface::buildPinocchioInterface(robot_urdf_path,
+                                                            obstacle_urdf_path);
     // TODO(perry) get the collision pairs from the task.info file to match the
     // current mpc setup
     // TODO need to get the real geom interface
@@ -147,9 +145,6 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
     //                                          {{1, 4}, {1, 6}});
 
     PinocchioGeometryInterface geometryInterface(pinocchioInterface);
-    const std::string obstacle_urdf_path =
-        ros::package::getPath("tray_balance_assets") +
-        "/urdf/obstacles.urdf";
     pinocchio::GeometryModel obs_geom_model =
         MobileManipulatorInterface::build_geometry_model(obstacle_urdf_path);
     geometryInterface.addGeometryObjects(obs_geom_model);
@@ -158,8 +153,7 @@ void MobileManipulatorDummyVisualization::launchVisualizerNode(
         std::move(pinocchioInterface), geometryInterface, nodeHandle));
 }
 
-/******************************************************************************************************/
-/******************************************************************************************************/
+/******************************************************************************************************/ /******************************************************************************************************/
 /******************************************************************************************************/
 void MobileManipulatorDummyVisualization::update(
     const SystemObservation& observation, const PrimalSolution& policy,

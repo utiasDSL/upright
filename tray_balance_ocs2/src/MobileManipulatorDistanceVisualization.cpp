@@ -37,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_self_collision_visualization/GeometryInterfaceVisualization.h>
 
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
+#include <tray_balance_ocs2/util.h>
 
 #include <ros/package.h>
 #include <ros/ros.h>
@@ -54,57 +55,65 @@ sensor_msgs::JointState lastMsg;
 std::unique_ptr<ros::Publisher> pub;
 
 void jointStateCallback(sensor_msgs::JointStateConstPtr msg) {
-  if (lastMsg.position == msg->position) {
-    return;
-  }
-  lastMsg.position = msg->position;
+    if (lastMsg.position == msg->position) {
+        return;
+    }
+    lastMsg.position = msg->position;
 
-  Eigen::VectorXd q(9);
-  q(0) = q(1) = q(2) = 0.0;
-  for (size_t i = 3; i < 9; ++i) {
-    q(i) = lastMsg.position[i - 3];
-  }
+    Eigen::VectorXd q(9);
+    q(0) = q(1) = q(2) = 0.0;
+    for (size_t i = 3; i < 9; ++i) {
+        q(i) = lastMsg.position[i - 3];
+    }
 
-  vInterface->publishDistances(q);
+    vInterface->publishDistances(q);
 }
 
 int main(int argc, char** argv) {
-  // Initialize ros node
-  ros::init(argc, argv, "distance_visualization");
-  ros::NodeHandle nodeHandle;
+    // Initialize ros node
+    ros::init(argc, argv, "distance_visualization");
+    ros::NodeHandle nodeHandle;
 
-  const std::string urdfPath = ros::package::getPath("tray_balance_assets") + "/urdf/mm_ocs2.urdf";
-  const std::string taskFileFolder = "mpc";
-  const std::string taskFile = ros::package::getPath("tray_balance_ocs2") + "/config/" + taskFileFolder + "/task.info";
+    const std::string taskFileFolder = "mpc";
+    const std::string taskFile = ros::package::getPath("tray_balance_ocs2") +
+                                 "/config/" + taskFileFolder + "/task.info";
+    std::cerr << "Loading task file: " << taskFile << std::endl;
 
-  std::cerr << "Loading task file: " << taskFile << std::endl;
+    std::string robot_urdf_path, obstacle_urdf_path;
+    std::tie(robot_urdf_path, obstacle_urdf_path) = load_urdf_paths(taskFile);
 
-  const std::string obstacle_urdfPath =
-      ros::package::getPath("tray_balance_assets") +
-      "/urdf/obstacles.urdf";
-  pInterface.reset(new PinocchioInterface(MobileManipulatorInterface::buildPinocchioInterface(urdfPath, obstacle_urdfPath)));
+    pInterface.reset(new PinocchioInterface(
+        MobileManipulatorInterface::buildPinocchioInterface(
+            robot_urdf_path, obstacle_urdf_path)));
 
-  std::vector<std::pair<size_t, size_t>> selfCollisionObjectPairs;
-  std::vector<std::pair<std::string, std::string>> selfCollisionLinkPairs;
-  loadData::loadStdVectorOfPair(taskFile, "selfCollisionCost.collisionObjectPairs", selfCollisionObjectPairs);
-  loadData::loadStdVectorOfPair(taskFile, "selfCollisionCost.collisionLinkPairs", selfCollisionLinkPairs);
-  for (const auto& element : selfCollisionObjectPairs) {
-    std::cerr << "[" << element.first << ", " << element.second << "]; ";
-  }
-  std::cerr << std::endl;
-  std::cerr << "Loaded collision link pairs: ";
-  for (const auto& element : selfCollisionLinkPairs) {
-    std::cerr << "[" << element.first << ", " << element.second << "]; ";
-  }
-  std::cerr << std::endl;
+    std::vector<std::pair<size_t, size_t>> selfCollisionObjectPairs;
+    std::vector<std::pair<std::string, std::string>> selfCollisionLinkPairs;
+    loadData::loadStdVectorOfPair(taskFile,
+                                  "selfCollisionCost.collisionObjectPairs",
+                                  selfCollisionObjectPairs);
+    loadData::loadStdVectorOfPair(taskFile,
+                                  "selfCollisionCost.collisionLinkPairs",
+                                  selfCollisionLinkPairs);
+    for (const auto& element : selfCollisionObjectPairs) {
+        std::cerr << "[" << element.first << ", " << element.second << "]; ";
+    }
+    std::cerr << std::endl;
+    std::cerr << "Loaded collision link pairs: ";
+    for (const auto& element : selfCollisionLinkPairs) {
+        std::cerr << "[" << element.first << ", " << element.second << "]; ";
+    }
+    std::cerr << std::endl;
 
-  gInterface.reset(new PinocchioGeometryInterface(*pInterface, selfCollisionLinkPairs, selfCollisionObjectPairs));
+    gInterface.reset(new PinocchioGeometryInterface(
+        *pInterface, selfCollisionLinkPairs, selfCollisionObjectPairs));
 
-  vInterface.reset(new GeometryInterfaceVisualization(*pInterface, *gInterface, nodeHandle, "base"));
+    vInterface.reset(new GeometryInterfaceVisualization(
+        *pInterface, *gInterface, nodeHandle, "base"));
 
-  ros::Subscriber sub = nodeHandle.subscribe("joint_states", 1, &jointStateCallback);
+    ros::Subscriber sub =
+        nodeHandle.subscribe("joint_states", 1, &jointStateCallback);
 
-  ros::spin();
+    ros::spin();
 
-  return 0;
+    return 0;
 }

@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
     std::shared_ptr<mobile_manipulator::MobileManipulatorDummyVisualization>
         dummyVisualization(
             new mobile_manipulator::MobileManipulatorDummyVisualization(
-                nodeHandle, interface));
+                nodeHandle, interface, taskFile));
 
     // Dummy MRT
     MRT_ROS_Dummy_Loop dummy(mrt, interface.mpcSettings().mrtDesiredFrequency_,

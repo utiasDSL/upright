@@ -34,10 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_ros_interfaces/mrt/DummyObserver.h>
 
-#include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <ocs2_self_collision_visualization/GeometryInterfaceVisualization.h>
-
-#include <fstream>
+#include <tray_balance_ocs2/MobileManipulatorInterface.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -46,14 +44,10 @@ class MobileManipulatorDummyVisualization final : public DummyObserver {
    public:
     MobileManipulatorDummyVisualization(
         ros::NodeHandle& nodeHandle,
-        const MobileManipulatorInterface& interface)
+        const MobileManipulatorInterface& interface,
+        const std::string& taskFile)
         : pinocchioInterface_(interface.getPinocchioInterface()) {
-        launchVisualizerNode(nodeHandle);
-        outfile.open("/home/adam/debug_log.txt");
-    }
-
-    ~MobileManipulatorDummyVisualization() override {
-        outfile.close();
+        launchVisualizerNode(nodeHandle, taskFile);
     }
 
     void update(const SystemObservation& observation,
@@ -61,7 +55,8 @@ class MobileManipulatorDummyVisualization final : public DummyObserver {
                 const CommandData& command) override;
 
    private:
-    void launchVisualizerNode(ros::NodeHandle& nodeHandle);
+    void launchVisualizerNode(ros::NodeHandle& nodeHandle,
+                              const std::string& taskFile);
 
     void publishObservation(const ros::Time& timeStamp,
                             const SystemObservation& observation);
@@ -82,15 +77,12 @@ class MobileManipulatorDummyVisualization final : public DummyObserver {
     ros::Publisher constrolInfoPublisher_;
 
     std::unique_ptr<GeometryInterfaceVisualization> geometryVisualization_;
-
-    std::ofstream outfile;
 };
 
 // TODO(mspieler): move somewhere else
 Eigen::VectorXd getArmJointPositions(Eigen::VectorXd state);
 Eigen::Vector3d getBasePosition(Eigen::VectorXd state);
 Eigen::Quaterniond getBaseOrientation(Eigen::VectorXd state);
-
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2
