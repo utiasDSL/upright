@@ -91,17 +91,13 @@ Vector<Scalar> robust_balancing_constraints(
 
         Scalar alpha_xy_max =
             epsilon_norm<Scalar>(
-                S_xy * C_ew * (linear_acc + ddC_we * ball.center - g), eps) +
+                S_xy * C_ew * (linear_acc + ddC_we * ball.center - g), Scalar(0)) +
             ball.radius * epsilon_norm<Scalar>(S_xy * C_ew * ddC_we, eps);
 
-        Vec3<Scalar> r_min = ddC_we.transpose() * C_ew.transpose() * z;
+        Vec3<Scalar> r_min = ddC_we.transpose() * C_we * z;
         r_min = -ball.radius * r_min / r_min.norm();
         Scalar alpha_z_min =
-            (C_ew * (linear_acc + ddC_we * (ball.center - r_min) - g))(2);
-
-        // TODO: there will definitely be some numerical issues here
-        // one option is to do some approximations: norm(x) <= sqrt(x.T * x +
-        // eps)
+            (C_ew * (linear_acc + ddC_we * (ball.center + r_min) - g))(2);
 
         // friction
         // Scalar h1 = (Scalar(1) + squared(param_set.min_mu)) *
@@ -116,6 +112,9 @@ Vector<Scalar> robust_balancing_constraints(
         Scalar h2 = alpha_z_min;
 
         // zmp
+        // TODO: numerical issues with the alpha_xy_max term in particular
+        // - this probably has to do with the non-differentiability of the norm
+        // - the C_ew term getting gravity g in there causes problems
         Scalar h3 = alpha_z_min * param_set.min_support_dist -
                     ball.max_z() * alpha_xy_max - beta_max;
 

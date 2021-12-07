@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import pybullet as pyb
 from PIL import Image
 import rospkg
+from jaxlie import SO3
 
 import tray_balance_sim.util as util
 from tray_balance_sim.simulation import MobileManipulatorSimulation
@@ -213,6 +214,9 @@ def main():
             recorder.Q_weds[idx, :] = Q_we_d
             recorder.v_ew_ws[idx, :] = v_ew_w
             recorder.ω_ew_ws[idx, :] = ω_ew_w
+
+            # SO3_we = SO3.from_quaternion_xyzw(Q_we)
+            # print(np.array(SO3_we.as_matrix()) @ [0, 0, -9.81])
 
             for j, obj in enumerate(objects.values()):
                 r, Q = obj.bullet.get_pose()
