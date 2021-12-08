@@ -36,8 +36,8 @@ RECORD_PERIOD = 10
 DURATION = 6.0  # duration of trajectory (s)
 
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/ICRA22/")
-VIDEO_PATH = VIDEO_DIR / ("no_object_dist0.1_" + TIMESTAMP)
+VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/tray-balance/robust/")
+VIDEO_PATH = VIDEO_DIR / ("robust_stack3_" + TIMESTAMP)
 
 FRAMES_PATH = VIDEO_PATH
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
@@ -73,7 +73,9 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=3 * 2,
+        n_balance_con=3,
+        # n_balance_con=5 + 3 * 6,
+        # n_balance_con=0,
         n_collision_pair=1,
         n_dynamic_obs=0,
     )
@@ -121,19 +123,19 @@ def main():
         input_target.push_back(u)
 
     # goal 1
-    r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
-    Qd = Q_we
+    # r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
+    # Qd = Q_we
 
     # goal 2
     # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
     # Qd = Q_we
 
     # goal 3
-    # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
-    # Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
+    r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
+    Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
 
     # NOTE: doesn't show up in the recording
-    # util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
+    util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
 
     goal_visual_uid = pyb.createVisualShape(
         shapeType=pyb.GEOM_SPHERE,

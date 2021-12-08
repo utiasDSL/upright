@@ -19,7 +19,7 @@
     <color rgba="0.15 0.15 0.15 1.0"/>
   </material>
   <material name="seethrough">
-    <color rgba="0.0 1.0 0.0 0.25"/>
+    <color rgba="0.0 0.0 0.0 0.25"/>
   </material>
 
   <link name="world_link">
@@ -597,6 +597,36 @@
       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
     </inertial>
   </link>
+
+  <link name="robust_sphere1_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0.1"/>
+      <geometry>
+        <sphere radius="0.12"/>
+      </geometry>
+      <material name="seethrough"/>
+    </visual>
+  </link>
+  <joint name="robust_sphere1_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="thing_tool"/>
+    <child link="robust_sphere1_link"/>
+  </joint>
+
+  <link name="robust_sphere2_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0.3"/>
+      <geometry>
+        <sphere radius="0.12"/>
+      </geometry>
+      <material name="seethrough"/>
+    </visual>
+  </link>
+  <joint name="robust_sphere2_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="thing_tool"/>
+    <child link="robust_sphere2_link"/>
+  </joint>
 
   <!-- Collision element to protect the balanced objects -->
   <!-- <link name="balanced_object_collision_link"> -->

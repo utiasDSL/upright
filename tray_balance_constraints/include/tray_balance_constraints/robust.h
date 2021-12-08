@@ -25,26 +25,12 @@ struct ParameterSet {
 
     ParameterSet(const std::vector<Ball<Scalar>>& balls,
                  const Scalar min_support_dist, const Scalar min_mu,
-                 const Scalar min_r_tau)
+                 const Scalar min_r_tau, const Scalar max_radius)
         : balls(balls),
           min_support_dist(min_support_dist),
           min_mu(min_mu),
           min_r_tau(min_r_tau),
-          max_radius(0) {
-        // Compute maximum radius through convex hull of any of the
-        // spheres
-        // TODO: this is still not a fully general implementation, as the
-        // spheres containing center of mass need not be the same as the full
-        // covering of the body
-        for (int i = 0; i < balls.size(); ++i) {
-            for (int j = i + 1; j < balls.size(); ++j) {
-                Scalar d = 0.5 * ((balls[i].center + balls[j].center).norm() +
-                                  balls[i].radius + balls[j].radius);
-                if (d > max_radius) {
-                    max_radius = d;
-                }
-            }
-        }
+          max_radius(max_radius) {
     }
 
     std::vector<Ball<Scalar>> balls;
