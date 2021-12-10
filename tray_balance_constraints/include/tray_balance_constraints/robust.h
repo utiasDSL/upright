@@ -5,6 +5,17 @@
 #include "tray_balance_constraints/types.h"
 #include "tray_balance_constraints/util.h"
 
+template <typename Scalar>
+using Mat39 = Eigen::Matrix<Scalar, 3, 9>;
+
+template <typename Scalar>
+Mat39<Scalar> lift_vector(const Vec3<Scalar>& v) {
+    Mat39<Scalar> V;
+    Mat3<Scalar> I = Mat3<Scalar>::Identity();
+    V << v(0) * I, v(1) * I, v(2) * I;
+    return V;
+}
+
 // 3D ball
 template <typename Scalar>
 struct Ball {
@@ -30,8 +41,7 @@ struct ParameterSet {
           min_support_dist(min_support_dist),
           min_mu(min_mu),
           min_r_tau(min_r_tau),
-          max_radius(max_radius) {
-    }
+          max_radius(max_radius) {}
 
     std::vector<Ball<Scalar>> balls;
     Scalar min_support_dist;
@@ -72,37 +82,41 @@ Vector<Scalar> robust_balancing_constraints(
         // TODO .norm() computes Frobenius norm for matrices, which is not
         // actually what we want
         Scalar alpha_max =
-            epsilon_norm<Scalar>(linear_acc + ddC_we * ball.center - g, eps) +
-            ball.radius * epsilon_norm<Scalar>(ddC_we, eps);
+            epsilon_norm<Scalar>(linear_acc + ddC_we * ball.center - g, eps);// +
+            // ball.radius * epsilon_norm<Scalar>(ddC_we, eps);
 
         Scalar alpha_xy_max =
             epsilon_norm<Scalar>(
-                S_xy * C_ew * (linear_acc + ddC_we * ball.center - g), Scalar(0)) +
-            ball.radius * epsilon_norm<Scalar>(S_xy * C_ew * ddC_we, eps);
+                S_xy * C_ew * (linear_acc + ddC_we * ball.center - g), eps); // +
+            // ball.radius * epsilon_norm<Scalar>(S_xy * C_ew * ddC_we, eps);
+            // ball.radius * (angular_vel.dot(angular_vel) + angular_acc.norm());
 
-        Vec3<Scalar> r_min = ddC_we.transpose() * C_we * z;
-        r_min = -ball.radius * r_min / r_min.norm();
+        // Vec3<Scalar> r_min = ddC_we.transpose() * C_we * z;
+        // r_min = -ball.radius * r_min / epsilon_norm<Scalar>(r_min, eps);
+        // Scalar alpha_z_min =
+        //     (C_ew * (linear_acc + ddC_we * (ball.center + r_min) - g))(2);
+
         Scalar alpha_z_min =
-            (C_ew * (linear_acc + ddC_we * (ball.center + r_min) - g))(2);
+            (C_ew * (linear_acc + ddC_we * ball.center - g))(2); // -
+            // ball.radius * (ddC_we.transpose() * C_we * z).norm();
 
         // friction
-        // Scalar h1 = (Scalar(1) + squared(param_set.min_mu)) *
-        // squared(alpha_z_min) -
-        //             squared(alpha_xy_max) - squared(beta_max /
-        //             param_set.min_r_tau);
+        // Scalar h1 = param_set.min_mu * alpha_z_min -
+        //             sqrt(squared(alpha_xy_max) +
+        //                  squared(beta_max / param_set.min_r_tau) + eps);
         Scalar h1 = sqrt(Scalar(1) + squared(param_set.min_mu)) * alpha_z_min -
                     sqrt(squared(alpha_max) +
                          squared(beta_max / param_set.min_r_tau) + eps);
+        // Scalar h1 = (Scalar(1) + squared(param_set.min_mu)) * squared(alpha_z_min) -
+        //             squared(alpha_max) - squared(beta_max / param_set.min_r_tau);
 
         // contact
         Scalar h2 = alpha_z_min;
 
         // zmp
-        // TODO: numerical issues with the alpha_xy_max term in particular
-        // - this probably has to do with the non-differentiability of the norm
-        // - the C_ew term getting gravity g in there causes problems
-        Scalar h3 = alpha_z_min * param_set.min_support_dist -
-                    ball.max_z() * alpha_xy_max - beta_max;
+        // squaring seems to improve numerical stability somewhat
+        Scalar h3 = squared(alpha_z_min * param_set.min_support_dist) -
+                    squared(ball.max_z() * alpha_xy_max + beta_max);
 
         constraints.segment(index, 3) << h1, h2, h3;
         index += 3;
