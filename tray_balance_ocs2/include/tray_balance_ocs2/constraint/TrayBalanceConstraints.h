@@ -55,7 +55,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         size_t n_cuboid_con = 2 + 4;
         // size_t n_cylinder_con = 2 + 1;
         // return n_tray_con + 3 * n_cuboid_con;
-        return 3;
+        return 3 * 2;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
@@ -88,8 +88,8 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_scalar_t radius1(0.12);
         Ball<ad_scalar_t> ball1(center1, radius1);
 
-        Vec3<ad_scalar_t> center2(ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.4));
-        ad_scalar_t radius2(0.00);
+        Vec3<ad_scalar_t> center2(ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.3));
+        ad_scalar_t radius2(0.12);
         Ball<ad_scalar_t> ball2(center2, radius2);
 
         // Note that this isn't really correct (but the correct value is so
@@ -99,7 +99,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_scalar_t min_mu(0.5);
         ad_scalar_t min_r_tau = circle_r_tau(min_support_dist);
 
-        ParameterSet<ad_scalar_t> param_set({ball2}, min_support_dist,
+        ParameterSet<ad_scalar_t> param_set({ball1, ball2}, min_support_dist,
                                             min_mu, min_r_tau, max_radius);
 
         ad_vector_t constraints = robust_balancing_constraints<ad_scalar_t>(
