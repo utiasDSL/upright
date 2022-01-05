@@ -32,8 +32,8 @@ from tray_balance_ocs2.MobileManipulatorPyBindings import (
 # simulation parameters
 SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
-RECORD_PERIOD = 10
-DURATION = 6.0  # duration of trajectory (s)
+RECORD_PERIOD = 8
+DURATION = 20.0  # duration of trajectory (s)
 METHOD = "DDP"  # options are "SQP" or "DDP"
 
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -80,7 +80,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=3,
+        n_balance_con=3*2,
         # n_balance_con=5 + 3 * 6,
         # n_balance_con=0,
         n_collision_pair=1,
@@ -134,12 +134,12 @@ def main():
     # Qd = Q_we
 
     # goal 2
-    # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
-    # Qd = Q_we
+    r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
+    Qd = Q_we
 
     # goal 3
-    r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
-    Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
+    # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
+    # Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
 
     # NOTE: doesn't show up in the recording
     util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
@@ -242,7 +242,7 @@ def main():
 
         sim.step(step_robot=True)
         t += sim.dt
-        time.sleep(sim.dt)
+        # time.sleep(sim.dt)
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
             (w, h, rgb, dep, seg) = pyb.getCameraImage(

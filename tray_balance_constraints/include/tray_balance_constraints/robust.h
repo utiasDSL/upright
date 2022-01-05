@@ -76,18 +76,19 @@ Vector<Scalar> robust_balancing_constraints(
         squared(param_set.max_radius) *
         (angular_vel.dot(angular_vel) + epsilon_norm<Scalar>(angular_acc, eps));
 
-    Scalar beta_xy_max = sqrt(Scalar(3.)) * squared(param_set.max_radius) *
-                         (S_xy * C_ew *
-                          (S_angular_vel * lift_vector<Scalar>(angular_vel) +
-                           lift_vector<Scalar>(angular_acc)))
-                             .norm();
+    // These alternative betas are based on conversions between Frobenius and
+    // matrix 2-norms, but they result in worse performance.
+    // Scalar beta_xy_max = sqrt(Scalar(3.)) * squared(param_set.max_radius) *
+    //                      (S_xy * C_ew *
+    //                       (S_angular_vel * lift_vector<Scalar>(angular_vel) +
+    //                        lift_vector<Scalar>(angular_acc)))
+    //                          .norm();
 
-    // NOTE: this does not seem to resolve challenges with rotation
-    Scalar beta_z_max = sqrt(Scalar(3.)) * squared(param_set.max_radius) *
-                         (z.transpose() * C_ew *
-                          (S_angular_vel * lift_vector<Scalar>(angular_vel) +
-                           lift_vector<Scalar>(angular_acc)))
-                             .norm();
+    // Scalar beta_z_max = sqrt(Scalar(3.)) * squared(param_set.max_radius) *
+    //                      (z.transpose() * C_ew *
+    //                       (S_angular_vel * lift_vector<Scalar>(angular_vel) +
+    //                        lift_vector<Scalar>(angular_acc)))
+    //                          .norm();
 
     Vector<Scalar> constraints(3 * param_set.balls.size());
     size_t index = 0;
@@ -95,22 +96,16 @@ Vector<Scalar> robust_balancing_constraints(
         // TODO .norm() computes Frobenius norm for matrices, which is not
         // actually what we want
         Scalar alpha_max = epsilon_norm<Scalar>(
-            linear_acc + ddC_we * ball.center - g, eps);  // +
-        // ball.radius * epsilon_norm<Scalar>(ddC_we, eps);
+            linear_acc + ddC_we * ball.center - g, eps) +
+        ball.radius * epsilon_norm<Scalar>(ddC_we, eps);
 
         Scalar alpha_xy_max = epsilon_norm<Scalar>(
-            S_xy * C_ew * (linear_acc + ddC_we * ball.center - g), eps);  // +
-        // ball.radius * epsilon_norm<Scalar>(S_xy * C_ew * ddC_we, eps);
-        // ball.radius * (angular_vel.dot(angular_vel) + angular_acc.norm());
-
-        // Vec3<Scalar> r_min = ddC_we.transpose() * C_we * z;
-        // r_min = -ball.radius * r_min / epsilon_norm<Scalar>(r_min, eps);
-        // Scalar alpha_z_min =
-        //     (C_ew * (linear_acc + ddC_we * (ball.center + r_min) - g))(2);
+            S_xy * C_ew * (linear_acc + ddC_we * ball.center - g), eps) +
+        ball.radius * epsilon_norm<Scalar>(S_xy * C_ew * ddC_we, eps);
 
         Scalar alpha_z_min =
-            (C_ew * (linear_acc + ddC_we * ball.center - g))(2);  // -
-        // ball.radius * (ddC_we.transpose() * C_we * z).norm();
+            (C_ew * (linear_acc + ddC_we * ball.center - g))(2) -
+        ball.radius * (ddC_we.transpose() * C_we * z).norm();
 
         // friction
         // Scalar h1 = param_set.min_mu * alpha_z_min -
@@ -130,7 +125,7 @@ Vector<Scalar> robust_balancing_constraints(
         // zmp
         // squaring seems to improve numerical stability somewhat
         Scalar h3 = squared(alpha_z_min * param_set.min_support_dist) -
-                    squared(ball.max_z() * alpha_xy_max + beta_xy_max);
+                    squared(ball.max_z() * alpha_xy_max + beta_max);
 
         constraints.segment(index, 3) << h1, h2, h3;
         index += 3;
