@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Testing of the robust balancing constraints"""
 import time
 import datetime
@@ -34,6 +34,7 @@ SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 6.0  # duration of trajectory (s)
+METHOD = "DDP"  # options are "SQP" or "DDP"
 
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/tray-balance/robust/")
@@ -48,6 +49,7 @@ RECORD_VIDEO = False
 
 
 def main():
+    assert (METHOD == "SQP" or METHOD == "DDP")
     np.set_printoptions(precision=3, suppress=True)
 
     sim = MobileManipulatorSimulation(dt=SIM_DT)
@@ -56,7 +58,12 @@ def main():
 
     # simulation objects and model
     robot, objects, composites = sim.setup(
-        obj_names=["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
+        obj_names=[
+            "tray",
+            "stacked_cylinder1",
+            "stacked_cylinder2",
+            "stacked_cylinder3",
+        ]
         # obj_names=["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
     )
 
@@ -200,9 +207,15 @@ def main():
 
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
-            recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
-                "trayBalance", t, x, u
-            )
+
+            if METHOD == "SQP":
+                recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
+                    "trayBalance", t, x, u
+                )
+            elif METHOD == "DDP":
+                recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
+                    "trayBalance", t, x, u
+                )
 
             r_ew_w_d = state_target[target_idx][:3]
             Q_we_d = state_target[target_idx][3:7]
@@ -229,6 +242,7 @@ def main():
 
         sim.step(step_robot=True)
         t += sim.dt
+        time.sleep(sim.dt)
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
             (w, h, rgb, dep, seg) = pyb.getCameraImage(
