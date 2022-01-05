@@ -54,7 +54,8 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         size_t n_tray_con = 2 + 3;
         size_t n_cuboid_con = 2 + 4;
         // size_t n_cylinder_con = 2 + 1;
-        return 2 * 3;
+        // return n_tray_con + 3 * n_cuboid_con;
+        return 3;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
@@ -73,7 +74,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
 
         // for non-robust baseline approach
         // ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
-        //     C_we, angular_vel, linear_acc, angular_acc, stack3_config());
+        //     C_we, angular_vel, linear_acc, angular_acc, stack3_config<ad_scalar_t>());
 
         // Vec3<ad_scalar_t> center(
         //     ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.02 + 0.01));  // tray's CoM
@@ -82,20 +83,24 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         // stacked
         // Vec3<ad_scalar_t> center1(ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.21));
         // ad_scalar_t radius1(0.21);
+
         Vec3<ad_scalar_t> center1(ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.1));
         ad_scalar_t radius1(0.12);
         Ball<ad_scalar_t> ball1(center1, radius1);
 
-        Vec3<ad_scalar_t> center2(ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.3));
-        ad_scalar_t radius2(0.12);
+        Vec3<ad_scalar_t> center2(ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.4));
+        ad_scalar_t radius2(0.00);
         Ball<ad_scalar_t> ball2(center2, radius2);
 
+        // Note that this isn't really correct (but the correct value is so
+        // conservative that we can get away with this)
+        ad_scalar_t max_radius((center2 - center1).norm() + radius1 + radius2);
         ad_scalar_t min_support_dist(0.05);
         ad_scalar_t min_mu(0.5);
         ad_scalar_t min_r_tau = circle_r_tau(min_support_dist);
 
-        ParameterSet<ad_scalar_t> param_set({ball1, ball2}, min_support_dist,
-                                            min_mu, min_r_tau);
+        ParameterSet<ad_scalar_t> param_set({ball2}, min_support_dist,
+                                            min_mu, min_r_tau, max_radius);
 
         ad_vector_t constraints = robust_balancing_constraints<ad_scalar_t>(
             C_we, angular_vel, linear_acc, angular_acc, param_set);

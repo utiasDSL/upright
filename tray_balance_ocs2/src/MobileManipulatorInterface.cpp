@@ -46,6 +46,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_self_collision/SelfCollisionConstraint.h>
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 #include <ocs2_self_collision/loadStdVectorOfPair.h>
+#include <ocs2_sqp/MultipleShootingMpc.h>
+#include <ocs2_sqp/MultipleShootingSettings.h>
 
 #include <tray_balance_ocs2/MobileManipulatorDynamics.h>
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
@@ -135,6 +137,7 @@ void MobileManipulatorInterface::loadSettings(
                              "model_settings.usePreComputation", true);
     loadData::loadPtreeValue(pt, recompileLibraries,
                              "model_settings.recompileLibraries", true);
+    loadData::loadPtreeValue(pt, method_, "model_settings.method", true);
     std::cerr << " #### "
                  "============================================================="
                  "================"
@@ -145,6 +148,8 @@ void MobileManipulatorInterface::loadSettings(
      */
     ddpSettings_ = ddp::loadSettings(taskFile, "ddp");
     mpcSettings_ = mpc::loadSettings(taskFile, "mpc");
+    sqpSettings_ =
+        multiple_shooting::loadSettings(taskFile, "multiple_shooting");
 
     /*
      * Dynamics
@@ -203,11 +208,19 @@ void MobileManipulatorInterface::loadSettings(
     //                           "obstacleAvoidance", usePreComputation,
     //                           libraryFolder, recompileLibraries));
 
-    problem_.softConstraintPtr->add(
-        "trayBalance",
-        getTrayBalanceConstraint(*pinocchioInterfacePtr_, taskFile,
-                                 "trayBalanceConstraints", usePreComputation,
-                                 libraryFolder, recompileLibraries));
+    if (method_ == "DDP") {
+        problem_.softConstraintPtr->add(
+            "trayBalance",
+            getTrayBalanceSoftConstraint(
+                *pinocchioInterfacePtr_, taskFile, "trayBalanceConstraints",
+                usePreComputation, libraryFolder, recompileLibraries));
+    } else if (method_ == "SQP") {
+        problem_.inequalityConstraintPtr->add(
+            "trayBalance",
+            getTrayBalanceConstraint(
+                *pinocchioInterfacePtr_, taskFile, "trayBalanceConstraints",
+                usePreComputation, libraryFolder, recompileLibraries));
+    }
 
     // Alternative EE pose matching formulated as a (soft) constraint
     // problem_.stateSoftConstraintPtr->add(
@@ -251,10 +264,16 @@ void MobileManipulatorInterface::loadSettings(
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-std::unique_ptr<MPC_DDP> MobileManipulatorInterface::getMpc() {
-    std::unique_ptr<MPC_DDP> mpc(new MPC_DDP(
-        mpcSettings_, ddpSettings_, *rolloutPtr_, problem_, *initializerPtr_));
-    return mpc;
+std::unique_ptr<MPC_BASE> MobileManipulatorInterface::getMpc() {
+    if (method_ == "DDP") {
+        return std::unique_ptr<MPC_BASE>(new MPC_DDP(mpcSettings_, ddpSettings_,
+                                                     *rolloutPtr_, problem_,
+                                                     *initializerPtr_));
+    } else if (method_ == "SQP") {
+        return std::unique_ptr<MPC_BASE>(new MultipleShootingMpc(
+            mpcSettings_, sqpSettings_, problem_, *initializerPtr_));
+    }
+    throw std::runtime_error("Invalid method: " + method_);
 }
 
 /******************************************************************************************************/
@@ -414,16 +433,33 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
         new EndEffectorCost(std::move(W), eeKinematics, *referenceManagerPtr_));
 }
 
-std::unique_ptr<StateInputCost>
+std::unique_ptr<StateInputConstraint>
 MobileManipulatorInterface::getTrayBalanceConstraint(
+    PinocchioInterface pinocchioInterface, const std::string& taskFile,
+    const std::string& prefix, bool usePreComputation,
+    const std::string& libraryFolder, bool recompileLibraries) {
+    std::string name = "thing_tool";
+
+    // TODO precomputation is not implemented
+
+    MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+    PinocchioEndEffectorKinematicsCppAd pinocchioEEKinematics(
+        pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
+        "tray_balance_ee_kinematics", libraryFolder, recompileLibraries, false);
+
+    std::unique_ptr<StateInputConstraint> constraint(
+        new TrayBalanceConstraints(pinocchioEEKinematics));
+    return constraint;
+}
+
+std::unique_ptr<StateInputCost>
+MobileManipulatorInterface::getTrayBalanceSoftConstraint(
     PinocchioInterface pinocchioInterface, const std::string& taskFile,
     const std::string& prefix, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
     // Default parameters
     scalar_t mu = 1e-2;
     scalar_t delta = 1e-3;
-
-    std::string name = "thing_tool";
 
     boost::property_tree::ptree pt;
     boost::property_tree::read_info(taskFile, pt);
@@ -438,16 +474,12 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
                  "================"
               << std::endl;
 
-    // TODO precompuation is not implemented
+    // compute the hard constraint
+    std::unique_ptr<StateInputConstraint> constraint = getTrayBalanceConstraint(
+        pinocchioInterface, taskFile, prefix, usePreComputation, libraryFolder,
+        recompileLibraries);
 
-    MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
-    PinocchioEndEffectorKinematicsCppAd pinocchioEEKinematics(
-        pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
-        "tray_balance_ee_kinematics", libraryFolder, recompileLibraries, false);
-
-    std::unique_ptr<StateInputConstraint> constraint(
-        new TrayBalanceConstraints(pinocchioEEKinematics));
-
+    // make it soft via penalty function
     std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(
         constraint->getNumConstraints(0));
     for (int i = 0; i < constraint->getNumConstraints(0); i++) {

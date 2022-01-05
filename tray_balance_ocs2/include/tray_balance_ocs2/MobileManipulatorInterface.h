@@ -34,9 +34,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_core/Types.h>
 #include <ocs2_core/initialization/Initializer.h>
 #include <ocs2_mpc/MPC_DDP.h>
+#include <ocs2_mpc/MPC_BASE.h>
 #include <ocs2_oc/oc_problem/OptimalControlProblem.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_robotic_tools/common/RobotInterface.h>
+#include <ocs2_sqp/MultipleShootingSettings.h>
 
 #include <pinocchio/parsers/urdf.hpp>
 
@@ -65,7 +67,7 @@ class MobileManipulatorInterface final : public RobotInterface {
 
     mpc::Settings& mpcSettings() { return mpcSettings_; }
 
-    std::unique_ptr<MPC_DDP> getMpc();
+    std::unique_ptr<MPC_BASE> getMpc();
 
     const OptimalControlProblem& getOptimalControlProblem() const override {
         return problem_;
@@ -120,7 +122,14 @@ class MobileManipulatorInterface final : public RobotInterface {
     std::unique_ptr<StateInputCost> getJointStateInputLimitConstraint(
         const std::string& taskFile);
 
-    std::unique_ptr<StateInputCost> getTrayBalanceConstraint(
+    std::unique_ptr<StateInputConstraint> getTrayBalanceConstraint(
+        PinocchioInterface pinocchioInterface, const std::string& taskFile,
+        const std::string& prefix, bool usePreComputation,
+        const std::string& libraryFolder, bool recompileLibraries);
+
+    // Soft version of the above (i.e. formulated as a cost via penalty
+    // functions)
+    std::unique_ptr<StateInputCost> getTrayBalanceSoftConstraint(
         PinocchioInterface pinocchioInterface, const std::string& taskFile,
         const std::string& prefix, bool usePreComputation,
         const std::string& libraryFolder, bool recompileLibraries);
@@ -135,6 +144,9 @@ class MobileManipulatorInterface final : public RobotInterface {
 
     ddp::Settings ddpSettings_;
     mpc::Settings mpcSettings_;
+    multiple_shooting::Settings sqpSettings_;
+
+    std::string method_;  // DDP or SQP
 
     OptimalControlProblem problem_;
     std::unique_ptr<RolloutBase> rolloutPtr_;

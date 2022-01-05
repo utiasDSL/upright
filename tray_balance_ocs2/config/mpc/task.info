@@ -2,12 +2,13 @@ model_settings
 {
   usePreComputation             false  ; keep false: not supported for tray balance
   recompileLibraries            true
+  method                        DDP  ; can be DDP or SQP
 }
 
 ; DDP settings
 ddp
 {
-  algorithm                     SLQ
+  algorithm                     ILQR  ; ILQR or SLQ
 
   nThreads                      3
 
@@ -41,6 +42,23 @@ ddp
     hessianCorrectionStrategy     DIAGONAL_SHIFT
     hessianCorrectionMultiple     1e-3
   }
+}
+
+; multiple_shooting settings
+multiple_shooting
+{
+  dt                            0.1
+  sqpIteration                  10
+  deltaTol                      1e-3
+  printSolverStatistics         true
+  printSolverStatus             true
+  printLinesearch               true
+  useFeedbackPolicy             true
+  integratorType                RK4
+  nThreads                      4
+
+  ; inequalityConstraintMu    1e-2
+  ; inequalityConstraintDelta 1e-3
 }
 
 ; Rollout settings
