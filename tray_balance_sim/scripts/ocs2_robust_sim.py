@@ -15,7 +15,7 @@ from jaxlie import SO3
 
 import tray_balance_sim.util as util
 from tray_balance_sim.simulation import MobileManipulatorSimulation
-from tray_balance_sim.recording import Recorder
+from tray_balance_sim.recording import Recorder, VideoRecorder
 
 import IPython
 
@@ -32,19 +32,14 @@ from tray_balance_ocs2.MobileManipulatorPyBindings import (
 # simulation parameters
 SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
-RECORD_PERIOD = 8
-DURATION = 20.0  # duration of trajectory (s)
-METHOD = "DDP"  # options are "SQP" or "DDP"
+RECORD_PERIOD = 10
+DURATION = 8.0  # duration of trajectory (s)
+METHOD = "DDP"  # options are "SQP" or "DDP" # TODO better to load from task file
 
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/tray-balance/robust/")
 VIDEO_PATH = VIDEO_DIR / ("robust_stack3_" + TIMESTAMP)
-
-FRAMES_PATH = VIDEO_PATH
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
-VIDEO_WIDTH = 1280
-VIDEO_HEIGHT = 720
-
 RECORD_VIDEO = False
 
 
@@ -90,21 +85,15 @@ def main():
 
     for name, obj in objects.items():
         print(f"{name} CoM = {obj.body.com}")
-    # IPython.embed()
 
     if RECORD_VIDEO:
-        os.makedirs(FRAMES_PATH)
-        cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+        video = VideoRecorder(
+            path=VIDEO_PATH,
             distance=4,
-            yaw=42,
-            pitch=-35.8,
             roll=0,
-            cameraTargetPosition=[1.28, 0.045, 0.647],
-            upAxisIndex=2,
-        )
-
-        cam_proj_matrix = pyb.computeProjectionMatrixFOV(
-            fov=60.0, aspect=VIDEO_WIDTH / VIDEO_HEIGHT, nearVal=0.1, farVal=1000.0
+            pitch=-35.8,
+            yaw=42,
+            target_position=[1.28, 0.045, 0.647],
         )
 
     # initial time, state, and input
@@ -134,12 +123,12 @@ def main():
     # Qd = Q_we
 
     # goal 2
-    r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
-    Qd = Q_we
+    # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
+    # Qd = Q_we
 
     # goal 3
-    # r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
-    # Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
+    r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
+    Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
 
     # NOTE: doesn't show up in the recording
     util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
@@ -230,9 +219,6 @@ def main():
             recorder.v_ew_ws[idx, :] = v_ew_w
             recorder.ω_ew_ws[idx, :] = ω_ew_w
 
-            # SO3_we = SO3.from_quaternion_xyzw(Q_we)
-            # print(np.array(SO3_we.as_matrix()) @ [0, 0, -9.81])
-
             for j, obj in enumerate(objects.values()):
                 r, Q = obj.bullet.get_pose()
                 recorder.r_ow_ws[j, idx, :] = r
@@ -245,18 +231,7 @@ def main():
         # time.sleep(sim.dt)
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
-            (w, h, rgb, dep, seg) = pyb.getCameraImage(
-                width=VIDEO_WIDTH,
-                height=VIDEO_HEIGHT,
-                shadow=1,
-                viewMatrix=cam_view_matrix,
-                projectionMatrix=cam_proj_matrix,
-                flags=pyb.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
-                renderer=pyb.ER_BULLET_HARDWARE_OPENGL,
-            )
-            img = Image.fromarray(np.reshape(rgb, (h, w, 4)), "RGBA")
-            img.save(FRAMES_PATH / ("frame_" + str(frame_num) + ".png"))
-            frame_num += 1
+            video.capture_frame()
 
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")

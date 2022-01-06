@@ -1,13 +1,63 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
+import pybullet as pyb
 from pathlib import Path
 from liegroups import SO3
+from PIL import Image
 
 import tray_balance_sim.util as util
 
 import IPython
 
 DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/ICRA22")
+
+
+class VideoRecorder:
+    def __init__(
+        self,
+        path,
+        distance,
+        roll,
+        pitch,
+        yaw,
+        target_position,
+        fov=60.0,
+        width=1280,
+        height=720,
+    ):
+        os.makedirs(path)
+
+        self.path = path
+        self.width = width
+        self.height = height
+        self.frame_count = 0
+
+        self.cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+            distance=distance,
+            yaw=yaw,
+            pitch=pitch,
+            roll=roll,
+            cameraTargetPosition=target_position,
+            upAxisIndex=2,
+        )
+        self.cam_proj_matrix = pyb.computeProjectionMatrixFOV(
+            fov=fov, aspect=width / height, nearVal=0.1, farVal=1000.0
+        )
+
+    def capture_frame(self):
+        (w, h, rgb, dep, seg) = pyb.getCameraImage(
+            width=self.width,
+            height=self.height,
+            shadow=1,
+            viewMatrix=self.cam_view_matrix,
+            projectionMatrix=self.cam_proj_matrix,
+            flags=pyb.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
+            renderer=pyb.ER_BULLET_HARDWARE_OPENGL,
+        )
+        img = Image.fromarray(np.reshape(rgb, (h, w, 4)), "RGBA")
+        img.save(self.path / ("frame_" + str(self.frame_count) + ".png"))
+        self.frame_count += 1
 
 
 class Recorder:
@@ -171,14 +221,10 @@ class Recorder:
         # the rotation between EE and tray should be constant throughout the
         # tracjectory, so there error is the deviation from the starting
         # orientation
-        Q_oe0 = util.quat_multiply(
-                util.quat_inverse(Q_wos[0, :]), self.Q_wes[0, :]
-        )
+        Q_oe0 = util.quat_multiply(util.quat_inverse(Q_wos[0, :]), self.Q_wes[0, :])
         Q_eo_err = np.zeros_like(Q_wos)
         for i in range(Q_eo_err.shape[0]):
-            Q_eo = util.quat_multiply(
-                util.quat_inverse(self.Q_wes[i, :]), Q_wos[i, :]
-            )
+            Q_eo = util.quat_multiply(util.quat_inverse(self.Q_wes[i, :]), Q_wos[i, :])
             Q_eo_err[i, :] = util.quat_multiply(Q_oe0, Q_eo)
 
         plt.plot(ts, Q_eo_err[:, 0], label="$Q_x$")
