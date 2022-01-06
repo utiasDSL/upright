@@ -1,0 +1,14 @@
+<launch>
+    <arg name="rviz"       default="true" />
+    <arg name="debug"      default="false" />
+
+    <arg name="taskFile" default="$(find tray_balance_ocs2)/config/mpc/task.info" />
+    <arg name="libFolder" default="$(find tray_balance_ocs2)/auto_generated" />
+
+    <group if="$(arg rviz)">
+      <include file="$(find tray_balance_ocs2)/launch/visualize.launch"/>
+    </group>
+
+    <node if="$(arg debug)" pkg="tray_balance_ocs2" type="mpc_mrt_node" name="mpc_mrt_node" output="screen" args="$(arg taskFile) $(arg libFolder)" launch-prefix="gnome-terminal -- gdb -ex run --args"/>
+    <node unless="$(arg debug)" pkg="tray_balance_ocs2" type="mpc_mrt_node" name="mpc_mrt_node" output="screen" args="$(arg taskFile) $(arg libFolder)" launch-prefix=""/>
+</launch>

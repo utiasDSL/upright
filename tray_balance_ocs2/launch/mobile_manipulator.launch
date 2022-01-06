@@ -1,0 +1,20 @@
+<launch>
+    <arg name="rviz"       default="true" />
+    <arg name="task_name"  default="mpc"/>
+    <arg name="debug"      default="false" />
+
+    <group if="$(arg rviz)">
+      <include file="$(find tray_balance_ocs2)/launch/visualize.launch"/>
+    </group>
+
+    <node if="$(arg debug)" pkg="tray_balance_ocs2" type="mobile_manipulator_mpc_node" name="mobile_manipulator_mpc_node"
+          output="screen" args="$(arg task_name)" launch-prefix="gnome-terminal -- gdb -ex run --args"/>
+    <node unless="$(arg debug)" pkg="tray_balance_ocs2" type="mobile_manipulator_mpc_node" name="mobile_manipulator_mpc_node"
+          output="screen" args="$(arg task_name)" launch-prefix=""/>
+
+    <node pkg="tray_balance_ocs2" type="mobile_manipulator_dummy_mrt_node" name="mobile_manipulator_dummy_mrt_node"
+          output="log" args="$(arg task_name)" launch-prefix="gnome-terminal --"/>
+
+    <node if="$(arg rviz)" pkg="tray_balance_ocs2" type="mobile_manipulator_target" name="mobile_manipulator_target"
+          output="screen" args="$(arg task_name)"/>
+</launch>
