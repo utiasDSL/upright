@@ -32,4 +32,5 @@ docker run\
   -v "/dev/bus/usb:/dev/bus/usb"\
   -v "$HOME:$HOME:rw"\
   -v "/tmp/.X11-unix:/tmp/.X11-unix:rw"\
+  -v "/media/adam/Data:/media/adam/Data"\
   -it $(cat image_name.txt) $SHELL
