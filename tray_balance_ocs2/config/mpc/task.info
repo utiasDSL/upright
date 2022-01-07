@@ -205,17 +205,10 @@ endEffectorCost
 
 }
 
-selfCollision
+collisionAvoidance
 {
-  ; Self Collision raw object pairs
-  collisionObjectPairs
-  {
-    [0] 1,4
-    [1] 1,6
-    [2] 1,9
-  }
+  enabled false
 
-  ; Self Collision pairs
   collisionLinkPairs
   {
     [0] "forearm_collision_link_0, balanced_object_collision_link_0"
@@ -265,6 +258,34 @@ selfCollision
   minimumDistance  0.1
 
   mu    1e-2
+  delta 1e-3
+}
+
+dynamicObstacleAvoidance
+{
+  enabled false
+
+  collision_link_names
+  {
+    [0] "thing_tool"
+    [1] "elbow_collision_link"
+    [2] "forearm_collision_sphere_link1"
+    [3] "forearm_collision_sphere_link2"
+    [4] "wrist_collision_link"
+  }
+
+  collision_sphere_radii
+  {
+    [0] 0.25
+    [1] 0.15
+    [2] 0.15
+    [3] 0.15
+    [4] 0.15
+  }
+
+  obstacle_radius 0.1
+
+  mu    1e-3
   delta 1e-3
 }
 
@@ -362,6 +383,7 @@ jointLimits
 
 trayBalanceConstraints
 {
+  enabled true
   mu    1e-2
   delta 1e-3
 }

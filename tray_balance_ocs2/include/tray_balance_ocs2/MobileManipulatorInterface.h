@@ -33,8 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_core/Types.h>
 #include <ocs2_core/initialization/Initializer.h>
-#include <ocs2_mpc/MPC_DDP.h>
 #include <ocs2_mpc/MPC_BASE.h>
+#include <ocs2_mpc/MPC_DDP.h>
 #include <ocs2_oc/oc_problem/OptimalControlProblem.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_robotic_tools/common/RobotInterface.h>
@@ -111,10 +111,10 @@ class MobileManipulatorInterface final : public RobotInterface {
         const std::string& prefix, bool useCaching,
         const std::string& libraryFolder, bool recompileLibraries);
 
-    std::unique_ptr<StateCost> getSelfCollisionConstraint(
+    std::unique_ptr<StateCost> getCollisionAvoidanceConstraint(
         PinocchioInterface pinocchioInterface, const std::string& taskFile,
-        const std::string& urdfPath, bool useCaching,
-        const std::string& libraryFolder, bool recompileLibraries);
+        bool useCaching, const std::string& libraryFolder,
+        bool recompileLibraries);
 
     std::unique_ptr<StateInputCost> getJointAccelerationLimitConstraint(
         const std::string& taskFile);
@@ -134,7 +134,7 @@ class MobileManipulatorInterface final : public RobotInterface {
         const std::string& prefix, bool usePreComputation,
         const std::string& libraryFolder, bool recompileLibraries);
 
-    std::unique_ptr<StateCost> getObstacleConstraint(
+    std::unique_ptr<StateCost> getDynamicObstacleConstraint(
         PinocchioInterface pinocchioInterface, const std::string& taskFile,
         const std::string& prefix, bool usePreComputation,
         const std::string& libraryFolder, bool recompileLibraries);

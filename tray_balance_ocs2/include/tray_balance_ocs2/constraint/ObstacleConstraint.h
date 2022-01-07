@@ -42,35 +42,41 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class ObstacleConstraint final : public StateConstraint {
+class DynamicObstacleConstraint final : public StateConstraint {
    public:
     using vector3_t = Eigen::Matrix<scalar_t, 3, 1>;
     using quaternion_t = Eigen::Quaternion<scalar_t>;
 
-    ObstacleConstraint(
+    DynamicObstacleConstraint(
         const EndEffectorKinematics<scalar_t>& endEffectorKinematics,
-        const ReferenceManager& referenceManager)
+        const ReferenceManager& referenceManager,
+        const std::vector<scalar_t>& collision_sphere_radii,
+        const scalar_t obstacle_radius)
         : StateConstraint(ConstraintOrder::Linear),
           endEffectorKinematicsPtr_(endEffectorKinematics.clone()),
-          referenceManagerPtr_(&referenceManager) {
-        // if (endEffectorKinematics.getIds().size() != 1) {
-        //     throw std::runtime_error(
-        //         "[EndEffectorConstraint] endEffectorKinematics has wrong "
-        //         "number of end effector IDs.");
-        // }
+          referenceManagerPtr_(&referenceManager),
+          collision_sphere_radii_(collision_sphere_radii),
+          obstacle_radius_(obstacle_radius) {
+        if (endEffectorKinematics.getIds().size() !=
+            collision_sphere_radii.size()) {
+            throw std::runtime_error(
+                "[DynamicObstacleConstraint] Number of collision sphere radii "
+                "must match number of end effector IDs.");
+        }
         pinocchioEEKinPtr_ = dynamic_cast<PinocchioEndEffectorKinematics*>(
             endEffectorKinematicsPtr_.get());
     }
 
-    ~ObstacleConstraint() override = default;
+    ~DynamicObstacleConstraint() override = default;
 
-    ObstacleConstraint* clone() const override {
-        return new ObstacleConstraint(*endEffectorKinematicsPtr_,
-                                      *referenceManagerPtr_);
+    DynamicObstacleConstraint* clone() const override {
+        return new DynamicObstacleConstraint(
+            *endEffectorKinematicsPtr_, *referenceManagerPtr_,
+            collision_sphere_radii_, obstacle_radius_);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        return 5;  // TODO
+        return collision_sphere_radii_.size();
     }
 
     vector_t getValue(scalar_t time, const vector_t& state,
@@ -83,22 +89,12 @@ class ObstacleConstraint final : public StateConstraint {
         std::vector<vector3_t> ee_positions =
             endEffectorKinematicsPtr_->getPosition(state);
 
-        std::vector<scalar_t> r_collision_spheres = {0.25, 0.15, 0.15, 0.15, 0.15};
-        scalar_t r_obstacle = 0.1;
-        scalar_t r_safety = 0.0;
-
         vector_t constraints(getNumConstraints(time));
         for (int i = 0; i < ee_positions.size(); ++i) {
             vector3_t vec = ee_positions[i] - obstacle_pos;
-            scalar_t r = r_collision_spheres[i] + r_obstacle + r_safety;
+            scalar_t r = collision_sphere_radii_[i] + obstacle_radius_;
             constraints(i) = vec.norm() - r;
         }
-
-        // here we are only worrying about obstacle and the objects, not any
-        // other part of the robot
-        // TODO this could be numerically unstable
-        // constraints << vec.norm() - r;
-        // std::cout << "obstacle constraint = " << constraints << std::endl;
         return constraints;
     }
 
@@ -122,18 +118,15 @@ class ObstacleConstraint final : public StateConstraint {
 
         for (int i = 0; i < ee_positions.size(); ++i) {
             vector3_t vec = ee_positions[i].f - obstacle_pos;
-            approximation.dfdx.row(i) = vec.transpose() * ee_positions[i].dfdx / vec.norm();
+            approximation.dfdx.row(i) =
+                vec.transpose() * ee_positions[i].dfdx / vec.norm();
         }
-
-        // vector3_t vec = ee_pos.f - obstacle_pos;
-        // std::cout << "[getLinearApproximation] one" << std::endl;
-        // std::cout << "[getLinearApproximation] two" << std::endl;
 
         return approximation;
     }
 
    private:
-    ObstacleConstraint(const ObstacleConstraint& other) = default;
+    DynamicObstacleConstraint(const DynamicObstacleConstraint& other) = default;
 
     /** Cached pointer to the pinocchio end effector kinematics. Is set to
      * nullptr if not used. */
@@ -143,7 +136,11 @@ class ObstacleConstraint final : public StateConstraint {
     quaternion_t eeDesiredOrientation_;
     std::unique_ptr<EndEffectorKinematics<scalar_t>> endEffectorKinematicsPtr_;
     const ReferenceManager* referenceManagerPtr_;
-};  // class ObstacleConstraint
+
+    // Radii of collision spheres
+    std::vector<scalar_t> collision_sphere_radii_;
+    scalar_t obstacle_radius_;  // Radius of obstacle
+};                              // class DynamicObstacleConstraint
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2

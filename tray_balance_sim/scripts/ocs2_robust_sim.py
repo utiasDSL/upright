@@ -157,8 +157,6 @@ def main():
     assert len(t_target) == len(target_times)
     assert len(input_target) == len(target_times)
 
-    frame_num = 0
-
     for i in range(N):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
@@ -197,14 +195,14 @@ def main():
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
 
-            if METHOD == "SQP":
-                recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
-                    "trayBalance", t, x, u
-                )
-            elif METHOD == "DDP":
-                recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
-                    "trayBalance", t, x, u
-                )
+            # if METHOD == "SQP":
+            #     recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
+            #         "trayBalance", t, x, u
+            #     )
+            # elif METHOD == "DDP":
+            #     recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
+            #         "trayBalance", t, x, u
+            #     )
 
             r_ew_w_d = state_target[target_idx][:3]
             Q_we_d = state_target[target_idx][3:7]

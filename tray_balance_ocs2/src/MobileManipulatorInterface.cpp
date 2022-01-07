@@ -195,31 +195,62 @@ void MobileManipulatorInterface::loadSettings(
     problem_.softConstraintPtr->add(
         "jointStateInputLimits", getJointStateInputLimitConstraint(taskFile));
 
-    problem_.stateSoftConstraintPtr->add(
-        "selfCollision",
-        getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile,
-                                   robot_urdf_path, usePreComputation,
-                                   libraryFolder, recompileLibraries));
+    // Self-collision avoidance and collision avoidance with static obstacles
+    bool collision_avoidance_enabled = false;
+    loadData::loadPtreeValue(pt, collision_avoidance_enabled,
+                             "collisionAvoidance.enabled", false);
 
-    // This is for the dynamic obstacles specified via the reference trajectory
-    // problem_.stateSoftConstraintPtr->add(
-    //     "obstacleAvoidance",
-    //     getObstacleConstraint(*pinocchioInterfacePtr_, taskFile,
-    //                           "obstacleAvoidance", usePreComputation,
-    //                           libraryFolder, recompileLibraries));
+    if (collision_avoidance_enabled) {
+        std::cerr << "Collision avoidance is enabled." << std::endl;
+        problem_.stateSoftConstraintPtr->add(
+            "collisionAvoidance",
+            getCollisionAvoidanceConstraint(*pinocchioInterfacePtr_, taskFile,
+                                            usePreComputation, libraryFolder,
+                                            recompileLibraries));
+    } else {
+        std::cerr << "Collision avoidance is disabled." << std::endl;
+    }
 
-    if (method_ == "DDP") {
-        problem_.softConstraintPtr->add(
-            "trayBalance",
-            getTrayBalanceSoftConstraint(
-                *pinocchioInterfacePtr_, taskFile, "trayBalanceConstraints",
+    // Collision avoidance with dynamic obstacles specified via the reference
+    // trajectory
+    bool dynamic_obstacle_enabled = false;
+    loadData::loadPtreeValue(pt, dynamic_obstacle_enabled,
+                             "dynamicObstacleAvoidance.enabled", false);
+
+    if (dynamic_obstacle_enabled) {
+        std::cerr << "Dynamic obstacle avoidance is enabled." << std::endl;
+        problem_.stateSoftConstraintPtr->add(
+            "dynamicObstacleAvoidance",
+            getDynamicObstacleConstraint(
+                *pinocchioInterfacePtr_, taskFile, "dynamicObstacleAvoidance",
                 usePreComputation, libraryFolder, recompileLibraries));
-    } else if (method_ == "SQP") {
-        problem_.inequalityConstraintPtr->add(
-            "trayBalance",
-            getTrayBalanceConstraint(
-                *pinocchioInterfacePtr_, taskFile, "trayBalanceConstraints",
-                usePreComputation, libraryFolder, recompileLibraries));
+    } else {
+        std::cerr << "Dynamic obstacle avoidance is disabled." << std::endl;
+    }
+
+    bool tray_balance_enabled = false;
+    loadData::loadPtreeValue(pt, tray_balance_enabled,
+                             "trayBalanceConstraints.enabled", false);
+    if (tray_balance_enabled) {
+        if (method_ == "DDP") {
+            std::cerr << "Soft tray balance constraints enabled." << std::endl;
+            problem_.softConstraintPtr->add(
+                "trayBalance",
+                getTrayBalanceSoftConstraint(
+                    *pinocchioInterfacePtr_, taskFile, "trayBalanceConstraints",
+                    usePreComputation, libraryFolder, recompileLibraries));
+        } else if (method_ == "SQP") {
+            // TODO: hard inequality constraints do not appear to be
+            // implemented by OCS2
+            std::cerr << "Hard tray balance constraints enabled." << std::endl;
+            problem_.inequalityConstraintPtr->add(
+                "trayBalance",
+                getTrayBalanceConstraint(
+                    *pinocchioInterfacePtr_, taskFile, "trayBalanceConstraints",
+                    usePreComputation, libraryFolder, recompileLibraries));
+        }
+    } else {
+        std::cerr << "Tray balance constraints disabled." << std::endl;
     }
 
     // Alternative EE pose matching formulated as a (soft) constraint
@@ -379,25 +410,47 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorConstraint(
         std::move(constraint), std::move(penaltyArray)));
 }
 
-std::unique_ptr<StateCost> MobileManipulatorInterface::getObstacleConstraint(
+std::unique_ptr<StateCost>
+MobileManipulatorInterface::getDynamicObstacleConstraint(
     PinocchioInterface pinocchioInterface, const std::string& taskFile,
     const std::string& prefix, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
     scalar_t mu = 1e-3;
     scalar_t delta = 1e-3;
+    scalar_t obstacle_radius = 0.1;
+    std::vector<std::string> collision_link_names;
+    std::vector<scalar_t> collision_sphere_radii;
 
-    std::vector<std::string> collision_link_names = {
-        "thing_tool", "elbow_collision_link", "forearm_collision_sphere_link1",
-        "forearm_collision_sphere_link2", "wrist_collision_link"};
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_info(taskFile, pt);
+    std::cerr << "\n #### " << prefix << " Settings: ";
+    std::cerr << "\n #### "
+                 "============================================================="
+                 "================\n";
 
-    // TODO there are a bunch of these now; should reuse
+    loadData::loadStdVector<std::string>(
+        taskFile, prefix + ".collision_link_names", collision_link_names, true);
+    loadData::loadStdVector<scalar_t>(taskFile,
+                                      prefix + ".collision_sphere_radii",
+                                      collision_sphere_radii, true);
+    loadData::loadPtreeValue(pt, obstacle_radius, prefix + ".obstacle_radius",
+                             true);
+    loadData::loadPtreeValue(pt, mu, prefix + ".mu", true);
+    loadData::loadPtreeValue(pt, delta, prefix + ".delta", true);
+    std::cerr << " #### "
+                 "============================================================="
+                 "================"
+              << std::endl;
+
     MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
     PinocchioEndEffectorKinematicsCppAd eeKinematics(
         pinocchioInterface, pinocchioMappingCppAd, collision_link_names,
         STATE_DIM, INPUT_DIM, "obstacle_ee_kinematics", libraryFolder,
         recompileLibraries, false);
+
     std::unique_ptr<StateConstraint> constraint(
-        new ObstacleConstraint(eeKinematics, *referenceManagerPtr_));
+        new DynamicObstacleConstraint(eeKinematics, *referenceManagerPtr_,
+                                      collision_sphere_radii, obstacle_radius));
 
     std::unique_ptr<PenaltyBase> penalty(
         new RelaxedBarrierPenalty({mu, delta}));
@@ -494,11 +547,10 @@ MobileManipulatorInterface::getTrayBalanceSoftConstraint(
 /******************************************************************************************************/
 /******************************************************************************************************/
 std::unique_ptr<StateCost>
-MobileManipulatorInterface::getSelfCollisionConstraint(
+MobileManipulatorInterface::getCollisionAvoidanceConstraint(
     PinocchioInterface pinocchioInterface, const std::string& taskFile,
-    const std::string& urdfPath, bool usePreComputation,
-    const std::string& libraryFolder, bool recompileLibraries) {
-    std::vector<std::pair<size_t, size_t>> collisionObjectPairs;
+    bool usePreComputation, const std::string& libraryFolder,
+    bool recompileLibraries) {
     std::vector<std::pair<std::string, std::string>> collisionLinkPairs;
     scalar_t mu = 1e-2;
     scalar_t delta = 1e-3;
@@ -506,8 +558,8 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
 
     boost::property_tree::ptree pt;
     boost::property_tree::read_info(taskFile, pt);
-    const std::string prefix = "selfCollision.";
-    std::cerr << "\n #### SelfCollision Settings: ";
+    const std::string prefix = "collisionAvoidance.";
+    std::cerr << "\n #### CollisionAvoidance Settings: ";
     std::cerr << "\n #### "
                  "============================================================="
                  "================\n";
@@ -519,8 +571,6 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
     // NOTE: object vs. link is confusing: the real distinction is that
     // "object" means "id" (i.e., an index, of type size_t) and "link" means
     // "name" (i.e. string)
-    // loadData::loadStdVectorOfPair(taskFile, prefix + "collisionObjectPairs",
-    //                               collisionObjectPairs, true);
     loadData::loadStdVectorOfPair(taskFile, prefix + "collisionLinkPairs",
                                   collisionLinkPairs, true);
     std::cerr << " #### "
@@ -529,13 +579,7 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
               << std::endl;
 
     // only specifying link pairs (i.e. by name)
-    // PinocchioGeometryInterface geometryInterface(pinocchioInterface,
-    //                                              collisionLinkPairs, {});
     PinocchioGeometryInterface geometryInterface(pinocchioInterface);
-
-    // NOTE: need to get a reference to avoid copy-assignment
-    // pinocchio::GeometryModel& geometry_model =
-    //     geometryInterface.getGeometryModel();
 
     // Add obstacle collision objects to the geometry model, so we can check
     // them against the robot.
@@ -545,46 +589,22 @@ MobileManipulatorInterface::getSelfCollisionConstraint(
         build_geometry_model(obstacle_urdf_path);
     geometryInterface.addGeometryObjects(obs_geom_model);
 
-    // for (int i = 0; i < obs_geom_model.ngeoms; ++i) {
-    //     geometry_model.addGeometryObject(obs_geom_model.geometryObjects[i]);
+    // pinocchio::GeometryModel& geometry_model =
+    //     geometryInterface.getGeometryModel();
+    // for (int i = 0; i < geometry_model.ngeoms; ++i) {
+    //     std::cout << geometry_model.geometryObjects[i].name << std::endl;
     // }
-
-    // geometryInterface.addCollisionLinkPairs(pinocchioInterface,
-    //                                         collisionLinkPairs);
-    pinocchio::GeometryModel& geometry_model =
-        geometryInterface.getGeometryModel();
-    for (int i = 0; i < geometry_model.ngeoms; ++i) {
-        std::cout << geometry_model.geometryObjects[i].name << std::endl;
-    }
-    //
-    // auto obs1_id = geometry_model.getGeometryId("obstacle1_link_0");
-    // auto chassis_id = geometry_model.getGeometryId("chassis_link_0");
-    //
-    // std::cout << "obstacle1_link id = " << obs1_id << std::endl;
-    // std::cout << "chassis_link id = " << chassis_id << std::endl;
-    //
-    // std::cout << "obstacle1_link placement = "
-    //           << geometry_model.geometryObjects[obs1_id].placement <<
-    //           std::endl;
-    // std::cout << "chassis_link parent joint id = "
-    //           << geometry_model.geometryObjects[chassis_id].parentJoint
-    //           << std::endl;
-    //
-    // geometry_model.addCollisionPair(
-    //     pinocchio::CollisionPair{chassis_id, obs1_id});
-    //
-    // std::cout << geometry_model.collisionPairs.size() << std::endl;
     geometryInterface.addCollisionPairsByName(collisionLinkPairs);
 
     const size_t numCollisionPairs = geometryInterface.getNumCollisionPairs();
     std::cerr << "SelfCollision: Testing for " << numCollisionPairs
               << " collision pairs\n";
 
-    std::vector<hpp::fcl::DistanceResult> distances =
-        geometryInterface.computeDistances(pinocchioInterface);
-    for (int i = 0; i < distances.size(); ++i) {
-        std::cout << "dist = " << distances[i].min_distance << std::endl;
-    }
+    // std::vector<hpp::fcl::DistanceResult> distances =
+    //     geometryInterface.computeDistances(pinocchioInterface);
+    // for (int i = 0; i < distances.size(); ++i) {
+    //     std::cout << "dist = " << distances[i].min_distance << std::endl;
+    // }
 
     std::unique_ptr<StateConstraint> constraint;
     if (usePreComputation) {
