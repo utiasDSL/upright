@@ -113,9 +113,9 @@ def main():
     robot, objects, composites = sim.setup(
         obj_names=[
             "tray",
-            "stacked_cylinder1",
-            "stacked_cylinder2",
-            "stacked_cylinder3",
+            "flat_cylinder1",
+            "flat_cylinder2",
+            "flat_cylinder3",
         ]
     )
 
@@ -135,7 +135,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=3*2,
+        n_balance_con=3*1,
         n_collision_pair=1,
         n_dynamic_obs=5,
     )

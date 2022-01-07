@@ -17,7 +17,6 @@
 namespace ocs2 {
 namespace mobile_manipulator {
 
-
 class TrayBalanceConstraints final : public StateInputConstraintCppAd {
    public:
     using ad_quaternion_t =
@@ -55,7 +54,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         size_t n_cuboid_con = 2 + 4;
         // size_t n_cylinder_con = 2 + 1;
         // return n_tray_con + 3 * n_cuboid_con;
-        return 3 * 2;
+        return 3 * 1;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
@@ -74,21 +73,24 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
 
         // for non-robust baseline approach
         // ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
-        //     C_we, angular_vel, linear_acc, angular_acc, stack3_config<ad_scalar_t>());
+        //     C_we, angular_vel, linear_acc, angular_acc,
+        //     stack3_config<ad_scalar_t>());
 
-        // Vec3<ad_scalar_t> center(
-        //     ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.02 + 0.01));  // tray's CoM
-        // ad_scalar_t radius(0.12); // for flat
+        // Flat configuration with robust constraints
+        Vec3<ad_scalar_t> center_flat(ad_scalar_t(0), ad_scalar_t(0),
+                                      ad_scalar_t(0.02 + 0.02 + 0.075));
+        ad_scalar_t radius_flat(0.1);
+        Ball<ad_scalar_t> ball_flat(center_flat, radius_flat);
+        ad_scalar_t max_radius_flat = radius_flat;
 
-        // stacked
-        // Vec3<ad_scalar_t> center1(ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.21));
-        // ad_scalar_t radius1(0.21);
-
-        Vec3<ad_scalar_t> center1(ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.1));
+        // Stacked configuration with robust constraints
+        Vec3<ad_scalar_t> center1(ad_scalar_t(0), ad_scalar_t(0),
+                                  ad_scalar_t(0.1));
         ad_scalar_t radius1(0.12);
         Ball<ad_scalar_t> ball1(center1, radius1);
 
-        Vec3<ad_scalar_t> center2(ad_scalar_t(0), ad_scalar_t(0), ad_scalar_t(0.3));
+        Vec3<ad_scalar_t> center2(ad_scalar_t(0), ad_scalar_t(0),
+                                  ad_scalar_t(0.3));
         ad_scalar_t radius2(0.12);
         Ball<ad_scalar_t> ball2(center2, radius2);
 
@@ -99,8 +101,10 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_scalar_t min_mu(0.5);
         ad_scalar_t min_r_tau = circle_r_tau(min_support_dist);
 
-        ParameterSet<ad_scalar_t> param_set({ball1, ball2}, min_support_dist,
-                                            min_mu, min_r_tau, max_radius);
+        // ParameterSet<ad_scalar_t> param_set({ball1, ball2}, min_support_dist,
+        //                                     min_mu, min_r_tau, max_radius);
+        ParameterSet<ad_scalar_t> param_set({ball_flat}, min_support_dist,
+                                            min_mu, min_r_tau, max_radius_flat);
 
         ad_vector_t constraints = robust_balancing_constraints<ad_scalar_t>(
             C_we, angular_vel, linear_acc, angular_acc, param_set);
