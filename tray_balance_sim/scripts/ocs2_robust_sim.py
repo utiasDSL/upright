@@ -14,6 +14,7 @@ import rospkg
 from jaxlie import SO3
 
 import tray_balance_sim.util as util
+from tray_balance_sim.ocs2_util import setup_ocs2_mpc_interface
 from tray_balance_sim.simulation import MobileManipulatorSimulation
 from tray_balance_sim.recording import Recorder, VideoRecorder
 
@@ -21,7 +22,6 @@ import IPython
 
 # hook into the bindings from the OCS2-based controller
 from tray_balance_ocs2.MobileManipulatorPyBindings import (
-    mpc_interface,
     scalar_array,
     vector_array,
     matrix_array,
@@ -105,11 +105,7 @@ def main():
     r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
     # setup MPC and initial EE target pose
-    rospack = rospkg.RosPack()
-    task_info_path = os.path.join(
-        rospack.get_path("tray_balance_ocs2"), "config", "mpc", "task.info"
-    )
-    mpc = mpc_interface(task_info_path, "/tmp/ocs2")
+    mpc = setup_ocs2_mpc_interface()
     t_target = scalar_array()
     for target_time in target_times:
         t_target.push_back(target_time)
@@ -195,14 +191,14 @@ def main():
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
 
-            # if METHOD == "SQP":
-            #     recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
-            #         "trayBalance", t, x, u
-            #     )
-            # elif METHOD == "DDP":
-            #     recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
-            #         "trayBalance", t, x, u
-            #     )
+            if METHOD == "SQP":
+                recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
+                    "trayBalance", t, x, u
+                )
+            elif METHOD == "DDP":
+                recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
+                    "trayBalance", t, x, u
+                )
 
             r_ew_w_d = state_target[target_idx][:3]
             Q_we_d = state_target[target_idx][3:7]

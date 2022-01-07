@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Baseline tray balancing formulation."""
 import time
 import datetime
@@ -12,11 +12,11 @@ import pybullet as pyb
 from PIL import Image
 
 import tray_balance_sim.util as util
+from tray_balance_sim.ocs2_util import setup_ocs2_mpc_interface
 from tray_balance_sim.simulation import MobileManipulatorSimulation
-from tray_balance_sim.recording import Recorder
+from tray_balance_sim.recording import Recorder, VideoRecorder
 
 from ocs2_mobile_manipulator_modified import (
-    mpc_interface,
     scalar_array,
     vector_array,
     matrix_array,
@@ -35,20 +35,24 @@ DURATION = 10.0  # duration of trajectory (s)
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/ICRA22/")
 VIDEO_PATH = VIDEO_DIR / ("dynamic_obstacle_" + TIMESTAMP)
-
-FRAMES_PATH = VIDEO_PATH
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
-VIDEO_WIDTH = 1280
-VIDEO_HEIGHT = 720
-
-RECORD_VIDEO = True
+RECORD_VIDEO = False
 
 
-class Obstacle:
-    def __init__(self, initial_position, collision_uid, visual_uid, velocity=None):
+class DynamicObstacle:
+    def __init__(self, initial_position, radius=0.1, velocity=None):
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_SPHERE,
+            radius=radius,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_SPHERE,
+            radius=radius,
+            rgbaColor=(1, 0, 0, 1),
+        )
         self.uid = pyb.createMultiBody(
             baseMass=0,  # non-dynamic body
-            baseCollisionShapeIndex=collision_uid,
+            baseCollisionShapeIndex=-1,  # NOTE
             baseVisualShapeIndex=visual_uid,
             basePosition=list(initial_position),
             baseOrientation=(0, 0, 0, 1),
@@ -60,16 +64,10 @@ class Obstacle:
             self.velocity = np.zeros(3)
         pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
 
-    # def update_velocity(self, t):
-    #     v = self.velocity_func(self.initial_position, t)
-    #     pyb.resetBaseVelocity(self.uid, linearVelocity=v)
-
     def sample_position(self, t):
         """Sample the position of the object at a given time."""
         # assume constant velocity
         return self.initial_position + t * self.velocity
-        # positions = np.array([self.initial_position + t * self.velocity for t in ts])
-        # return positions
 
 
 def main():
@@ -79,48 +77,46 @@ def main():
     # sim.record_video(VIDEO_PATH)
 
     if RECORD_VIDEO:
-        os.makedirs(FRAMES_PATH)
-
-        # static obstacle course POV #3
-        # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
-        #     distance=4.8,
-        #     yaw=87.6,
-        #     pitch=-13.4,
-        #     roll=0,
-        #     cameraTargetPosition=[2.77, 0.043, 0.142],
-        #     upAxisIndex=2,
-        # )
-
         # dynamic obstacle course POV #1
-        # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+        # video = VideoRecorder(
+        #     path=VIDEO_PATH,
         #     distance=1.8,
-        #     yaw=147.6,
-        #     pitch=-29,
         #     roll=0,
-        #     cameraTargetPosition=[1.28, 0.045, 0.647],
-        #     upAxisIndex=2,
+        #     pitch=-29,
+        #     yaw=147.6,
+        #     target_position=[1.28, 0.045, 0.647],
         # )
 
         # dynamic obstacle course POV #2
-        cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+        video = VideoRecorder(
+            path=VIDEO_PATH,
             distance=2.6,
-            yaw=-3.2,
-            pitch=-20.6,
             roll=0,
-            cameraTargetPosition=[1.28, 0.045, 0.647],
-            upAxisIndex=2,
+            pitch=-20.6,
+            yaw=-3.2,
+            target_position=[1.28, 0.045, 0.647],
         )
 
-        cam_proj_matrix = pyb.computeProjectionMatrixFOV(
-            fov=60.0, aspect=VIDEO_WIDTH / VIDEO_HEIGHT, nearVal=0.1, farVal=1000.0
-        )
+        # static obstacle course POV #3
+        # video = VideoRecorder(
+        #     path=VIDEO_PATH,
+        #     distance=4.8,
+        #     roll=0,
+        #     pitch=-13.4,
+        #     yaw=87.6,
+        #     target_position=[2.77, 0.043, 0.142],
+        # )
 
     N = int(DURATION / sim.dt)
 
     # simulation objects and model
     robot, objects, composites = sim.setup(
-        obj_names=["tray", "cylinder1", "cylinder2", "cylinder3"]
-        # obj_names=[]
+        obj_names=[
+            "tray",
+            "stacked_cylinder1",
+            "stacked_cylinder2",
+            "stacked_cylinder3",
+        ]
     )
 
     q, v = robot.joint_states()
@@ -139,7 +135,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=n_balance_con_tray + 3 * n_balance_con_obj,
+        n_balance_con=3*2,
         n_collision_pair=1,
         n_dynamic_obs=5,
     )
@@ -147,21 +143,11 @@ def main():
 
     for name, obj in objects.items():
         print(f"{name} CoM = {obj.body.com}")
-    IPython.embed()
 
+    # create the dynamic obstacle
     r_obs0 = np.array(r_ew_w) + [0, -1, 0]
     v_obs = np.array([0, 1.0, 0])
-    obs_radius = 0.1
-    obs_collision_uid = pyb.createCollisionShape(
-        shapeType=pyb.GEOM_SPHERE,
-        radius=obs_radius,
-    )
-    obs_visual_uid = pyb.createVisualShape(
-        shapeType=pyb.GEOM_SPHERE,
-        radius=obs_radius,
-        rgbaColor=(1, 0, 0, 1),
-    )
-    obstacle = Obstacle(r_obs0, -1, obs_visual_uid, velocity=v_obs)
+    obstacle = DynamicObstacle(r_obs0, radius=0.1, velocity=v_obs)
 
     # initial time, state, and input
     t = 0.0
@@ -171,7 +157,7 @@ def main():
     target_times = [0, 5]  # TODO
 
     # setup MPC and initial EE target pose
-    mpc = mpc_interface("mpc")
+    mpc = setup_ocs2_mpc_interface()
     t_target = scalar_array()
     for target_time in target_times:
         t_target.push_back(target_time)
@@ -266,15 +252,15 @@ def main():
 
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
-            recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
+            recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
                 "trayBalance", t, x, u
             )
             recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
-                "obstacleAvoidance", t, x
+                "dynamicObstacleAvoidance", t, x
             )
-            recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
-                "selfCollision", t, x
-            )
+            # recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
+            #     "collisionAvoidance", t, x
+            # )
 
             r_ew_w_d = state_target[target_idx][:3]
             Q_we_d = state_target[target_idx][3:7]
@@ -310,19 +296,7 @@ def main():
             mpc.setTargetTrajectories(target_trajectories_obs2)
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
-            (w, h, rgb, dep, seg) = pyb.getCameraImage(
-                width=VIDEO_WIDTH,
-                height=VIDEO_HEIGHT,
-                shadow=1,
-                viewMatrix=cam_view_matrix,
-                projectionMatrix=cam_proj_matrix,
-                flags=pyb.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
-                renderer=pyb.ER_BULLET_HARDWARE_OPENGL,
-            )
-            img = Image.fromarray(np.reshape(rgb, (h, w, 4)), "RGBA")
-            img.save(FRAMES_PATH / ("frame_" + str(frame_num) + ".png"))
-            # print(f"Saved frame {frame_num}")
-            frame_num += 1
+            video.capture_frame()
 
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")

@@ -263,7 +263,7 @@ collisionAvoidance
 
 dynamicObstacleAvoidance
 {
-  enabled false
+  enabled true
 
   collision_link_names
   {
