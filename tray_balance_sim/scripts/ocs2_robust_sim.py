@@ -13,8 +13,7 @@ from PIL import Image
 import rospkg
 from jaxlie import SO3
 
-import tray_balance_sim.util as util
-from tray_balance_sim.ocs2_util import setup_ocs2_mpc_interface
+from tray_balance_sim import util, ocs2_util
 from tray_balance_sim.simulation import MobileManipulatorSimulation
 from tray_balance_sim.recording import Recorder, VideoRecorder
 
@@ -34,7 +33,6 @@ SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 8.0  # duration of trajectory (s)
-METHOD = "DDP"  # options are "SQP" or "DDP" # TODO better to load from task file
 
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/tray-balance/robust/")
@@ -44,10 +42,10 @@ RECORD_VIDEO = False
 
 
 def main():
-    assert (METHOD == "SQP" or METHOD == "DDP")
     np.set_printoptions(precision=3, suppress=True)
 
     sim = MobileManipulatorSimulation(dt=SIM_DT)
+    properties = ocs2_util.load_ocs2_task_properties()
 
     N = int(DURATION / sim.dt)
 
@@ -75,7 +73,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=3*2,
+        n_balance_con=3 * 2,
         # n_balance_con=5 + 3 * 6,
         # n_balance_con=0,
         n_collision_pair=1,
@@ -104,8 +102,9 @@ def main():
     target_times = [0]
     r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
-    # setup MPC and initial EE target pose
-    mpc = setup_ocs2_mpc_interface()
+    mpc = ocs2_util.setup_ocs2_mpc_interface()
+
+    # setup EE target
     t_target = scalar_array()
     for target_time in target_times:
         t_target.push_back(target_time)
@@ -191,14 +190,15 @@ def main():
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
 
-            if METHOD == "SQP":
-                recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
-                    "trayBalance", t, x, u
-                )
-            elif METHOD == "DDP":
-                recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
-                    "trayBalance", t, x, u
-                )
+            if properties.tray_balance_enabled:
+                if properties.method == "SQP":
+                    recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
+                        "trayBalance", t, x, u
+                    )
+                elif properties.method == "DDP":
+                    recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
+                        "trayBalance", t, x, u
+                    )
 
             r_ew_w_d = state_target[target_idx][:3]
             Q_we_d = state_target[target_idx][3:7]

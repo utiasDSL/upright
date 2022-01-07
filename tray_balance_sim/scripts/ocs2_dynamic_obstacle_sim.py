@@ -11,8 +11,7 @@ import matplotlib.pyplot as plt
 import pybullet as pyb
 from PIL import Image
 
-import tray_balance_sim.util as util
-from tray_balance_sim.ocs2_util import setup_ocs2_mpc_interface
+from tray_balance_sim import util, ocs2_util
 from tray_balance_sim.simulation import MobileManipulatorSimulation
 from tray_balance_sim.recording import Recorder, VideoRecorder
 
@@ -74,7 +73,7 @@ def main():
     np.set_printoptions(precision=3, suppress=True)
 
     sim = MobileManipulatorSimulation(dt=SIM_DT)
-    # sim.record_video(VIDEO_PATH)
+    properties = ocs2_util.load_ocs2_task_properties()
 
     if RECORD_VIDEO:
         # dynamic obstacle course POV #1
@@ -136,8 +135,8 @@ def main():
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
         n_balance_con=3*1,
-        n_collision_pair=1,
-        n_dynamic_obs=5,
+        n_collision_pair=properties.num_collision_pairs,
+        n_dynamic_obs=properties.num_dynamic_obstacle_pairs,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -157,7 +156,7 @@ def main():
     target_times = [0, 5]  # TODO
 
     # setup MPC and initial EE target pose
-    mpc = setup_ocs2_mpc_interface()
+    mpc = ocs2_util.setup_ocs2_mpc_interface()
     t_target = scalar_array()
     for target_time in target_times:
         t_target.push_back(target_time)
@@ -252,15 +251,19 @@ def main():
 
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
-            recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
-                "trayBalance", t, x, u
-            )
-            recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
-                "dynamicObstacleAvoidance", t, x
-            )
-            # recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
-            #     "collisionAvoidance", t, x
-            # )
+
+            if properties.tray_balance_enabled:
+                recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
+                    "trayBalance", t, x, u
+                )
+            if properties.dynamic_obstacle_enabled:
+                recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
+                    "dynamicObstacleAvoidance", t, x
+                )
+            if properties.collision_avoidance_enabled:
+                recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
+                    "collisionAvoidance", t, x
+                )
 
             r_ew_w_d = state_target[target_idx][:3]
             Q_we_d = state_target[target_idx][3:7]
