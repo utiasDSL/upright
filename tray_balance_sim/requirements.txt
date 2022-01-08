@@ -1,0 +1,11 @@
+ipython==7.31.0
+jax==0.2.24
+jaxlie==1.2.6
+matplotlib==3.4.2
+numpy==1.21.3
+osqp==0.6.2.post5
+Pillow==9.0.0
+pybullet==3.2.1
+scipy==1.7.3
+-e git+https://github.com/adamheins/python3-property_tree
+-e git+https://github.com/utiasSTARS/liegroups
