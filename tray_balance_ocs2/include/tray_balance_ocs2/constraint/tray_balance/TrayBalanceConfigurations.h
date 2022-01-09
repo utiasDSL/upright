@@ -27,12 +27,6 @@ struct TrayBalanceConfiguration {
             throw std::runtime_error("Invalid config type: " + config_type);
         }
     }
-
-    // TrayBalanceConfiguration() {}
-    // TrayBalanceConfiguration(const TrayBalanceConfiguration& other) {
-    //     type = other.type;
-    //     num = other.num;
-    // }
 };
 
 template <typename Scalar>

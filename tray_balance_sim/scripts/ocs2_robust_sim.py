@@ -50,16 +50,7 @@ def main():
     N = int(DURATION / sim.dt)
 
     # simulation objects and model
-    # TODO hopefully we can parse this from settings too
-    robot, objects, composites = sim.setup(
-        obj_names=[
-            "tray",
-            "stacked_cylinder1",
-            "stacked_cylinder2",
-            "stacked_cylinder3",
-        ]
-        # obj_names=["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
-    )
+    robot, objects, _ = sim.setup(settings.tray_balance_settings)
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
@@ -75,8 +66,6 @@ def main():
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
         n_balance_con=3 * 2,
-        # n_balance_con=5 + 3 * 6,
-        # n_balance_con=0,
         n_collision_pair=1,
         n_dynamic_obs=0,
     )

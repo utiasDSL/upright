@@ -23,6 +23,11 @@ class ConstraintType(Enum):
     HARD = 1
 
 
+class ConfigType(Enum):
+    STACKED = 0
+    FLAT = 1
+
+
 class TrayBalanceSettings:
     def __init__(self, properties):
         key = "trayBalanceConstraints"
@@ -32,6 +37,19 @@ class TrayBalanceSettings:
         self.constraint_type = (
             ConstraintType.SOFT if s == "soft" else ConstraintType.HARD
         )
+
+        s = properties[key]["config_type"]
+        self.config_type = (
+            ConfigType.STACKED if s == "stacked" else ConfigType.FLAT
+        )
+
+        self.num_objects = int(properties[key]["num_objects"])
+
+    def obj_names(self):
+        config_prefix = "stacked_" if self.config_type == ConfigType.STACKED else "flat_"
+        obj_root = config_prefix + "cylinder"
+        obj_names = [obj_root + str(i + 1) for i in range(self.num_objects)]
+        return ["tray"] + obj_names
 
 
 class TaskSettings:

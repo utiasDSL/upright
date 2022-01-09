@@ -225,8 +225,11 @@ class Simulation:
 
         return (c0, c1, c2)
 
-    def object_setup(self, r_ew_w, obj_names):
+    # def object_setup(self, r_ew_w, obj_names):
+    def object_setup(self, r_ew_w, tray_balance_settings):
         # setup balanced objects
+        obj_names = tray_balance_settings.obj_names()
+
         objects = {}
 
         if "tray" in obj_names:
@@ -485,7 +488,7 @@ class MobileManipulatorSimulation(Simulation):
     def __init__(self, dt=0.001):
         super().__init__(dt)
 
-    def setup(self, obj_names=None):
+    def setup(self, tray_balance_settings):
         """Setup pybullet simulation."""
         super().basic_setup()
 
@@ -506,7 +509,7 @@ class MobileManipulatorSimulation(Simulation):
         # self.settle(1.0)
 
         r_ew_w, _ = robot.link_pose()
-        objects = super().object_setup(r_ew_w, obj_names)
+        objects = super().object_setup(r_ew_w, tray_balance_settings)
 
         self.settle(1.0)
 
