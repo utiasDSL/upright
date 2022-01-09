@@ -263,7 +263,7 @@ collisionAvoidance
 
 dynamicObstacleAvoidance
 {
-  enabled true
+  enabled false
 
   collision_link_names
   {
@@ -383,7 +383,11 @@ jointLimits
 
 trayBalanceConstraints
 {
-  enabled false
+  enabled true
+  robust  true
+  config_type stacked
+  constraint_type soft
+  num_objects 3
   mu    1e-2
   delta 1e-3
 }
@@ -393,11 +397,4 @@ urdfSettings
   package           tray_balance_assets  ; ROS package where URDFs are stored
   robotUrdfPath     /urdf/mm_ocs2.urdf
   obstacleUrdfPath  /urdf/obstacles.urdf
-}
-
-; TODO
-objectConfiguration
-{
-  constraints robust ; normal, robust
-  objects     flat1
 }

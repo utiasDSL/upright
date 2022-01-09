@@ -1,6 +1,9 @@
 import os
+from enum import Enum
+
 import rospkg
 import property_tree as ptree
+
 from tray_balance_ocs2.MobileManipulatorPyBindings import mpc_interface
 
 
@@ -15,16 +18,27 @@ def str2bool(s):
     )
 
 
-class TaskProperties:
+class ConstraintType(Enum):
+    SOFT = 0
+    HARD = 1
+
+
+class TrayBalanceSettings:
+    def __init__(self, properties):
+        key = "trayBalanceConstraints"
+        self.enabled = str2bool(properties[key]["enabled"].value)
+
+        s = properties[key]["constraint_type"]
+        self.constraint_type = (
+            ConstraintType.SOFT if s == "soft" else ConstraintType.HARD
+        )
+
+
+class TaskSettings:
     def __init__(self, path):
         properties = ptree.info.load(path)
 
-        self.method = properties["model_settings"]["method"].value
-        assert self.method == "SQP" or self.method == "DDP"
-
-        self.tray_balance_enabled = str2bool(
-            properties["trayBalanceConstraints"]["enabled"].value
-        )
+        self.tray_balance_settings = TrayBalanceSettings(properties)
         self.dynamic_obstacle_enabled = str2bool(
             properties["dynamicObstacleAvoidance"]["enabled"].value
         )
@@ -47,8 +61,8 @@ def get_task_info_path():
     )
 
 
-def load_ocs2_task_properties():
-    return TaskProperties(get_task_info_path())
+def load_ocs2_task_settings():
+    return TaskSettings(get_task_info_path())
 
 
 def setup_ocs2_mpc_interface():

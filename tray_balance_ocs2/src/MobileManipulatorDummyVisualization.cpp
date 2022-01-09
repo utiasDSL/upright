@@ -51,9 +51,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <tray_balance_msgs/TrayBalanceControllerInfo.h>
 
-#include <tray_balance_ocs2/constraint/TrayBalanceConstraints.h>
-#include <tray_balance_constraints/inequality_constraints.h>
-
 namespace ocs2 {
 namespace mobile_manipulator {
 

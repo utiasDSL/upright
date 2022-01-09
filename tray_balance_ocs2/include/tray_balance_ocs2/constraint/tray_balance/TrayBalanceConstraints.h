@@ -12,7 +12,7 @@
 
 #include <tray_balance_constraints/inequality_constraints.h>
 #include <tray_balance_constraints/robust.h>
-#include <tray_balance_ocs2/constraint/TrayBalanceConfigurations.h>
+#include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceConfigurations.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -28,9 +28,11 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
     using ad_mat3_t = Eigen::Matrix<ad_scalar_t, 3, 3>;
 
     TrayBalanceConstraints(
-        const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics)
+        const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
+        const TrayBalanceConfiguration& config)
         : StateInputConstraintCppAd(ConstraintOrder::Linear),
-          pinocchioEEKinPtr_(pinocchioEEKinematics.clone()) {
+          pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
+          config_(config) {
         if (pinocchioEEKinematics.getIds().size() != 1) {
             throw std::runtime_error(
                 "[EndEffectorConstraint] endEffectorKinematics has wrong "
@@ -42,10 +44,8 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
                    "/tmp/ocs2", true, true);
     }
 
-    // TrayBalanceConstraints() override = default;
-
     TrayBalanceConstraints* clone() const override {
-        return new TrayBalanceConstraints(*pinocchioEEKinPtr_);
+        return new TrayBalanceConstraints(*pinocchioEEKinPtr_, config_);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
@@ -71,43 +71,9 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        // for non-robust baseline approach
-        // ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
-        //     C_we, angular_vel, linear_acc, angular_acc,
-        //     stack3_config<ad_scalar_t>());
-
-        // Flat configuration with robust constraints
-        Vec3<ad_scalar_t> center_flat(ad_scalar_t(0), ad_scalar_t(0),
-                                      ad_scalar_t(0.02 + 0.02 + 0.075));
-        ad_scalar_t radius_flat(0.1);
-        Ball<ad_scalar_t> ball_flat(center_flat, radius_flat);
-        ad_scalar_t max_radius_flat = radius_flat;
-
-        // Stacked configuration with robust constraints
-        Vec3<ad_scalar_t> center1(ad_scalar_t(0), ad_scalar_t(0),
-                                  ad_scalar_t(0.1));
-        ad_scalar_t radius1(0.12);
-        Ball<ad_scalar_t> ball1(center1, radius1);
-
-        Vec3<ad_scalar_t> center2(ad_scalar_t(0), ad_scalar_t(0),
-                                  ad_scalar_t(0.3));
-        ad_scalar_t radius2(0.12);
-        Ball<ad_scalar_t> ball2(center2, radius2);
-
-        // Note that this isn't really correct (but the correct value is so
-        // conservative that we can get away with this)
-        ad_scalar_t max_radius((center2 - center1).norm() + radius1 + radius2);
-        ad_scalar_t min_support_dist(0.05);
-        ad_scalar_t min_mu(0.5);
-        ad_scalar_t min_r_tau = circle_r_tau(min_support_dist);
-
-        ParameterSet<ad_scalar_t> param_set({ball1, ball2}, min_support_dist,
-                                            min_mu, min_r_tau, max_radius);
-        // ParameterSet<ad_scalar_t> param_set({ball_flat}, min_support_dist,
-        //                                     min_mu, min_r_tau, max_radius_flat);
-
-        ad_vector_t constraints = robust_balancing_constraints<ad_scalar_t>(
-            C_we, angular_vel, linear_acc, angular_acc, param_set);
+        ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
+            C_we, angular_vel, linear_acc, angular_acc,
+            build_objects<ad_scalar_t>(config_));
 
         return constraints;
     }
@@ -116,6 +82,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
     TrayBalanceConstraints(const TrayBalanceConstraints& other) = default;
 
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
+    TrayBalanceConfiguration config_;
 };
 
 }  // namespace mobile_manipulator

@@ -45,11 +45,12 @@ def main():
     np.set_printoptions(precision=3, suppress=True)
 
     sim = MobileManipulatorSimulation(dt=SIM_DT)
-    properties = ocs2_util.load_ocs2_task_properties()
+    settings = ocs2_util.load_ocs2_task_settings()
 
     N = int(DURATION / sim.dt)
 
     # simulation objects and model
+    # TODO hopefully we can parse this from settings too
     robot, objects, composites = sim.setup(
         obj_names=[
             "tray",
@@ -190,12 +191,15 @@ def main():
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
 
-            if properties.tray_balance_enabled:
-                if properties.method == "SQP":
+            if settings.tray_balance_settings.enabled:
+                if (
+                    settings.tray_balance_settings.constraint_type
+                    == ocs2_util.ConstraintType.HARD
+                ):
                     recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
                         "trayBalance", t, x, u
                     )
-                elif properties.method == "DDP":
+                else:
                     recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
                         "trayBalance", t, x, u
                     )

@@ -57,11 +57,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/constraint/JointStateInputLimits.h>
 #include <tray_balance_ocs2/constraint/MobileManipulatorSelfCollisionConstraint.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
-#include <tray_balance_ocs2/constraint/TrayBalanceConstraints.h>
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
 #include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
 #include <tray_balance_ocs2/definitions.h>
 #include <tray_balance_ocs2/util.h>
+
+#include <tray_balance_ocs2/constraint/tray_balance/RobustTrayBalanceConstraints.h>
+#include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceConstraints.h>
+#include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h>
 
 #include <ros/package.h>
 
@@ -228,25 +231,25 @@ void MobileManipulatorInterface::loadSettings(
         std::cerr << "Dynamic obstacle avoidance is disabled." << std::endl;
     }
 
-    bool tray_balance_enabled = false;
-    loadData::loadPtreeValue(pt, tray_balance_enabled,
-                             "trayBalanceConstraints.enabled", false);
-    if (tray_balance_enabled) {
-        if (method_ == "DDP") {
+    TrayBalanceSettings tray_balance_settings = TrayBalanceSettings::load(taskFile);
+
+    if (tray_balance_settings.enabled) {
+        if (tray_balance_settings.constraint_type == Soft) {
             std::cerr << "Soft tray balance constraints enabled." << std::endl;
             problem_.softConstraintPtr->add(
                 "trayBalance",
                 getTrayBalanceSoftConstraint(
-                    *pinocchioInterfacePtr_, taskFile, "trayBalanceConstraints",
+                    *pinocchioInterfacePtr_, tray_balance_settings,
                     usePreComputation, libraryFolder, recompileLibraries));
-        } else if (method_ == "SQP") {
+
+        } else {
             // TODO: hard inequality constraints do not appear to be
             // implemented by OCS2
             std::cerr << "Hard tray balance constraints enabled." << std::endl;
             problem_.inequalityConstraintPtr->add(
                 "trayBalance",
                 getTrayBalanceConstraint(
-                    *pinocchioInterfacePtr_, taskFile, "trayBalanceConstraints",
+                    *pinocchioInterfacePtr_, tray_balance_settings,
                     usePreComputation, libraryFolder, recompileLibraries));
         }
     } else {
@@ -488,55 +491,40 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
 
 std::unique_ptr<StateInputConstraint>
 MobileManipulatorInterface::getTrayBalanceConstraint(
-    PinocchioInterface pinocchioInterface, const std::string& taskFile,
-    const std::string& prefix, bool usePreComputation,
-    const std::string& libraryFolder, bool recompileLibraries) {
-    std::string name = "thing_tool";
-
+    PinocchioInterface pinocchioInterface, const TrayBalanceSettings& settings,
+    bool usePreComputation, const std::string& libraryFolder,
+    bool recompileLibraries) {
     // TODO precomputation is not implemented
-
+    const std::string name = "thing_tool";
     MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
     PinocchioEndEffectorKinematicsCppAd pinocchioEEKinematics(
         pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
         "tray_balance_ee_kinematics", libraryFolder, recompileLibraries, false);
 
-    std::unique_ptr<StateInputConstraint> constraint(
-        new TrayBalanceConstraints(pinocchioEEKinematics));
-    return constraint;
+    if (settings.robust) {
+        return std::unique_ptr<StateInputConstraint>(
+            new RobustTrayBalanceConstraints(pinocchioEEKinematics,
+                                             settings.config));
+    } else {
+        return std::unique_ptr<StateInputConstraint>(
+            new TrayBalanceConstraints(pinocchioEEKinematics, settings.config));
+    }
 }
 
 std::unique_ptr<StateInputCost>
 MobileManipulatorInterface::getTrayBalanceSoftConstraint(
-    PinocchioInterface pinocchioInterface, const std::string& taskFile,
-    const std::string& prefix, bool usePreComputation,
-    const std::string& libraryFolder, bool recompileLibraries) {
-    // Default parameters
-    scalar_t mu = 1e-2;
-    scalar_t delta = 1e-3;
-
-    boost::property_tree::ptree pt;
-    boost::property_tree::read_info(taskFile, pt);
-    std::cerr << "\n #### " << prefix << " Settings: ";
-    std::cerr << "\n #### "
-                 "============================================================="
-                 "================\n";
-    loadData::loadPtreeValue(pt, mu, prefix + ".mu", true);
-    loadData::loadPtreeValue(pt, delta, prefix + ".delta", true);
-    std::cerr << " #### "
-                 "============================================================="
-                 "================"
-              << std::endl;
-
+    PinocchioInterface pinocchioInterface, const TrayBalanceSettings& settings,
+    bool usePreComputation, const std::string& libraryFolder, bool recompileLibraries) {
     // compute the hard constraint
     std::unique_ptr<StateInputConstraint> constraint = getTrayBalanceConstraint(
-        pinocchioInterface, taskFile, prefix, usePreComputation, libraryFolder,
+        pinocchioInterface, settings, usePreComputation, libraryFolder,
         recompileLibraries);
 
     // make it soft via penalty function
     std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(
         constraint->getNumConstraints(0));
     for (int i = 0; i < constraint->getNumConstraints(0); i++) {
-        penaltyArray[i].reset(new RelaxedBarrierPenalty({mu, delta}));
+        penaltyArray[i].reset(new RelaxedBarrierPenalty({settings.mu, settings.delta}));
     }
 
     return std::unique_ptr<StateInputCost>(new StateInputSoftConstraint(

@@ -9,9 +9,30 @@
 namespace ocs2 {
 namespace mobile_manipulator {
 
-enum TrayBalanceConfiguration {
+enum TrayBalanceConfigurationType {
     Flat,
     Stacked,
+};
+
+struct TrayBalanceConfiguration {
+    TrayBalanceConfigurationType type = Flat;
+    size_t num = 0;
+
+    void set_type(const std::string& config_type) {
+        if (config_type == "flat") {
+            type = Flat;
+        } else if (config_type == "stacked") {
+            type = Stacked;
+        } else {
+            throw std::runtime_error("Invalid config type: " + config_type);
+        }
+    }
+
+    // TrayBalanceConfiguration() {}
+    // TrayBalanceConfiguration(const TrayBalanceConfiguration& other) {
+    //     type = other.type;
+    //     num = other.num;
+    // }
 };
 
 template <typename Scalar>
@@ -76,7 +97,7 @@ BalancedObject<Scalar> build_cuboid_object() {
 }
 
 template <typename Scalar>
-BalancedObject<Scalar> build_cylinder1(TrayBalanceConfiguration config) {
+BalancedObject<Scalar> build_cylinder1(const TrayBalanceConfiguration& config) {
     Scalar cylinder_mass(0.5);
     Scalar cylinder_mu(0.5);
     Scalar cylinder_com_height(0.075);
@@ -88,12 +109,12 @@ BalancedObject<Scalar> build_cylinder1(TrayBalanceConfiguration config) {
 
     // position changes based on configuration
     Vec3<Scalar> cylinder_com;
-    if (config == Flat) {
+    if (config.type == Flat) {
         Scalar ee_side_length(0.2);
         Vec2<Scalar> com_xy =
             equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 0);
         cylinder_com << com_xy, Scalar(0.115);
-    } else if (config == Stacked) {
+    } else if (config.type == Stacked) {
         cylinder_com << Scalar(0), Scalar(0), Scalar(0.115);
     }
 
@@ -119,7 +140,7 @@ BalancedObject<Scalar> build_cylinder1(TrayBalanceConfiguration config) {
 }
 
 template <typename Scalar>
-BalancedObject<Scalar> build_cylinder2(TrayBalanceConfiguration config) {
+BalancedObject<Scalar> build_cylinder2(const TrayBalanceConfiguration& config) {
     Scalar cylinder_mass(0.5);
     Scalar cylinder_mu(0.5);
     Scalar cylinder_com_height(0.075);
@@ -130,12 +151,12 @@ BalancedObject<Scalar> build_cylinder2(TrayBalanceConfiguration config) {
     Vec2<Scalar> cylinder_support_offset = Vec2<Scalar>::Zero();
 
     Vec3<Scalar> cylinder_com;
-    if (config == Flat) {
+    if (config.type == Flat) {
         Scalar ee_side_length(0.2);
         Vec2<Scalar> com_xy =
             equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 1);
         cylinder_com << com_xy, Scalar(0.115);
-    } else if (config == Stacked) {
+    } else if (config.type == Stacked) {
         cylinder_com << Scalar(0), Scalar(0), Scalar(0.265);
     }
 
@@ -156,7 +177,7 @@ BalancedObject<Scalar> build_cylinder2(TrayBalanceConfiguration config) {
 }
 
 template <typename Scalar>
-BalancedObject<Scalar> build_cylinder3(TrayBalanceConfiguration config) {
+BalancedObject<Scalar> build_cylinder3(const TrayBalanceConfiguration& config) {
     Scalar cylinder_mass(0.5);
     Scalar cylinder_mu(0.5);
     Scalar cylinder_com_height(0.075);
@@ -167,12 +188,12 @@ BalancedObject<Scalar> build_cylinder3(TrayBalanceConfiguration config) {
     Vec2<Scalar> cylinder_support_offset = Vec2<Scalar>::Zero();
 
     Vec3<Scalar> cylinder_com;
-    if (config == Flat) {
+    if (config.type == Flat) {
         Scalar ee_side_length(0.2);
         Vec2<Scalar> com_xy =
             equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 2);
         cylinder_com << com_xy, Scalar(0.115);
-    } else if (config == Stacked) {
+    } else if (config.type == Stacked) {
         cylinder_com << Scalar(0), Scalar(0), Scalar(0.415);
     }
 
@@ -194,89 +215,143 @@ BalancedObject<Scalar> build_cylinder3(TrayBalanceConfiguration config) {
 }
 
 template <typename Scalar>
-std::vector<BalancedObject<Scalar>> tray_only_config() {
+std::vector<BalancedObject<Scalar>> build_objects(
+    const TrayBalanceConfiguration& config) {
     auto tray = build_tray_object<Scalar>();
-    return {tray};
+    auto cylinder1 = build_cylinder1<Scalar>(config);
+    auto cylinder2 = build_cylinder2<Scalar>(config);
+    auto cylinder3 = build_cylinder3<Scalar>(config);
+
+    // With no extra objects, type doesn't matter: it is just the tray
+    if (config.num == 0) {
+        return {tray};
+    }
+
+    if (config.type == Flat) {
+        if (config.num == 1) {
+            auto composite_tray_cylinder1 =
+                BalancedObject<Scalar>::compose({tray, cylinder1});
+            return {composite_tray_cylinder1, cylinder1};
+        } else if (config.num == 2) {
+            auto composite_tray_cylinder12 =
+                BalancedObject<Scalar>::compose({tray, cylinder1, cylinder2});
+            return {composite_tray_cylinder12, cylinder1, cylinder2};
+        } else if (config.num == 3) {
+            auto composite_tray_cylinder123 = BalancedObject<Scalar>::compose(
+                {tray, cylinder1, cylinder2, cylinder3});
+            return {composite_tray_cylinder123, cylinder1, cylinder2,
+                    cylinder3};
+        }
+    } else { /* Stacked */
+        if (config.num == 1) {
+            auto composite_tray_cylinder1 =
+                BalancedObject<Scalar>::compose({tray, cylinder1});
+            return {composite_tray_cylinder1, cylinder1};
+        } else if (config.num == 2) {
+            auto composite_tray_cylinder12 =
+                BalancedObject<Scalar>::compose({tray, cylinder1, cylinder2});
+            auto composite_cylinder12 =
+                BalancedObject<Scalar>::compose({cylinder1, cylinder2});
+            return {composite_tray_cylinder12, composite_cylinder12, cylinder2};
+        } else if (config.num == 3) {
+            auto composite_tray_cylinder123 = BalancedObject<Scalar>::compose(
+                {tray, cylinder1, cylinder2, cylinder3});
+            auto composite_cylinder123 = BalancedObject<Scalar>::compose(
+                {cylinder1, cylinder2, cylinder3});
+            auto composite_cylinder23 =
+                BalancedObject<Scalar>::compose({cylinder2, cylinder3});
+
+            return {composite_tray_cylinder123, composite_cylinder123,
+                    composite_cylinder23, cylinder3};
+        }
+    }
+    throw std::runtime_error("Unsupported object configuration.");
 }
 
-template <typename Scalar>
-std::vector<BalancedObject<Scalar>> flat1_config() {
-    auto tray = build_tray_object<Scalar>();
-    auto cylinder1 = build_cylinder1<Scalar>(Flat);
+// template <typename Scalar>
+// std::vector<BalancedObject<Scalar>> tray_only_config() {
+//     auto tray = build_tray_object<Scalar>();
+//     return {tray};
+// }
+//
+// template <typename Scalar>
+// std::vector<BalancedObject<Scalar>> flat1_config() {
+//     auto tray = build_tray_object<Scalar>();
+//     auto cylinder1 = build_cylinder1<Scalar>(Flat);
+//
+//     auto composite_tray_cylinder1 =
+//         BalancedObject<Scalar>::compose({tray, cylinder1});
+//
+//     return {composite_tray_cylinder1, cylinder1};
+// }
+//
+// template <typename Scalar>
+// std::vector<BalancedObject<Scalar>> flat2_config() {
+//     auto tray = build_tray_object<Scalar>();
+//     auto cylinder1 = build_cylinder1<Scalar>(Flat);
+//     auto cylinder2 = build_cylinder2<Scalar>(Flat);
+//
+//     auto composite_tray_cylinder12 =
+//         BalancedObject<Scalar>::compose({tray, cylinder1, cylinder2});
+//
+//     return {composite_tray_cylinder12, cylinder1, cylinder2};
+// }
+//
+// template <typename Scalar>
+// std::vector<BalancedObject<Scalar>> flat3_config() {
+//     auto tray = build_tray_object<Scalar>();
+//     auto cylinder1 = build_cylinder1<Scalar>(Flat);
+//     auto cylinder2 = build_cylinder2<Scalar>(Flat);
+//     auto cylinder3 = build_cylinder3<Scalar>(Flat);
+//
+//     auto composite_tray_cylinder123 = BalancedObject<Scalar>::compose(
+//         {tray, cylinder1, cylinder2, cylinder3});
+//
+//     return {composite_tray_cylinder123, cylinder1, cylinder2, cylinder3};
+// }
 
-    auto composite_tray_cylinder1 =
-        BalancedObject<Scalar>::compose({tray, cylinder1});
-
-    return {composite_tray_cylinder1, cylinder1};
-}
-
-template <typename Scalar>
-std::vector<BalancedObject<Scalar>> flat2_config() {
-    auto tray = build_tray_object<Scalar>();
-    auto cylinder1 = build_cylinder1<Scalar>(Flat);
-    auto cylinder2 = build_cylinder2<Scalar>(Flat);
-
-    auto composite_tray_cylinder12 =
-        BalancedObject<Scalar>::compose({tray, cylinder1, cylinder2});
-
-    return {composite_tray_cylinder12, cylinder1, cylinder2};
-}
-
-template <typename Scalar>
-std::vector<BalancedObject<Scalar>> flat3_config() {
-    auto tray = build_tray_object<Scalar>();
-    auto cylinder1 = build_cylinder1<Scalar>(Flat);
-    auto cylinder2 = build_cylinder2<Scalar>(Flat);
-    auto cylinder3 = build_cylinder3<Scalar>(Flat);
-
-    auto composite_tray_cylinder123 = BalancedObject<Scalar>::compose(
-        {tray, cylinder1, cylinder2, cylinder3});
-
-    return {composite_tray_cylinder123, cylinder1, cylinder2, cylinder3};
-}
-
-template <typename Scalar>
-std::vector<BalancedObject<Scalar>> stack1_config() {
-    auto tray = build_tray_object<Scalar>();
-    auto cylinder1 = build_cylinder1<Scalar>(Stacked);
-
-    auto composite_tray_cylinder1 =
-        BalancedObject<Scalar>::compose({tray, cylinder1});
-
-    return {composite_tray_cylinder1, cylinder1};
-}
-
-template <typename Scalar>
-std::vector<BalancedObject<Scalar>> stack2_config() {
-    auto tray = build_tray_object<Scalar>();
-    auto cylinder1 = build_cylinder1<Scalar>(Stacked);
-    auto cylinder2 = build_cylinder2<Scalar>(Stacked);
-
-    auto composite_tray_cylinder12 =
-        BalancedObject<Scalar>::compose({tray, cylinder1, cylinder2});
-    auto composite_cylinder12 =
-        BalancedObject<Scalar>::compose({cylinder1, cylinder2});
-
-    return {composite_tray_cylinder12, composite_cylinder12, cylinder2};
-}
-
-template <typename Scalar>
-std::vector<BalancedObject<Scalar>> stack3_config() {
-    auto tray = build_tray_object<Scalar>();
-    auto cylinder1 = build_cylinder1<Scalar>(Stacked);
-    auto cylinder2 = build_cylinder2<Scalar>(Stacked);
-    auto cylinder3 = build_cylinder3<Scalar>(Stacked);
-
-    auto composite_tray_cylinder123 = BalancedObject<Scalar>::compose(
-        {tray, cylinder1, cylinder2, cylinder3});
-    auto composite_cylinder123 =
-        BalancedObject<Scalar>::compose({cylinder1, cylinder2, cylinder3});
-    auto composite_cylinder23 =
-        BalancedObject<Scalar>::compose({cylinder2, cylinder3});
-
-    return {composite_tray_cylinder123, composite_cylinder123,
-            composite_cylinder23, cylinder3};
-}
+// template <typename Scalar>
+// std::vector<BalancedObject<Scalar>> stack1_config() {
+//     auto tray = build_tray_object<Scalar>();
+//     auto cylinder1 = build_cylinder1<Scalar>(Stacked);
+//
+//     auto composite_tray_cylinder1 =
+//         BalancedObject<Scalar>::compose({tray, cylinder1});
+//
+//     return {composite_tray_cylinder1, cylinder1};
+// }
+//
+// template <typename Scalar>
+// std::vector<BalancedObject<Scalar>> stack2_config() {
+//     auto tray = build_tray_object<Scalar>();
+//     auto cylinder1 = build_cylinder1<Scalar>(Stacked);
+//     auto cylinder2 = build_cylinder2<Scalar>(Stacked);
+//
+//     auto composite_tray_cylinder12 =
+//         BalancedObject<Scalar>::compose({tray, cylinder1, cylinder2});
+//     auto composite_cylinder12 =
+//         BalancedObject<Scalar>::compose({cylinder1, cylinder2});
+//
+//     return {composite_tray_cylinder12, composite_cylinder12, cylinder2};
+// }
+//
+// template <typename Scalar>
+// std::vector<BalancedObject<Scalar>> stack3_config() {
+//     auto tray = build_tray_object<Scalar>();
+//     auto cylinder1 = build_cylinder1<Scalar>(Stacked);
+//     auto cylinder2 = build_cylinder2<Scalar>(Stacked);
+//     auto cylinder3 = build_cylinder3<Scalar>(Stacked);
+//
+//     auto composite_tray_cylinder123 = BalancedObject<Scalar>::compose(
+//         {tray, cylinder1, cylinder2, cylinder3});
+//     auto composite_cylinder123 =
+//         BalancedObject<Scalar>::compose({cylinder1, cylinder2, cylinder3});
+//     auto composite_cylinder23 =
+//         BalancedObject<Scalar>::compose({cylinder2, cylinder3});
+//
+//     return {composite_tray_cylinder123, composite_cylinder123,
+//             composite_cylinder23, cylinder3};
+// }
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2

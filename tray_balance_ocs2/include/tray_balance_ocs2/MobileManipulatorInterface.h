@@ -43,6 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <pinocchio/parsers/urdf.hpp>
 
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
+#include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h>
 #include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
@@ -123,15 +124,15 @@ class MobileManipulatorInterface final : public RobotInterface {
         const std::string& taskFile);
 
     std::unique_ptr<StateInputConstraint> getTrayBalanceConstraint(
-        PinocchioInterface pinocchioInterface, const std::string& taskFile,
-        const std::string& prefix, bool usePreComputation,
+        PinocchioInterface pinocchioInterface,
+        const TrayBalanceSettings& settings, bool usePreComputation,
         const std::string& libraryFolder, bool recompileLibraries);
 
     // Soft version of the above (i.e. formulated as a cost via penalty
     // functions)
     std::unique_ptr<StateInputCost> getTrayBalanceSoftConstraint(
-        PinocchioInterface pinocchioInterface, const std::string& taskFile,
-        const std::string& prefix, bool usePreComputation,
+        PinocchioInterface pinocchioInterface,
+        const TrayBalanceSettings& settings, bool usePreComputation,
         const std::string& libraryFolder, bool recompileLibraries);
 
     std::unique_ptr<StateCost> getDynamicObstacleConstraint(
