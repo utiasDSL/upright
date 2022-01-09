@@ -263,7 +263,7 @@ collisionAvoidance
 
 dynamicObstacleAvoidance
 {
-  enabled false
+  enabled true
 
   collision_link_names
   {
@@ -385,7 +385,7 @@ trayBalanceConstraints
 {
   enabled true
   robust  true
-  config_type stacked
+  config_type flat
   constraint_type soft
   num_objects 3
   mu    1e-2

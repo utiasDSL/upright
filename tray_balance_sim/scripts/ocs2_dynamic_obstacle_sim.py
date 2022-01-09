@@ -73,7 +73,7 @@ def main():
     np.set_printoptions(precision=3, suppress=True)
 
     sim = MobileManipulatorSimulation(dt=SIM_DT)
-    properties = ocs2_util.load_ocs2_task_properties()
+    settings = ocs2_util.load_ocs2_task_settings()
 
     if RECORD_VIDEO:
         # dynamic obstacle course POV #1
@@ -109,14 +109,7 @@ def main():
     N = int(DURATION / sim.dt)
 
     # simulation objects and model
-    robot, objects, composites = sim.setup(
-        obj_names=[
-            "tray",
-            "flat_cylinder1",
-            "flat_cylinder2",
-            "flat_cylinder3",
-        ]
-    )
+    robot, objects, _ = sim.setup(settings.tray_balance_settings)
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
@@ -135,8 +128,8 @@ def main():
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
         n_balance_con=3*1,
-        n_collision_pair=properties.num_collision_pairs,
-        n_dynamic_obs=properties.num_dynamic_obstacle_pairs,
+        n_collision_pair=settings.num_collision_pairs,
+        n_dynamic_obs=settings.num_dynamic_obstacle_pairs,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -212,8 +205,6 @@ def main():
     assert len(t_target) == len(target_times)
     assert len(input_target) == len(target_times)
 
-    frame_num = 0
-
     for i in range(N):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
@@ -252,15 +243,15 @@ def main():
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
 
-            if properties.tray_balance_enabled:
+            if settings.tray_balance_settings.enabled:
                 recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
                     "trayBalance", t, x, u
                 )
-            if properties.dynamic_obstacle_enabled:
+            if settings.dynamic_obstacle_enabled:
                 recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
                     "dynamicObstacleAvoidance", t, x
                 )
-            if properties.collision_avoidance_enabled:
+            if settings.collision_avoidance_enabled:
                 recorder.collision_pair_distance[idx, :] = mpc.stateInequalityConstraint(
                     "collisionAvoidance", t, x
                 )
