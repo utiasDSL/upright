@@ -85,56 +85,53 @@ class Camera:
         )
         return dep_linear
 
-    def to_point(self, dep):
-        # this is the transform from world to model coordinates (or the inverse?)
-        model = glm.mat4(1)
-        view = np.linalg.inv(np.array(self.cam_view_matrix).reshape((4, 4)).T)
-        # model = glm.mat4(view)
+    def get_point_cloud(self):
+        # assumes static camera
+        # see <https://stackoverflow.com/a/62247245>
+        _, _, _, dep, seg = self.get_frame()
 
-        # camera projection matrix
+        # view matrix maps world coordinates to camera coordinates (extrinsics)
+        view_matrix = np.array(self.cam_view_matrix).reshape((4, 4)).T
+        model_matrix = np.linalg.inv(view_matrix)
+
+        # camera projection matrix: map camera coordinates to clip coordinates
+        # (intrinsics)
         proj = np.array(self.cam_proj_matrix).reshape((4, 4))
-        projGLM = glm.mat4(proj)
-
         proj_inv = np.linalg.inv(proj)
-
-        viewport = glm.vec4(0, 0, self.width, self.height)
-
-        z = self.linearize_depth(dep)
-
-        # T = np.array(self.cam_view_matrix).reshape((4, 4)).T
-
-        def homog_mult(A, b):
-            return A[:3, :3] @ b + A[:3, 3]
 
         # dep is stored (height * width) (i.e., transpose of what one might
         # expect on the numpy side)
         points = np.zeros((self.width, self.height, 3))
-        world_points = np.zeros_like(points)
         for h in range(self.height):
             for w in range(self.width):
-                win = glm.vec3(w, h, dep[h, w])
-                position = glm.unProject(win, model, projGLM, viewport)
-                # position = homog_mult(proj_inv, win)
-                points[w, h, :] = position
-                world_points[w, h, :] = homog_mult(view, position)  # @ np.append(position, 1))[:3]
+                # convert to normalized device coordinates
+                # notice that the y-transform is negative---we actually have a
+                # left-handed coordinate frame here (x = right, y = down, z =
+                # out of the screen)
+                x = (2 * w - self.width) / self.width
+                y = -(2 * h - self.height) / self.height
+
+                # depth buffer is already in range [0, 1]
+                z = 2 * dep[h, w] - 1
+
+                # back out to world coordinates by applying inverted projection
+                # and view matrices
+                v = np.array([x, y, z, 1])
+                P = model_matrix @ proj_inv @ v
+
+                # normalize homogenous coordinates to get rid of perspective
+                # divide
+                points[w, h, :] = P[:3] / P[3]
+
+        points = points[seg.T >= 0, :]
 
         fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-        points = world_points
-        ax.scatter(points[:, :, 0], points[:, :, 1], zs=-points[:, :, 2])
+        ax = fig.add_subplot(projection="3d")
+        ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
         plt.show()
-
-        IPython.embed()
-        # depthImg = float(np.array(depthBuffer)[h, w])
-        # far = 1000.
-        # near = 0.01
-        # depth = far * near / (far - (far - near) * depthImg)
-        # win = glm.vec3(h, w, depthBuffer[h][w])
-        # position = glm.unProject(win, model, projGLM, viewport)
-        pass
 
 
 class VideoRecorder(Camera):

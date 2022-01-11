@@ -64,11 +64,10 @@ def main():
         near=0.1,
         far=10.0,
     )
-    w, h, rgb, dep, seg = camera.get_frame()
-    dep_linear = camera.linearize_depth(dep)
+    # w, h, rgb, dep, seg = camera.get_frame()
+    # dep_linear = camera.linearize_depth(dep)
     camera.save_frame("testframe.png")
-
-    camera.to_point(dep)
+    points = camera.get_point_cloud()
 
     plt.figure()
     plt.title("Depth buffer")
