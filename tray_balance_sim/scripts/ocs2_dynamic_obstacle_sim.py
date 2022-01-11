@@ -290,7 +290,7 @@ def main():
             mpc.setTargetTrajectories(target_trajectories_obs2)
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
-            video.capture_frame()
+            video.save_frame()
 
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")

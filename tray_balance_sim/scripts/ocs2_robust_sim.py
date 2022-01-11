@@ -12,10 +12,11 @@ import pybullet as pyb
 from PIL import Image
 import rospkg
 from jaxlie import SO3
+import glm
 
 from tray_balance_sim import util, ocs2_util
 from tray_balance_sim.simulation import MobileManipulatorSimulation
-from tray_balance_sim.recording import Recorder, VideoRecorder
+from tray_balance_sim.recording import Recorder, VideoRecorder, Camera
 
 import IPython
 
@@ -51,6 +52,39 @@ def main():
 
     # simulation objects and model
     robot, objects, _ = sim.setup(settings.tray_balance_settings)
+
+    target = objects["stacked_cylinder2"].bullet.get_pose()[0]
+    cam_pos = [target[0], target[1] - 1, target[2]]
+    camera = Camera(
+        camera_position=cam_pos,
+        target_position=target,
+        width=240,
+        height=200,
+        fov=60,
+        near=0.1,
+        far=10.0,
+    )
+    w, h, rgb, dep, seg = camera.get_frame()
+    dep_linear = camera.linearize_depth(dep)
+    camera.save_frame("testframe.png")
+
+    camera.to_point(dep)
+
+    plt.figure()
+    plt.title("Depth buffer")
+    plt.imshow(dep)
+
+    plt.figure()
+    plt.title("Linearized depth buffer")
+    plt.imshow(dep_linear)
+
+    plt.figure()
+    plt.title("Cylinder 1")
+    plt.imshow(seg == objects["stacked_cylinder1"].bullet.uid)
+
+    plt.show()
+
+    IPython.embed()
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
@@ -218,7 +252,7 @@ def main():
         # time.sleep(sim.dt)
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
-            video.capture_frame()
+            video.save_frame()
 
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")

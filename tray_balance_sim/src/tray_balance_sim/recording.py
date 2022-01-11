@@ -1,10 +1,12 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import pybullet as pyb
 from pathlib import Path
 from liegroups import SO3
 from PIL import Image
+import glm
 
 import tray_balance_sim.util as util
 
@@ -13,7 +15,129 @@ import IPython
 DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/ICRA22")
 
 
-class VideoRecorder:
+class Camera:
+    def __init__(
+        self,
+        target_position,
+        distance=None,
+        roll=None,
+        pitch=None,
+        yaw=None,
+        camera_position=None,
+        near=0.1,
+        far=1000.0,
+        fov=60.0,
+        width=1280,
+        height=720,
+    ):
+        self.width = width
+        self.height = height
+        self.far = far
+        self.near = near
+
+        if camera_position is not None:
+            self.cam_view_matrix = pyb.computeViewMatrix(
+                cameraEyePosition=camera_position,
+                cameraTargetPosition=target_position,
+                cameraUpVector=[0, 0, 1],
+            )
+        else:
+            self.cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+                distance=distance,
+                yaw=yaw,
+                pitch=pitch,
+                roll=roll,
+                cameraTargetPosition=target_position,
+                upAxisIndex=2,
+            )
+        self.cam_proj_matrix = pyb.computeProjectionMatrixFOV(
+            fov=fov, aspect=width / height, nearVal=near, farVal=far
+        )
+
+    def get_frame(self):
+        w, h, rgb, dep, seg = pyb.getCameraImage(
+            width=self.width,
+            height=self.height,
+            shadow=1,
+            viewMatrix=self.cam_view_matrix,
+            projectionMatrix=self.cam_proj_matrix,
+            # flags=pyb.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
+            renderer=pyb.ER_BULLET_HARDWARE_OPENGL,
+        )
+        return w, h, rgb, dep, seg
+
+    def save_frame(self, filename):
+        w, h, rgb, dep, seg = self.get_frame()
+        img = Image.fromarray(np.reshape(rgb, (h, w, 4)), "RGBA")
+        img.save(filename)
+
+    def linearize_depth(self, dep):
+        """Convert depth map to actual distance from camera.
+
+        See <https://stackoverflow.com/questions/6652253/getting-the-true-z-value-from-the-depth-buffer>.
+        """
+        dep = 2 * dep - 1
+        dep_linear = (
+            2.0
+            * self.near
+            * self.far
+            / (self.far + self.near - dep * (self.far - self.near))
+        )
+        return dep_linear
+
+    def to_point(self, dep):
+        # this is the transform from world to model coordinates (or the inverse?)
+        model = glm.mat4(1)
+        view = np.linalg.inv(np.array(self.cam_view_matrix).reshape((4, 4)).T)
+        # model = glm.mat4(view)
+
+        # camera projection matrix
+        proj = np.array(self.cam_proj_matrix).reshape((4, 4))
+        projGLM = glm.mat4(proj)
+
+        proj_inv = np.linalg.inv(proj)
+
+        viewport = glm.vec4(0, 0, self.width, self.height)
+
+        z = self.linearize_depth(dep)
+
+        # T = np.array(self.cam_view_matrix).reshape((4, 4)).T
+
+        def homog_mult(A, b):
+            return A[:3, :3] @ b + A[:3, 3]
+
+        # dep is stored (height * width) (i.e., transpose of what one might
+        # expect on the numpy side)
+        points = np.zeros((self.width, self.height, 3))
+        world_points = np.zeros_like(points)
+        for h in range(self.height):
+            for w in range(self.width):
+                win = glm.vec3(w, h, dep[h, w])
+                position = glm.unProject(win, model, projGLM, viewport)
+                # position = homog_mult(proj_inv, win)
+                points[w, h, :] = position
+                world_points[w, h, :] = homog_mult(view, position)  # @ np.append(position, 1))[:3]
+
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+        points = world_points
+        ax.scatter(points[:, :, 0], points[:, :, 1], zs=-points[:, :, 2])
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        plt.show()
+
+        IPython.embed()
+        # depthImg = float(np.array(depthBuffer)[h, w])
+        # far = 1000.
+        # near = 0.01
+        # depth = far * near / (far - (far - near) * depthImg)
+        # win = glm.vec3(h, w, depthBuffer[h][w])
+        # position = glm.unProject(win, model, projGLM, viewport)
+        pass
+
+
+class VideoRecorder(Camera):
     def __init__(
         self,
         path,
@@ -26,35 +150,23 @@ class VideoRecorder:
         width=1280,
         height=720,
     ):
-        os.makedirs(path)
+        super().__init__(
+            distance,
+            target_position,
+            roll=roll,
+            pitch=pitch,
+            yaw=yaw,
+            fov=fov,
+            width=width,
+            height=height,
+        )
 
+        os.makedirs(path)
         self.path = path
-        self.width = width
-        self.height = height
         self.frame_count = 0
 
-        self.cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
-            distance=distance,
-            yaw=yaw,
-            pitch=pitch,
-            roll=roll,
-            cameraTargetPosition=target_position,
-            upAxisIndex=2,
-        )
-        self.cam_proj_matrix = pyb.computeProjectionMatrixFOV(
-            fov=fov, aspect=width / height, nearVal=0.1, farVal=1000.0
-        )
-
-    def capture_frame(self):
-        (w, h, rgb, dep, seg) = pyb.getCameraImage(
-            width=self.width,
-            height=self.height,
-            shadow=1,
-            viewMatrix=self.cam_view_matrix,
-            projectionMatrix=self.cam_proj_matrix,
-            flags=pyb.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
-            renderer=pyb.ER_BULLET_HARDWARE_OPENGL,
-        )
+    def save_frame(self):
+        w, h, rgb, dep, seg = self.get_frame()
         img = Image.fromarray(np.reshape(rgb, (h, w, 4)), "RGBA")
         img.save(self.path / ("frame_" + str(self.frame_count) + ".png"))
         self.frame_count += 1
