@@ -4,9 +4,13 @@ from scipy.cluster import hierarchy, vq
 import IPython
 
 
-def ritter(ps):
+def unit(x):
+    return x / np.linalg.norm(x)
+
+
+def ritter(ps, eps=1e-8):
     """Ritter's bounding circle algorithm."""
-    # x = ps[np.random.randint(n), :]
+    # this can be any point in the dataset
     x = ps[0, :]
 
     dx = np.sum(np.square(ps - x), axis=1)
@@ -15,18 +19,29 @@ def ritter(ps):
     dy = np.sum(np.square(ps - y), axis=1)
     z = ps[np.argmax(dy), :]
 
+    # initial proposal for center and radius
     r = 0.5 * np.linalg.norm(z - y)
     c = 0.5 * (y + z)
-    d = np.sum(np.square(ps - c), axis=1)
 
-    # TODO this should really be iterative and recenter the ball too, but here
-    # I'm just growing the ball to ensure if covers all points
-    r = np.sqrt(np.max(d))
+    # while some points are not contained in the bounding sphere, expand it to
+    # contain that point + previous sphere
+    # eps is needed to avoid small floating point errors causing the loop not
+    # to break
+    d = np.sum(np.square(ps - c), axis=1)
+    idx = np.argmax(d)
+    while d[idx] > (r + eps)**2:
+        r = 0.5 * (r + np.sqrt(d[idx]))
+        v = unit(c - ps[idx, :])
+        c = ps[idx, :] + r * v
+
+        d = np.sum(np.square(ps - c), axis=1)
+        idx = np.argmax(d)
 
     return c, r
 
 
 def cluster_kmeans(points, k=3):
+    """Cluster points using k-means."""
     whitened_points = vq.whiten(points)
     whitened_centers, _ = vq.kmeans(whitened_points, k_or_guess=k)
     assignments, dists = vq.vq(whitened_points, whitened_centers)
@@ -38,6 +53,7 @@ def cluster_kmeans(points, k=3):
 
 
 def cluster_hierarchy(points, k=3):
+    """Cluster points using hierarchical clustering (complete linkage)."""
     dists = pdist(points)
     clusters = hierarchy.complete(dists)
     assignments = hierarchy.fcluster(clusters, t=k, criterion="maxclust") - 1

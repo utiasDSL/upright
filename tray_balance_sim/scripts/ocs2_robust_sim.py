@@ -14,7 +14,7 @@ from PIL import Image
 import rospkg
 from jaxlie import SO3
 
-from tray_balance_sim import util, ocs2_util, clustering
+from tray_balance_sim import util, ocs2_util, pyb_util, clustering
 from tray_balance_sim.simulation import MobileManipulatorSimulation
 from tray_balance_sim.recording import Recorder, VideoRecorder
 from tray_balance_sim.camera import Camera
@@ -22,12 +22,7 @@ from tray_balance_sim.camera import Camera
 import IPython
 
 # hook into the bindings from the OCS2-based controller
-from tray_balance_ocs2.MobileManipulatorPyBindings import (
-    scalar_array,
-    vector_array,
-    matrix_array,
-    TargetTrajectories,
-)
+import tray_balance_ocs2.MobileManipulatorPyBindings as ocs2
 
 
 # simulation parameters
@@ -41,21 +36,6 @@ VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/tray-balance/robust/")
 VIDEO_PATH = VIDEO_DIR / ("robust_stack3_" + TIMESTAMP)
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
-
-
-def draw_sphere(radius, position, color):
-    visual_uid = pyb.createVisualShape(
-        shapeType=pyb.GEOM_SPHERE,
-        radius=radius,
-        rgbaColor=color,
-    )
-    uid = pyb.createMultiBody(
-        baseMass=0,  # non-dynamic body
-        baseVisualShapeIndex=visual_uid,
-        basePosition=list(position),
-        baseOrientation=(0, 0, 0, 1),
-    )
-    return uid
 
 
 def main():
@@ -91,10 +71,15 @@ def main():
     points = points[mask.T, :]
 
     # cluster point cloud points and bound with spheres
-    k = 2
-    centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="hierarchy")
+    k = 3
+    centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="kmeans")
+    volume = 0
     for i in range(k):
-        draw_sphere(radius=radii[i], position=centers[i, :], color=(0.5, 0.5, 0.5, 0.5))
+        volume += 4 * np.pi * radii[i] ** 3 / 3
+        pyb_util.draw_sphere(
+            radius=radii[i], position=centers[i, :], color=(0.5, 0.5, 0.5, 0.5)
+        )
+    print(f"Volume = {volume}")
 
     # fig = plt.figure()
     # ax = fig.add_subplot(projection="3d")
@@ -150,11 +135,11 @@ def main():
     mpc = ocs2_util.setup_ocs2_mpc_interface()
 
     # setup EE target
-    t_target = scalar_array()
+    t_target = ocs2.scalar_array()
     for target_time in target_times:
         t_target.push_back(target_time)
 
-    input_target = vector_array()
+    input_target = ocs2.vector_array()
     for _ in target_times:
         input_target.push_back(u)
 
@@ -173,12 +158,12 @@ def main():
     # NOTE: doesn't show up in the recording
     util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
 
-    draw_sphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
+    pyb_util.draw_sphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
 
-    state_target = vector_array()
+    state_target = ocs2.vector_array()
     state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
 
-    target_trajectories = TargetTrajectories(t_target, state_target, input_target)
+    target_trajectories = ocs2.TargetTrajectories(t_target, state_target, input_target)
     mpc.reset(target_trajectories)
 
     target_idx = 0
