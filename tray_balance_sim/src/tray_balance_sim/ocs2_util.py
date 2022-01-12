@@ -4,7 +4,7 @@ from enum import Enum
 import rospkg
 import property_tree as ptree
 
-from tray_balance_ocs2.MobileManipulatorPyBindings import mpc_interface
+from tray_balance_ocs2.MobileManipulatorPythonInterface import mpc_interface
 
 
 def str2bool(s):
@@ -83,5 +83,5 @@ def load_ocs2_task_settings():
     return TaskSettings(get_task_info_path())
 
 
-def setup_ocs2_mpc_interface():
-    return mpc_interface(get_task_info_path(), "/tmp/ocs2")
+def setup_ocs2_mpc_interface(settings):
+    return mpc_interface(get_task_info_path(), "/tmp/ocs2", settings)

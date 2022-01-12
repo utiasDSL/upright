@@ -22,7 +22,7 @@ from tray_balance_sim.camera import Camera
 import IPython
 
 # hook into the bindings from the OCS2-based controller
-import tray_balance_ocs2.MobileManipulatorPyBindings as ocs2
+import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 
 
 # simulation parameters
@@ -71,7 +71,7 @@ def main():
     points = points[mask.T, :]
 
     # cluster point cloud points and bound with spheres
-    k = 3
+    k = 2
     centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="kmeans")
     volume = 0
     for i in range(k):
@@ -132,7 +132,8 @@ def main():
     target_times = [0]
     r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
-    mpc = ocs2_util.setup_ocs2_mpc_interface()
+    settings = ocs2.TaskSettings()
+    mpc = ocs2_util.setup_ocs2_mpc_interface(settings)
 
     # setup EE target
     t_target = ocs2.scalar_array()
