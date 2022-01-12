@@ -14,7 +14,7 @@ from PIL import Image
 import rospkg
 from jaxlie import SO3
 
-from tray_balance_sim import util, ocs2_util
+from tray_balance_sim import util, ocs2_util, clustering
 from tray_balance_sim.simulation import MobileManipulatorSimulation
 from tray_balance_sim.recording import Recorder, VideoRecorder
 from tray_balance_sim.camera import Camera
@@ -41,6 +41,21 @@ VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/tray-balance/robust/")
 VIDEO_PATH = VIDEO_DIR / ("robust_stack3_" + TIMESTAMP)
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
+
+
+def draw_sphere(radius, position, color):
+    visual_uid = pyb.createVisualShape(
+        shapeType=pyb.GEOM_SPHERE,
+        radius=radius,
+        rgbaColor=color,
+    )
+    uid = pyb.createMultiBody(
+        baseMass=0,  # non-dynamic body
+        baseVisualShapeIndex=visual_uid,
+        basePosition=list(position),
+        baseOrientation=(0, 0, 0, 1),
+    )
+    return uid
 
 
 def main():
@@ -75,14 +90,20 @@ def main():
         mask = np.logical_or(seg == obj.bullet.uid, mask)
     points = points[mask.T, :]
 
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
-    ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
-    ax.scatter(camera.target[0], camera.target[1], zs=camera.target[2])
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_zlabel("z")
-    plt.show()
+    # cluster point cloud points and bound with spheres
+    k = 2
+    centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="hierarchy")
+    for i in range(k):
+        draw_sphere(radius=radii[i], position=centers[i, :], color=(0.5, 0.5, 0.5, 0.5))
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(projection="3d")
+    # ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
+    # ax.scatter(camera.target[0], camera.target[1], zs=camera.target[2])
+    # ax.set_xlabel("x")
+    # ax.set_ylabel("y")
+    # ax.set_zlabel("z")
+    # plt.show()
 
     IPython.embed()
 
@@ -152,17 +173,7 @@ def main():
     # NOTE: doesn't show up in the recording
     util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
 
-    goal_visual_uid = pyb.createVisualShape(
-        shapeType=pyb.GEOM_SPHERE,
-        radius=0.05,
-        rgbaColor=(0, 1, 0, 1),
-    )
-    goal_uid = pyb.createMultiBody(
-        baseMass=0,  # non-dynamic body
-        baseVisualShapeIndex=goal_visual_uid,
-        basePosition=list(r_ew_w_d),
-        baseOrientation=list(Qd),
-    )
+    draw_sphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
 
     state_target = vector_array()
     state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
