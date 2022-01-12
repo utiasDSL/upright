@@ -1,137 +1,17 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import pybullet as pyb
 from pathlib import Path
 from liegroups import SO3
 from PIL import Image
-import glm
 
 import tray_balance_sim.util as util
+from tray_balance_sim.camera import Camera
 
 import IPython
 
 DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/ICRA22")
-
-
-class Camera:
-    def __init__(
-        self,
-        target_position,
-        distance=None,
-        roll=None,
-        pitch=None,
-        yaw=None,
-        camera_position=None,
-        near=0.1,
-        far=1000.0,
-        fov=60.0,
-        width=1280,
-        height=720,
-    ):
-        self.width = width
-        self.height = height
-        self.far = far
-        self.near = near
-
-        if camera_position is not None:
-            self.cam_view_matrix = pyb.computeViewMatrix(
-                cameraEyePosition=camera_position,
-                cameraTargetPosition=target_position,
-                cameraUpVector=[0, 0, 1],
-            )
-        else:
-            self.cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
-                distance=distance,
-                yaw=yaw,
-                pitch=pitch,
-                roll=roll,
-                cameraTargetPosition=target_position,
-                upAxisIndex=2,
-            )
-        self.cam_proj_matrix = pyb.computeProjectionMatrixFOV(
-            fov=fov, aspect=width / height, nearVal=near, farVal=far
-        )
-
-    def get_frame(self):
-        w, h, rgb, dep, seg = pyb.getCameraImage(
-            width=self.width,
-            height=self.height,
-            shadow=1,
-            viewMatrix=self.cam_view_matrix,
-            projectionMatrix=self.cam_proj_matrix,
-            # flags=pyb.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
-            renderer=pyb.ER_BULLET_HARDWARE_OPENGL,
-        )
-        return w, h, rgb, dep, seg
-
-    def save_frame(self, filename):
-        w, h, rgb, dep, seg = self.get_frame()
-        img = Image.fromarray(np.reshape(rgb, (h, w, 4)), "RGBA")
-        img.save(filename)
-
-    def linearize_depth(self, dep):
-        """Convert depth map to actual distance from camera.
-
-        See <https://stackoverflow.com/questions/6652253/getting-the-true-z-value-from-the-depth-buffer>.
-        """
-        dep = 2 * dep - 1
-        dep_linear = (
-            2.0
-            * self.near
-            * self.far
-            / (self.far + self.near - dep * (self.far - self.near))
-        )
-        return dep_linear
-
-    def get_point_cloud(self):
-        # assumes static camera
-        # see <https://stackoverflow.com/a/62247245>
-        _, _, _, dep, seg = self.get_frame()
-
-        # view matrix maps world coordinates to camera coordinates (extrinsics)
-        view_matrix = np.array(self.cam_view_matrix).reshape((4, 4)).T
-        model_matrix = np.linalg.inv(view_matrix)
-
-        # camera projection matrix: map camera coordinates to clip coordinates
-        # (intrinsics)
-        proj = np.array(self.cam_proj_matrix).reshape((4, 4))
-        proj_inv = np.linalg.inv(proj)
-
-        # dep is stored (height * width) (i.e., transpose of what one might
-        # expect on the numpy side)
-        points = np.zeros((self.width, self.height, 3))
-        for h in range(self.height):
-            for w in range(self.width):
-                # convert to normalized device coordinates
-                # notice that the y-transform is negative---we actually have a
-                # left-handed coordinate frame here (x = right, y = down, z =
-                # out of the screen)
-                x = (2 * w - self.width) / self.width
-                y = -(2 * h - self.height) / self.height
-
-                # depth buffer is already in range [0, 1]
-                z = 2 * dep[h, w] - 1
-
-                # back out to world coordinates by applying inverted projection
-                # and view matrices
-                v = np.array([x, y, z, 1])
-                P = model_matrix @ proj_inv @ v
-
-                # normalize homogenous coordinates to get rid of perspective
-                # divide
-                points[w, h, :] = P[:3] / P[3]
-
-        points = points[seg.T >= 0, :]
-
-        fig = plt.figure()
-        ax = fig.add_subplot(projection="3d")
-        ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        plt.show()
 
 
 class VideoRecorder(Camera):

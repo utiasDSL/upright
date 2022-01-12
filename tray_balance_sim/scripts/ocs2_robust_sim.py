@@ -8,15 +8,16 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import pybullet as pyb
 from PIL import Image
 import rospkg
 from jaxlie import SO3
-import glm
 
 from tray_balance_sim import util, ocs2_util
 from tray_balance_sim.simulation import MobileManipulatorSimulation
-from tray_balance_sim.recording import Recorder, VideoRecorder, Camera
+from tray_balance_sim.recording import Recorder, VideoRecorder
+from tray_balance_sim.camera import Camera
 
 import IPython
 
@@ -58,29 +59,29 @@ def main():
     camera = Camera(
         camera_position=cam_pos,
         target_position=target,
-        width=240,
+        width=200,
         height=200,
-        fov=60,
+        fov=50,
         near=0.1,
-        far=10.0,
+        far=5,
     )
-    # w, h, rgb, dep, seg = camera.get_frame()
-    # dep_linear = camera.linearize_depth(dep)
+    w, h, rgb, dep, seg = camera.get_frame()
     camera.save_frame("testframe.png")
-    points = camera.get_point_cloud()
+    points = camera.get_point_cloud(dep)
 
-    plt.figure()
-    plt.title("Depth buffer")
-    plt.imshow(dep)
+    # mask out everything except balanced objects
+    mask = np.zeros_like(seg)
+    for obj in objects.values():
+        mask = np.logical_or(seg == obj.bullet.uid, mask)
+    points = points[mask.T, :]
 
-    plt.figure()
-    plt.title("Linearized depth buffer")
-    plt.imshow(dep_linear)
-
-    plt.figure()
-    plt.title("Cylinder 1")
-    plt.imshow(seg == objects["stacked_cylinder1"].bullet.uid)
-
+    fig = plt.figure()
+    ax = fig.add_subplot(projection="3d")
+    ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
+    ax.scatter(camera.target[0], camera.target[1], zs=camera.target[2])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
     plt.show()
 
     IPython.embed()
