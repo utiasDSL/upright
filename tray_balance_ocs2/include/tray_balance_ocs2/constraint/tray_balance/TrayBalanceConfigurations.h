@@ -9,22 +9,22 @@
 namespace ocs2 {
 namespace mobile_manipulator {
 
-enum TrayBalanceConfigurationType {
-    Flat,
-    Stacked,
-};
-
 struct TrayBalanceConfiguration {
-    TrayBalanceConfigurationType type = Flat;
+    enum class Arrangement {
+        Flat,
+        Stacked,
+    };
+
+    Arrangement arrangement = Arrangement::Flat;
     size_t num = 0;
 
-    void set_type(const std::string& config_type) {
-        if (config_type == "flat") {
-            type = Flat;
-        } else if (config_type == "stacked") {
-            type = Stacked;
+    void set_arrangement(const std::string& s) {
+        if (s == "flat") {
+            arrangement = Arrangement::Flat;
+        } else if (s == "stacked") {
+            arrangement = Arrangement::Stacked;
         } else {
-            throw std::runtime_error("Invalid config type: " + config_type);
+            throw std::runtime_error("Invalid arrangement: " + s);
         }
     }
 };
@@ -103,12 +103,13 @@ BalancedObject<Scalar> build_cylinder1(const TrayBalanceConfiguration& config) {
 
     // position changes based on configuration
     Vec3<Scalar> cylinder_com;
-    if (config.type == Flat) {
+    if (config.arrangement == TrayBalanceConfiguration::Arrangement::Flat) {
         Scalar ee_side_length(0.2);
         Vec2<Scalar> com_xy =
             equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 0);
         cylinder_com << com_xy, Scalar(0.115);
-    } else if (config.type == Stacked) {
+    } else if (config.arrangement ==
+               TrayBalanceConfiguration::Arrangement::Stacked) {
         cylinder_com << Scalar(0), Scalar(0), Scalar(0.115);
     }
 
@@ -145,12 +146,13 @@ BalancedObject<Scalar> build_cylinder2(const TrayBalanceConfiguration& config) {
     Vec2<Scalar> cylinder_support_offset = Vec2<Scalar>::Zero();
 
     Vec3<Scalar> cylinder_com;
-    if (config.type == Flat) {
+    if (config.arrangement == TrayBalanceConfiguration::Arrangement::Flat) {
         Scalar ee_side_length(0.2);
         Vec2<Scalar> com_xy =
             equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 1);
         cylinder_com << com_xy, Scalar(0.115);
-    } else if (config.type == Stacked) {
+    } else if (config.arrangement ==
+               TrayBalanceConfiguration::Arrangement::Stacked) {
         cylinder_com << Scalar(0), Scalar(0), Scalar(0.265);
     }
 
@@ -182,12 +184,13 @@ BalancedObject<Scalar> build_cylinder3(const TrayBalanceConfiguration& config) {
     Vec2<Scalar> cylinder_support_offset = Vec2<Scalar>::Zero();
 
     Vec3<Scalar> cylinder_com;
-    if (config.type == Flat) {
+    if (config.arrangement == TrayBalanceConfiguration::Arrangement::Flat) {
         Scalar ee_side_length(0.2);
         Vec2<Scalar> com_xy =
             equilateral_triangle_cup_location(ee_side_length, Scalar(0.08), 2);
         cylinder_com << com_xy, Scalar(0.115);
-    } else if (config.type == Stacked) {
+    } else if (config.arrangement ==
+               TrayBalanceConfiguration::Arrangement::Stacked) {
         cylinder_com << Scalar(0), Scalar(0), Scalar(0.415);
     }
 
@@ -221,7 +224,7 @@ std::vector<BalancedObject<Scalar>> build_objects(
         return {tray};
     }
 
-    if (config.type == Flat) {
+    if (config.arrangement == TrayBalanceConfiguration::Arrangement::Flat) {
         if (config.num == 1) {
             auto composite_tray_cylinder1 =
                 BalancedObject<Scalar>::compose({tray, cylinder1});
@@ -236,7 +239,8 @@ std::vector<BalancedObject<Scalar>> build_objects(
             return {composite_tray_cylinder123, cylinder1, cylinder2,
                     cylinder3};
         }
-    } else { /* Stacked */
+    } else if (config.arrangement ==
+               TrayBalanceConfiguration::Arrangement::Stacked) {
         if (config.num == 1) {
             auto composite_tray_cylinder1 =
                 BalancedObject<Scalar>::compose({tray, cylinder1});

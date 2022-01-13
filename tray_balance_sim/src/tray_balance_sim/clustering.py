@@ -40,10 +40,30 @@ def ritter(ps, eps=1e-8):
     return c, r
 
 
+def iterative_ritter(points, k=3, n=10):
+    # initialize with normal k-means
+    centers, assignments = cluster_kmeans(points, k=k)
+    radii = np.zeros(k)
+
+    dists = np.zeros((points.shape[0], k))
+
+    for _ in range(n):
+        # compute new center based on Ritter's bounding sphere
+        for i in range(k):
+            idx, = np.nonzero(assignments == i)
+            centers[i, :], radii[i] = ritter(points[idx, :])
+
+        # compute new assigments based on closest center for each point
+        for i in range(k):
+            dists[:, i] = np.sum(np.square(points - centers[i, :]), axis=1)
+        assigments = np.argmax(dists, axis=1)
+    return centers, radii
+
+
 def cluster_kmeans(points, k=3):
     """Cluster points using k-means."""
     whitened_points = vq.whiten(points)
-    whitened_centers, _ = vq.kmeans(whitened_points, k_or_guess=k)
+    whitened_centers, _ = vq.kmeans2(whitened_points, k=k, minit="++")
     assignments, dists = vq.vq(whitened_points, whitened_centers)
 
     centers = np.zeros_like(whitened_centers)

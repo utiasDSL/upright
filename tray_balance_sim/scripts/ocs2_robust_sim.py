@@ -12,9 +12,9 @@ from mpl_toolkits.mplot3d import Axes3D
 import pybullet as pyb
 from PIL import Image
 import rospkg
-from jaxlie import SO3
+from scipy.spatial.distance import pdist, squareform
 
-from tray_balance_sim import util, ocs2_util, pyb_util, clustering
+from tray_balance_sim import util, ocs2_util, pyb_util, clustering, geometry
 from tray_balance_sim.simulation import MobileManipulatorSimulation
 from tray_balance_sim.recording import Recorder, VideoRecorder
 from tray_balance_sim.camera import Camera
@@ -38,17 +38,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 
-def main():
-    np.set_printoptions(precision=3, suppress=True)
-
-    sim = MobileManipulatorSimulation(dt=SIM_DT)
-    settings = ocs2_util.load_ocs2_task_settings()
-
-    N = int(DURATION / sim.dt)
-
-    # simulation objects and model
-    robot, objects, _ = sim.setup(settings.tray_balance_settings)
-
+def camera_test(objects):
     target = objects["stacked_cylinder2"].bullet.get_pose()[0]
     cam_pos = [target[0], target[1] - 1, target[2]]
     camera = Camera(
@@ -70,9 +60,14 @@ def main():
         mask = np.logical_or(seg == obj.bullet.uid, mask)
     points = points[mask.T, :]
 
+    # compute max_radius for robust inertia
+    max_radius = 0.5 * np.max(pdist(points))
+    print(f"max_radius = {max_radius}")
+
     # cluster point cloud points and bound with spheres
-    k = 2
+    k = 5
     centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="kmeans")
+    # centers, radii = clustering.iterative_ritter(points, k=k)
     volume = 0
     for i in range(k):
         volume += 4 * np.pi * radii[i] ** 3 / 3
@@ -91,6 +86,21 @@ def main():
     # plt.show()
 
     IPython.embed()
+
+
+def main():
+    np.set_printoptions(precision=3, suppress=True)
+
+    sim = MobileManipulatorSimulation(dt=SIM_DT)
+
+    N = int(DURATION / sim.dt)
+
+    # simulation objects and model
+    robot, objects, _ = sim.setup(
+        ["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
+    )  # TODO
+
+    # camera_test(objects)
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
@@ -133,7 +143,26 @@ def main():
     r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
     settings = ocs2.TaskSettings()
+    settings.tray_balance_settings.enabled = True
+    settings.tray_balance_settings.robust = True
+
+    ball1 = ocs2.Ball([0, 0, 0.1], 0.12)
+    ball2 = ocs2.Ball([0, 0, 0.3], 0.12)
+
+    robust_params = ocs2.ParameterSet()
+    robust_params.min_support_dist = 0.05
+    robust_params.min_mu = 0.5
+    robust_params.min_r_tau = geometry.circle_r_tau(robust_params.min_support_dist)
+    robust_params.max_radius = 0.5 * (
+        np.linalg.norm(ball2.center - ball2.center) + ball1.radius + ball2.radius
+    )
+    robust_params.balls = [ball1, ball2]
+
+    settings.tray_balance_settings.robust_params = robust_params
+
     mpc = ocs2_util.setup_ocs2_mpc_interface(settings)
+
+    IPython.embed()
 
     # setup EE target
     t_target = ocs2.scalar_array()
@@ -157,7 +186,7 @@ def main():
     Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
 
     # NOTE: doesn't show up in the recording
-    util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
+    pyb_util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
 
     pyb_util.draw_sphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
 

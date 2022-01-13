@@ -13,8 +13,7 @@ class MobileManipulatorPythonInterface final : public PythonInterface {
     explicit MobileManipulatorPythonInterface(const std::string& taskFile,
                                               const std::string& libraryFolder,
                                               const TaskSettings& settings) {
-        // TODO need to pass another data structure here
-        MobileManipulatorInterface robot(taskFile, libraryFolder);
+        MobileManipulatorInterface robot(taskFile, libraryFolder, settings);
 
         // Set the reference manager -- otherwise there are problems with the
         // EndEffectorCost

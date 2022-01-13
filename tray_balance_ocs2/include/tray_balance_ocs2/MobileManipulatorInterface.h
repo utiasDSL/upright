@@ -43,6 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <pinocchio/parsers/urdf.hpp>
 
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
+#include <tray_balance_ocs2/TaskSettings.h>
 #include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h>
 #include <tray_balance_ocs2/definitions.h>
 
@@ -60,7 +61,8 @@ class MobileManipulatorInterface final : public RobotInterface {
      * file
      */
     explicit MobileManipulatorInterface(const std::string& taskFile,
-                                        const std::string& libraryFolder);
+                                        const std::string& libraryFolder,
+                                        const TaskSettings& settings);
 
     const vector_t& getInitialState() { return initialState_; }
 
@@ -147,7 +149,7 @@ class MobileManipulatorInterface final : public RobotInterface {
     mpc::Settings mpcSettings_;
     multiple_shooting::Settings sqpSettings_;
 
-    std::string method_;  // DDP or SQP
+    TaskSettings settings_;
 
     OptimalControlProblem problem_;
     std::unique_ptr<RolloutBase> rolloutPtr_;

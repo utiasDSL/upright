@@ -226,9 +226,9 @@ class Simulation:
         return (c0, c1, c2)
 
     # def object_setup(self, r_ew_w, obj_names):
-    def object_setup(self, r_ew_w, tray_balance_settings):
+    def object_setup(self, r_ew_w, obj_names):
         # setup balanced objects
-        obj_names = tray_balance_settings.obj_names()
+        # obj_names = tray_balance_settings.obj_names()
 
         objects = {}
 

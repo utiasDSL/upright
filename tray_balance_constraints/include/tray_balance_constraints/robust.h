@@ -34,6 +34,9 @@ template <typename Scalar>
 struct ParameterSet {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+    ParameterSet()
+        : min_support_dist(0), min_mu(0), min_r_tau(0), max_radius(0) {}
+
     ParameterSet(const std::vector<Ball<Scalar>>& balls,
                  const Scalar min_support_dist, const Scalar min_mu,
                  const Scalar min_r_tau, const Scalar max_radius)
@@ -95,17 +98,18 @@ Vector<Scalar> robust_balancing_constraints(
     for (auto ball : param_set.balls) {
         // TODO .norm() computes Frobenius norm for matrices, which is not
         // actually what we want
-        Scalar alpha_max = epsilon_norm<Scalar>(
-            linear_acc + ddC_we * ball.center - g, eps) +
-        ball.radius * epsilon_norm<Scalar>(ddC_we, eps);
+        Scalar alpha_max =
+            epsilon_norm<Scalar>(linear_acc + ddC_we * ball.center - g, eps) +
+            ball.radius * epsilon_norm<Scalar>(ddC_we, eps);
 
-        Scalar alpha_xy_max = epsilon_norm<Scalar>(
-            S_xy * C_ew * (linear_acc + ddC_we * ball.center - g), eps) +
-        ball.radius * epsilon_norm<Scalar>(S_xy * C_ew * ddC_we, eps);
+        Scalar alpha_xy_max =
+            epsilon_norm<Scalar>(
+                S_xy * C_ew * (linear_acc + ddC_we * ball.center - g), eps) +
+            ball.radius * epsilon_norm<Scalar>(S_xy * C_ew * ddC_we, eps);
 
         Scalar alpha_z_min =
             (C_ew * (linear_acc + ddC_we * ball.center - g))(2) -
-        ball.radius * (ddC_we.transpose() * C_we * z).norm();
+            ball.radius * (ddC_we.transpose() * C_we * z).norm();
 
         // friction
         // Scalar h1 = param_set.min_mu * alpha_z_min -

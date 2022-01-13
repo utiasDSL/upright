@@ -1,35 +1,34 @@
 #pragma once
 
 #include <ocs2_core/misc/LoadData.h>
+#include <tray_balance_constraints/robust.h>
 #include <tray_balance_ocs2/definitions.h>
+#include <tray_balance_ocs2/constraint/ConstraintType.h>
 #include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceConfigurations.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-enum TrayBalanceConstraintType {
-    Soft,
-    Hard,
-};
 
 struct TrayBalanceSettings {
-    bool enabled = true;
+
+    bool enabled = false;
     bool robust = false;
 
     TrayBalanceConfiguration config;
+    ParameterSet<scalar_t> robust_params;
 
-    TrayBalanceConstraintType constraint_type = Soft;
+    ConstraintType constraint_type = ConstraintType::Soft;
     scalar_t mu = 1e-2;
     scalar_t delta = 1e-3;
 
-    void set_constraint_type(const std::string& constraint_type) {
-        if (constraint_type == "soft") {
-            this->constraint_type = Soft;
-        } else if (constraint_type == "hard") {
-            this->constraint_type = Hard;
+    void set_constraint_type(const std::string& s) {
+        if (s == "soft") {
+            constraint_type = ConstraintType::Soft;
+        } else if (s == "hard") {
+            constraint_type = ConstraintType::Hard;
         } else {
-            throw std::runtime_error("Invalid constraint type: " +
-                                     constraint_type);
+            throw std::runtime_error("Invalid constraint type: " + s);
         }
     }
 
@@ -64,7 +63,7 @@ struct TrayBalanceSettings {
         std::string config_type;
         loadData::loadPtreeValue(pt, config_type, prefix + ".config_type",
                                  verbose);
-        settings.config.set_type(config_type);
+        settings.config.set_arrangement(config_type);
 
         std::cerr
             << " #### "

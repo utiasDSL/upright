@@ -75,7 +75,9 @@ namespace mobile_manipulator {
 /******************************************************************************************************/
 /******************************************************************************************************/
 MobileManipulatorInterface::MobileManipulatorInterface(
-    const std::string& taskFile, const std::string& libraryFolder) {
+    const std::string& taskFile, const std::string& libraryFolder,
+    const TaskSettings& settings)
+    : settings_(settings) {
     std::cerr << "Loading task file: " << taskFile << std::endl;
 
     // load setting from config file
@@ -140,7 +142,6 @@ void MobileManipulatorInterface::loadSettings(
                              "model_settings.usePreComputation", true);
     loadData::loadPtreeValue(pt, recompileLibraries,
                              "model_settings.recompileLibraries", true);
-    loadData::loadPtreeValue(pt, method_, "model_settings.method", true);
     std::cerr << " #### "
                  "============================================================="
                  "================"
@@ -199,11 +200,7 @@ void MobileManipulatorInterface::loadSettings(
         "jointStateInputLimits", getJointStateInputLimitConstraint(taskFile));
 
     // Self-collision avoidance and collision avoidance with static obstacles
-    bool collision_avoidance_enabled = false;
-    loadData::loadPtreeValue(pt, collision_avoidance_enabled,
-                             "collisionAvoidance.enabled", false);
-
-    if (collision_avoidance_enabled) {
+    if (settings_.collision_avoidance_enabled) {
         std::cerr << "Collision avoidance is enabled." << std::endl;
         problem_.stateSoftConstraintPtr->add(
             "collisionAvoidance",
@@ -216,11 +213,7 @@ void MobileManipulatorInterface::loadSettings(
 
     // Collision avoidance with dynamic obstacles specified via the reference
     // trajectory
-    bool dynamic_obstacle_enabled = false;
-    loadData::loadPtreeValue(pt, dynamic_obstacle_enabled,
-                             "dynamicObstacleAvoidance.enabled", false);
-
-    if (dynamic_obstacle_enabled) {
+    if (settings_.dynamic_obstacle_enabled) {
         std::cerr << "Dynamic obstacle avoidance is enabled." << std::endl;
         problem_.stateSoftConstraintPtr->add(
             "dynamicObstacleAvoidance",
@@ -231,15 +224,14 @@ void MobileManipulatorInterface::loadSettings(
         std::cerr << "Dynamic obstacle avoidance is disabled." << std::endl;
     }
 
-    TrayBalanceSettings tray_balance_settings = TrayBalanceSettings::load(taskFile);
-
-    if (tray_balance_settings.enabled) {
-        if (tray_balance_settings.constraint_type == Soft) {
+    if (settings_.tray_balance_settings.enabled) {
+        if (settings_.tray_balance_settings.constraint_type ==
+            ConstraintType::Soft) {
             std::cerr << "Soft tray balance constraints enabled." << std::endl;
             problem_.softConstraintPtr->add(
                 "trayBalance",
                 getTrayBalanceSoftConstraint(
-                    *pinocchioInterfacePtr_, tray_balance_settings,
+                    *pinocchioInterfacePtr_, settings_.tray_balance_settings,
                     usePreComputation, libraryFolder, recompileLibraries));
 
         } else {
@@ -249,7 +241,7 @@ void MobileManipulatorInterface::loadSettings(
             problem_.inequalityConstraintPtr->add(
                 "trayBalance",
                 getTrayBalanceConstraint(
-                    *pinocchioInterfacePtr_, tray_balance_settings,
+                    *pinocchioInterfacePtr_, settings_.tray_balance_settings,
                     usePreComputation, libraryFolder, recompileLibraries));
         }
     } else {
@@ -299,15 +291,14 @@ void MobileManipulatorInterface::loadSettings(
 /******************************************************************************************************/
 /******************************************************************************************************/
 std::unique_ptr<MPC_BASE> MobileManipulatorInterface::getMpc() {
-    if (method_ == "DDP") {
+    if (settings_.method == TaskSettings::Method::DDP) {
         return std::unique_ptr<MPC_BASE>(new MPC_DDP(mpcSettings_, ddpSettings_,
                                                      *rolloutPtr_, problem_,
                                                      *initializerPtr_));
-    } else if (method_ == "SQP") {
+    } else {
         return std::unique_ptr<MPC_BASE>(new MultipleShootingMpc(
             mpcSettings_, sqpSettings_, problem_, *initializerPtr_));
     }
-    throw std::runtime_error("Invalid method: " + method_);
 }
 
 /******************************************************************************************************/
@@ -504,7 +495,7 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
     if (settings.robust) {
         return std::unique_ptr<StateInputConstraint>(
             new RobustTrayBalanceConstraints(pinocchioEEKinematics,
-                                             settings.config));
+                                             settings.robust_params));
     } else {
         return std::unique_ptr<StateInputConstraint>(
             new TrayBalanceConstraints(pinocchioEEKinematics, settings.config));
@@ -514,7 +505,8 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
 std::unique_ptr<StateInputCost>
 MobileManipulatorInterface::getTrayBalanceSoftConstraint(
     PinocchioInterface pinocchioInterface, const TrayBalanceSettings& settings,
-    bool usePreComputation, const std::string& libraryFolder, bool recompileLibraries) {
+    bool usePreComputation, const std::string& libraryFolder,
+    bool recompileLibraries) {
     // compute the hard constraint
     std::unique_ptr<StateInputConstraint> constraint = getTrayBalanceConstraint(
         pinocchioInterface, settings, usePreComputation, libraryFolder,
@@ -524,7 +516,8 @@ MobileManipulatorInterface::getTrayBalanceSoftConstraint(
     std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(
         constraint->getNumConstraints(0));
     for (int i = 0; i < constraint->getNumConstraints(0); i++) {
-        penaltyArray[i].reset(new RelaxedBarrierPenalty({settings.mu, settings.delta}));
+        penaltyArray[i].reset(
+            new RelaxedBarrierPenalty({settings.mu, settings.delta}));
     }
 
     return std::unique_ptr<StateInputCost>(new StateInputSoftConstraint(

@@ -2,7 +2,7 @@ model_settings
 {
   usePreComputation             false  ; keep false: not supported for tray balance
   recompileLibraries            true
-  method                        DDP  ; can be DDP or SQP
+;  method                        DDP  ; can be DDP or SQP
 }
 
 ; DDP settings
@@ -207,7 +207,7 @@ endEffectorCost
 
 collisionAvoidance
 {
-  enabled false
+;  enabled false
 
   collisionLinkPairs
   {
@@ -263,7 +263,7 @@ collisionAvoidance
 
 dynamicObstacleAvoidance
 {
-  enabled false
+;  enabled false
 
   collision_link_names
   {
@@ -381,18 +381,18 @@ jointLimits
   }
 }
 
-trayBalanceConstraints
-{
-  enabled  true
-  robust   true
-
-  config_type  stacked
-  num_objects  3
-
-  constraint_type soft
-  mu    1e-2
-  delta 1e-3
-}
+; trayBalanceConstraints
+; {
+;   enabled  true
+;   robust   true
+;
+;   config_type  stacked
+;   num_objects  3
+;
+;   constraint_type soft
+;   mu    1e-2
+;   delta 1e-3
+; }
 
 urdfSettings
 {

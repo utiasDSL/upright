@@ -4,17 +4,17 @@
 
 #include <ocs2_core/Types.h>
 #include <ocs2_python_interface/PybindMacros.h>
+#include <tray_balance_constraints/types.h>
+#include <tray_balance_constraints/robust.h>
 
-#include "tray_balance_ocs2/MobileManipulatorPyBindings.h"  // TODO rename
+#include "tray_balance_ocs2/MobileManipulatorPythonInterface.h"
 #include "tray_balance_ocs2/TaskSettings.h"
+#include "tray_balance_ocs2/constraint/ConstraintType.h"
+#include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceConfigurations.h"
+#include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h"
 
-// CREATE_ROBOT_PYTHON_BINDINGS(
-//     ocs2::mobile_manipulator::MobileManipulatorPyBindings,
-//     MobileManipulatorPyBindings)
-
-using MobileManipulatorPythonInterface =
-    ocs2::mobile_manipulator::MobileManipulatorPythonInterface;
-using TaskSettings = ocs2::mobile_manipulator::TaskSettings;
+using namespace ocs2;
+using namespace mobile_manipulator;
 
 /* make vector types opaque so they are not converted to python lists */
 PYBIND11_MAKE_OPAQUE(ocs2::scalar_array_t)
@@ -29,14 +29,60 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
     VECTOR_TYPE_BINDING(ocs2::matrix_array_t, "matrix_array")
 
     /* bind settings */
-    pybind11::class_<TaskSettings>(m, "TaskSettings")
+    pybind11::class_<Ball<scalar_t>>(m, "Ball")
+        .def(pybind11::init<const Vec3<scalar_t>&, const scalar_t>(),
+             "center"_a, "radius"_a)
+        .def_readwrite("center", &Ball<scalar_t>::center)
+        .def_readwrite("radius", &Ball<scalar_t>::radius);
+
+    pybind11::class_<ParameterSet<scalar_t>>(m, "ParameterSet")
         .def(pybind11::init<>())
-        .def_readwrite("tray_balance_enabled",
-                       &TaskSettings::tray_balance_enabled)
+        .def_readwrite("balls", &ParameterSet<scalar_t>::balls)
+        .def_readwrite("min_support_dist", &ParameterSet<scalar_t>::min_support_dist)
+        .def_readwrite("min_mu", &ParameterSet<scalar_t>::min_mu)
+        .def_readwrite("min_r_tau", &ParameterSet<scalar_t>::min_r_tau)
+        .def_readwrite("max_radius", &ParameterSet<scalar_t>::max_radius);
+
+    pybind11::class_<TrayBalanceConfiguration> tray_balance_configuration(
+        m, "TrayBalanceConfiguration");
+
+    tray_balance_configuration.def(pybind11::init<>())
+        .def_readwrite("num", &TrayBalanceConfiguration::num)
+        .def_readwrite("arrangement", &TrayBalanceConfiguration::arrangement);
+
+    pybind11::enum_<TrayBalanceConfiguration::Arrangement>(
+        tray_balance_configuration, "Arrangement")
+        .value("Flat", TrayBalanceConfiguration::Arrangement::Flat)
+        .value("Stacked", TrayBalanceConfiguration::Arrangement::Stacked);
+
+    pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("enabled", &TrayBalanceSettings::enabled)
+        .def_readwrite("robust", &TrayBalanceSettings::robust)
+        .def_readwrite("constraint_type", &TrayBalanceSettings::constraint_type)
+        .def_readwrite("mu", &TrayBalanceSettings::mu)
+        .def_readwrite("delta", &TrayBalanceSettings::delta)
+        .def_readwrite("config", &TrayBalanceSettings::config)
+        .def_readwrite("robust_params", &TrayBalanceSettings::robust_params);
+
+    pybind11::enum_<ConstraintType>(m, "ConstraintType")
+        .value("Soft", ConstraintType::Soft)
+        .value("Hard", ConstraintType::Hard);
+
+    pybind11::class_<TaskSettings> task_settings(m, "TaskSettings");
+
+    task_settings.def(pybind11::init<>())
         .def_readwrite("dynamic_obstacle_enabled",
                        &TaskSettings::dynamic_obstacle_enabled)
         .def_readwrite("collision_avoidance_enabled",
-                       &TaskSettings::collision_avoidance_enabled);
+                       &TaskSettings::collision_avoidance_enabled)
+        .def_readwrite("method", &TaskSettings::method)
+        .def_readwrite("tray_balance_settings",
+                       &TaskSettings::tray_balance_settings);
+
+    pybind11::enum_<TaskSettings::Method>(task_settings, "Method")
+        .value("DDP", TaskSettings::Method::DDP)
+        .value("SQP", TaskSettings::Method::SQP);
 
     /* bind approximation classes */
     pybind11::class_<ocs2::VectorFunctionLinearApproximation>(

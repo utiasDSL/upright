@@ -56,7 +56,7 @@ class TaskSettings:
     def __init__(self, path):
         properties = ptree.info.load(path)
 
-        self.tray_balance_settings = TrayBalanceSettings(properties)
+        # self.tray_balance_settings = TrayBalanceSettings(properties)
         self.dynamic_obstacle_enabled = str2bool(
             properties["dynamicObstacleAvoidance"]["enabled"].value
         )
