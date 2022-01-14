@@ -100,23 +100,29 @@ def get_task_settings():
     settings.tray_balance_settings.robust = True
     settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
 
-    settings.tray_balance_settings.config.arrangement = (
-        ocs2.TrayBalanceConfiguration.Arrangement.Stacked
-    )
-    settings.tray_balance_settings.config.num = 3
+    config = ocs2.TrayBalanceConfiguration()
+    config.arrangement = ocs2.TrayBalanceConfiguration.Arrangement.Stacked
+    config.num = 3
+    settings.tray_balance_settings.config = config
 
     # robust settings
-    ball1 = ocs2.Ball([0, 0, 0.1], 0.12)
-    ball2 = ocs2.Ball([0, 0, 0.3], 0.12)
-
     robust_params = ocs2.RobustParameterSet()
     robust_params.min_support_dist = 0.05
     robust_params.min_mu = 0.5
     robust_params.min_r_tau = geometry.circle_r_tau(robust_params.min_support_dist)
-    robust_params.max_radius = 0.5 * (
-        np.linalg.norm(ball2.center - ball2.center) + ball1.radius + ball2.radius
-    )
-    robust_params.balls = [ball1, ball2]
+
+    if config.arrangement == ocs2.TrayBalanceConfiguration.Arrangement.Stacked:
+        ball1 = ocs2.Ball([0, 0, 0.1], 0.12)
+        ball2 = ocs2.Ball([0, 0, 0.3], 0.12)
+
+        robust_params.max_radius = 0.5 * (
+            np.linalg.norm(ball2.center - ball2.center) + ball1.radius + ball2.radius
+        )
+        robust_params.balls = [ball1, ball2]
+    else:
+        ball = ocs2.Ball([0, 0, 0.02 + 0.02 + 0.075], 0.1)
+        robust_params.max_radius = ball.radius
+        robust_params.balls = [ball]
 
     settings.tray_balance_settings.robust_params = robust_params
 
@@ -172,7 +178,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=3 * 2,
+        n_balance_con=len(settings.tray_balance_settings.robust_params.balls) * 3,
         n_collision_pair=1,
         n_dynamic_obs=0,
     )
