@@ -66,7 +66,7 @@ def set_bounding_spheres(robot, objects, settings):
     print(f"max_radius = {max_radius}")
 
     # cluster point cloud points and bound with spheres
-    k = 2
+    k = 4
     # centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="kmeans")
     centers, radii = clustering.iterative_ritter(points, k=k)
     volume = 4 * np.pi * np.sum(radii ** 3) / 3
@@ -134,6 +134,7 @@ def get_task_settings():
     return settings
 
 
+# TODO: could build a generic object to attach a visual object to a multibody
 class RobustSpheres:
     def __init__(self, robot, robust_params, color=(0.5, 0.5, 0.5, 0.5)):
         self.robot = robot
