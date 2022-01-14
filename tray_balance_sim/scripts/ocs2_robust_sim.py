@@ -13,6 +13,7 @@ import pybullet as pyb
 from PIL import Image
 import rospkg
 from scipy.spatial.distance import pdist, squareform
+import liegroups
 
 from tray_balance_sim import util, ocs2_util, pyb_util, clustering, geometry
 from tray_balance_sim.simulation import MobileManipulatorSimulation
@@ -38,7 +39,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 
-def camera_test(objects):
+def set_bounding_spheres(robot, objects, settings):
     target = objects["stacked_cylinder2"].bullet.get_pose()[0]
     cam_pos = [target[0], target[1] - 1, target[2]]
     camera = Camera(
@@ -65,15 +66,10 @@ def camera_test(objects):
     print(f"max_radius = {max_radius}")
 
     # cluster point cloud points and bound with spheres
-    k = 5
-    centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="kmeans")
-    # centers, radii = clustering.iterative_ritter(points, k=k)
-    volume = 0
-    for i in range(k):
-        volume += 4 * np.pi * radii[i] ** 3 / 3
-        pyb_util.GhostSphere(
-            radius=radii[i], position=centers[i, :], color=(0.5, 0.5, 0.5, 0.5)
-        )
+    k = 2
+    # centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="kmeans")
+    centers, radii = clustering.iterative_ritter(points, k=k)
+    volume = 4 * np.pi * np.sum(radii ** 3) / 3
     print(f"Volume = {volume}")
 
     # fig = plt.figure()
@@ -85,7 +81,16 @@ def camera_test(objects):
     # ax.set_zlabel("z")
     # plt.show()
 
-    IPython.embed()
+    r_ew_w, Q_we = robot.link_pose()
+    C_we = util.quaternion_to_matrix(Q_we)
+
+    balls = []
+    for i in range(k):
+        r_bw_w = centers[i, :]
+        r_be_e = C_we.T @ (r_bw_w - r_ew_w)
+        balls.append(ocs2.Ball(r_be_e, radii[i]))
+    settings.tray_balance_settings.robust_params.balls = balls
+    settings.tray_balance_settings.robust_params.max_radius = max_radius
 
 
 def get_task_settings():
@@ -139,9 +144,9 @@ class RobustSpheres:
         for ball in robust_params.balls:
             position = r_ew_w + ball.center
             self.centers.append(ball.center)
-            self.spheres.append(pyb_util.GhostSphere(
-                radius=ball.radius, position=position, color=color
-            ))
+            self.spheres.append(
+                pyb_util.GhostSphere(radius=ball.radius, position=position, color=color)
+            )
 
     def update(self):
         r_ew_w, Q_we = self.robot.link_pose()
@@ -161,13 +166,13 @@ def main():
     # simulation objects and model
     robot, objects, _ = sim.setup(ocs2_util.get_obj_names_from_settings(settings))
 
-    # camera_test(objects)
+    set_bounding_spheres(robot, objects, settings)
+    robust_spheres = RobustSpheres(robot, settings.tray_balance_settings.robust_params)
+    IPython.embed()
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
     v_ew_w, ω_ew_w = robot.link_velocity()
-
-    robust_spheres = RobustSpheres(robot, settings.tray_balance_settings.robust_params)
 
     # data recorder and plotter
     recorder = Recorder(

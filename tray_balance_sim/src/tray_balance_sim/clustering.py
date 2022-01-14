@@ -63,7 +63,7 @@ def iterative_ritter(points, k=3, n=10):
 def cluster_kmeans(points, k=3):
     """Cluster points using k-means."""
     whitened_points = vq.whiten(points)
-    whitened_centers, _ = vq.kmeans2(whitened_points, k=k, minit="++")
+    whitened_centers, _ = vq.kmeans2(whitened_points, k=k, minit="random")
     assignments, dists = vq.vq(whitened_points, whitened_centers)
 
     centers = np.zeros_like(whitened_centers)

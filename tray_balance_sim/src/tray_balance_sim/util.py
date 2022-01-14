@@ -5,10 +5,16 @@ import liegroups
 from scipy.linalg import expm
 
 
+
+def quaternion_to_matrix(Q):
+    """Convert quaternion to rotation matrix."""
+    return liegroups.SO3.from_quaternion(Q, ordering="xyzw").as_matrix()
+
+
 def transform_point(r_ba_a, Q_ab, r_cb_b):
     """Transform point r_cb_b to r_ca_a."""
-    C_ab = liegroups.SO3.from_quaternion(Q_ab, ordering="xyzw")
-    return r_ba_a + C_ab.dot(r_cb_b)
+    C_ab = quaternion_to_matrix(Q_ab)
+    return r_ba_a + C_ab @ r_cb_b
 
 
 def rot2d(θ, np=np):
@@ -58,9 +64,9 @@ def quat_error(q):
 
 def quat_multiply(q0, q1):
     """Hamilton product of two quaternions."""
-    R0 = SO3.from_quaternion_xyzw(q0)
-    R1 = SO3.from_quaternion_xyzw(q1)
-    return np.array(R0.multiply(R1).as_quaternion_xyzw())
+    C0 = liegroups.SO3.from_quaternion(q0, ordering="xyzw")
+    C1 = liegroups.SO3.from_quaternion(q1, ordering="xyzw")
+    return C0.dot(C1).to_quaternion(ordering="xyzw")
 
 
 def skew1(x):
