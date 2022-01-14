@@ -5,6 +5,12 @@ import liegroups
 from scipy.linalg import expm
 
 
+def transform_point(r_ba_a, Q_ab, r_cb_b):
+    """Transform point r_cb_b to r_ca_a."""
+    C_ab = liegroups.SO3.from_quaternion(Q_ab, ordering="xyzw")
+    return r_ba_a + C_ab.dot(r_cb_b)
+
+
 def rot2d(θ, np=np):
     """2D rotation matrix: rotates points counter-clockwise."""
     c = np.cos(θ)

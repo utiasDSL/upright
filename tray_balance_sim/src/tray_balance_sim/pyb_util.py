@@ -54,16 +54,34 @@ def debug_frame(size, obj_uid, link_index):
     )
 
 
-def draw_sphere(radius, position, color):
-    visual_uid = pyb.createVisualShape(
-        shapeType=pyb.GEOM_SPHERE,
-        radius=radius,
-        rgbaColor=color,
-    )
-    uid = pyb.createMultiBody(
-        baseMass=0,  # non-dynamic body
-        baseVisualShapeIndex=visual_uid,
-        basePosition=list(position),
-        baseOrientation=(0, 0, 0, 1),
-    )
-    return uid
+class GhostSphere:
+    def __init__(self, radius, position, color):
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_SPHERE,
+            radius=radius,
+            rgbaColor=color,
+        )
+        self.uid = pyb.createMultiBody(
+            baseMass=0,  # non-dynamic body has mass = 0
+            baseVisualShapeIndex=visual_uid,
+            basePosition=list(position),
+            baseOrientation=(0, 0, 0, 1),
+        )
+
+    def set_position(self, position):
+        pyb.resetBasePositionAndOrientation(self.uid, list(position), (0, 0, 0, 1))
+
+
+# def draw_sphere(radius, position, color, mass=0):
+#     visual_uid = pyb.createVisualShape(
+#         shapeType=pyb.GEOM_SPHERE,
+#         radius=radius,
+#         rgbaColor=color,
+#     )
+#     uid = pyb.createMultiBody(
+#         baseMass=mass,  # non-dynamic body has mass = 0
+#         baseVisualShapeIndex=visual_uid,
+#         basePosition=list(position),
+#         baseOrientation=(0, 0, 0, 1),
+#     )
+#     return uid

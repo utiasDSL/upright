@@ -71,7 +71,7 @@ def camera_test(objects):
     volume = 0
     for i in range(k):
         volume += 4 * np.pi * radii[i] ** 3 / 3
-        pyb_util.draw_sphere(
+        pyb_util.GhostSphere(
             radius=radii[i], position=centers[i, :], color=(0.5, 0.5, 0.5, 0.5)
         )
     print(f"Volume = {volume}")
@@ -123,6 +123,27 @@ def get_task_settings():
     return settings
 
 
+class RobustSpheres:
+    def __init__(self, robot, robust_params, color=(0.5, 0.5, 0.5, 0.5)):
+        self.robot = robot
+        r_ew_w, _ = robot.link_pose()
+
+        self.spheres = []
+        self.centers = []
+        for ball in robust_params.balls:
+            position = r_ew_w + ball.center
+            self.centers.append(ball.center)
+            self.spheres.append(pyb_util.GhostSphere(
+                radius=ball.radius, position=position, color=color
+            ))
+
+    def update(self):
+        r_ew_w, Q_we = self.robot.link_pose()
+        for i in range(len(self.spheres)):
+            position = util.transform_point(r_ew_w, Q_we, self.centers[i])
+            self.spheres[i].set_position(position)
+
+
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
@@ -139,6 +160,8 @@ def main():
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
     v_ew_w, ω_ew_w = robot.link_velocity()
+
+    robust_spheres = RobustSpheres(robot, settings.tray_balance_settings.robust_params)
 
     # data recorder and plotter
     recorder = Recorder(
@@ -202,7 +225,7 @@ def main():
     # NOTE: doesn't show up in the recording
     pyb_util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
 
-    pyb_util.draw_sphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
+    pyb_util.GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
 
     state_target = ocs2.vector_array()
     state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
@@ -288,6 +311,7 @@ def main():
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
         sim.step(step_robot=True)
+        robust_spheres.update()
         t += sim.dt
         # time.sleep(sim.dt)
 
