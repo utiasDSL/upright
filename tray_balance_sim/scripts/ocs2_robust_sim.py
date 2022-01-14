@@ -88,17 +88,51 @@ def camera_test(objects):
     IPython.embed()
 
 
+def get_task_settings():
+    settings = ocs2.TaskSettings()
+
+    settings.method = ocs2.TaskSettings.Method.DDP
+    settings.dynamic_obstacle_enabled = False
+    settings.collision_avoidance_enabled = False
+
+    # tray balance settings
+    settings.tray_balance_settings.enabled = True
+    settings.tray_balance_settings.robust = True
+    settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
+
+    settings.tray_balance_settings.config.arrangement = (
+        ocs2.TrayBalanceConfiguration.Arrangement.Stacked
+    )
+    settings.tray_balance_settings.config.num = 3
+
+    # robust settings
+    ball1 = ocs2.Ball([0, 0, 0.1], 0.12)
+    ball2 = ocs2.Ball([0, 0, 0.3], 0.12)
+
+    robust_params = ocs2.RobustParameterSet()
+    robust_params.min_support_dist = 0.05
+    robust_params.min_mu = 0.5
+    robust_params.min_r_tau = geometry.circle_r_tau(robust_params.min_support_dist)
+    robust_params.max_radius = 0.5 * (
+        np.linalg.norm(ball2.center - ball2.center) + ball1.radius + ball2.radius
+    )
+    robust_params.balls = [ball1, ball2]
+
+    settings.tray_balance_settings.robust_params = robust_params
+
+    return settings
+
+
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
+    settings = get_task_settings()
     sim = MobileManipulatorSimulation(dt=SIM_DT)
 
     N = int(DURATION / sim.dt)
 
     # simulation objects and model
-    robot, objects, _ = sim.setup(
-        ["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
-    )  # TODO
+    robot, objects, _ = sim.setup(ocs2_util.get_obj_names_from_settings(settings))
 
     # camera_test(objects)
 
@@ -142,27 +176,7 @@ def main():
     target_times = [0]
     r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
-    settings = ocs2.TaskSettings()
-    settings.tray_balance_settings.enabled = True
-    settings.tray_balance_settings.robust = True
-
-    ball1 = ocs2.Ball([0, 0, 0.1], 0.12)
-    ball2 = ocs2.Ball([0, 0, 0.3], 0.12)
-
-    robust_params = ocs2.ParameterSet()
-    robust_params.min_support_dist = 0.05
-    robust_params.min_mu = 0.5
-    robust_params.min_r_tau = geometry.circle_r_tau(robust_params.min_support_dist)
-    robust_params.max_radius = 0.5 * (
-        np.linalg.norm(ball2.center - ball2.center) + ball1.radius + ball2.radius
-    )
-    robust_params.balls = [ball1, ball2]
-
-    settings.tray_balance_settings.robust_params = robust_params
-
     mpc = ocs2_util.setup_ocs2_mpc_interface(settings)
-
-    IPython.embed()
 
     # setup EE target
     t_target = ocs2.scalar_array()
@@ -243,7 +257,7 @@ def main():
             if settings.tray_balance_settings.enabled:
                 if (
                     settings.tray_balance_settings.constraint_type
-                    == ocs2_util.ConstraintType.HARD
+                    == ocs2.ConstraintType.Hard
                 ):
                     recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
                         "trayBalance", t, x, u
