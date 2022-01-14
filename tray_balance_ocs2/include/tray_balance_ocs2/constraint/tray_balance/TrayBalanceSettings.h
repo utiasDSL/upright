@@ -16,7 +16,7 @@ struct TrayBalanceSettings {
     bool robust = false;
 
     TrayBalanceConfiguration config;
-    ParameterSet<scalar_t> robust_params;
+    RobustParameterSet<scalar_t> robust_params;
 
     ConstraintType constraint_type = ConstraintType::Soft;
     scalar_t mu = 1e-2;

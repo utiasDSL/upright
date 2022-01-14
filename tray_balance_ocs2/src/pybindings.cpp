@@ -4,8 +4,8 @@
 
 #include <ocs2_core/Types.h>
 #include <ocs2_python_interface/PybindMacros.h>
-#include <tray_balance_constraints/types.h>
 #include <tray_balance_constraints/robust.h>
+#include <tray_balance_constraints/types.h>
 
 #include "tray_balance_ocs2/MobileManipulatorPythonInterface.h"
 #include "tray_balance_ocs2/TaskSettings.h"
@@ -35,13 +35,14 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("center", &Ball<scalar_t>::center)
         .def_readwrite("radius", &Ball<scalar_t>::radius);
 
-    pybind11::class_<ParameterSet<scalar_t>>(m, "ParameterSet")
+    pybind11::class_<RobustParameterSet<scalar_t>>(m, "RobustParameterSet")
         .def(pybind11::init<>())
-        .def_readwrite("balls", &ParameterSet<scalar_t>::balls)
-        .def_readwrite("min_support_dist", &ParameterSet<scalar_t>::min_support_dist)
-        .def_readwrite("min_mu", &ParameterSet<scalar_t>::min_mu)
-        .def_readwrite("min_r_tau", &ParameterSet<scalar_t>::min_r_tau)
-        .def_readwrite("max_radius", &ParameterSet<scalar_t>::max_radius);
+        .def_readwrite("balls", &RobustParameterSet<scalar_t>::balls)
+        .def_readwrite("min_support_dist",
+                       &RobustParameterSet<scalar_t>::min_support_dist)
+        .def_readwrite("min_mu", &RobustParameterSet<scalar_t>::min_mu)
+        .def_readwrite("min_r_tau", &RobustParameterSet<scalar_t>::min_r_tau)
+        .def_readwrite("max_radius", &RobustParameterSet<scalar_t>::max_radius);
 
     pybind11::class_<TrayBalanceConfiguration> tray_balance_configuration(
         m, "TrayBalanceConfiguration");

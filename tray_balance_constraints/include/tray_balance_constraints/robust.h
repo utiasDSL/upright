@@ -31,13 +31,13 @@ struct Ball {
 };
 
 template <typename Scalar>
-struct ParameterSet {
+struct RobustParameterSet {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    ParameterSet()
+    RobustParameterSet()
         : min_support_dist(0), min_mu(0), min_r_tau(0), max_radius(0) {}
 
-    ParameterSet(const std::vector<Ball<Scalar>>& balls,
+    RobustParameterSet(const std::vector<Ball<Scalar>>& balls,
                  const Scalar min_support_dist, const Scalar min_mu,
                  const Scalar min_r_tau, const Scalar max_radius)
         : balls(balls),
@@ -57,7 +57,7 @@ template <typename Scalar>
 Vector<Scalar> robust_balancing_constraints(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
-    const ParameterSet<Scalar>& param_set) {
+    const RobustParameterSet<Scalar>& param_set) {
     Mat3<Scalar> C_we = orientation;
     Mat3<Scalar> C_ew = C_we.transpose();
 

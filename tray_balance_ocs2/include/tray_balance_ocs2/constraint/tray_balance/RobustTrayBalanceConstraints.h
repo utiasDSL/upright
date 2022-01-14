@@ -19,9 +19,9 @@ namespace mobile_manipulator {
 
 // required to convert from config-specified <scalar_t> values to required
 // <ad_scalar_t> values
-ParameterSet<ad_scalar_t> cast_parameter_set_to_ad(
-    ParameterSet<scalar_t> config) {
-    ParameterSet<ad_scalar_t> ad_config;
+RobustParameterSet<ad_scalar_t> cast_parameter_set_to_ad(
+    RobustParameterSet<scalar_t> config) {
+    RobustParameterSet<ad_scalar_t> ad_config;
     ad_config.min_support_dist = config.min_support_dist;
     ad_config.min_mu = config.min_mu;
     ad_config.min_r_tau = config.min_r_tau;
@@ -47,7 +47,7 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
 
     RobustTrayBalanceConstraints(
         const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-        const ParameterSet<scalar_t>& params)
+        const RobustParameterSet<scalar_t>& params)
         : StateInputConstraintCppAd(ConstraintOrder::Linear),
           pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
           params_(params) {
@@ -83,7 +83,7 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        ParameterSet<ad_scalar_t> params = cast_parameter_set_to_ad(params_);
+        RobustParameterSet<ad_scalar_t> params = cast_parameter_set_to_ad(params_);
         ad_vector_t constraints = robust_balancing_constraints<ad_scalar_t>(
             C_we, angular_vel, linear_acc, angular_acc, params);
 
@@ -125,7 +125,7 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
         //     max_radius = (center2 - center1).norm() + radius1 + radius2;
         // }
         //
-        // ParameterSet<ad_scalar_t> param_set(balls, min_support_dist, min_mu,
+        // RobustParameterSet<ad_scalar_t> param_set(balls, min_support_dist, min_mu,
         //                                     min_r_tau, max_radius);
         // ad_vector_t constraints = robust_balancing_constraints<ad_scalar_t>(
         //     C_we, angular_vel, linear_acc, angular_acc, param_set);
@@ -138,7 +138,7 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
         default;
 
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
-    ParameterSet<scalar_t> params_;
+    RobustParameterSet<scalar_t> params_;
 };
 
 }  // namespace mobile_manipulator
