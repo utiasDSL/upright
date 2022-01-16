@@ -66,9 +66,9 @@ def set_bounding_spheres(robot, objects, settings):
     print(f"max_radius = {max_radius}")
 
     # cluster point cloud points and bound with spheres
-    k = 4
-    # centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="kmeans")
-    centers, radii = clustering.iterative_ritter(points, k=k)
+    k = 5
+    centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="greedy")
+    # centers, radii = clustering.iterative_ritter(points, k=k)
     volume = 4 * np.pi * np.sum(radii ** 3) / 3
     print(f"Volume = {volume}")
 

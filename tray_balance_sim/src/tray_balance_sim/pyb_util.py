@@ -70,18 +70,3 @@ class GhostSphere:
 
     def set_position(self, position):
         pyb.resetBasePositionAndOrientation(self.uid, list(position), (0, 0, 0, 1))
-
-
-# def draw_sphere(radius, position, color, mass=0):
-#     visual_uid = pyb.createVisualShape(
-#         shapeType=pyb.GEOM_SPHERE,
-#         radius=radius,
-#         rgbaColor=color,
-#     )
-#     uid = pyb.createMultiBody(
-#         baseMass=mass,  # non-dynamic body has mass = 0
-#         baseVisualShapeIndex=visual_uid,
-#         basePosition=list(position),
-#         baseOrientation=(0, 0, 0, 1),
-#     )
-#     return uid
