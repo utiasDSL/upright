@@ -11,7 +11,6 @@
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 
 #include <tray_balance_constraints/inequality_constraints.h>
-#include <tray_balance_constraints/robust.h>
 #include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceConfigurations.h>
 
 namespace ocs2 {

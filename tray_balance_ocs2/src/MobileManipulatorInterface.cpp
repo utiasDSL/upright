@@ -59,6 +59,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
 #include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
+#include <tray_balance_ocs2/cost/ZMPCost.h>
 #include <tray_balance_ocs2/definitions.h>
 #include <tray_balance_ocs2/util.h>
 
@@ -181,6 +182,12 @@ void MobileManipulatorInterface::loadSettings(
     /* Cost */
     problem_.costPtr->add("stateInputCost",
                           getQuadraticStateInputCost(taskFile));
+
+    // ZMP cost
+    problem_.costPtr->add(
+        "zmpCost",
+        get_zmp_cost(*pinocchioInterfacePtr_, taskFile, "zmpCost",
+                     usePreComputation, libraryFolder, recompileLibraries));
 
     // TODO do we need a final cost on state/input?
     // matrix_t Qf = matrix_t::Zero(STATE_DIM, STATE_DIM);
@@ -478,6 +485,20 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
 
     return std::unique_ptr<StateCost>(
         new EndEffectorCost(std::move(W), eeKinematics, *referenceManagerPtr_));
+}
+
+std::unique_ptr<StateInputCost> MobileManipulatorInterface::get_zmp_cost(
+    PinocchioInterface pinocchioInterface, const std::string& taskFile,
+    const std::string& prefix, bool usePreComputation,
+    const std::string& libraryFolder, bool recompileLibraries) {
+    std::string name = "thing_tool";
+
+    MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+    PinocchioEndEffectorKinematicsCppAd eeKinematics(
+        pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
+        "zmp_ee_kinematics", libraryFolder, recompileLibraries, false);
+
+    return std::unique_ptr<StateInputCost>(new ZMPCost(eeKinematics));
 }
 
 std::unique_ptr<StateInputConstraint>

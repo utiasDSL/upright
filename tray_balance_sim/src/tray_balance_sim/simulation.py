@@ -411,6 +411,24 @@ class Simulation:
             objects[name].bullet.reset_pose(position=r_ow_w)
             objects["tray"].children.append(name)
 
+        name = "rod"
+        if name in obj_names:
+            objects[name] = bodies.Cylinder(
+                r_tau=0,
+                support_area=None,
+                mass=1.0,
+                radius=0.01,
+                height=1.0,
+                mu=1.0,
+            )
+            objects[name].add_to_sim(
+                bullet_mu=1.0, color=(0.839, 0.153, 0.157, 1)
+            )
+
+            r_ow_w = r_ew_w + [0, 0, 2 * TRAY_COM_HEIGHT + 0.5 + 0.01]
+            objects[name].bullet.reset_pose(position=r_ow_w)
+            objects["tray"].children.append(name)
+
         if "cuboid1" in obj_names:
             support = geometry.PolygonSupportArea(
                 geometry.cuboid_support_vertices(CUBOID1_SIDE_LENGTHS),
