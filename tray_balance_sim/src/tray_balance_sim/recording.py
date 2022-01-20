@@ -28,8 +28,8 @@ class VideoRecorder(Camera):
         height=720,
     ):
         super().__init__(
-            distance,
             target_position,
+            distance=distance,
             roll=roll,
             pitch=pitch,
             yaw=yaw,

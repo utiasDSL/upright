@@ -47,7 +47,7 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
 
     RobustTrayBalanceConstraints(
         const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-        const RobustParameterSet<scalar_t>& params)
+        const RobustParameterSet<scalar_t>& params, bool recompileLibraries)
         : StateInputConstraintCppAd(ConstraintOrder::Linear),
           pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
           params_(params) {
@@ -58,11 +58,12 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
         }
         // initialize everything, mostly the CppAD interface
         initialize(STATE_DIM, INPUT_DIM, 0, "robust_tray_balance_constraints",
-                   "/tmp/ocs2", true, true);
+                   "/tmp/ocs2", recompileLibraries, true);
     }
 
     RobustTrayBalanceConstraints* clone() const override {
-        return new RobustTrayBalanceConstraints(*pinocchioEEKinPtr_, params_);
+        return new RobustTrayBalanceConstraints(*pinocchioEEKinPtr_, params_,
+                                                false);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
@@ -83,7 +84,10 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        RobustParameterSet<ad_scalar_t> params = cast_parameter_set_to_ad(params_);
+        std::cerr << "Using robust constraints" << std::endl;
+
+        RobustParameterSet<ad_scalar_t> params =
+            cast_parameter_set_to_ad(params_);
         ad_vector_t constraints = robust_balancing_constraints<ad_scalar_t>(
             C_we, angular_vel, linear_acc, angular_acc, params);
         return constraints;

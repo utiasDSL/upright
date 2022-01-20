@@ -66,20 +66,20 @@ def set_bounding_spheres(robot, objects, settings):
     print(f"max_radius = {max_radius}")
 
     # cluster point cloud points and bound with spheres
-    k = 5
+    k = 2
     centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="greedy")
     # centers, radii = clustering.iterative_ritter(points, k=k)
     volume = 4 * np.pi * np.sum(radii ** 3) / 3
     print(f"Volume = {volume}")
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(projection="3d")
-    # ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
-    # ax.scatter(camera.target[0], camera.target[1], zs=camera.target[2])
-    # ax.set_xlabel("x")
-    # ax.set_ylabel("y")
-    # ax.set_zlabel("z")
-    # plt.show()
+    fig = plt.figure()
+    ax = fig.add_subplot(projection="3d")
+    ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
+    ax.scatter(camera.target[0], camera.target[1], zs=camera.target[2])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+    plt.show()
 
     r_ew_w, Q_we = robot.link_pose()
     C_we = util.quaternion_to_matrix(Q_we)
@@ -102,7 +102,7 @@ def get_task_settings():
 
     # tray balance settings
     settings.tray_balance_settings.enabled = True
-    settings.tray_balance_settings.robust = True
+    settings.tray_balance_settings.robust = False
     settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
 
     config = ocs2.TrayBalanceConfiguration()
@@ -166,10 +166,15 @@ def main():
 
     # simulation objects and model
     robot, objects, _ = sim.setup(ocs2_util.get_obj_names_from_settings(settings))
+    for name, obj in objects.items():
+        print(f"{name} CoM = {obj.body.com}")
 
-    set_bounding_spheres(robot, objects, settings)
-    robust_spheres = RobustSpheres(robot, settings.tray_balance_settings.robust_params)
-    IPython.embed()
+    if settings.tray_balance_settings.robust:
+        set_bounding_spheres(robot, objects, settings)
+        robust_spheres = RobustSpheres(
+            robot, settings.tray_balance_settings.robust_params
+        )
+        IPython.embed()
 
     q, v = robot.joint_states()
     r_ew_w, Q_we = robot.link_pose()
@@ -184,14 +189,11 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=len(settings.tray_balance_settings.robust_params.balls) * 3,
-        n_collision_pair=1,
+        n_balance_con=ocs2_util.get_num_balance_constraints(settings),
+        n_collision_pair=0,
         n_dynamic_obs=0,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
-
-    for name, obj in objects.items():
-        print(f"{name} CoM = {obj.body.com}")
 
     if RECORD_VIDEO:
         video = VideoRecorder(
@@ -323,9 +325,10 @@ def main():
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
         sim.step(step_robot=True)
-        robust_spheres.update()
+        if settings.tray_balance_settings.robust:
+            robust_spheres.update()
         t += sim.dt
-        # time.sleep(sim.dt)
+        time.sleep(sim.dt)
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
             video.save_frame()

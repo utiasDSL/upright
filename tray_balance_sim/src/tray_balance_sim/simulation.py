@@ -265,7 +265,8 @@ class Simulation:
                 bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1)
             )
 
-            # stacked
+            # add 0.05 to account for EE height; this is fixed when the sim is
+            # settled later
             r_ow_w = r_ew_w + [
                 0,
                 0,
@@ -372,7 +373,6 @@ class Simulation:
                 bullet_mu=CYLINDER3_MU_BULLET_STACKED, color=(0.839, 0.153, 0.157, 1)
             )
 
-            # stacked
             r_ow_w = r_ew_w + [
                 0,
                 0,
@@ -383,7 +383,7 @@ class Simulation:
                 + 0.05,
             ]
             objects[name].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append(name)
+            objects["stacked_cylinder2"].children.append(name)
 
         name = "flat_cylinder3"
         if name in obj_names:

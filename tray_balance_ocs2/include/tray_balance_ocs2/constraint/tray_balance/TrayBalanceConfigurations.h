@@ -98,7 +98,7 @@ BalancedObject<Scalar> build_cylinder1(const TrayBalanceConfiguration& config) {
     Scalar cylinder_radius(0.05);
     Scalar cylinder_height = cylinder_com_height * 2;
     Scalar cylinder_r_tau = circle_r_tau(cylinder_radius);
-    Scalar cylinder_zmp_margin(0.0);
+    Scalar cylinder_zmp_margin(0.01);
     Vec2<Scalar> cylinder_support_offset = Vec2<Scalar>::Zero();
 
     // position changes based on configuration
@@ -118,15 +118,14 @@ BalancedObject<Scalar> build_cylinder1(const TrayBalanceConfiguration& config) {
     RigidBody<Scalar> cylinder_body(cylinder_mass, cylinder_inertia,
                                     cylinder_com);
 
-    // CircleSupportArea<Scalar> cylinder_support_area(
-    //     cylinder_radius, cylinder_support_offset, cylinder_zmp_margin);
-
     // Approximate support area using the large rectangle that fits in the
     // circle: this is better for solver stability.
     Scalar s = cylinder_radius * Scalar(sqrt(2.0));
     std::vector<Vec2<Scalar>> cylinder_vertices = cuboid_support_vertices(s, s);
     PolygonSupportArea<Scalar> cylinder_support_area(
         cylinder_vertices, cylinder_support_offset, cylinder_zmp_margin);
+    // CircleSupportArea<Scalar> cylinder_support_area(
+    //     cylinder_radius, cylinder_support_offset, cylinder_zmp_margin);
 
     BalancedObject<Scalar> cylinder(cylinder_body, cylinder_com_height,
                                     cylinder_support_area, cylinder_r_tau,
@@ -142,7 +141,7 @@ BalancedObject<Scalar> build_cylinder2(const TrayBalanceConfiguration& config) {
     Scalar cylinder_radius(0.05);
     Scalar cylinder_height = cylinder_com_height * 2;
     Scalar cylinder_r_tau = circle_r_tau(cylinder_radius);
-    Scalar cylinder_zmp_margin(0.0);
+    Scalar cylinder_zmp_margin(0.01);
     Vec2<Scalar> cylinder_support_offset = Vec2<Scalar>::Zero();
 
     Vec3<Scalar> cylinder_com;
@@ -165,6 +164,8 @@ BalancedObject<Scalar> build_cylinder2(const TrayBalanceConfiguration& config) {
     std::vector<Vec2<Scalar>> cylinder_vertices = cuboid_support_vertices(s, s);
     PolygonSupportArea<Scalar> cylinder_support_area(
         cylinder_vertices, cylinder_support_offset, cylinder_zmp_margin);
+    // CircleSupportArea<Scalar> cylinder_support_area(
+    //     cylinder_radius, cylinder_support_offset, cylinder_zmp_margin);
 
     BalancedObject<Scalar> cylinder(cylinder_body, cylinder_com_height,
                                     cylinder_support_area, cylinder_r_tau,
@@ -180,7 +181,7 @@ BalancedObject<Scalar> build_cylinder3(const TrayBalanceConfiguration& config) {
     Scalar cylinder_radius(0.05);
     Scalar cylinder_height = cylinder_com_height * 2;
     Scalar cylinder_r_tau = circle_r_tau(cylinder_radius);
-    Scalar cylinder_zmp_margin(0.0);
+    Scalar cylinder_zmp_margin(0.01);
     Vec2<Scalar> cylinder_support_offset = Vec2<Scalar>::Zero();
 
     Vec3<Scalar> cylinder_com;
@@ -201,9 +202,10 @@ BalancedObject<Scalar> build_cylinder3(const TrayBalanceConfiguration& config) {
 
     Scalar s = cylinder_radius * Scalar(sqrt(2.0));
     std::vector<Vec2<Scalar>> cylinder_vertices = cuboid_support_vertices(s, s);
-
     PolygonSupportArea<Scalar> cylinder_support_area(
         cylinder_vertices, cylinder_support_offset, cylinder_zmp_margin);
+    // CircleSupportArea<Scalar> cylinder_support_area(
+    //     cylinder_radius, cylinder_support_offset, cylinder_zmp_margin);
 
     BalancedObject<Scalar> cylinder(cylinder_body, cylinder_com_height,
                                     cylinder_support_area, cylinder_r_tau,
@@ -225,6 +227,8 @@ std::vector<BalancedObject<Scalar>> build_objects(
     }
 
     if (config.arrangement == TrayBalanceConfiguration::Arrangement::Flat) {
+        std::cerr << "Using Flat arrangement with " << config.num << " objects."
+                  << std::endl;
         if (config.num == 1) {
             auto composite_tray_cylinder1 =
                 BalancedObject<Scalar>::compose({tray, cylinder1});
@@ -239,8 +243,11 @@ std::vector<BalancedObject<Scalar>> build_objects(
             return {composite_tray_cylinder123, cylinder1, cylinder2,
                     cylinder3};
         }
+        throw std::runtime_error("Unsupported object configuration.");
     } else if (config.arrangement ==
                TrayBalanceConfiguration::Arrangement::Stacked) {
+        std::cerr << "Using Stacked arrangement with " << config.num
+                  << " objects." << std::endl;
         if (config.num == 1) {
             auto composite_tray_cylinder1 =
                 BalancedObject<Scalar>::compose({tray, cylinder1});
@@ -262,6 +269,7 @@ std::vector<BalancedObject<Scalar>> build_objects(
             return {composite_tray_cylinder123, composite_cylinder123,
                     composite_cylinder23, cylinder3};
         }
+        throw std::runtime_error("Unsupported object configuration.");
     }
     throw std::runtime_error("Unsupported object configuration.");
 }

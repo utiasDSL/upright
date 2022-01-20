@@ -119,9 +119,6 @@ class MobileManipulatorInterface final : public RobotInterface {
         bool useCaching, const std::string& libraryFolder,
         bool recompileLibraries);
 
-    std::unique_ptr<StateInputCost> getJointAccelerationLimitConstraint(
-        const std::string& taskFile);
-
     std::unique_ptr<StateInputCost> getJointStateInputLimitConstraint(
         const std::string& taskFile);
 

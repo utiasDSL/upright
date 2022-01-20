@@ -23,6 +23,15 @@ def get_obj_names_from_settings(settings):
     return ["tray"] + obj_names
 
 
+def get_num_balance_constraints(settings):
+    num_tray_con = 5
+    num_cylinder_con = 6
+    # num_cylinder_con = 3
+    if settings.tray_balance_settings.robust:
+        return len(settings.tray_balance_settings.robust_params.balls) * 3
+    return num_tray_con + settings.tray_balance_settings.config.num * num_cylinder_con
+
+
 def get_task_info_path():
     rospack = rospkg.RosPack()
     return os.path.join(

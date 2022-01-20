@@ -126,6 +126,8 @@ struct BalancedObject {
             bodies.push_back(objects[i].body);
         }
 
+        // Relative to objects[0] since it is the one on the bottom (and so its
+        // com_height is relative to the composite object's support plane)
         RigidBody<Scalar> body = RigidBody<Scalar>::compose(bodies);
         Vec3<Scalar> delta = objects[0].body.com - body.com;
         Scalar com_height = objects[0].com_height - delta(2);
@@ -256,6 +258,7 @@ Vector<Scalar> balancing_constraints(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
     const std::vector<BalancedObject<Scalar>>& objects) {
+
     size_t num_constraints = 0;
     for (const auto& object : objects) {
         num_constraints += object.num_constraints();

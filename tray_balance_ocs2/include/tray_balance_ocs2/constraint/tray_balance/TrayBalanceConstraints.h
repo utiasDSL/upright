@@ -28,7 +28,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
 
     TrayBalanceConstraints(
         const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-        const TrayBalanceConfiguration& config)
+        const TrayBalanceConfiguration& config, bool recompileLibraries)
         : StateInputConstraintCppAd(ConstraintOrder::Linear),
           pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
           config_(config) {
@@ -40,20 +40,25 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         }
         // initialize everything, mostly the CppAD interface
         initialize(STATE_DIM, INPUT_DIM, 0, "tray_balance_constraints",
-                   "/tmp/ocs2", true, true);
+                   "/tmp/ocs2", recompileLibraries, true);
     }
 
     TrayBalanceConstraints* clone() const override {
-        return new TrayBalanceConstraints(*pinocchioEEKinPtr_, config_);
+        // Always pass recompileLibraries = false to avoid recompiling the same
+        // library just because this object is cloned.
+        return new TrayBalanceConstraints(*pinocchioEEKinPtr_, config_, false);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        // TODO this depends on the configuration at hand
         size_t n_tray_con = 2 + 3;
         size_t n_cuboid_con = 2 + 4;
-        // size_t n_cylinder_con = 2 + 1;
-        // return n_tray_con + 3 * n_cuboid_con;
-        return 3 * 2;
+        size_t n_cylinder_con = 2 + 1;
+        // NOTE: here we are assuming:
+        // * the tray is always present
+        // * the cylinders use the rectangular approximation to the support
+        //   area (so they have the same number of constraints as cuboids)
+        // TODO: it would be nice if could get this automatically somehow
+        return n_tray_con + config_.num * n_cuboid_con;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }

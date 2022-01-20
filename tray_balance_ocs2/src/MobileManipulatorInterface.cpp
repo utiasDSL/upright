@@ -184,10 +184,10 @@ void MobileManipulatorInterface::loadSettings(
                           getQuadraticStateInputCost(taskFile));
 
     // ZMP cost
-    problem_.costPtr->add(
-        "zmpCost",
-        get_zmp_cost(*pinocchioInterfacePtr_, taskFile, "zmpCost",
-                     usePreComputation, libraryFolder, recompileLibraries));
+    // problem_.costPtr->add(
+    //     "zmpCost",
+    //     get_zmp_cost(*pinocchioInterfacePtr_, taskFile, "zmpCost",
+    //                  usePreComputation, libraryFolder, recompileLibraries));
 
     // TODO do we need a final cost on state/input?
     // matrix_t Qf = matrix_t::Zero(STATE_DIM, STATE_DIM);
@@ -199,10 +199,6 @@ void MobileManipulatorInterface::loadSettings(
     //     "finalCost", std::unique_ptr<StateCost>(new QuadraticStateCost(Qf)));
 
     /* Constraints */
-    // problem_.softConstraintPtr->add(
-    //     "jointAccelerationLimit",
-    //     getJointAccelerationLimitConstraint(taskFile));
-
     problem_.softConstraintPtr->add(
         "jointStateInputLimits", getJointStateInputLimitConstraint(taskFile));
 
@@ -516,10 +512,11 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
     if (settings.robust) {
         return std::unique_ptr<StateInputConstraint>(
             new RobustTrayBalanceConstraints(pinocchioEEKinematics,
-                                             settings.robust_params));
+                                             settings.robust_params,
+                                             recompileLibraries));
     } else {
-        return std::unique_ptr<StateInputConstraint>(
-            new TrayBalanceConstraints(pinocchioEEKinematics, settings.config));
+        return std::unique_ptr<StateInputConstraint>(new TrayBalanceConstraints(
+            pinocchioEEKinematics, settings.config, recompileLibraries));
     }
 }
 
@@ -628,50 +625,6 @@ MobileManipulatorInterface::getCollisionAvoidanceConstraint(
 
     return std::unique_ptr<StateCost>(
         new StateSoftConstraint(std::move(constraint), std::move(penalty)));
-}
-
-/******************************************************************************************************/
-/******************************************************************************************************/
-/******************************************************************************************************/
-std::unique_ptr<StateInputCost>
-MobileManipulatorInterface::getJointAccelerationLimitConstraint(
-    const std::string& taskFile) {
-    vector_t lowerBound(INPUT_DIM);
-    vector_t upperBound(INPUT_DIM);
-    scalar_t mu = 1e-2;
-    scalar_t delta = 1e-3;
-
-    boost::property_tree::ptree pt;
-    boost::property_tree::read_info(taskFile, pt);
-    const std::string prefix = "jointAccelerationLimits";
-    std::cerr << "\n #### JointAccelerationLimits Settings: ";
-    std::cerr << "\n #### "
-                 "============================================================="
-                 "================\n";
-    loadData::loadEigenMatrix(taskFile, prefix + ".lowerBound", lowerBound);
-    std::cerr << " #### 'lowerBound':  " << lowerBound.transpose() << std::endl;
-    loadData::loadEigenMatrix(taskFile, prefix + ".upperBound", upperBound);
-    std::cerr << " #### 'upperBound':  " << upperBound.transpose() << std::endl;
-    loadData::loadPtreeValue(pt, mu, prefix + ".mu", true);
-    loadData::loadPtreeValue(pt, delta, prefix + ".delta", true);
-    std::cerr << " #### "
-                 "============================================================="
-                 "================"
-              << std::endl;
-
-    std::unique_ptr<StateInputConstraint> constraint(
-        new JointAccelerationLimits);
-
-    std::unique_ptr<PenaltyBase> barrierFunction;
-    std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(INPUT_DIM);
-    for (int i = 0; i < INPUT_DIM; i++) {
-        barrierFunction.reset(new RelaxedBarrierPenalty({mu, delta}));
-        penaltyArray[i].reset(new DoubleSidedPenalty(
-            lowerBound(i), upperBound(i), std::move(barrierFunction)));
-    }
-
-    return std::unique_ptr<StateInputCost>(new StateInputSoftConstraint(
-        std::move(constraint), std::move(penaltyArray)));
 }
 
 std::unique_ptr<StateInputCost>
