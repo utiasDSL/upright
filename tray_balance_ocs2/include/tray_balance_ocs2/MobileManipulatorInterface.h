@@ -44,8 +44,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <tray_balance_ocs2/TaskSettings.h>
-#include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h>
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
+#include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
+#include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h>
 #include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
@@ -137,8 +138,8 @@ class MobileManipulatorInterface final : public RobotInterface {
         const std::string& libraryFolder, bool recompileLibraries);
 
     std::unique_ptr<StateCost> getDynamicObstacleConstraint(
-        PinocchioInterface pinocchioInterface, const std::string& taskFile,
-        const std::string& prefix, bool usePreComputation,
+        PinocchioInterface pinocchioInterface,
+        const DynamicObstacleSettings& settings, bool usePreComputation,
         const std::string& libraryFolder, bool recompileLibraries);
 
     std::unique_ptr<StateInputCost> get_zmp_cost(

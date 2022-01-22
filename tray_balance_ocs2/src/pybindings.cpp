@@ -13,6 +13,7 @@
 #include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceConfigurations.h"
 #include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h"
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
+#include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
 
 using namespace ocs2;
 using namespace mobile_manipulator;
@@ -78,14 +79,26 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("collision_link_pairs",
                        &CollisionAvoidanceSettings::collision_link_pairs)
         .def_readwrite("minimum_distance",
-                       &CollisionAvoidanceSettings::minimum_distance);
+                       &CollisionAvoidanceSettings::minimum_distance)
+        .def_readwrite("mu", &CollisionAvoidanceSettings::mu)
+        .def_readwrite("delta", &CollisionAvoidanceSettings::delta);
+
+    pybind11::class_<DynamicObstacleSettings>(m, "DynamicObstacleSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("enabled", &DynamicObstacleSettings::enabled)
+        .def_readwrite("collision_link_names",
+                       &DynamicObstacleSettings::collision_link_names)
+        .def_readwrite("collision_sphere_radii",
+                       &DynamicObstacleSettings::collision_sphere_radii)
+        .def_readwrite("obstacle_radius", &DynamicObstacleSettings::obstacle_radius)
+        .def_readwrite("mu", &DynamicObstacleSettings::mu)
+        .def_readwrite("delta", &DynamicObstacleSettings::delta);
 
     pybind11::class_<TaskSettings> task_settings(m, "TaskSettings");
-
     task_settings.def(pybind11::init<>())
         .def_readwrite("method", &TaskSettings::method)
-        .def_readwrite("dynamic_obstacle_enabled",
-                       &TaskSettings::dynamic_obstacle_enabled)
+        .def_readwrite("dynamic_obstacle_settings",
+                       &TaskSettings::dynamic_obstacle_settings)
         .def_readwrite("collision_avoidance_settings",
                        &TaskSettings::collision_avoidance_settings)
         .def_readwrite("tray_balance_settings",

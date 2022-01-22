@@ -37,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
+
 struct CollisionAvoidanceSettings {
     bool enabled = false;
     std::vector<std::pair<std::string, std::string>> collision_link_pairs;

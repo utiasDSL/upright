@@ -2,6 +2,7 @@
 
 #include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h"
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
+#include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -14,9 +15,8 @@ struct TaskSettings {
 
     Method method = Method::DDP;
 
-    bool dynamic_obstacle_enabled = false;
-
     TrayBalanceSettings tray_balance_settings;
+    DynamicObstacleSettings dynamic_obstacle_settings;
     CollisionAvoidanceSettings collision_avoidance_settings;
 };
 

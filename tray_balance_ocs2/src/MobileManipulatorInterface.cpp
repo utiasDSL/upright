@@ -52,9 +52,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/MobileManipulatorDynamics.h>
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
+#include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/EndEffectorConstraint.h>
 #include <tray_balance_ocs2/constraint/JointStateInputLimits.h>
-#include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
 #include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
@@ -208,20 +208,20 @@ void MobileManipulatorInterface::loadSettings(
             "collisionAvoidance",
             getCollisionAvoidanceConstraint(
                 *pinocchioInterfacePtr_, settings_.collision_avoidance_settings,
-                obstacle_urdf_path,
-                usePreComputation, libraryFolder, recompileLibraries));
+                obstacle_urdf_path, usePreComputation, libraryFolder,
+                recompileLibraries));
     } else {
         std::cerr << "Collision avoidance is disabled." << std::endl;
     }
 
     // Collision avoidance with dynamic obstacles specified via the reference
     // trajectory
-    if (settings_.dynamic_obstacle_enabled) {
+    if (settings_.dynamic_obstacle_settings.enabled) {
         std::cerr << "Dynamic obstacle avoidance is enabled." << std::endl;
         problem_.stateSoftConstraintPtr->add(
             "dynamicObstacleAvoidance",
             getDynamicObstacleConstraint(
-                *pinocchioInterfacePtr_, taskFile, "dynamicObstacleAvoidance",
+                *pinocchioInterfacePtr_, settings_.dynamic_obstacle_settings,
                 usePreComputation, libraryFolder, recompileLibraries));
     } else {
         std::cerr << "Dynamic obstacle avoidance is disabled." << std::endl;
@@ -409,48 +409,20 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorConstraint(
 
 std::unique_ptr<StateCost>
 MobileManipulatorInterface::getDynamicObstacleConstraint(
-    PinocchioInterface pinocchioInterface, const std::string& taskFile,
-    const std::string& prefix, bool usePreComputation,
+    PinocchioInterface pinocchioInterface,
+    const DynamicObstacleSettings& settings, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
-    scalar_t mu = 1e-3;
-    scalar_t delta = 1e-3;
-    scalar_t obstacle_radius = 0.1;
-    std::vector<std::string> collision_link_names;
-    std::vector<scalar_t> collision_sphere_radii;
-
-    boost::property_tree::ptree pt;
-    boost::property_tree::read_info(taskFile, pt);
-    std::cerr << "\n #### " << prefix << " Settings: ";
-    std::cerr << "\n #### "
-                 "============================================================="
-                 "================\n";
-
-    loadData::loadStdVector<std::string>(
-        taskFile, prefix + ".collision_link_names", collision_link_names, true);
-    loadData::loadStdVector<scalar_t>(taskFile,
-                                      prefix + ".collision_sphere_radii",
-                                      collision_sphere_radii, true);
-    loadData::loadPtreeValue(pt, obstacle_radius, prefix + ".obstacle_radius",
-                             true);
-    loadData::loadPtreeValue(pt, mu, prefix + ".mu", true);
-    loadData::loadPtreeValue(pt, delta, prefix + ".delta", true);
-    std::cerr << " #### "
-                 "============================================================="
-                 "================"
-              << std::endl;
-
     MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
     PinocchioEndEffectorKinematicsCppAd eeKinematics(
-        pinocchioInterface, pinocchioMappingCppAd, collision_link_names,
-        STATE_DIM, INPUT_DIM, "obstacle_ee_kinematics", libraryFolder,
-        recompileLibraries, false);
+        pinocchioInterface, pinocchioMappingCppAd,
+        settings.collision_link_names, STATE_DIM, INPUT_DIM,
+        "obstacle_ee_kinematics", libraryFolder, recompileLibraries, false);
 
-    std::unique_ptr<StateConstraint> constraint(
-        new DynamicObstacleConstraint(eeKinematics, *referenceManagerPtr_,
-                                      collision_sphere_radii, obstacle_radius));
+    std::unique_ptr<StateConstraint> constraint(new DynamicObstacleConstraint(
+        eeKinematics, *referenceManagerPtr_, settings));
 
     std::unique_ptr<PenaltyBase> penalty(
-        new RelaxedBarrierPenalty({mu, delta}));
+        new RelaxedBarrierPenalty({settings.mu, settings.delta}));
 
     return std::unique_ptr<StateCost>(
         new StateSoftConstraint(std::move(constraint), std::move(penalty)));
@@ -579,8 +551,8 @@ MobileManipulatorInterface::getCollisionAvoidanceConstraint(
 
     std::unique_ptr<StateConstraint> constraint;
     if (usePreComputation) {
-        constraint = std::unique_ptr<StateConstraint>(
-            new CollisionAvoidanceConstraint(
+        constraint =
+            std::unique_ptr<StateConstraint>(new CollisionAvoidanceConstraint(
                 MobileManipulatorPinocchioMapping<scalar_t>(),
                 std::move(geometryInterface), settings.minimum_distance));
     } else {

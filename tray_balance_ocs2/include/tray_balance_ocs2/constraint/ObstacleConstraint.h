@@ -42,6 +42,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
+struct DynamicObstacleSettings {
+    bool enabled = false;
+    std::vector<std::string> collision_link_names;
+    std::vector<scalar_t> collision_sphere_radii;
+    scalar_t obstacle_radius = 0.1;
+    scalar_t mu = 1e-3;
+    scalar_t delta = 1e-3;
+};
+
 class DynamicObstacleConstraint final : public StateConstraint {
    public:
     using vector3_t = Eigen::Matrix<scalar_t, 3, 1>;
@@ -50,15 +59,13 @@ class DynamicObstacleConstraint final : public StateConstraint {
     DynamicObstacleConstraint(
         const EndEffectorKinematics<scalar_t>& endEffectorKinematics,
         const ReferenceManager& referenceManager,
-        const std::vector<scalar_t>& collision_sphere_radii,
-        const scalar_t obstacle_radius)
+        const DynamicObstacleSettings& settings)
         : StateConstraint(ConstraintOrder::Linear),
           endEffectorKinematicsPtr_(endEffectorKinematics.clone()),
           referenceManagerPtr_(&referenceManager),
-          collision_sphere_radii_(collision_sphere_radii),
-          obstacle_radius_(obstacle_radius) {
+          settings_(settings) {
         if (endEffectorKinematics.getIds().size() !=
-            collision_sphere_radii.size()) {
+            settings_.collision_sphere_radii.size()) {
             throw std::runtime_error(
                 "[DynamicObstacleConstraint] Number of collision sphere radii "
                 "must match number of end effector IDs.");
@@ -72,11 +79,11 @@ class DynamicObstacleConstraint final : public StateConstraint {
     DynamicObstacleConstraint* clone() const override {
         return new DynamicObstacleConstraint(
             *endEffectorKinematicsPtr_, *referenceManagerPtr_,
-            collision_sphere_radii_, obstacle_radius_);
+            settings_);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        return collision_sphere_radii_.size();
+        return settings_.collision_sphere_radii.size();
     }
 
     vector_t getValue(scalar_t time, const vector_t& state,
@@ -92,7 +99,8 @@ class DynamicObstacleConstraint final : public StateConstraint {
         vector_t constraints(getNumConstraints(time));
         for (int i = 0; i < ee_positions.size(); ++i) {
             vector3_t vec = ee_positions[i] - obstacle_pos;
-            scalar_t r = collision_sphere_radii_[i] + obstacle_radius_;
+            scalar_t r =
+                settings_.collision_sphere_radii[i] + settings_.obstacle_radius;
             constraints(i) = vec.norm() - r;
         }
         return constraints;
@@ -137,10 +145,8 @@ class DynamicObstacleConstraint final : public StateConstraint {
     std::unique_ptr<EndEffectorKinematics<scalar_t>> endEffectorKinematicsPtr_;
     const ReferenceManager* referenceManagerPtr_;
 
-    // Radii of collision spheres
-    std::vector<scalar_t> collision_sphere_radii_;
-    scalar_t obstacle_radius_;  // Radius of obstacle
-};                              // class DynamicObstacleConstraint
+    DynamicObstacleSettings settings_;
+};  // class DynamicObstacleConstraint
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2
