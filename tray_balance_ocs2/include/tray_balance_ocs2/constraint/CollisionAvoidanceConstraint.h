@@ -31,31 +31,42 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 
-#include <tray_balance_ocs2/definitions.h>
-
-#include <ocs2_core/constraint/StateInputConstraint.h>
+#include <ocs2_self_collision/SelfCollisionConstraint.h>
+#include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class JointAccelerationLimits final : public StateInputConstraint {
+struct CollisionAvoidanceSettings {
+    bool enabled = false;
+    std::vector<std::pair<std::string, std::string>> collision_link_pairs;
+    scalar_t minimum_distance = 0;
+    scalar_t mu = 1e-2;
+    scalar_t delta = 1e-3;
+};
+
+class CollisionAvoidanceConstraint final
+    : public SelfCollisionConstraint {
    public:
-    JointAccelerationLimits() : StateInputConstraint(ConstraintOrder::Linear) {}
-    ~JointAccelerationLimits() override = default;
-    JointAccelerationLimits* clone() const override {
-        return new JointAccelerationLimits(*this);
+    CollisionAvoidanceConstraint(
+        const PinocchioStateInputMapping<scalar_t>& mapping,
+        PinocchioGeometryInterface pinocchioGeometryInterface,
+        scalar_t minimumDistance)
+        : SelfCollisionConstraint(
+              mapping, std::move(pinocchioGeometryInterface), minimumDistance) {
+    }
+    ~CollisionAvoidanceConstraint() override = default;
+    CollisionAvoidanceConstraint(
+        const CollisionAvoidanceConstraint& other) = default;
+    CollisionAvoidanceConstraint* clone() const {
+        return new CollisionAvoidanceConstraint(*this);
     }
 
-    size_t getNumConstraints(scalar_t time) const override { return INPUT_DIM; }
-    vector_t getValue(scalar_t time, const vector_t& state,
-                      const vector_t& input,
-                      const PreComputation&) const override;
-    VectorFunctionLinearApproximation getLinearApproximation(
-        scalar_t time, const vector_t& state, const vector_t& input,
-        const PreComputation&) const override;
-
-   private:
-    JointAccelerationLimits(const JointAccelerationLimits& other) = default;
+    const PinocchioInterface& getPinocchioInterface(
+        const PreComputation& preComputation) const override {
+        return cast<MobileManipulatorPreComputation>(preComputation)
+            .getPinocchioInterface();
+    }
 };
 
 }  // namespace mobile_manipulator

@@ -39,7 +39,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 
-def set_bounding_spheres(robot, objects, settings):
+def set_bounding_spheres(robot, objects, settings, k=2, plot_point_cloud=False):
     target = objects["stacked_cylinder2"].bullet.get_pose()[0]
     cam_pos = [target[0], target[1] - 1, target[2]]
     camera = Camera(
@@ -66,20 +66,20 @@ def set_bounding_spheres(robot, objects, settings):
     print(f"max_radius = {max_radius}")
 
     # cluster point cloud points and bound with spheres
-    k = 2
     centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="greedy")
     # centers, radii = clustering.iterative_ritter(points, k=k)
-    volume = 4 * np.pi * np.sum(radii ** 3) / 3
-    print(f"Volume = {volume}")
+    # volume = 4 * np.pi * np.sum(radii ** 3) / 3
+    # print(f"Volume = {volume}")
 
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
-    ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
-    ax.scatter(camera.target[0], camera.target[1], zs=camera.target[2])
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_zlabel("z")
-    plt.show()
+    if plot_point_cloud:
+        fig = plt.figure()
+        ax = fig.add_subplot(projection="3d")
+        ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
+        ax.scatter(camera.target[0], camera.target[1], zs=camera.target[2])
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        plt.show()
 
     r_ew_w, Q_we = robot.link_pose()
     C_we = util.quaternion_to_matrix(Q_we)

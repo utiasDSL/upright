@@ -12,6 +12,7 @@
 #include "tray_balance_ocs2/constraint/ConstraintType.h"
 #include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceConfigurations.h"
 #include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h"
+#include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 
 using namespace ocs2;
 using namespace mobile_manipulator;
@@ -70,14 +71,23 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .value("Soft", ConstraintType::Soft)
         .value("Hard", ConstraintType::Hard);
 
+    pybind11::class_<CollisionAvoidanceSettings>(m,
+                                                 "CollisionAvoidanceSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("enabled", &CollisionAvoidanceSettings::enabled)
+        .def_readwrite("collision_link_pairs",
+                       &CollisionAvoidanceSettings::collision_link_pairs)
+        .def_readwrite("minimum_distance",
+                       &CollisionAvoidanceSettings::minimum_distance);
+
     pybind11::class_<TaskSettings> task_settings(m, "TaskSettings");
 
     task_settings.def(pybind11::init<>())
+        .def_readwrite("method", &TaskSettings::method)
         .def_readwrite("dynamic_obstacle_enabled",
                        &TaskSettings::dynamic_obstacle_enabled)
-        .def_readwrite("collision_avoidance_enabled",
-                       &TaskSettings::collision_avoidance_enabled)
-        .def_readwrite("method", &TaskSettings::method)
+        .def_readwrite("collision_avoidance_settings",
+                       &TaskSettings::collision_avoidance_settings)
         .def_readwrite("tray_balance_settings",
                        &TaskSettings::tray_balance_settings);
 

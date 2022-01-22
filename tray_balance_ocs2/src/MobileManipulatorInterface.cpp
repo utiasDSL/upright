@@ -53,9 +53,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
 #include <tray_balance_ocs2/constraint/EndEffectorConstraint.h>
-#include <tray_balance_ocs2/constraint/JointAccelerationLimits.h>
 #include <tray_balance_ocs2/constraint/JointStateInputLimits.h>
-#include <tray_balance_ocs2/constraint/MobileManipulatorSelfCollisionConstraint.h>
+#include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
 #include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
@@ -203,13 +202,14 @@ void MobileManipulatorInterface::loadSettings(
         "jointStateInputLimits", getJointStateInputLimitConstraint(taskFile));
 
     // Self-collision avoidance and collision avoidance with static obstacles
-    if (settings_.collision_avoidance_enabled) {
+    if (settings_.collision_avoidance_settings.enabled) {
         std::cerr << "Collision avoidance is enabled." << std::endl;
         problem_.stateSoftConstraintPtr->add(
             "collisionAvoidance",
-            getCollisionAvoidanceConstraint(*pinocchioInterfacePtr_, taskFile,
-                                            usePreComputation, libraryFolder,
-                                            recompileLibraries));
+            getCollisionAvoidanceConstraint(
+                *pinocchioInterfacePtr_, settings_.collision_avoidance_settings,
+                obstacle_urdf_path,
+                usePreComputation, libraryFolder, recompileLibraries));
     } else {
         std::cerr << "Collision avoidance is disabled." << std::endl;
     }
@@ -547,43 +547,15 @@ MobileManipulatorInterface::getTrayBalanceSoftConstraint(
 /******************************************************************************************************/
 std::unique_ptr<StateCost>
 MobileManipulatorInterface::getCollisionAvoidanceConstraint(
-    PinocchioInterface pinocchioInterface, const std::string& taskFile,
-    bool usePreComputation, const std::string& libraryFolder,
-    bool recompileLibraries) {
-    std::vector<std::pair<std::string, std::string>> collisionLinkPairs;
-    scalar_t mu = 1e-2;
-    scalar_t delta = 1e-3;
-    scalar_t minimumDistance = 0.0;
-
-    boost::property_tree::ptree pt;
-    boost::property_tree::read_info(taskFile, pt);
-    const std::string prefix = "collisionAvoidance.";
-    std::cerr << "\n #### CollisionAvoidance Settings: ";
-    std::cerr << "\n #### "
-                 "============================================================="
-                 "================\n";
-    loadData::loadPtreeValue(pt, mu, prefix + "mu", true);
-    loadData::loadPtreeValue(pt, delta, prefix + "delta", true);
-    loadData::loadPtreeValue(pt, minimumDistance, prefix + "minimumDistance",
-                             true);
-
-    // NOTE: object vs. link is confusing: the real distinction is that
-    // "object" means "id" (i.e., an index, of type size_t) and "link" means
-    // "name" (i.e. string)
-    loadData::loadStdVectorOfPair(taskFile, prefix + "collisionLinkPairs",
-                                  collisionLinkPairs, true);
-    std::cerr << " #### "
-                 "============================================================="
-                 "================"
-              << std::endl;
-
+    PinocchioInterface pinocchioInterface,
+    const CollisionAvoidanceSettings& settings,
+    const std::string& obstacle_urdf_path, bool usePreComputation,
+    const std::string& libraryFolder, bool recompileLibraries) {
     // only specifying link pairs (i.e. by name)
     PinocchioGeometryInterface geometryInterface(pinocchioInterface);
 
     // Add obstacle collision objects to the geometry model, so we can check
     // them against the robot.
-    std::string obstacle_urdf_path;
-    std::tie(std::ignore, obstacle_urdf_path) = load_urdf_paths(taskFile);
     pinocchio::GeometryModel obs_geom_model =
         build_geometry_model(obstacle_urdf_path);
     geometryInterface.addGeometryObjects(obs_geom_model);
@@ -593,7 +565,7 @@ MobileManipulatorInterface::getCollisionAvoidanceConstraint(
     // for (int i = 0; i < geometry_model.ngeoms; ++i) {
     //     std::cout << geometry_model.geometryObjects[i].name << std::endl;
     // }
-    geometryInterface.addCollisionPairsByName(collisionLinkPairs);
+    geometryInterface.addCollisionPairsByName(settings.collision_link_pairs);
 
     const size_t numCollisionPairs = geometryInterface.getNumCollisionPairs();
     std::cerr << "SelfCollision: Testing for " << numCollisionPairs
@@ -608,20 +580,20 @@ MobileManipulatorInterface::getCollisionAvoidanceConstraint(
     std::unique_ptr<StateConstraint> constraint;
     if (usePreComputation) {
         constraint = std::unique_ptr<StateConstraint>(
-            new MobileManipulatorSelfCollisionConstraint(
+            new CollisionAvoidanceConstraint(
                 MobileManipulatorPinocchioMapping<scalar_t>(),
-                std::move(geometryInterface), minimumDistance));
+                std::move(geometryInterface), settings.minimum_distance));
     } else {
         constraint =
             std::unique_ptr<StateConstraint>(new SelfCollisionConstraintCppAd(
                 pinocchioInterface,
                 MobileManipulatorPinocchioMapping<scalar_t>(),
-                std::move(geometryInterface), minimumDistance, "self_collision",
-                libraryFolder, recompileLibraries, false));
+                std::move(geometryInterface), settings.minimum_distance,
+                "self_collision", libraryFolder, recompileLibraries, false));
     }
 
     std::unique_ptr<PenaltyBase> penalty(
-        new RelaxedBarrierPenalty({mu, delta}));
+        new RelaxedBarrierPenalty({settings.mu, settings.delta}));
 
     return std::unique_ptr<StateCost>(
         new StateSoftConstraint(std::move(constraint), std::move(penalty)));

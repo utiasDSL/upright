@@ -45,6 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <tray_balance_ocs2/TaskSettings.h>
 #include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h>
+#include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
@@ -115,9 +116,10 @@ class MobileManipulatorInterface final : public RobotInterface {
         const std::string& libraryFolder, bool recompileLibraries);
 
     std::unique_ptr<StateCost> getCollisionAvoidanceConstraint(
-        PinocchioInterface pinocchioInterface, const std::string& taskFile,
-        bool useCaching, const std::string& libraryFolder,
-        bool recompileLibraries);
+        PinocchioInterface pinocchioInterface,
+        const CollisionAvoidanceSettings& settings,
+        const std::string& obstacle_urdf_path, bool useCaching,
+        const std::string& libraryFolder, bool recompileLibraries);
 
     std::unique_ptr<StateInputCost> getJointStateInputLimitConstraint(
         const std::string& taskFile);
