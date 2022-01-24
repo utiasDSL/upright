@@ -32,6 +32,7 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
     VECTOR_TYPE_BINDING(ocs2::matrix_array_t, "matrix_array")
 
     /* bind settings */
+    /// Robust balancing
     pybind11::class_<Ball<scalar_t>>(m, "Ball")
         .def(pybind11::init<const Vec3<scalar_t>&, const scalar_t>(),
              "center"_a, "radius"_a)
@@ -47,10 +48,38 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("min_r_tau", &RobustParameterSet<scalar_t>::min_r_tau)
         .def_readwrite("max_radius", &RobustParameterSet<scalar_t>::max_radius);
 
+    /// Normal balancing
     pybind11::class_<RigidBody<scalar_t>>(m, "RigidBody")
         .def(pybind11::init<const scalar_t, const Mat3<scalar_t>&,
                             const Vec3<scalar_t>&>(),
-             "mass"_a, "inertia"_a, "com"_a);
+             "mass"_a, "inertia"_a, "com"_a)
+        .def_readwrite("mass", &RigidBody<scalar_t>::mass)
+        .def_readwrite("inertia", &RigidBody<scalar_t>::inertia)
+        .def_readwrite("com", &RigidBody<scalar_t>::com);
+
+    pybind11::class_<CircleSupportArea<scalar_t>, SupportAreaBase<scalar_t>>(
+        m, "CircleSupportArea")
+        .def(pybind11::init<const scalar_t, const Vec2<scalar_t>&,
+                            const scalar_t>(),
+             "radius"_a, "offset"_a, "margin"_a)
+        .def_readwrite("radius", &CircleSupportArea<scalar_t>::radius)
+        .def_readwrite("offset", &CircleSupportArea<scalar_t>::offset)
+        .def_readwrite("margin", &CircleSupportArea<scalar_t>::margin);
+
+    pybind11::class_<PolygonSupportArea<scalar_t>, SupportAreaBase<scalar_t>>(
+        m, "PolygonSupportArea")
+        .def(pybind11::init<const std::vector<Vec2<scalar_t>>&,
+                            const Vec2<scalar_t>&, const scalar_t>(),
+             "vertices"_a, "offset"_a, "margin"_a)
+        .def_readwrite("vertices", &PolygonSupportArea<scalar_t>::vertices)
+        .def_readwrite("offset", &PolygonSupportArea<scalar_t>::offset)
+        .def_readwrite("margin", &PolygonSupportArea<scalar_t>::margin);
+
+    pybind11::class_<BalancedObject<scalar_t>>(m, "BalancedObject")
+        .def(pybind11::init<const RigidBody<scalar_t>&, scalar_t,
+                            std::unique_ptr<SupportAreaBase<scalar_t>>,
+                            scalar_t, scalar_t>(),
+             "body"_a, "com_height"_a, "support_area_ptr"_a, "r_tau"_a, "mu"_a);
 
     pybind11::class_<TrayBalanceConfiguration> tray_balance_configuration(
         m, "TrayBalanceConfiguration");
@@ -74,6 +103,7 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("config", &TrayBalanceSettings::config)
         .def_readwrite("robust_params", &TrayBalanceSettings::robust_params);
 
+    /// Other stuff
     pybind11::enum_<ConstraintType>(m, "ConstraintType")
         .value("Soft", ConstraintType::Soft)
         .value("Hard", ConstraintType::Hard);

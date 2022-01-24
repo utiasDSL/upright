@@ -58,10 +58,12 @@ class ZMPCost final : public StateInputCostCppAd {
         com << ad_scalar_t(0), ad_scalar_t(0), r;
 
         RigidBody<ad_scalar_t> body(m, It, com);
-        CircleSupportArea<ad_scalar_t> support_area(
-            ad_scalar_t(0), ad_vec2_t::Zero(), ad_scalar_t(0));
+        std::unique_ptr<SupportAreaBase<ad_scalar_t>> support_area_ptr(
+            new CircleSupportArea<ad_scalar_t>(
+                ad_scalar_t(0), ad_vec2_t::Zero(), ad_scalar_t(0)));
 
-        BalancedObject<ad_scalar_t> object(body, r, support_area, r_tau, mu);
+        BalancedObject<ad_scalar_t> object(body, r, std::move(support_area_ptr),
+                                           r_tau, mu);
 
         ad_vector_t zmp = compute_zmp<ad_scalar_t>(
             C_we, angular_vel, linear_acc, angular_acc, object);

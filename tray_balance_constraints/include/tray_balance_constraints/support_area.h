@@ -137,7 +137,7 @@ struct CircleSupportArea : public SupportAreaBase<Scalar> {
     }
 
     static CircleSupportArea<Scalar> from_parameters(const Vector<Scalar>& p,
-                                                      const size_t index = 0) {
+                                                     const size_t index = 0) {
         if (p.size() != 4) {
             throw std::runtime_error("Parameter vector is wrong size.");
         }

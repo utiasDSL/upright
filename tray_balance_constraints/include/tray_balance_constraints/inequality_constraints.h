@@ -115,15 +115,19 @@ template <typename Scalar>
 struct BalancedObject {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    BalancedObject(const RigidBody<Scalar>& body, Scalar com_height,
-                   const SupportAreaBase<Scalar>& support_area, Scalar r_tau,
-                   Scalar mu)
+    BalancedObject(
+        const RigidBody<Scalar>& body, Scalar com_height,
+        std::unique_ptr<SupportAreaBase<Scalar>> support_area_ptr,
+        Scalar r_tau, Scalar mu)
         : body(body),
           com_height(com_height),
-          support_area_ptr(support_area.clone()),
+          support_area_ptr(std::move(support_area_ptr)),
           r_tau(r_tau),
           mu(mu) {}
 
+    // Copy constructor
+    // NOTE: move constructor would instead use
+    // std::move(other.support_area_ptr)
     BalancedObject(const BalancedObject& other)
         : body(other.body),
           com_height(other.com_height),
@@ -159,17 +163,17 @@ struct BalancedObject {
         start += body.num_parameters();
         size_t num_params_remaining = p.size() - start - 1;
 
-        // TODO this pointer stuff is rather a mess
         std::unique_ptr<SupportAreaBase<Scalar>> support_ptr;
         if (num_params_remaining == 4) {
-            auto support = CircleSupportArea<Scalar>::from_parameters(p, start);
-            support_ptr.reset(&support);
+            support_ptr.reset(
+                CircleSupportArea<Scalar>::from_parameters(p, start).clone());
         } else {
-            auto support = PolygonSupportArea<Scalar>::from_parameters(p, start);
-            support_ptr.reset(&support);
+            support_ptr.reset(
+                PolygonSupportArea<Scalar>::from_parameters(p, start).clone());
         }
 
-        return BalancedObject<Scalar>(body, com_height, *support_ptr, r_tau, mu);
+        return BalancedObject<Scalar>(body, com_height, std::move(support_ptr),
+                                      r_tau, mu);
     }
 
     // Cast to another underlying scalar type
@@ -194,19 +198,16 @@ struct BalancedObject {
         Vec3<Scalar> delta = objects[0].body.com - body.com;
         Scalar com_height = objects[0].com_height - delta(2);
 
-        SupportAreaBase<Scalar>* support_area =
-            objects[0].support_area_ptr->clone();
-        support_area->offset = delta.head(2);
+        std::unique_ptr<SupportAreaBase<Scalar>> support_area_ptr(
+            objects[0].support_area_ptr->clone());
+        support_area_ptr->offset = delta.head(2);
 
         // TODO I think it should be fine passing the reference to the local
         // object, since it gets cloned in the constructor
-        BalancedObject<Scalar> composite(body, com_height, *support_area,
+        BalancedObject<Scalar> composite(body, com_height,
+                                         std::move(support_area_ptr),
                                          objects[0].r_tau, objects[0].mu);
         return composite;
-    }
-
-    Vector<Scalar> parameters() const {
-        // Vector<Scalar> p;
     }
 
     // Dynamic parameters
@@ -214,7 +215,6 @@ struct BalancedObject {
 
     // Geometry
     Scalar com_height;
-
     std::unique_ptr<SupportAreaBase<Scalar>> support_area_ptr;
 
     // Friction
