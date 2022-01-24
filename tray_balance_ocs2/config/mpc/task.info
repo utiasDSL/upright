@@ -260,8 +260,6 @@ collisionAvoidance
 
 dynamicObstacleAvoidance
 {
-;  enabled false
-
   collision_link_names
   {
     [0] "thing_tool"

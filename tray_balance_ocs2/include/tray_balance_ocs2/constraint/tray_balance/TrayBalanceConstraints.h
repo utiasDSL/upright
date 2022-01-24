@@ -75,6 +75,17 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
+        // TODO experiment for conversion from scalar_t -> ad_scalar_t
+        scalar_t m(1);
+        Vec3<scalar_t> com(0, 0, 1);
+        Mat3<scalar_t> I = Mat3<scalar_t>::Identity();
+        RigidBody<scalar_t> body(m, I, com);
+
+        vector_t p = body.get_parameters();
+        ad_vector_t p_ad = p.cast<ad_scalar_t>();
+
+        RigidBody<ad_scalar_t> body_ad = RigidBody<ad_scalar_t>::from_parameters(p_ad);
+
         ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
             C_we, angular_vel, linear_acc, angular_acc,
             build_objects<ad_scalar_t>(config_));

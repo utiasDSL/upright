@@ -45,11 +45,13 @@ std::vector<Vec2<Scalar>> equilateral_triangle_support_vertices(
 // Compute (x, y) location of cup on the tray, when supported by equilateral
 // triangle support.
 // @param[in] side_length   Side length of triangle
-// @param[in] distance      Distance along normal toward a vertex to place the cup
+// @param[in] distance      Distance along normal toward a vertex to place the
+// cup
 // @param[in] vertex_index  Index of the vertex to position the cup toward
 template <typename Scalar>
-Vec2<Scalar> equilateral_triangle_cup_location(
-    Scalar side_length, Scalar distance, size_t vertex_index) {
+Vec2<Scalar> equilateral_triangle_cup_location(Scalar side_length,
+                                               Scalar distance,
+                                               size_t vertex_index) {
     std::vector<Vec2<Scalar>> vertices =
         equilateral_triangle_support_vertices(side_length);
     if (vertex_index >= vertices.size()) {
@@ -77,6 +79,9 @@ struct SupportAreaBase {
                                                   Scalar& az) const = 0;
 
     virtual SupportAreaBase* clone() const = 0;
+
+    virtual size_t num_parameters() const = 0;
+    virtual Vector<Scalar> get_parameters() const = 0;
 
     /**
      * Offset is the vector pointing from the CoM of the object to the centroid
@@ -117,15 +122,30 @@ struct CircleSupportArea : public SupportAreaBase<Scalar> {
         Vector<Scalar> constraints(num_constraints());
         constraints << squared(az * (radius - this->margin)) - e.dot(e);
         return constraints;
-
-        // def zmp_constraints_scaled(self, αz_zmp, αz):
-        //     e = αz_zmp - αz * self.offset
-        //     return jnp.array([(αz * (self.radius - self.margin)) ** 2 - e @
-        //     e])
     }
 
     CircleSupportArea* clone() const override {
         return new CircleSupportArea(radius, this->offset, this->margin);
+    }
+
+    size_t num_parameters() const override { return 2 + 1 + 1; }
+
+    Vector<Scalar> get_parameters() const override {
+        Vector<Scalar> p(num_parameters());
+        p << this->offset, this->margin, radius;
+        return p;
+    }
+
+    static CircleSupportArea<Scalar> from_parameters(const Vector<Scalar>& p,
+                                                      const size_t index = 0) {
+        if (p.size() != 4) {
+            throw std::runtime_error("Parameter vector is wrong size.");
+        }
+
+        Vec2<Scalar> offset = p.template segment<2>(index);
+        Scalar margin = p(index + 2);
+        Scalar radius = p(index + 3);
+        return CircleSupportArea<Scalar>(radius, offset, margin);
     }
 
     Scalar radius;
@@ -169,6 +189,37 @@ struct PolygonSupportArea : public SupportAreaBase<Scalar> {
 
     PolygonSupportArea* clone() const override {
         return new PolygonSupportArea(vertices, this->offset, this->margin);
+    }
+
+    size_t num_parameters() const override {
+        return 2 + 1 + vertices.size() * 2;
+    }
+
+    Vector<Scalar> get_parameters() const override {
+        Vector<Scalar> p(num_parameters());
+        Vector<Scalar> v(vertices.size() * 2);
+        for (int i = 0; i < vertices.size(); ++i) {
+            v.segment(i * 2, 2) = vertices[i];
+        }
+        p << this->offset, this->margin, v;
+        return p;
+    }
+
+    static PolygonSupportArea<Scalar> from_parameters(const Vector<Scalar>& p,
+                                                      const size_t index = 0) {
+        // Need at least three vertices in the support area
+        if (p.size() < 3 + 2 * 3) {
+            throw std::runtime_error("Parameter vector is wrong size.");
+        }
+
+        Vec2<Scalar> offset = p.template segment<2>(index);
+        Scalar margin = p(index + 2);
+
+        std::vector<Vec2<Scalar>> vertices;
+        for (int i = 0; i < (p.size() - 3) / 2; ++i) {
+            vertices.push_back(p.template segment<2>(index + 3 + i * 2));
+        }
+        return PolygonSupportArea(vertices, offset, margin);
     }
 
     std::vector<Vec2<Scalar>> vertices;

@@ -86,6 +86,26 @@ struct RigidBody {
         return RigidBody<Scalar>(mass, inertia, com);
     }
 
+    // Create a RigidBody from a parameter vector
+    static RigidBody<Scalar> from_parameters(const Vector<Scalar>& parameters,
+                                             const size_t index = 0) {
+        Scalar mass(parameters(index));
+        Vec3<Scalar> com(parameters.template segment<3>(index + 1));
+        Vector<Scalar> I_vec(parameters.template segment<9>(index + 4));
+        Mat3<Scalar> inertia(Eigen::Map<Mat3<Scalar>>(I_vec.data(), 3, 3));
+        return RigidBody(mass, inertia, com);
+    }
+
+    size_t num_parameters() const { return 1 + 3 + 9; }
+
+    Vector<Scalar> get_parameters() const {
+        Vector<Scalar> p(num_parameters());
+        Vector<Scalar> I_vec(
+            Eigen::Map<const Vector<Scalar>>(inertia.data(), inertia.size()));
+        p << mass, com, I_vec;
+        return p;
+    }
+
     Scalar mass;
     Mat3<Scalar> inertia;
     Vec3<Scalar> com;
@@ -117,6 +137,48 @@ struct BalancedObject {
         return 2 + support_area_ptr->num_constraints();
     }
 
+    size_t num_parameters() const {
+        return 3 + body.num_parameters() + support_area_ptr->num_parameters();
+    }
+
+    Vector<Scalar> get_parameters() const {
+        Vector<Scalar> p(num_parameters());
+        p << com_height, r_tau, mu, body.get_parameters(),
+            support_area_ptr->get_parameters();
+        return p;
+    }
+
+    static BalancedObject<Scalar> from_parameters(const Vector<Scalar>& p) {
+        Scalar com_height = p(0);
+        Scalar r_tau = p(1);
+        Scalar mu = p(2);
+
+        size_t start = 3;
+        auto body = RigidBody<Scalar>::from_parameters(p, start);
+
+        start += body.num_parameters();
+        size_t num_params_remaining = p.size() - start - 1;
+
+        // TODO this pointer stuff is rather a mess
+        std::unique_ptr<SupportAreaBase<Scalar>> support_ptr;
+        if (num_params_remaining == 4) {
+            auto support = CircleSupportArea<Scalar>::from_parameters(p, start);
+            support_ptr.reset(&support);
+        } else {
+            auto support = PolygonSupportArea<Scalar>::from_parameters(p, start);
+            support_ptr.reset(&support);
+        }
+
+        return BalancedObject<Scalar>(body, com_height, *support_ptr, r_tau, mu);
+    }
+
+    // Cast to another underlying scalar type
+    template <typename T>
+    BalancedObject<T> cast() {
+        Vector<Scalar> p = get_parameters();
+        return BalancedObject<T>::from_parameters(p.template cast<T>());
+    }
+
     // Compose multiple balanced objects. The first one is assumed to be the
     // bottom-most.
     static BalancedObject<Scalar> compose(
@@ -141,6 +203,10 @@ struct BalancedObject {
         BalancedObject<Scalar> composite(body, com_height, *support_area,
                                          objects[0].r_tau, objects[0].mu);
         return composite;
+    }
+
+    Vector<Scalar> parameters() const {
+        // Vector<Scalar> p;
     }
 
     // Dynamic parameters
@@ -258,7 +324,6 @@ Vector<Scalar> balancing_constraints(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
     const std::vector<BalancedObject<Scalar>>& objects) {
-
     size_t num_constraints = 0;
     for (const auto& object : objects) {
         num_constraints += object.num_constraints();

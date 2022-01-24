@@ -4,16 +4,17 @@
 
 #include <ocs2_core/Types.h>
 #include <ocs2_python_interface/PybindMacros.h>
+#include <tray_balance_constraints/inequality_constraints.h>
 #include <tray_balance_constraints/robust.h>
 #include <tray_balance_constraints/types.h>
 
 #include "tray_balance_ocs2/MobileManipulatorPythonInterface.h"
 #include "tray_balance_ocs2/TaskSettings.h"
+#include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ConstraintType.h"
+#include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
 #include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceConfigurations.h"
 #include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h"
-#include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
-#include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
 
 using namespace ocs2;
 using namespace mobile_manipulator;
@@ -45,6 +46,11 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("min_mu", &RobustParameterSet<scalar_t>::min_mu)
         .def_readwrite("min_r_tau", &RobustParameterSet<scalar_t>::min_r_tau)
         .def_readwrite("max_radius", &RobustParameterSet<scalar_t>::max_radius);
+
+    pybind11::class_<RigidBody<scalar_t>>(m, "RigidBody")
+        .def(pybind11::init<const scalar_t, const Mat3<scalar_t>&,
+                            const Vec3<scalar_t>&>(),
+             "mass"_a, "inertia"_a, "com"_a);
 
     pybind11::class_<TrayBalanceConfiguration> tray_balance_configuration(
         m, "TrayBalanceConfiguration");
@@ -90,7 +96,8 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
                        &DynamicObstacleSettings::collision_link_names)
         .def_readwrite("collision_sphere_radii",
                        &DynamicObstacleSettings::collision_sphere_radii)
-        .def_readwrite("obstacle_radius", &DynamicObstacleSettings::obstacle_radius)
+        .def_readwrite("obstacle_radius",
+                       &DynamicObstacleSettings::obstacle_radius)
         .def_readwrite("mu", &DynamicObstacleSettings::mu)
         .def_readwrite("delta", &DynamicObstacleSettings::delta);
 
