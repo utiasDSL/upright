@@ -117,11 +117,11 @@ struct BalancedObject {
 
     BalancedObject(
         const RigidBody<Scalar>& body, Scalar com_height,
-        std::unique_ptr<SupportAreaBase<Scalar>> support_area_ptr,
+        const SupportAreaBase<Scalar>& support_area,
         Scalar r_tau, Scalar mu)
         : body(body),
           com_height(com_height),
-          support_area_ptr(std::move(support_area_ptr)),
+          support_area_ptr(support_area.clone()),
           r_tau(r_tau),
           mu(mu) {}
 
@@ -134,6 +134,12 @@ struct BalancedObject {
           support_area_ptr(other.support_area_ptr->clone()),
           r_tau(other.r_tau),
           mu(other.mu) {}
+
+    // Copy assignment operator
+    BalancedObject<Scalar>& operator=(const BalancedObject& other) {
+        // TODO does this handle the unique_ptr properly?
+        return *this;
+    }
 
     ~BalancedObject() = default;
 
@@ -163,22 +169,22 @@ struct BalancedObject {
         start += body.num_parameters();
         size_t num_params_remaining = p.size() - start - 1;
 
-        std::unique_ptr<SupportAreaBase<Scalar>> support_ptr;
+        SupportAreaBase<Scalar>* support_ptr;
         if (num_params_remaining == 4) {
-            support_ptr.reset(
-                CircleSupportArea<Scalar>::from_parameters(p, start).clone());
+            auto support = CircleSupportArea<Scalar>::from_parameters(p, start);
+            support_ptr = &support;
         } else {
-            support_ptr.reset(
-                PolygonSupportArea<Scalar>::from_parameters(p, start).clone());
+            auto support = PolygonSupportArea<Scalar>::from_parameters(p, start);
+            support_ptr = &support;
         }
 
-        return BalancedObject<Scalar>(body, com_height, std::move(support_ptr),
+        return BalancedObject<Scalar>(body, com_height, *support_ptr,
                                       r_tau, mu);
     }
 
     // Cast to another underlying scalar type
     template <typename T>
-    BalancedObject<T> cast() {
+    BalancedObject<T> cast() const {
         Vector<Scalar> p = get_parameters();
         return BalancedObject<T>::from_parameters(p.template cast<T>());
     }
@@ -198,14 +204,14 @@ struct BalancedObject {
         Vec3<Scalar> delta = objects[0].body.com - body.com;
         Scalar com_height = objects[0].com_height - delta(2);
 
+        // Using a smart pointer here ensures that the cloned object is cleaned
+        // up after we pass in the reference (which is itself cloned)
         std::unique_ptr<SupportAreaBase<Scalar>> support_area_ptr(
             objects[0].support_area_ptr->clone());
         support_area_ptr->offset = delta.head(2);
 
-        // TODO I think it should be fine passing the reference to the local
-        // object, since it gets cloned in the constructor
         BalancedObject<Scalar> composite(body, com_height,
-                                         std::move(support_area_ptr),
+                                         *support_area_ptr,
                                          objects[0].r_tau, objects[0].mu);
         return composite;
     }

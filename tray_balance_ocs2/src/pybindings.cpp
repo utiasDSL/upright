@@ -57,6 +57,8 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("inertia", &RigidBody<scalar_t>::inertia)
         .def_readwrite("com", &RigidBody<scalar_t>::com);
 
+    pybind11::class_<SupportAreaBase<scalar_t>>(m, "SupportAreaBase");
+
     pybind11::class_<CircleSupportArea<scalar_t>, SupportAreaBase<scalar_t>>(
         m, "CircleSupportArea")
         .def(pybind11::init<const scalar_t, const Vec2<scalar_t>&,
@@ -77,16 +79,17 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
 
     pybind11::class_<BalancedObject<scalar_t>>(m, "BalancedObject")
         .def(pybind11::init<const RigidBody<scalar_t>&, scalar_t,
-                            std::unique_ptr<SupportAreaBase<scalar_t>>,
-                            scalar_t, scalar_t>(),
-             "body"_a, "com_height"_a, "support_area_ptr"_a, "r_tau"_a, "mu"_a);
+                            const SupportAreaBase<scalar_t>&, scalar_t,
+                            scalar_t>(),
+             "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a);
 
     pybind11::class_<TrayBalanceConfiguration> tray_balance_configuration(
         m, "TrayBalanceConfiguration");
 
     tray_balance_configuration.def(pybind11::init<>())
         .def_readwrite("num", &TrayBalanceConfiguration::num)
-        .def_readwrite("arrangement", &TrayBalanceConfiguration::arrangement);
+        .def_readwrite("arrangement", &TrayBalanceConfiguration::arrangement)
+        .def_readwrite("objects", &TrayBalanceConfiguration::objects);
 
     pybind11::enum_<TrayBalanceConfiguration::Arrangement>(
         tray_balance_configuration, "Arrangement")

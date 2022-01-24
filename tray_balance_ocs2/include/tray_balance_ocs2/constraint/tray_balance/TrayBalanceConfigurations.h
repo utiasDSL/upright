@@ -16,7 +16,8 @@ struct TrayBalanceConfiguration {
     };
 
     Arrangement arrangement = Arrangement::Flat;
-    size_t num = 0;
+    size_t num = 0; // TODO remove
+    std::vector<BalancedObject<scalar_t>> objects;
 
     void set_arrangement(const std::string& s) {
         if (s == "flat") {
@@ -53,45 +54,42 @@ BalancedObject<Scalar> build_tray_object() {
     //     tray_r_tau, tray_support_offset, ad_scalar_t(0));
     std::vector<Vec2<Scalar>> tray_support_vertices =
         equilateral_triangle_support_vertices(ee_side_length);
-    std::unique_ptr<PolygonSupportArea<Scalar>> tray_support_area(
-        new PolygonSupportArea<Scalar>(tray_support_vertices, tray_support_offset,
-                               tray_zmp_margin));
+    PolygonSupportArea<Scalar> tray_support_area(
+        tray_support_vertices, tray_support_offset, tray_zmp_margin);
 
-    BalancedObject<Scalar> tray(tray_body, tray_com_height,
-                                std::move(tray_support_area), tray_r_tau,
-                                tray_mu);
+    BalancedObject<Scalar> tray(tray_body, tray_com_height, tray_support_area,
+                                tray_r_tau, tray_mu);
     return tray;
 }
 
-// template <typename Scalar>
-// BalancedObject<Scalar> build_cuboid_object() {
-//     Scalar cuboid_mass(0.5);
-//     Scalar cuboid_mu(0.5);
-//     Scalar cuboid_com_height(0.075);
-//     Scalar cuboid_zmp_margin(0.0);
-//     Vec2<Scalar> cuboid_support_offset = Vec2<Scalar>::Zero();
-//     Vec3<Scalar> cuboid_side_lengths(Scalar(0.15), Scalar(0.15),
-//                                      cuboid_com_height * 2);
-//     Mat3<Scalar> cuboid_inertia =
-//         cuboid_inertia_matrix(cuboid_mass, cuboid_side_lengths);
-//     Vec3<Scalar> cuboid_com(Scalar(0), Scalar(0), Scalar(0.115));
-//     RigidBody<Scalar> cuboid_body(cuboid_mass, cuboid_inertia, cuboid_com);
-//
-//     // TODO should try using a cuboid r_tau
-//     // Scalar cuboid_r_tau = circle_r_tau(cuboid_side_lengths(0) * 0.5);
-//     Scalar cuboid_r_tau =
-//         rectangle_r_tau(cuboid_side_lengths(0), cuboid_side_lengths(1));
-//
-//     std::vector<Vec2<Scalar>> cuboid_vertices =
-//         cuboid_support_vertices(cuboid_side_lengths);
-//     PolygonSupportArea<Scalar> cuboid_support_area(
-//         cuboid_vertices, cuboid_support_offset, cuboid_zmp_margin);
-//
-//     BalancedObject<Scalar> cuboid(cuboid_body, cuboid_com_height,
-//                                   cuboid_support_area, cuboid_r_tau,
-//                                   cuboid_mu);
-//     return cuboid;
-// }
+template <typename Scalar>
+BalancedObject<Scalar> build_cuboid_object() {
+    Scalar cuboid_mass(0.5);
+    Scalar cuboid_mu(0.5);
+    Scalar cuboid_com_height(0.075);
+    Scalar cuboid_zmp_margin(0.0);
+    Vec2<Scalar> cuboid_support_offset = Vec2<Scalar>::Zero();
+    Vec3<Scalar> cuboid_side_lengths(Scalar(0.15), Scalar(0.15),
+                                     cuboid_com_height * 2);
+    Mat3<Scalar> cuboid_inertia =
+        cuboid_inertia_matrix(cuboid_mass, cuboid_side_lengths);
+    Vec3<Scalar> cuboid_com(Scalar(0), Scalar(0), Scalar(0.115));
+    RigidBody<Scalar> cuboid_body(cuboid_mass, cuboid_inertia, cuboid_com);
+
+    // TODO should try using a cuboid r_tau
+    // Scalar cuboid_r_tau = circle_r_tau(cuboid_side_lengths(0) * 0.5);
+    Scalar cuboid_r_tau =
+        rectangle_r_tau(cuboid_side_lengths(0), cuboid_side_lengths(1));
+
+    std::vector<Vec2<Scalar>> cuboid_vertices =
+        cuboid_support_vertices(cuboid_side_lengths);
+    PolygonSupportArea<Scalar> cuboid_support_area(
+        cuboid_vertices, cuboid_support_offset, cuboid_zmp_margin);
+
+    BalancedObject<Scalar> cuboid(cuboid_body, cuboid_com_height,
+                                  cuboid_support_area, cuboid_r_tau, cuboid_mu);
+    return cuboid;
+}
 
 template <typename Scalar>
 BalancedObject<Scalar> build_cylinder1(const TrayBalanceConfiguration& config) {
@@ -125,15 +123,14 @@ BalancedObject<Scalar> build_cylinder1(const TrayBalanceConfiguration& config) {
     // circle: this is better for solver stability.
     Scalar s = cylinder_radius * Scalar(sqrt(2.0));
     std::vector<Vec2<Scalar>> cylinder_vertices = cuboid_support_vertices(s, s);
-    std::unique_ptr<SupportAreaBase<Scalar>> cylinder_support_area(
-        new PolygonSupportArea<Scalar>(
-            cylinder_vertices, cylinder_support_offset, cylinder_zmp_margin));
+    PolygonSupportArea<Scalar> cylinder_support_area(
+        cylinder_vertices, cylinder_support_offset, cylinder_zmp_margin);
     // CircleSupportArea<Scalar> cylinder_support_area(
     //     cylinder_radius, cylinder_support_offset, cylinder_zmp_margin);
 
     BalancedObject<Scalar> cylinder(cylinder_body, cylinder_com_height,
-                                    std::move(cylinder_support_area),
-                                    cylinder_r_tau, cylinder_mu);
+                                    cylinder_support_area, cylinder_r_tau,
+                                    cylinder_mu);
     return cylinder;
 }
 
@@ -166,15 +163,14 @@ BalancedObject<Scalar> build_cylinder2(const TrayBalanceConfiguration& config) {
 
     Scalar s = cylinder_radius * Scalar(sqrt(2.0));
     std::vector<Vec2<Scalar>> cylinder_vertices = cuboid_support_vertices(s, s);
-    std::unique_ptr<SupportAreaBase<Scalar>> cylinder_support_area(
-        new PolygonSupportArea<Scalar>(
-            cylinder_vertices, cylinder_support_offset, cylinder_zmp_margin));
+    PolygonSupportArea<Scalar> cylinder_support_area(
+        cylinder_vertices, cylinder_support_offset, cylinder_zmp_margin);
     // CircleSupportArea<Scalar> cylinder_support_area(
     //     cylinder_radius, cylinder_support_offset, cylinder_zmp_margin);
 
     BalancedObject<Scalar> cylinder(cylinder_body, cylinder_com_height,
-                                    std::move(cylinder_support_area),
-                                    cylinder_r_tau, cylinder_mu);
+                                    cylinder_support_area, cylinder_r_tau,
+                                    cylinder_mu);
     return cylinder;
 }
 
@@ -207,15 +203,14 @@ BalancedObject<Scalar> build_cylinder3(const TrayBalanceConfiguration& config) {
 
     Scalar s = cylinder_radius * Scalar(sqrt(2.0));
     std::vector<Vec2<Scalar>> cylinder_vertices = cuboid_support_vertices(s, s);
-    std::unique_ptr<SupportAreaBase<Scalar>> cylinder_support_area(
-        new PolygonSupportArea<Scalar>(
-            cylinder_vertices, cylinder_support_offset, cylinder_zmp_margin));
+    PolygonSupportArea<Scalar> cylinder_support_area(
+        cylinder_vertices, cylinder_support_offset, cylinder_zmp_margin);
     // CircleSupportArea<Scalar> cylinder_support_area(
     //     cylinder_radius, cylinder_support_offset, cylinder_zmp_margin);
 
     BalancedObject<Scalar> cylinder(cylinder_body, cylinder_com_height,
-                                    std::move(cylinder_support_area),
-                                    cylinder_r_tau, cylinder_mu);
+                                    cylinder_support_area, cylinder_r_tau,
+                                    cylinder_mu);
     return cylinder;
 }
 
