@@ -88,9 +88,9 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         m, "TrayBalanceConfiguration");
 
     tray_balance_configuration.def(pybind11::init<>())
-        .def_readwrite("num", &TrayBalanceConfiguration::num)
         .def_readwrite("arrangement", &TrayBalanceConfiguration::arrangement)
-        .def_readwrite("objects", &TrayBalanceConfiguration::objects);
+        .def_readwrite("objects", &TrayBalanceConfiguration::objects)
+        .def("num_constraints", &TrayBalanceConfiguration::num_constraints);
 
     pybind11::enum_<TrayBalanceConfiguration::Arrangement>(
         tray_balance_configuration, "Arrangement")

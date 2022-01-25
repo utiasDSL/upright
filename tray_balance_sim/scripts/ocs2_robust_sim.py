@@ -126,12 +126,12 @@ def main():
     robot, objects, composites = sim.setup(
         ["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
     )
-    settings = ocs2_util.get_task_settings(composites)
+    settings_wrapper = ocs2_util.TaskSettingsWrapper(composites)
 
-    if settings.tray_balance_settings.robust:
-        set_bounding_spheres(robot, objects, settings)
+    if settings_wrapper.settings.tray_balance_settings.robust:
+        set_bounding_spheres(robot, objects, settings_wrapper.settings)
         robust_spheres = RobustSpheres(
-            robot, settings.tray_balance_settings.robust_params
+            robot, settings_wrapper.settings.tray_balance_settings.robust_params
         )
         IPython.embed()
 
@@ -148,7 +148,7 @@ def main():
         ni=robot.ni,
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
-        n_balance_con=ocs2_util.get_num_balance_constraints(settings),
+        n_balance_con=settings_wrapper.get_num_balance_constraints(),
         n_collision_pair=0,
         n_dynamic_obs=0,
     )
@@ -172,7 +172,7 @@ def main():
     target_times = [0]
     r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
-    mpc = ocs2_util.setup_ocs2_mpc_interface(settings)
+    mpc = ocs2_util.setup_ocs2_mpc_interface(settings_wrapper.settings)
 
     # setup EE target
     t_target = ocs2.scalar_array()
@@ -250,9 +250,9 @@ def main():
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
 
-            if settings.tray_balance_settings.enabled:
+            if settings_wrapper.settings.tray_balance_settings.enabled:
                 if (
-                    settings.tray_balance_settings.constraint_type
+                    settings_wrapper.settings.tray_balance_settings.constraint_type
                     == ocs2.ConstraintType.Hard
                 ):
                     recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
@@ -286,7 +286,7 @@ def main():
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
         sim.step(step_robot=True)
-        if settings.tray_balance_settings.robust:
+        if settings_wrapper.settings.tray_balance_settings.robust:
             robust_spheres.update()
         t += sim.dt
         time.sleep(sim.dt)
