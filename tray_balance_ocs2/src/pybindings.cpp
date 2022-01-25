@@ -84,18 +84,15 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
              "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
         .def_static("compose", &BalancedObject<scalar_t>::compose, "objects"_a);
 
-    pybind11::class_<TrayBalanceConfiguration> tray_balance_configuration(
-        m, "TrayBalanceConfiguration");
-
-    tray_balance_configuration.def(pybind11::init<>())
-        .def_readwrite("arrangement", &TrayBalanceConfiguration::arrangement)
+    pybind11::class_<TrayBalanceConfiguration>(m, "TrayBalanceConfiguration")
+        .def(pybind11::init<>())
         .def_readwrite("objects", &TrayBalanceConfiguration::objects)
         .def("num_constraints", &TrayBalanceConfiguration::num_constraints);
 
-    pybind11::enum_<TrayBalanceConfiguration::Arrangement>(
-        tray_balance_configuration, "Arrangement")
-        .value("Flat", TrayBalanceConfiguration::Arrangement::Flat)
-        .value("Stacked", TrayBalanceConfiguration::Arrangement::Stacked);
+    // pybind11::enum_<TrayBalanceConfiguration::Arrangement>(
+    //     tray_balance_configuration, "Arrangement")
+    //     .value("Flat", TrayBalanceConfiguration::Arrangement::Flat)
+    //     .value("Stacked", TrayBalanceConfiguration::Arrangement::Stacked);
 
     pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
         .def(pybind11::init<>())

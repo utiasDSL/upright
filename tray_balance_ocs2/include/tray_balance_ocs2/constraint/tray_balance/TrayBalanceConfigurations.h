@@ -9,41 +9,43 @@
 namespace ocs2 {
 namespace mobile_manipulator {
 
-struct TrayBalanceConfiguration {
-    enum class Arrangement {
-        Flat,
-        Stacked,
-    };
+// Old, currently unused code.
 
-    Arrangement arrangement = Arrangement::Flat;
-    std::vector<BalancedObject<scalar_t>> objects;
-
-    size_t num_constraints() const {
-        size_t n = 0;
-        for (auto& obj : objects) {
-            n += obj.num_constraints();
-        }
-        return n;
-    }
-
-    size_t num_parameters() const {
-        size_t n = 0;
-        for (auto& obj : objects) {
-            n += obj.num_parameters();
-        }
-        return n;
-    }
-
-    void set_arrangement(const std::string& s) {
-        if (s == "flat") {
-            arrangement = Arrangement::Flat;
-        } else if (s == "stacked") {
-            arrangement = Arrangement::Stacked;
-        } else {
-            throw std::runtime_error("Invalid arrangement: " + s);
-        }
-    }
-};
+// struct TrayBalanceConfiguration {
+//     enum class Arrangement {
+//         Flat,
+//         Stacked,
+//     };
+//
+//     Arrangement arrangement = Arrangement::Flat;
+//     std::vector<BalancedObject<scalar_t>> objects;
+//
+//     size_t num_constraints() const {
+//         size_t n = 0;
+//         for (auto& obj : objects) {
+//             n += obj.num_constraints();
+//         }
+//         return n;
+//     }
+//
+//     size_t num_parameters() const {
+//         size_t n = 0;
+//         for (auto& obj : objects) {
+//             n += obj.num_parameters();
+//         }
+//         return n;
+//     }
+//
+//     void set_arrangement(const std::string& s) {
+//         if (s == "flat") {
+//             arrangement = Arrangement::Flat;
+//         } else if (s == "stacked") {
+//             arrangement = Arrangement::Stacked;
+//         } else {
+//             throw std::runtime_error("Invalid arrangement: " + s);
+//         }
+//     }
+// };
 
 // template <typename Scalar>
 // BalancedObject<Scalar> build_tray_object() {

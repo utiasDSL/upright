@@ -41,7 +41,7 @@ class TaskSettingsWrapper:
         settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
 
         config = ocs2.TrayBalanceConfiguration()
-        config.arrangement = ocs2.TrayBalanceConfiguration.Arrangement.Stacked
+        # config.arrangement = ocs2.TrayBalanceConfiguration.Arrangement.Stacked
         config.objects = composites
         settings.tray_balance_settings.config = config
 
