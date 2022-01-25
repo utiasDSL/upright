@@ -39,6 +39,7 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
                 "number of end effector IDs.");
         }
         // initialize everything, mostly the CppAD interface
+        // TODO may wish to use parameters here too
         initialize(STATE_DIM, INPUT_DIM, 0, "robust_tray_balance_constraints",
                    "/tmp/ocs2", recompileLibraries, true);
     }

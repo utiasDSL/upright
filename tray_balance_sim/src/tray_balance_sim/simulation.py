@@ -234,7 +234,7 @@ class Simulation:
         if "tray" in obj_names:
             tray = bodies.Cylinder(
                 r_tau=EE_INSCRIBED_RADIUS,
-                support_area=geometry.PolygonSupportArea.equilateral_triangle(
+                support_area=ocs2.PolygonSupportArea.equilateral_triangle(
                     EE_SIDE_LENGTH
                 ),
                 mass=TRAY_MASS,
@@ -253,7 +253,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER1_RADIUS),
-                support_area=geometry.PolygonSupportArea.circle(
+                support_area=ocs2.PolygonSupportArea.circle(
                     CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER1_MASS,
@@ -279,7 +279,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER1_RADIUS),
-                support_area=geometry.PolygonSupportArea.circle(
+                support_area=ocs2.PolygonSupportArea.circle(
                     CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER1_MASS,
@@ -305,7 +305,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER2_RADIUS),
-                support_area=geometry.PolygonSupportArea.circle(
+                support_area=ocs2.PolygonSupportArea.circle(
                     CYLINDER2_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER2_MASS,
@@ -333,7 +333,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER2_RADIUS),
-                support_area=geometry.PolygonSupportArea.circle(
+                support_area=ocs2.PolygonSupportArea.circle(
                     CYLINDER2_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER2_MASS,
@@ -359,7 +359,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER3_RADIUS),
-                support_area=geometry.PolygonSupportArea.circle(
+                support_area=ocs2.PolygonSupportArea.circle(
                     CYLINDER3_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER3_MASS,
@@ -387,7 +387,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER3_RADIUS),
-                support_area=geometry.PolygonSupportArea.circle(
+                support_area=ocs2.PolygonSupportArea.circle(
                     CYLINDER3_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER3_MASS,
@@ -426,8 +426,8 @@ class Simulation:
             objects["tray"].children.append(name)
 
         if "cuboid1" in obj_names:
-            support = geometry.PolygonSupportArea(
-                geometry.cuboid_support_vertices(CUBOID1_SIDE_LENGTHS),
+            support = ocs2.PolygonSupportArea.axis_aligned_rectangle(
+                CUBOID1_SIDE_LENGTHS[0], CUBOID1_SIDE_LENGTHS[1],
                 margin=OBJ_ZMP_MARGIN,
             )
             objects["cuboid1"] = bodies.Cuboid(

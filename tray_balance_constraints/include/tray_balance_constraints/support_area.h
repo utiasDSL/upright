@@ -42,26 +42,6 @@ std::vector<Vec2<Scalar>> equilateral_triangle_support_vertices(
     return vertices;
 }
 
-// Compute (x, y) location of cup on the tray, when supported by equilateral
-// triangle support.
-// @param[in] side_length   Side length of triangle
-// @param[in] distance      Distance along normal toward a vertex to place the
-// cup
-// @param[in] vertex_index  Index of the vertex to position the cup toward
-template <typename Scalar>
-Vec2<Scalar> equilateral_triangle_cup_location(Scalar side_length,
-                                               Scalar distance,
-                                               size_t vertex_index) {
-    std::vector<Vec2<Scalar>> vertices =
-        equilateral_triangle_support_vertices(side_length);
-    if (vertex_index >= vertices.size()) {
-        throw std::runtime_error("vertex_index is too large");
-    }
-
-    Vec2<Scalar> normal = vertices[vertex_index].normalized();
-    return distance * normal;
-}
-
 template <typename Scalar>
 struct SupportAreaBase {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -157,7 +137,7 @@ struct PolygonSupportArea : public SupportAreaBase<Scalar> {
 
    public:
     PolygonSupportArea(const std::vector<Vec2<Scalar>>& vertices,
-                       const Vec2<Scalar>& offset, Scalar margin)
+                       const Vec2<Scalar>& offset, Scalar margin = 0)
         : SupportAreaBase<Scalar>(offset, margin), vertices(vertices) {}
 
     size_t num_constraints() const override { return vertices.size(); }
@@ -223,10 +203,35 @@ struct PolygonSupportArea : public SupportAreaBase<Scalar> {
         return PolygonSupportArea(vertices, offset, margin);
     }
 
+    // Square support area approximation to a circle
+    static PolygonSupportArea<Scalar> circle(Scalar radius, Scalar margin = 0) {
+        Scalar side_length = Scalar(sqrt(2.0)) * radius;
+        Vec2<Scalar> offset = Vec2<Scalar>::Zero();
+        std::vector<Vec2<Scalar>> vertices =
+            cuboid_support_vertices(side_length, side_length);
+        return PolygonSupportArea<Scalar>(vertices, offset, margin);
+    }
+
+    // Equilateral triangle support area
+    static PolygonSupportArea<Scalar> equilateral_triangle(Scalar side_length,
+                                                           Scalar margin = 0) {
+        Vec2<Scalar> offset = Vec2<Scalar>::Zero();
+        std::vector<Vec2<Scalar>> vertices =
+            equilateral_triangle_support_vertices(side_length);
+        return PolygonSupportArea<Scalar>(vertices, offset, margin);
+    }
+
+    static PolygonSupportArea<Scalar> axis_aligned_rectangle(Scalar sx,
+                                                             Scalar sy,
+                                                             Scalar margin = 0) {
+        Vec2<Scalar> offset = Vec2<Scalar>::Zero();
+        std::vector<Vec2<Scalar>> vertices = cuboid_support_vertices(sx, sy);
+        return PolygonSupportArea<Scalar>(vertices, offset, margin);
+    }
+
     std::vector<Vec2<Scalar>> vertices;
 
    private:
-    // TODO this should probably just be a static member
     Scalar edge_zmp_constraint(const Vec2<Scalar>& zmp, const Vec2<Scalar>& v1,
                                const Vec2<Scalar>& v2) const {
         Mat2<Scalar> S;

@@ -1,27 +1,7 @@
-from enum import Enum
-from dataclasses import dataclass
-
 import numpy as np
 import pybullet as pyb
 
-from tray_balance_sim import geometry
-from tray_balance_sim.util import skew3
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
-
-
-class SupportAreaType(Enum):
-    Circle = 1
-    Polygon = 2
-
-
-class SupportAreaInfo:
-    def __init__(self, type_, offset=None, margin=0):
-        self.type_ = type_
-        if offset is None:
-            self.offset = np.zeros(2)
-        else:
-            self.offset = np.array(offset)
-        self.margin = margin
 
 
 def cylinder_inertia_matrix(mass, radius, height):
@@ -39,31 +19,6 @@ def cuboid_inertia_matrix(mass, side_lengths):
     yy = lx ** 2 + lz ** 2
     zz = lx ** 2 + ly ** 2
     return mass * np.diag([xx, yy, zz]) / 12.0
-
-
-class RigidBody:
-    """Rigid body parameters."""
-
-    def __init__(self, mass, inertia, com):
-        self.mass = mass
-        self.inertia = np.array(inertia)
-        self.com = np.array(com)  # relative to some reference point
-
-
-def compose_bodies(bodies):
-    """Compute dynamic parameters for a system of multiple rigid bodies."""
-    mass = sum([body.mass for body in bodies])
-    com = sum([body.mass * body.com for body in bodies]) / mass
-
-    # parallel axis theorem to compute new inertia matrix
-    inertia = np.zeros((3, 3))
-    for body in bodies:
-        r = body.com - com  # direction doesn't actually matter: it cancels out
-        R = skew3(r, np=np)
-        I_new = body.inertia - body.mass * R @ R
-        inertia += I_new
-
-    return RigidBody(mass, inertia, com)
 
 
 class BulletBody:
@@ -123,10 +78,10 @@ class BalancedBody:
 
         self.children = []
 
-    def copy(self):
-        # NOTE: this doesn't make a deep copy
-        return BalancedBody(
-            self.body, self.com_height, self.r_tau, self.support_area, self.mu
+    def convert_to_ocs2(self):
+        body = ocs2.RigidBody(self.mass, self.inertia, self.com)
+        return ocs2.BalancedObject(
+            body, self.com_height, self.support_area, self.r_tau, self.mu
         )
 
 
@@ -167,13 +122,6 @@ class Cylinder(BalancedBody):
             visual_uid,
             [0, 0, 2],
             [0, 0, 0, 1],
-        )
-
-    def convert_to_ocs2(self):
-        body = ocs2.RigidBody(self.mass, self.inertia, self.com)
-        support_area = self.support_area.convert_to_ocs2()
-        return ocs2.BalancedObject(
-            body, self.com_height, support_area, self.r_tau, self.mu
         )
 
 
