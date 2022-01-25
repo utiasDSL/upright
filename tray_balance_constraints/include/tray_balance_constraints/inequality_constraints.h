@@ -298,12 +298,12 @@ Vector<Scalar> inequality_constraints(const Mat3<Scalar>& orientation,
     Scalar eps(0.01);
     // Scalar h1 = sqrt(squared(object.mu * alpha(2)) - squared(alpha(0)) -
     //             squared(alpha(1)) - squared(beta(2) / object.r_tau) + eps);
-    // Scalar h1 =
-    //     object.mu * alpha(2) - sqrt(squared(alpha(0)) + squared(alpha(1)) +
-    //     eps);
     Scalar h1 =
         object.mu * alpha(2) - sqrt(squared(alpha(0)) + squared(alpha(1)) +
                                     squared(beta(2) / object.r_tau) + eps);
+    // Scalar h1 =
+    //     squared(object.mu * alpha(2)) - squared(alpha(0)) + squared(alpha(1)) -
+    //                                 squared(beta(2) / object.r_tau) + eps;
 
     // normal constraint
     Scalar h2 = alpha(2);

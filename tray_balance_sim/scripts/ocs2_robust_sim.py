@@ -259,9 +259,11 @@ def main():
                         "trayBalance", t, x, u
                     )
                 else:
-                    recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
+                    con = mpc.softStateInputInequalityConstraint(
                         "trayBalance", t, x, u
                     )
+                    # IPython.embed()
+                    recorder.ineq_cons[idx, :] = con
 
             r_ew_w_d = state_target[target_idx][:3]
             Q_we_d = state_target[target_idx][3:7]

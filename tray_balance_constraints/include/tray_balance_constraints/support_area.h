@@ -233,7 +233,11 @@ struct PolygonSupportArea : public SupportAreaBase<Scalar> {
         S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
 
         Vec2<Scalar> normal = S * (v2 - v1);  // inward-facing normal vector
-        normal.normalize();
+
+        // Normalize manually rather than calling normal.normalize(), because
+        // that doesn't play nice with CppAD variables. Multiple vertices
+        // should never be equal, so this should always be well-defined.
+        normal = normal / normal.norm();
 
         return -(zmp - v1).dot(normal) - this->margin;
     }

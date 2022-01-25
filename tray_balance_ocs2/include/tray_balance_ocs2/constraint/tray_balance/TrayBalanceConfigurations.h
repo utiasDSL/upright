@@ -19,6 +19,22 @@ struct TrayBalanceConfiguration {
     size_t num = 0; // TODO remove
     std::vector<BalancedObject<scalar_t>> objects;
 
+    size_t num_constraints() const {
+        size_t n = 0;
+        for (auto& obj : objects) {
+            n += obj.num_constraints();
+        }
+        return n;
+    }
+
+    size_t num_parameters() const {
+        size_t n = 0;
+        for (auto& obj : objects) {
+            n += obj.num_parameters();
+        }
+        return n;
+    }
+
     void set_arrangement(const std::string& s) {
         if (s == "flat") {
             arrangement = Arrangement::Flat;
