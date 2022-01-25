@@ -10,7 +10,7 @@ import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 LIBRARY_PATH = "/tmp/ocs2"
 
 
-def get_task_settings():
+def get_task_settings(composites):
     settings = ocs2.TaskSettings()
 
     settings.method = ocs2.TaskSettings.Method.DDP
@@ -43,6 +43,7 @@ def get_task_settings():
     config = ocs2.TrayBalanceConfiguration()
     config.arrangement = ocs2.TrayBalanceConfiguration.Arrangement.Stacked
     config.num = 3
+    config.objects = composites
     settings.tray_balance_settings.config = config
 
     # robust settings

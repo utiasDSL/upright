@@ -118,30 +118,15 @@ class RobustSpheres:
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    mass = 1.0
-    inertia = np.eye(3)
-    com = np.array([0, 0, 1])
-    body = ocs2.RigidBody(mass, inertia, com)
-
-    vertices = [[0, 1], [1, 0], [1, 1]]
-    support = ocs2.PolygonSupportArea(vertices, np.zeros(2), 0)
-
-    com_height = 1
-    r_tau = 0.1
-    mu = 0.5
-    balanced_object = ocs2.BalancedObject(body, com_height, support, r_tau, mu)
-
-    IPython.embed()
-
-    settings = ocs2_util.get_task_settings()
     sim = MobileManipulatorSimulation(dt=SIM_DT)
 
     N = int(DURATION / sim.dt)
 
     # simulation objects and model
-    robot, objects, _ = sim.setup(ocs2_util.get_obj_names_from_settings(settings))
-    for name, obj in objects.items():
-        print(f"{name} CoM = {obj.body.com}")
+    robot, objects, composites = sim.setup(
+        ["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
+    )
+    settings = ocs2_util.get_task_settings(composites)
 
     if settings.tray_balance_settings.robust:
         set_bounding_spheres(robot, objects, settings)

@@ -1,4 +1,5 @@
 import os
+from collections import deque
 import numpy as np
 import pybullet as pyb
 import pybullet_data
@@ -9,6 +10,8 @@ from tray_balance_sim.robot import SimulatedRobot
 import tray_balance_sim.util as util
 import tray_balance_sim.geometry as geometry
 import tray_balance_sim.bodies as bodies
+
+import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 
 import IPython
 
@@ -59,7 +62,7 @@ CYLINDER3_MU_BULLET_STACKED = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET_STACKED
 CYLINDER3_RADIUS = 0.05
 CYLINDER3_COM_HEIGHT = 0.075
 
-OBJ_ZMP_MARGIN = 0
+OBJ_ZMP_MARGIN = 0.01
 
 BASE_HOME = [0, 0, 0]
 UR10_HOME_STANDARD = [
@@ -225,27 +228,24 @@ class Simulation:
 
         return (c0, c1, c2)
 
-    # def object_setup(self, r_ew_w, obj_names):
     def object_setup(self, r_ew_w, obj_names):
-        # setup balanced objects
-        # obj_names = tray_balance_settings.obj_names()
-
         objects = {}
 
         if "tray" in obj_names:
-            objects["tray"] = bodies.Cylinder(
+            tray = bodies.Cylinder(
                 r_tau=EE_INSCRIBED_RADIUS,
-                support_area=geometry.CircleSupportArea(EE_INSCRIBED_RADIUS),
+                support_area=geometry.PolygonSupportArea.equilateral_triangle(
+                    EE_SIDE_LENGTH
+                ),
                 mass=TRAY_MASS,
                 radius=TRAY_RADIUS,
                 height=2 * TRAY_COM_HEIGHT,
                 mu=TRAY_MU,
             )
-            objects["tray"].add_to_sim(
-                bullet_mu=TRAY_MU_BULLET, color=(0.122, 0.467, 0.706, 1)
-            )
+            tray.add_to_sim(bullet_mu=TRAY_MU_BULLET, color=(0.122, 0.467, 0.706, 1))
             r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
-            objects["tray"].bullet.reset_pose(position=r_tw_w)
+            tray.bullet.reset_pose(position=r_tw_w)
+            objects["tray"] = tray
 
         c1, c2, c3 = self.compute_cylinder_xy_positions(L=0.08)
 
@@ -253,7 +253,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER1_RADIUS),
-                support_area=geometry.CircleSupportArea(
+                support_area=geometry.PolygonSupportArea.circle(
                     CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER1_MASS,
@@ -270,9 +270,7 @@ class Simulation:
             r_ow_w = r_ew_w + [
                 0,
                 0,
-                2 * TRAY_COM_HEIGHT
-                + CYLINDER1_COM_HEIGHT
-                + 0.05,
+                2 * TRAY_COM_HEIGHT + CYLINDER1_COM_HEIGHT + 0.05,
             ]
             objects[name].bullet.reset_pose(position=r_ow_w)
             objects["tray"].children.append(name)
@@ -281,7 +279,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER1_RADIUS),
-                support_area=geometry.CircleSupportArea(
+                support_area=geometry.PolygonSupportArea.circle(
                     CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER1_MASS,
@@ -307,7 +305,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER2_RADIUS),
-                support_area=geometry.CircleSupportArea(
+                support_area=geometry.PolygonSupportArea.circle(
                     CYLINDER2_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER2_MASS,
@@ -335,7 +333,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER2_RADIUS),
-                support_area=geometry.CircleSupportArea(
+                support_area=geometry.PolygonSupportArea.circle(
                     CYLINDER2_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER2_MASS,
@@ -361,7 +359,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER3_RADIUS),
-                support_area=geometry.CircleSupportArea(
+                support_area=geometry.PolygonSupportArea.circle(
                     CYLINDER3_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER3_MASS,
@@ -389,7 +387,7 @@ class Simulation:
         if name in obj_names:
             objects[name] = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER3_RADIUS),
-                support_area=geometry.CircleSupportArea(
+                support_area=geometry.PolygonSupportArea.circle(
                     CYLINDER3_RADIUS, margin=OBJ_ZMP_MARGIN
                 ),
                 mass=CYLINDER3_MASS,
@@ -421,9 +419,7 @@ class Simulation:
                 height=1.0,
                 mu=1.0,
             )
-            objects[name].add_to_sim(
-                bullet_mu=1.0, color=(0.839, 0.153, 0.157, 1)
-            )
+            objects[name].add_to_sim(bullet_mu=1.0, color=(0.839, 0.153, 0.157, 1))
 
             r_ow_w = r_ew_w + [0, 0, 2 * TRAY_COM_HEIGHT + 0.5 + 0.01]
             objects[name].bullet.reset_pose(position=r_ow_w)
@@ -455,20 +451,19 @@ class Simulation:
         return objects
 
     def composite_setup(self, objects):
-        tray = objects["tray"]
-        assert len(tray.children) <= 1
-        if len(tray.children) > 0:
-            # TODO this would be straightforward to extend to many objects on
-            # the tray
-            obj = objects[tray.children[0]]
-            obj_tray_composite = tray.copy()
-            obj_tray_composite.body = bodies.compose_bodies([tray.body, obj.body])
-            delta = tray.body.com - obj_tray_composite.body.com
-            obj_tray_composite.support_area.offset = delta[:2]
-            obj_tray_composite.com_height = tray.com_height - delta[2]
-            composites = [obj_tray_composite, obj]
-        else:
-            composites = [tray]
+        composites = []
+        for obj in objects.values():
+            # all descendants compose the new object
+            descendants = []
+            queue = deque([obj])
+            while len(queue) > 0:
+                desc = queue.popleft()
+                descendants.append(desc.convert_to_ocs2())
+                for name in desc.children:
+                    queue.append(objects[name])
+
+            # descendants have already been converted to C++ objects
+            composites.append(ocs2.BalancedObject.compose(descendants))
         return composites
 
 
@@ -536,9 +531,8 @@ class MobileManipulatorSimulation(Simulation):
         r_ew_w, Q_we = robot.link_pose()
         for obj in objects.values():
             r_ow_w, _ = obj.bullet.get_pose()
-            obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+            obj.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
 
-        # composites = super().composite_setup(objects)
-        composites = None
+        composites = super().composite_setup(objects)
 
         return robot, objects, composites

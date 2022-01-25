@@ -81,7 +81,8 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def(pybind11::init<const RigidBody<scalar_t>&, scalar_t,
                             const SupportAreaBase<scalar_t>&, scalar_t,
                             scalar_t>(),
-             "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a);
+             "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
+        .def_static("compose", &BalancedObject<scalar_t>::compose, "objects"_a);
 
     pybind11::class_<TrayBalanceConfiguration> tray_balance_configuration(
         m, "TrayBalanceConfiguration");

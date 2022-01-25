@@ -58,7 +58,14 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         // * the cylinders use the rectangular approximation to the support
         //   area (so they have the same number of constraints as cuboids)
         // TODO: it would be nice if could get this automatically somehow
-        return n_tray_con + config_.num * n_cuboid_con;
+        size_t num = 0;
+        for (auto& obj : config_.objects) {
+            num += obj.num_constraints();
+        }
+
+        // return n_tray_con + config_.num * n_cuboid_con;
+        std::cerr << "num constraints = " << num << std::endl;
+        return num;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
@@ -75,16 +82,6 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        // TODO experiment for conversion from scalar_t -> ad_scalar_t
-        // scalar_t m(1);
-        // Vec3<scalar_t> com(0, 0, 1);
-        // Mat3<scalar_t> I = Mat3<scalar_t>::Identity();
-        // RigidBody<scalar_t> body(m, I, com);
-        //
-        // vector_t p = body.get_parameters();
-        // ad_vector_t p_ad = p.cast<ad_scalar_t>();
-        //
-        // RigidBody<ad_scalar_t> body_ad = RigidBody<ad_scalar_t>::from_parameters(p_ad);
         std::vector<BalancedObject<ad_scalar_t>> objects;
         for (auto& obj : config_.objects) {
             objects.push_back(obj.cast<ad_scalar_t>());
@@ -93,6 +90,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
             C_we, angular_vel, linear_acc, angular_acc, objects);
             // build_objects<ad_scalar_t>(config_));
+            //
 
         return constraints;
     }

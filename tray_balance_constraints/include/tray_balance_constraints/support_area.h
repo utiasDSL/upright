@@ -208,7 +208,8 @@ struct PolygonSupportArea : public SupportAreaBase<Scalar> {
     static PolygonSupportArea<Scalar> from_parameters(const Vector<Scalar>& p,
                                                       const size_t index = 0) {
         // Need at least three vertices in the support area
-        if (p.size() < 3 + 2 * 3) {
+        size_t n = p.size() - index;
+        if (n < 3 + 2 * 3) {
             throw std::runtime_error("Parameter vector is wrong size.");
         }
 
@@ -216,7 +217,7 @@ struct PolygonSupportArea : public SupportAreaBase<Scalar> {
         Scalar margin = p(index + 2);
 
         std::vector<Vec2<Scalar>> vertices;
-        for (int i = 0; i < (p.size() - 3) / 2; ++i) {
+        for (int i = 0; i < (n - 3) / 2; ++i) {
             vertices.push_back(p.template segment<2>(index + 3 + i * 2));
         }
         return PolygonSupportArea(vertices, offset, margin);

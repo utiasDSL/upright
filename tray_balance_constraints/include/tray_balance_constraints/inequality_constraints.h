@@ -169,17 +169,18 @@ struct BalancedObject {
         start += body.num_parameters();
         size_t num_params_remaining = p.size() - start - 1;
 
-        SupportAreaBase<Scalar>* support_ptr;
         if (num_params_remaining == 4) {
             auto support = CircleSupportArea<Scalar>::from_parameters(p, start);
-            support_ptr = &support;
+            return BalancedObject<Scalar>(body, com_height, support,
+                                          r_tau, mu);
         } else {
             auto support = PolygonSupportArea<Scalar>::from_parameters(p, start);
-            support_ptr = &support;
+            return BalancedObject<Scalar>(body, com_height, support,
+                                          r_tau, mu);
         }
 
-        return BalancedObject<Scalar>(body, com_height, *support_ptr,
-                                      r_tau, mu);
+        // return BalancedObject<Scalar>(body, com_height, *support_ptr,
+        //                               r_tau, mu);
     }
 
     // Cast to another underlying scalar type

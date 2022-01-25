@@ -1,7 +1,27 @@
+from enum import Enum
+from dataclasses import dataclass
+
 import numpy as np
 import pybullet as pyb
 
+from tray_balance_sim import geometry
 from tray_balance_sim.util import skew3
+import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
+
+
+class SupportAreaType(Enum):
+    Circle = 1
+    Polygon = 2
+
+
+class SupportAreaInfo:
+    def __init__(self, type_, offset=None, margin=0):
+        self.type_ = type_
+        if offset is None:
+            self.offset = np.zeros(2)
+        else:
+            self.offset = np.array(offset)
+        self.margin = margin
 
 
 def cylinder_inertia_matrix(mass, radius, height):
@@ -87,9 +107,11 @@ class BalancedBody:
     r_tau: distance value used for max frictional torque calculation
     """
 
-    def __init__(self, body, com_height, r_tau, support_area, mu):
+    def __init__(self, mass, inertia, com_height, r_tau, support_area, mu):
         # dynamic parameters
-        self.body = body
+        self.mass = mass
+        self.inertia = inertia
+        self.com = None
 
         # geometry
         self.com_height = com_height
@@ -122,8 +144,8 @@ class Cylinder(BalancedBody):
         self.radius = radius
         self.height = height
         inertia = cylinder_inertia_matrix(mass, radius, height)
-        body = RigidBody(mass, inertia, None)
-        super().__init__(body, 0.5 * height, r_tau, support_area, mu)
+
+        super().__init__(mass, inertia, 0.5 * height, r_tau, support_area, mu)
 
     def add_to_sim(self, bullet_mu, color=(0, 0, 1, 1)):
         collision_uid = pyb.createCollisionShape(
@@ -138,7 +160,7 @@ class Cylinder(BalancedBody):
             rgbaColor=color,
         )
         self.bullet = BulletBody(
-            self.body.mass,
+            self.mass,
             bullet_mu,
             self.r_tau,
             collision_uid,
@@ -147,31 +169,38 @@ class Cylinder(BalancedBody):
             [0, 0, 0, 1],
         )
 
+    def convert_to_ocs2(self):
+        body = ocs2.RigidBody(self.mass, self.inertia, self.com)
+        support_area = self.support_area.convert_to_ocs2()
+        return ocs2.BalancedObject(
+            body, self.com_height, support_area, self.r_tau, self.mu
+        )
 
-class Cuboid(BalancedBody):
-    def __init__(self, r_tau, support_area, mass, side_lengths, mu):  # (x, y, z)
-        self.side_lengths = side_lengths
-        inertia = cuboid_inertia_matrix(mass, side_lengths)
-        body = RigidBody(mass, inertia, None)
-        super().__init__(body, 0.5 * side_lengths[2], r_tau, support_area, mu)
 
-    def add_to_sim(self, bullet_mu, color=(0, 0, 1, 1)):
-        half_extents = tuple(0.5 * np.array(self.side_lengths))
-        collision_uid = pyb.createCollisionShape(
-            shapeType=pyb.GEOM_BOX,
-            halfExtents=half_extents,
-        )
-        visual_uid = pyb.createVisualShape(
-            shapeType=pyb.GEOM_BOX,
-            halfExtents=half_extents,
-            rgbaColor=color,
-        )
-        self.bullet = BulletBody(
-            self.body.mass,
-            bullet_mu,
-            self.r_tau,
-            collision_uid,
-            visual_uid,
-            [0, 0, 2],
-            [0, 0, 0, 1],
-        )
+# class Cuboid(BalancedBody):
+#     def __init__(self, r_tau, support_area, mass, side_lengths, mu):  # (x, y, z)
+#         self.side_lengths = side_lengths
+#         inertia = cuboid_inertia_matrix(mass, side_lengths)
+#         body = RigidBody(mass, inertia, None)
+#         super().__init__(body, 0.5 * side_lengths[2], r_tau, support_area, mu)
+#
+#     def add_to_sim(self, bullet_mu, color=(0, 0, 1, 1)):
+#         half_extents = tuple(0.5 * np.array(self.side_lengths))
+#         collision_uid = pyb.createCollisionShape(
+#             shapeType=pyb.GEOM_BOX,
+#             halfExtents=half_extents,
+#         )
+#         visual_uid = pyb.createVisualShape(
+#             shapeType=pyb.GEOM_BOX,
+#             halfExtents=half_extents,
+#             rgbaColor=color,
+#         )
+#         self.bullet = BulletBody(
+#             self.body.mass,
+#             bullet_mu,
+#             self.r_tau,
+#             collision_uid,
+#             visual_uid,
+#             [0, 0, 2],
+#             [0, 0, 0, 1],
+#         )
