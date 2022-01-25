@@ -17,24 +17,6 @@
 namespace ocs2 {
 namespace mobile_manipulator {
 
-// required to convert from config-specified <scalar_t> values to required
-// <ad_scalar_t> values
-RobustParameterSet<ad_scalar_t> cast_parameter_set_to_ad(
-    RobustParameterSet<scalar_t> config) {
-    RobustParameterSet<ad_scalar_t> ad_config;
-    ad_config.min_support_dist = config.min_support_dist;
-    ad_config.min_mu = config.min_mu;
-    ad_config.min_r_tau = config.min_r_tau;
-    ad_config.max_radius = config.max_radius;
-
-    for (auto ball : config.balls) {
-        Vec3<ad_scalar_t> ad_center = ball.center.cast<ad_scalar_t>();
-        Ball<ad_scalar_t> ad_ball(ad_center, ad_scalar_t(ball.radius));
-        ad_config.balls.push_back(ad_ball);
-    }
-    return ad_config;
-}
-
 class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
    public:
     using ad_quaternion_t =
@@ -86,8 +68,7 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
 
         std::cerr << "Using robust constraints" << std::endl;
 
-        RobustParameterSet<ad_scalar_t> params =
-            cast_parameter_set_to_ad(params_);
+        RobustParameterSet<ad_scalar_t> params = params_.cast<ad_scalar_t>();
         ad_vector_t constraints = robust_balancing_constraints<ad_scalar_t>(
             C_we, angular_vel, linear_acc, angular_acc, params);
         return constraints;

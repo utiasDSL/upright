@@ -38,13 +38,27 @@ struct RobustParameterSet {
         : min_support_dist(0), min_mu(0), min_r_tau(0), max_radius(0) {}
 
     RobustParameterSet(const std::vector<Ball<Scalar>>& balls,
-                 const Scalar min_support_dist, const Scalar min_mu,
-                 const Scalar min_r_tau, const Scalar max_radius)
+                       const Scalar min_support_dist, const Scalar min_mu,
+                       const Scalar min_r_tau, const Scalar max_radius)
         : balls(balls),
           min_support_dist(min_support_dist),
           min_mu(min_mu),
           min_r_tau(min_r_tau),
           max_radius(max_radius) {}
+
+    // Cast to another underlying scalar type
+    template <typename T>
+    RobustParameterSet<T> cast() const {
+        RobustParameterSet<T> other({}, T(min_support_dist), T(min_mu),
+                                    T(min_r_tau), T(max_radius));
+
+        for (auto& ball : balls) {
+            Vec3<T> centerT = ball.center.template cast<T>();
+            Ball<T> ballT(centerT, T(ball.radius));
+            other.balls.push_back(ballT);
+        }
+        return other;
+    }
 
     std::vector<Ball<Scalar>> balls;
     Scalar min_support_dist;
