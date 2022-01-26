@@ -120,8 +120,9 @@ def set_bounding_spheres(robot, objects, settings, k=2, plot_point_cloud=False):
     points_e = points_e[~remove, :]
 
     # cluster point cloud points and bound with spheres
-    centers, radii = clustering.cluster_and_bound(points_e, k=k, cluster_type="greedy")
-    # centers, radii = clustering.iterative_ritter(points, k=k)
+    centers, radii = clustering.cluster_and_bound(
+        points_e, k=k, cluster_type="greedy", bound_type="fischer"
+    )
 
     # also rotate camera target into EE frame
     target_e = T_ew1.dot(camera.target)

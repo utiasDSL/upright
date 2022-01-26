@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial.distance import pdist
 from scipy.cluster import hierarchy, vq
+from miniball import miniball
 import IPython
 
 
@@ -29,7 +30,7 @@ def ritter(ps, eps=1e-8):
     # to break
     d = np.sum(np.square(ps - c), axis=1)
     idx = np.argmax(d)
-    while d[idx] > (r + eps)**2:
+    while d[idx] > (r + eps) ** 2:
         r = 0.5 * (r + np.sqrt(d[idx]))
         v = unit(c - ps[idx, :])
         c = ps[idx, :] + r * v
@@ -40,11 +41,17 @@ def ritter(ps, eps=1e-8):
     return c, r
 
 
-def iterative_ritter(assignments, points, k, n=10):
-    """Iterative Ritter's algorithm for multiple spheres.
+def fischer(points):
+    res = miniball(points)
+    return res["center"], res["radius"]
+
+
+def iterative_miniball(assignments, points, k, n=10, algorithm="ritter"):
+    """Iterative miniball algorithm for multiple spheres.
 
     Given initial assignments for each point, we iterate:
-    * finding a bound sphere for each cluster using Ritter's algorithm
+    * finding a bounding sphere for each cluster using given algorithm
+      (Ritter's approximation algorithm or Fischer's exact algorithm)
     * re-assigning points to the nearest cluster (in terms of Euclidean distance)
 
     Returns: (centers, radii) of the bounding spheres
@@ -53,16 +60,25 @@ def iterative_ritter(assignments, points, k, n=10):
     radii = np.zeros(k)
     dists = np.zeros((points.shape[0], k))
 
+    if algorithm == "ritter":
+        func = ritter
+    elif algorithm == "fischer":
+        func = fischer
+    else:
+        raise Exception(f"Unknown miniball algorithm: {algorithm}")
+
+    # NOTE: iterations don't really seem to change the result, even though a
+    # few points may change assignment
     for _ in range(n):
         # compute new center based on Ritter's bounding sphere
         for i in range(k):
-            idx, = np.nonzero(assignments == i)
-            centers[i, :], radii[i] = ritter(points[idx, :])
+            (idx,) = np.nonzero(assignments == i)
+            centers[i, :], radii[i] = func(points[idx, :])
 
         # compute new assigments based on closest center for each point
         for i in range(k):
             dists[:, i] = np.sum(np.square(points - centers[i, :]), axis=1)
-        assigments = np.argmin(dists, axis=1)
+        assignments = np.argmin(dists, axis=1)
     return centers, radii
 
 
@@ -80,7 +96,6 @@ def cluster_greedy_kcenter(points, k=3):
 
         # new center point is farthest from all current centers
         idx = np.argmax(Dmin)
-        print(f"new center index = {idx}")
         C[i, :] = points[idx, :]
         D[:, i] = np.sum(np.square(points - C[i, :]), axis=1)
 
@@ -120,6 +135,7 @@ def cluster_and_bound(points, k, cluster_type="kmeans", bound_type="ritter", n=1
         raise Exception(f"Unknown cluster type: {cluster_type}")
 
     # bound
-    # only ritter algorithm is available now
-    centers, radii = iterative_ritter(assignments, points, k, n=n)
+    centers, radii = iterative_miniball(
+        assignments, points, k, n=n, algorithm=bound_type
+    )
     return centers, radii
