@@ -13,6 +13,7 @@ import pybullet as pyb
 from PIL import Image
 import rospkg
 from scipy.spatial.distance import pdist, squareform
+from scipy.spatial import KDTree
 import liegroups
 
 from tray_balance_sim import util, ocs2_util, pyb_util, clustering, geometry
@@ -39,6 +40,33 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 
+def rotate_end_effector(robot, angle, duration, realtime=True):
+    u = np.zeros(robot.ni)
+    u[-1] = angle / duration
+    robot.command_velocity(u)
+
+    t = 0
+    while t < duration:
+        if realtime:
+            time.sleep(SIM_DT)
+        pyb.stepSimulation()
+        t += SIM_DT
+
+
+def get_object_point_cloud(camera, objects):
+    w, h, rgb, dep, seg = camera.get_frame()
+    # camera.save_frame("testframe.png")
+    points = camera.get_point_cloud(dep)
+
+    # mask out everything except balanced objects
+    mask = np.zeros_like(seg)
+    for obj in objects.values():
+        mask = np.logical_or(seg == obj.bullet.uid, mask)
+    points = points[mask.T, :]
+
+    return points
+
+
 def set_bounding_spheres(robot, objects, settings, k=2, plot_point_cloud=False):
     target = objects["stacked_cylinder2"].bullet.get_pose()[0]
     cam_pos = [target[0], target[1] - 1, target[2]]
@@ -51,31 +79,58 @@ def set_bounding_spheres(robot, objects, settings, k=2, plot_point_cloud=False):
         near=0.1,
         far=5,
     )
-    w, h, rgb, dep, seg = camera.get_frame()
-    camera.save_frame("testframe.png")
-    points = camera.get_point_cloud(dep)
+    points1_w = get_object_point_cloud(camera, objects)
 
-    # mask out everything except balanced objects
-    mask = np.zeros_like(seg)
-    for obj in objects.values():
-        mask = np.logical_or(seg == obj.bullet.uid, mask)
-    points = points[mask.T, :]
+    # TODO abstract this away
+    r_ew_w, Q_we = robot.link_pose()
+    T_ew1 = liegroups.SE3(
+        rot=liegroups.SO3.from_quaternion(Q_we, ordering="xyzw"), trans=r_ew_w
+    ).inv()
+    points1_e = T_ew1.dot(points1_w)
+
+    # rotate to take picture of the other side of the objects
+    rotate_end_effector(robot, angle=-np.pi, duration=5.0)
+
+    points2_w = get_object_point_cloud(camera, objects)
+
+    r_ew_w, Q_we = robot.link_pose()
+    T_ew2 = liegroups.SE3(
+        rot=liegroups.SO3.from_quaternion(Q_we, ordering="xyzw"), trans=r_ew_w
+    ).inv()
+    points2_e = T_ew2.dot(points2_w)
+
+    points_e = np.vstack((points1_e, points2_e))
+
+    # rotate back to initial position
+    rotate_end_effector(robot, angle=np.pi, duration=5.0)
 
     # compute max_radius for robust inertia
-    max_radius = 0.5 * np.max(pdist(points))
+    max_radius = 0.5 * np.max(pdist(points_e))
     print(f"max_radius = {max_radius}")
 
+    # remove points within a given radius of other points
+    tree = KDTree(points_e)
+    remove = np.zeros(points_e.shape[0], dtype=bool)
+    for i in range(points_e.shape[0]):
+        if not remove[i]:
+            idx = tree.query_ball_point(points_e[i, :], r=0.005)
+            for j in idx:
+                if j != i:
+                    remove[j] = True
+    points_e = points_e[~remove, :]
+
     # cluster point cloud points and bound with spheres
-    centers, radii = clustering.cluster_and_bound(points, k=k, cluster_type="greedy")
+    centers, radii = clustering.cluster_and_bound(points_e, k=k, cluster_type="greedy")
     # centers, radii = clustering.iterative_ritter(points, k=k)
-    # volume = 4 * np.pi * np.sum(radii ** 3) / 3
-    # print(f"Volume = {volume}")
+
+    # also rotate camera target into EE frame
+    target_e = T_ew1.dot(camera.target)
 
     if plot_point_cloud:
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
-        ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
-        ax.scatter(camera.target[0], camera.target[1], zs=camera.target[2])
+        ax.scatter(points_e[:, 0], points_e[:, 1], zs=points_e[:, 2])
+        ax.scatter(target_e[0], target_e[1], zs=target_e[2])
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
@@ -86,8 +141,9 @@ def set_bounding_spheres(robot, objects, settings, k=2, plot_point_cloud=False):
 
     balls = []
     for i in range(k):
-        r_bw_w = centers[i, :]
-        r_be_e = C_we.T @ (r_bw_w - r_ew_w)
+        # r_bw_w = centers[i, :]
+        # r_be_e = C_we.T @ (r_bw_w - r_ew_w)
+        r_be_e = centers[i, :]
         balls.append(ocs2.Ball(r_be_e, radii[i]))
     settings.tray_balance_settings.robust_params.balls = balls
     settings.tray_balance_settings.robust_params.max_radius = max_radius
@@ -129,7 +185,9 @@ def main():
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites)
 
     if settings_wrapper.settings.tray_balance_settings.robust:
-        set_bounding_spheres(robot, objects, settings_wrapper.settings)
+        set_bounding_spheres(
+            robot, objects, settings_wrapper.settings, plot_point_cloud=True
+        )
         robust_spheres = RobustSpheres(
             robot, settings_wrapper.settings.tray_balance_settings.robust_params
         )
@@ -259,9 +317,7 @@ def main():
                         "trayBalance", t, x, u
                     )
                 else:
-                    con = mpc.softStateInputInequalityConstraint(
-                        "trayBalance", t, x, u
-                    )
+                    con = mpc.softStateInputInequalityConstraint("trayBalance", t, x, u)
                     # IPython.embed()
                     recorder.ineq_cons[idx, :] = con
 
