@@ -446,13 +446,24 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
                  "================"
               << std::endl;
 
-    MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
-    PinocchioEndEffectorKinematicsCppAd eeKinematics(
-        pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
-        "end_effector_kinematics", libraryFolder, recompileLibraries, false);
+    std::unique_ptr<StateCost> ee_cost;
+    if (usePreComputation) {
+        MobileManipulatorPinocchioMapping<scalar_t> pinocchioMapping;
+        PinocchioEndEffectorKinematics eeKinematics(pinocchioInterface,
+                                                    pinocchioMapping, {name});
+        ee_cost.reset(new EndEffectorCost(std::move(W), eeKinematics,
+                                          *referenceManagerPtr_));
+    } else {
+        MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+        PinocchioEndEffectorKinematicsCppAd eeKinematics(
+            pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM,
+            INPUT_DIM, "end_effector_kinematics", libraryFolder,
+            recompileLibraries, false);
+        ee_cost.reset(new EndEffectorCost(std::move(W), eeKinematics,
+                                          *referenceManagerPtr_));
+    }
 
-    return std::unique_ptr<StateCost>(
-        new EndEffectorCost(std::move(W), eeKinematics, *referenceManagerPtr_));
+    return ee_cost;
 }
 
 std::unique_ptr<StateInputCost> MobileManipulatorInterface::get_zmp_cost(

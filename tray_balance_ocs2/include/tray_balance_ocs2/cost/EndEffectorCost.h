@@ -74,6 +74,16 @@ class EndEffectorCost final : public StateCost {
     scalar_t getValue(scalar_t time, const vector_t& state,
                       const TargetTrajectories& targetTrajectories,
                       const PreComputation& preComp) const override {
+        // precomp stuff
+        // NOTE: this caused the controller to go unstable when I tried it
+        // previously
+        // if (pinocchioEEKinPtr_ != nullptr) {
+        //     const auto& preCompMM =
+        //         cast<MobileManipulatorPreComputation>(preComp);
+        //     pinocchioEEKinPtr_->setPinocchioInterface(
+        //         preCompMM.getPinocchioInterface());
+        // }
+
         const auto desiredPositionOrientation =
             interpolateEndEffectorPose(time, targetTrajectories);
 
@@ -91,6 +101,14 @@ class EndEffectorCost final : public StateCost {
         scalar_t time, const vector_t& state,
         const TargetTrajectories& targetTrajectories,
         const PreComputation& preComp) const override {
+        // precomp stuff
+        // if (pinocchioEEKinPtr_ != nullptr) {
+        //     const auto& preCompMM =
+        //         cast<MobileManipulatorPreComputation>(preComp);
+        //     pinocchioEEKinPtr_->setPinocchioInterface(
+        //         preCompMM.getPinocchioInterface());
+        // }
+
         const auto desiredPositionOrientation =
             interpolateEndEffectorPose(time, targetTrajectories);
 

@@ -140,12 +140,10 @@ def set_bounding_spheres(robot, objects, settings, k=2, plot_point_cloud=False):
     r_ew_w, Q_we = robot.link_pose()
     C_we = util.quaternion_to_matrix(Q_we)
 
+    # balls are already in the EE frame, as required
     balls = []
     for i in range(k):
-        # r_bw_w = centers[i, :]
-        # r_be_e = C_we.T @ (r_bw_w - r_ew_w)
-        r_be_e = centers[i, :]
-        balls.append(ocs2.Ball(r_be_e, radii[i]))
+        balls.append(ocs2.Ball(centers[i, :], radii[i]))
     settings.tray_balance_settings.robust_params.balls = balls
     settings.tray_balance_settings.robust_params.max_radius = max_radius
 
