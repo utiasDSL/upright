@@ -181,7 +181,12 @@ def main():
     robot, objects, composites = sim.setup(
         ["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
     )
-    settings_wrapper = ocs2_util.TaskSettingsWrapper(composites)
+
+    # initial state
+    q, v = robot.joint_states()
+    x = np.concatenate((q, v))
+
+    settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
 
     if settings_wrapper.settings.tray_balance_settings.robust:
         set_bounding_spheres(
@@ -191,10 +196,6 @@ def main():
             robot, settings_wrapper.settings.tray_balance_settings.robust_params
         )
         IPython.embed()
-
-    q, v = robot.joint_states()
-    r_ew_w, Q_we = robot.link_pose()
-    v_ew_w, ω_ew_w = robot.link_velocity()
 
     # data recorder and plotter
     recorder = Recorder(
@@ -221,9 +222,10 @@ def main():
             target_position=[1.28, 0.045, 0.647],
         )
 
-    # initial time, state, and input
+    r_ew_w, Q_we = robot.link_pose()
+
+    # initial time and input
     t = 0.0
-    x = np.concatenate((q, v))
     u = np.zeros(robot.ni)
 
     target_times = [0]

@@ -10,10 +10,11 @@ LIBRARY_PATH = "/tmp/ocs2"
 
 
 class TaskSettingsWrapper:
-    def __init__(self, composites):
+    def __init__(self, composites, x0):
         settings = ocs2.TaskSettings()
 
         settings.method = ocs2.TaskSettings.Method.DDP
+        settings.initial_state = x0
 
         # collision avoidance settings
         settings.collision_avoidance_settings.enabled = False

@@ -143,7 +143,8 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("collision_avoidance_settings",
                        &TaskSettings::collision_avoidance_settings)
         .def_readwrite("tray_balance_settings",
-                       &TaskSettings::tray_balance_settings);
+                       &TaskSettings::tray_balance_settings)
+        .def_readwrite("initial_state", &TaskSettings::initial_state);
 
     pybind11::enum_<TaskSettings::Method>(task_settings, "Method")
         .value("DDP", TaskSettings::Method::DDP)

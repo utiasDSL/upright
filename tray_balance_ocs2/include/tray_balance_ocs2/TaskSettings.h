@@ -14,6 +14,7 @@ struct TaskSettings {
     };
 
     Method method = Method::DDP;
+    vector_t initial_state;
 
     TrayBalanceSettings tray_balance_settings;
     DynamicObstacleSettings dynamic_obstacle_settings;
