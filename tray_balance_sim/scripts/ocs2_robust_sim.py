@@ -271,10 +271,25 @@ def main():
     assert len(t_target) == len(target_times)
     assert len(input_target) == len(target_times)
 
+    x_opt = np.copy(x)
+
     for i in range(N):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
-        mpc.setObservation(t, x, u)
+
+        # add noise to state variables
+        q_noisy = q + np.random.normal(scale=0.05, size=q.shape)
+        v_noisy = v + np.random.normal(scale=0.05, size=v.shape)
+        x_noisy = np.concatenate((q_noisy, v_noisy))
+
+        # mpc.setObservation(t, x_noisy, u)
+
+        # by using x_opt, we're basically just doing pure open-loop planning,
+        # since the state never deviates from the optimal trajectory (at least
+        # due to noise)
+        # this does have the benefit of smoothing out the state used for
+        # computation, which is important for constraint handling
+        mpc.setObservation(t, x_opt, u)
 
         # TODO this should be set to reflect the MPC time step
         # we can increase it if the MPC rate is faster
@@ -297,9 +312,9 @@ def main():
         # getMpcSolution just gives the current MPC policy trajectory over the
         # entire time horizon, without accounting for the given state. So it is
         # like doing feedforward input only, which is bad.
-        x_opt = np.zeros(robot.ns)
+        # x_opt_new = np.zeros(robot.ns)
         u = np.zeros(robot.ni)
-        mpc.evaluateMpcSolution(t, x, x_opt, u)
+        mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
 
         robot.command_acceleration(u)
 
@@ -319,7 +334,6 @@ def main():
                     )
                 else:
                     con = mpc.softStateInputInequalityConstraint("trayBalance", t, x, u)
-                    # IPython.embed()
                     recorder.ineq_cons[idx, :] = con
 
             r_ew_w_d = state_target[target_idx][:3]
@@ -327,7 +341,7 @@ def main():
 
             # record
             recorder.us[idx, :] = u
-            recorder.xs[idx, :] = x
+            recorder.xs[idx, :] = x_noisy
             recorder.r_ew_wds[idx, :] = r_ew_w_d
             recorder.r_ew_ws[idx, :] = r_ew_w
             recorder.Q_wes[idx, :] = Q_we

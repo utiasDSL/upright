@@ -38,7 +38,7 @@ class TaskSettingsWrapper:
 
         # tray balance settings
         settings.tray_balance_settings.enabled = True
-        settings.tray_balance_settings.robust = False
+        settings.tray_balance_settings.robust = True
         settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
 
         config = ocs2.TrayBalanceConfiguration()
