@@ -31,8 +31,13 @@ import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 8.0  # duration of trajectory (s)
+DURATION = 6.0  # duration of trajectory (s)
 
+# state noise
+Q_STDEV = 0
+V_STDEV = 0
+
+# video recording parameters
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/tray-balance/robust/")
 VIDEO_PATH = VIDEO_DIR / ("robust_stack3_" + TIMESTAMP)
@@ -180,6 +185,8 @@ def main():
     # simulation objects and model
     robot, objects, composites = sim.setup(
         ["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
+        # ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
+        # ["tray"]
     )
 
     # initial state
@@ -278,8 +285,8 @@ def main():
         x = np.concatenate((q, v))
 
         # add noise to state variables
-        q_noisy = q + np.random.normal(scale=0.05, size=q.shape)
-        v_noisy = v + np.random.normal(scale=0.05, size=v.shape)
+        q_noisy = q + np.random.normal(scale=Q_STDEV, size=q.shape)
+        v_noisy = v + np.random.normal(scale=V_STDEV, size=v.shape)
         x_noisy = np.concatenate((q_noisy, v_noisy))
 
         # mpc.setObservation(t, x_noisy, u)

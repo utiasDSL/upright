@@ -242,6 +242,7 @@ class Simulation:
                 height=2 * TRAY_COM_HEIGHT,
                 mu=TRAY_MU,
             )
+            tray.mass_error = 0
             tray.add_to_sim(bullet_mu=TRAY_MU_BULLET, color=(0.122, 0.467, 0.706, 1))
             r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
             tray.bullet.reset_pose(position=r_tw_w)
@@ -261,6 +262,9 @@ class Simulation:
                 height=2 * CYLINDER1_COM_HEIGHT,
                 mu=CYLINDER1_SUPPORT_MU,
             )
+            objects[name].mass_error = 0
+            # objects[name].com_error = np.array([0, 0, 0.075])
+            # objects[name].com_height_error = 0.075
             objects[name].add_to_sim(
                 bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1)
             )
@@ -287,6 +291,7 @@ class Simulation:
                 height=2 * CYLINDER1_COM_HEIGHT,
                 mu=CYLINDER1_SUPPORT_MU,
             )
+            objects[name].mass_error = 0
             objects[name].add_to_sim(
                 bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1)
             )
@@ -313,6 +318,9 @@ class Simulation:
                 height=2 * CYLINDER2_COM_HEIGHT,
                 mu=CYLINDER2_SUPPORT_MU,
             )
+            objects[name].mass_error = 0
+            # objects[name].com_error = np.array([0, 0, 0.075])
+            # objects[name].com_height_error = 0.075
             objects[name].add_to_sim(
                 bullet_mu=CYLINDER2_MU_BULLET_STACKED, color=(0.173, 0.627, 0.173, 1)
             )
@@ -341,6 +349,7 @@ class Simulation:
                 height=2 * CYLINDER2_COM_HEIGHT,
                 mu=CYLINDER2_SUPPORT_MU,
             )
+            objects[name].mass_error = 0
             objects[name].add_to_sim(
                 bullet_mu=CYLINDER2_MU_BULLET_FLAT, color=(0.173, 0.627, 0.173, 1)
             )
@@ -367,6 +376,9 @@ class Simulation:
                 height=2 * CYLINDER3_COM_HEIGHT,
                 mu=CYLINDER3_SUPPORT_MU,
             )
+            objects[name].mass_error = 0
+            # objects[name].com_error = np.array([0, 0, 0.075])
+            # objects[name].com_height_error = 0.075
             objects[name].add_to_sim(
                 bullet_mu=CYLINDER3_MU_BULLET_STACKED, color=(0.839, 0.153, 0.157, 1)
             )
@@ -395,6 +407,7 @@ class Simulation:
                 height=2 * CYLINDER3_COM_HEIGHT,
                 mu=CYLINDER3_SUPPORT_MU,
             )
+            objects[name].mass_error = 0
             objects[name].add_to_sim(
                 bullet_mu=CYLINDER3_MU_BULLET_FLAT, color=(0.839, 0.153, 0.157, 1)
             )
