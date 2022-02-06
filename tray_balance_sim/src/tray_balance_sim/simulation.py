@@ -228,10 +228,17 @@ class Simulation:
 
         return (c0, c1, c2)
 
-    def object_setup(self, r_ew_w, obj_names):
+    def object_setup(self, r_ew_w, obj_names, controller_obj_names=None):
+        # controller objects are the ones the controller thinks are there
         objects = {}
+        controller_objects = {}
 
-        if "tray" in obj_names:
+        if controller_obj_names is None:
+            controller_obj_names = obj_names
+        all_obj_names = set(obj_names).union(controller_obj_names)
+
+        name = "tray"
+        if name in all_obj_names:
             tray = bodies.Cylinder(
                 r_tau=EE_INSCRIBED_RADIUS,
                 support_area=ocs2.PolygonSupportArea.equilateral_triangle(
@@ -243,16 +250,21 @@ class Simulation:
                 mu=TRAY_MU,
             )
             tray.mass_error = 0
+            # tray.com_error = np.array([0.1, 0, 0])
             tray.add_to_sim(bullet_mu=TRAY_MU_BULLET, color=(0.122, 0.467, 0.706, 1))
             r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
             tray.bullet.reset_pose(position=r_tw_w)
-            objects["tray"] = tray
+
+            if name in obj_names:
+                objects[name] = tray
+            if name in controller_obj_names:
+                controller_objects[name] = tray
 
         c1, c2, c3 = self.compute_cylinder_xy_positions(L=0.08)
 
         name = "stacked_cylinder1"
-        if name in obj_names:
-            objects[name] = bodies.Cylinder(
+        if name in all_obj_names:
+            obj = bodies.Cylinder(
                 r_tau=geometry.circle_r_tau(CYLINDER1_RADIUS),
                 support_area=ocs2.PolygonSupportArea.circle(
                     CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
@@ -262,12 +274,7 @@ class Simulation:
                 height=2 * CYLINDER1_COM_HEIGHT,
                 mu=CYLINDER1_SUPPORT_MU,
             )
-            objects[name].mass_error = 0
-            # objects[name].com_error = np.array([0, 0, 0.075])
-            # objects[name].com_height_error = 0.075
-            objects[name].add_to_sim(
-                bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1)
-            )
+            obj.add_to_sim(bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1))
 
             # add 0.05 to account for EE height; this is fixed when the sim is
             # settled later
@@ -276,8 +283,14 @@ class Simulation:
                 0,
                 2 * TRAY_COM_HEIGHT + CYLINDER1_COM_HEIGHT + 0.05,
             ]
-            objects[name].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append(name)
+            obj.bullet.reset_pose(position=r_ow_w)
+
+            if name in obj_names:
+                objects[name] = obj
+                objects["tray"].children.append(name)
+            if name in controller_obj_names:
+                controller_objects[name] = obj
+                controller_objects["tray"].children.append(name)
 
         name = "flat_cylinder1"
         if name in obj_names:
@@ -422,48 +435,50 @@ class Simulation:
             objects[name].bullet.reset_pose(position=r_ow_w)
             objects["tray"].children.append(name)
 
-        name = "rod"
-        if name in obj_names:
-            objects[name] = bodies.Cylinder(
-                r_tau=0,
-                support_area=None,
-                mass=1.0,
-                radius=0.01,
-                height=1.0,
-                mu=1.0,
-            )
-            objects[name].add_to_sim(bullet_mu=1.0, color=(0.839, 0.153, 0.157, 1))
+        # name = "rod"
+        # if name in obj_names:
+        #     objects[name] = bodies.Cylinder(
+        #         r_tau=0,
+        #         support_area=None,
+        #         mass=1.0,
+        #         radius=0.01,
+        #         height=1.0,
+        #         mu=1.0,
+        #     )
+        #     objects[name].add_to_sim(bullet_mu=1.0, color=(0.839, 0.153, 0.157, 1))
+        #
+        #     r_ow_w = r_ew_w + [0, 0, 2 * TRAY_COM_HEIGHT + 0.5 + 0.01]
+        #     objects[name].bullet.reset_pose(position=r_ow_w)
+        #     objects["tray"].children.append(name)
 
-            r_ow_w = r_ew_w + [0, 0, 2 * TRAY_COM_HEIGHT + 0.5 + 0.01]
-            objects[name].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append(name)
-
-        if "cuboid1" in obj_names:
-            support = ocs2.PolygonSupportArea.axis_aligned_rectangle(
-                CUBOID1_SIDE_LENGTHS[0], CUBOID1_SIDE_LENGTHS[1],
-                margin=OBJ_ZMP_MARGIN,
-            )
-            objects["cuboid1"] = bodies.Cuboid(
-                r_tau=geometry.circle_r_tau(CUBOID1_SIDE_LENGTHS[0] * 0.5),  # TODO
-                support_area=support,
-                mass=CUBOID1_MASS,
-                side_lengths=CUBOID1_SIDE_LENGTHS,
-                mu=CUBOID1_TRAY_MU,
-            )
-            objects["cuboid1"].add_to_sim(
-                bullet_mu=CUBOID1_MU_BULLET, color=(0, 1, 0, 1)
-            )
-            r_ow_w = r_ew_w + [
-                0,
-                0,
-                2 * TRAY_COM_HEIGHT + 0.5 * CUBOID1_SIDE_LENGTHS[2] + 0.05,
-            ]
-            objects["cuboid1"].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append("cuboid1")
+        # if "cuboid1" in obj_names:
+        #     support = ocs2.PolygonSupportArea.axis_aligned_rectangle(
+        #         CUBOID1_SIDE_LENGTHS[0], CUBOID1_SIDE_LENGTHS[1],
+        #         margin=OBJ_ZMP_MARGIN,
+        #     )
+        #     objects["cuboid1"] = bodies.Cuboid(
+        #         r_tau=geometry.circle_r_tau(CUBOID1_SIDE_LENGTHS[0] * 0.5),  # TODO
+        #         support_area=support,
+        #         mass=CUBOID1_MASS,
+        #         side_lengths=CUBOID1_SIDE_LENGTHS,
+        #         mu=CUBOID1_TRAY_MU,
+        #     )
+        #     objects["cuboid1"].add_to_sim(
+        #         bullet_mu=CUBOID1_MU_BULLET, color=(0, 1, 0, 1)
+        #     )
+        #     r_ow_w = r_ew_w + [
+        #         0,
+        #         0,
+        #         2 * TRAY_COM_HEIGHT + 0.5 * CUBOID1_SIDE_LENGTHS[2] + 0.05,
+        #     ]
+        #     objects["cuboid1"].bullet.reset_pose(position=r_ow_w)
+        #     objects["tray"].children.append("cuboid1")
 
         return objects
 
     def composite_setup(self, objects):
+        # composites are only used by the controller, so we only need to
+        # compose the controller objects
         composites = []
         for obj in objects.values():
             # all descendants compose the new object
@@ -480,34 +495,34 @@ class Simulation:
         return composites
 
 
-class FloatingEESimulation(Simulation):
-    def __init__(self, dt=0.001):
-        super().__init__(dt)
-
-    def setup(self, obj_names=None):
-        """Setup pybullet simulation."""
-        super().basic_setup()
-
-        # setup floating end effector
-        robot = EndEffector(self.dt, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
-        self.robot = robot
-        # util.debug_frame(0.1, robot.uid, -1)
-
-        r_ew_w, Q_we = robot.get_pose()
-        objects = super().object_setup(r_ew_w, obj_names)
-
-        self.settle(1.0)
-
-        # need to set the CoM after the sim has been settled, so objects are in
-        # their proper positions
-        r_ew_w, Q_we = robot.get_pose()
-        for obj in objects.values():
-            r_ow_w, _ = obj.bullet.get_pose()
-            obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
-
-        composites = super().composite_setup(objects)
-
-        return robot, objects, composites
+# class FloatingEESimulation(Simulation):
+#     def __init__(self, dt=0.001):
+#         super().__init__(dt)
+#
+#     def setup(self, obj_names=None):
+#         """Setup pybullet simulation."""
+#         super().basic_setup()
+#
+#         # setup floating end effector
+#         robot = EndEffector(self.dt, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
+#         self.robot = robot
+#         # util.debug_frame(0.1, robot.uid, -1)
+#
+#         r_ew_w, Q_we = robot.get_pose()
+#         objects = super().object_setup(r_ew_w, obj_names)
+#
+#         self.settle(1.0)
+#
+#         # need to set the CoM after the sim has been settled, so objects are in
+#         # their proper positions
+#         r_ew_w, Q_we = robot.get_pose()
+#         for obj in objects.values():
+#             r_ow_w, _ = obj.bullet.get_pose()
+#             obj.body.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+#
+#         composites = super().composite_setup(objects)
+#
+#         return robot, objects, composites
 
 
 class MobileManipulatorSimulation(Simulation):
@@ -547,5 +562,22 @@ class MobileManipulatorSimulation(Simulation):
             obj.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
 
         composites = super().composite_setup(objects)
+        # ocs2_objects = {}
+        # for name, obj in objects.items():
+        #     ocs2_objects[name] = obj.convert_to_ocs2()
+        # big_cylinder = ocs2.BalancedObject.compose(
+        #     [
+        #         ocs2_objects[name]
+        #         for name in [
+        #             "stacked_cylinder1",
+        #             "stacked_cylinder2",
+        #             "stacked_cylinder3",
+        #         ]
+        #     ]
+        # )
+        # tray_big_cylinder = ocs2.BalancedObject.compose(
+        #     [ocs2_objects["tray"], big_cylinder]
+        # )
+        # composites = [tray_big_cylinder]
 
         return robot, objects, composites
