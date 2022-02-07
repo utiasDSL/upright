@@ -290,13 +290,15 @@ class Simulation:
             # support_area=ocs2.PolygonSupportArea.circle(
             #     CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
             # )
+            r_tau_nominal = geometry.rectangle_r_tau(*CUBOID1_SIDE_LENGTHS[:2])
             objects[name] = bodies.Cuboid(
-                r_tau=geometry.rectangle_r_tau(*CUBOID1_SIDE_LENGTHS[:2]),
+                r_tau=r_tau_nominal,
                 support_area=support_area,
                 mass=CUBOID1_MASS,
                 side_lengths=CUBOID1_SIDE_LENGTHS,
                 mu=CUBOID1_TRAY_MU,
             )
+            # objects[name].r_tau_error = 10*r_tau_nominal
 
             add_obj_to_sim(
                 obj=objects[name],

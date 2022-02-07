@@ -80,6 +80,7 @@ class BalancedBody:
         # EXPERIMENTAL: add extra mass to the controller that is not really
         # there in simulation
         self.mass_error = 0
+        self.r_tau_error = 0
 
         # TODO these should be dependent
         self.com_error = np.zeros(3)
@@ -88,9 +89,15 @@ class BalancedBody:
         self.children = []
 
     def convert_to_ocs2(self):
-        body = ocs2.RigidBody(self.mass + self.mass_error, self.inertia, self.com + self.com_error)
+        body = ocs2.RigidBody(
+            self.mass + self.mass_error, self.inertia, self.com + self.com_error
+        )
         return ocs2.BalancedObject(
-            body, self.com_height + self.com_height_error, self.support_area, self.r_tau, self.mu
+            body,
+            self.com_height + self.com_height_error,
+            self.support_area,
+            self.r_tau + self.r_tau_error,
+            self.mu,
         )
 
 
