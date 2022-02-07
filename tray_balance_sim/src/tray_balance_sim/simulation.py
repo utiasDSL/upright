@@ -275,6 +275,7 @@ class Simulation:
         c1, c2, c3 = self.compute_cylinder_xy_positions(L=0.08)
 
         def add_obj_to_sim(obj, name, bullet_mu, color, parent, offset_xy=(0, 0)):
+            bullet_mu = obj.mu / parent.bullet.mu
             obj.add_to_sim(bullet_mu=bullet_mu, color=color)
 
             r_ow_w = parent.bullet.get_pose()[0] + [
@@ -288,13 +289,16 @@ class Simulation:
 
         name = "cuboid1"
         if name in obj_names:
-            support = ocs2.PolygonSupportArea.axis_aligned_rectangle(
+            support_area = ocs2.PolygonSupportArea.axis_aligned_rectangle(
                 CUBOID1_SIDE_LENGTHS[0], CUBOID1_SIDE_LENGTHS[1],
                 margin=OBJ_ZMP_MARGIN,
             )
+            # support_area=ocs2.PolygonSupportArea.circle(
+            #     CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
+            # )
             objects[name] = bodies.Cuboid(
                 r_tau=geometry.rectangle_r_tau(*CUBOID1_SIDE_LENGTHS[:2]),
-                support_area=support,
+                support_area=support_area,
                 mass=CUBOID1_MASS,
                 side_lengths=CUBOID1_SIDE_LENGTHS,
                 mu=CUBOID1_TRAY_MU,
@@ -327,7 +331,8 @@ class Simulation:
                     name=name,
                     bullet_mu=CYLINDER1_MU_BULLET,
                     color=CYLINDER1_COLOR,
-                    parent=objects["tray"],
+                    # parent=objects["tray"],
+                    parent=objects["cuboid1"],
                 )
             if name in controller_obj_names:
                 controller_objects[name] = obj
@@ -556,23 +561,23 @@ class MobileManipulatorSimulation(Simulation):
             r_ow_w, _ = obj.bullet.get_pose()
             obj.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
 
-        composites = super().composite_setup(objects)
-        # ocs2_objects = {}
-        # for name, obj in objects.items():
-        #     ocs2_objects[name] = obj.convert_to_ocs2()
-        # big_cylinder = ocs2.BalancedObject.compose(
-        #     [
-        #         ocs2_objects[name]
-        #         for name in [
-        #             "stacked_cylinder1",
-        #             "stacked_cylinder2",
-        #             "stacked_cylinder3",
-        #         ]
-        #     ]
-        # )
-        # tray_big_cylinder = ocs2.BalancedObject.compose(
-        #     [ocs2_objects["tray"], big_cylinder]
-        # )
-        # composites = [tray_big_cylinder]
+        # composites = super().composite_setup(objects)
+        ocs2_objects = {}
+        for name, obj in objects.items():
+            ocs2_objects[name] = obj.convert_to_ocs2()
+        big_cylinder = ocs2.BalancedObject.compose(
+            [
+                ocs2_objects[name]
+                for name in [
+                    "cuboid1",
+                    "stacked_cylinder1",
+                    "stacked_cylinder2",
+                ]
+            ]
+        )
+        tray_big_cylinder = ocs2.BalancedObject.compose(
+            [ocs2_objects["tray"], big_cylinder]
+        )
+        composites = [tray_big_cylinder, big_cylinder]
 
         return robot, objects, composites

@@ -42,13 +42,12 @@ class TaskSettingsWrapper:
         settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
 
         config = ocs2.TrayBalanceConfiguration()
-        # config.arrangement = ocs2.TrayBalanceConfiguration.Arrangement.Stacked
         config.objects = composites
         settings.tray_balance_settings.config = config
 
         # robust settings
         robust_params = ocs2.RobustParameterSet()
-        robust_params.min_support_dist = 0.05
+        robust_params.min_support_dist = 0.04
         robust_params.min_mu = 0.5
         robust_params.min_r_tau = geometry.circle_r_tau(robust_params.min_support_dist)
         settings.tray_balance_settings.robust_params = robust_params

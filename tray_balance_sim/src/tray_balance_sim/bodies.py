@@ -34,6 +34,7 @@ class BulletBody:
         )
 
         # set friction
+        self.mu = mu
         pyb.changeDynamics(self.uid, -1, lateralFriction=mu, spinningFriction=r_tau)
 
     def get_pose(self):
