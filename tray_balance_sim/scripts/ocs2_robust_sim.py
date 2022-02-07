@@ -186,7 +186,8 @@ def main():
     # simulation objects and model
     robot, objects, composites = sim.setup(
         # ["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
-        ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
+        # ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
+        ["tray", "cuboid1"]
         # ["tray"]
     )
 

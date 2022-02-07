@@ -133,30 +133,29 @@ class Cylinder(BalancedBody):
         )
 
 
-# class Cuboid(BalancedBody):
-#     def __init__(self, r_tau, support_area, mass, side_lengths, mu):  # (x, y, z)
-#         self.side_lengths = side_lengths
-#         inertia = cuboid_inertia_matrix(mass, side_lengths)
-#         body = RigidBody(mass, inertia, None)
-#         super().__init__(body, 0.5 * side_lengths[2], r_tau, support_area, mu)
-#
-#     def add_to_sim(self, bullet_mu, color=(0, 0, 1, 1)):
-#         half_extents = tuple(0.5 * np.array(self.side_lengths))
-#         collision_uid = pyb.createCollisionShape(
-#             shapeType=pyb.GEOM_BOX,
-#             halfExtents=half_extents,
-#         )
-#         visual_uid = pyb.createVisualShape(
-#             shapeType=pyb.GEOM_BOX,
-#             halfExtents=half_extents,
-#             rgbaColor=color,
-#         )
-#         self.bullet = BulletBody(
-#             self.body.mass,
-#             bullet_mu,
-#             self.r_tau,
-#             collision_uid,
-#             visual_uid,
-#             [0, 0, 2],
-#             [0, 0, 0, 1],
-#         )
+class Cuboid(BalancedBody):
+    def __init__(self, r_tau, support_area, mass, side_lengths, mu):
+        self.side_lengths = np.array(side_lengths)
+        inertia = cuboid_inertia_matrix(mass, side_lengths)
+        super().__init__(mass, inertia, 0.5 * side_lengths[2], r_tau, support_area, mu)
+
+    def add_to_sim(self, bullet_mu, color=(0, 0, 1, 1)):
+        half_extents = tuple(0.5 * self.side_lengths)
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_BOX,
+            halfExtents=half_extents,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_BOX,
+            halfExtents=half_extents,
+            rgbaColor=color,
+        )
+        self.bullet = BulletBody(
+            self.mass,
+            bullet_mu,
+            self.r_tau,
+            collision_uid,
+            visual_uid,
+            [0, 0, 2],
+            [0, 0, 0, 1],
+        )

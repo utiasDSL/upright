@@ -286,6 +286,28 @@ class Simulation:
             objects[name] = obj
             parent.children.append(name)
 
+        name = "cuboid1"
+        if name in obj_names:
+            support = ocs2.PolygonSupportArea.axis_aligned_rectangle(
+                CUBOID1_SIDE_LENGTHS[0], CUBOID1_SIDE_LENGTHS[1],
+                margin=OBJ_ZMP_MARGIN,
+            )
+            objects[name] = bodies.Cuboid(
+                r_tau=geometry.rectangle_r_tau(*CUBOID1_SIDE_LENGTHS[:2]),
+                support_area=support,
+                mass=CUBOID1_MASS,
+                side_lengths=CUBOID1_SIDE_LENGTHS,
+                mu=CUBOID1_TRAY_MU,
+            )
+
+            add_obj_to_sim(
+                obj=objects[name],
+                name=name,
+                bullet_mu=CUBOID1_MU_BULLET,
+                color=CUBOID1_COLOR,
+                parent=objects["tray"],
+            )
+
         name = "stacked_cylinder1"
         if name in all_obj_names:
             obj = bodies.Cylinder(
@@ -446,29 +468,6 @@ class Simulation:
         #     r_ow_w = r_ew_w + [0, 0, 2 * TRAY_COM_HEIGHT + 0.5 + 0.01]
         #     objects[name].bullet.reset_pose(position=r_ow_w)
         #     objects["tray"].children.append(name)
-
-        # if "cuboid1" in obj_names:
-        #     support = ocs2.PolygonSupportArea.axis_aligned_rectangle(
-        #         CUBOID1_SIDE_LENGTHS[0], CUBOID1_SIDE_LENGTHS[1],
-        #         margin=OBJ_ZMP_MARGIN,
-        #     )
-        #     objects["cuboid1"] = bodies.Cuboid(
-        #         r_tau=geometry.circle_r_tau(CUBOID1_SIDE_LENGTHS[0] * 0.5),  # TODO
-        #         support_area=support,
-        #         mass=CUBOID1_MASS,
-        #         side_lengths=CUBOID1_SIDE_LENGTHS,
-        #         mu=CUBOID1_TRAY_MU,
-        #     )
-        #     objects["cuboid1"].add_to_sim(
-        #         bullet_mu=CUBOID1_MU_BULLET, color=(0, 1, 0, 1)
-        #     )
-        #     r_ow_w = r_ew_w + [
-        #         0,
-        #         0,
-        #         2 * TRAY_COM_HEIGHT + 0.5 * CUBOID1_SIDE_LENGTHS[2] + 0.05,
-        #     ]
-        #     objects["cuboid1"].bullet.reset_pose(position=r_ow_w)
-        #     objects["tray"].children.append("cuboid1")
 
         return objects
 
