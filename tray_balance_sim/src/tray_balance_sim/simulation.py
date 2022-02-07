@@ -35,38 +35,43 @@ TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_COM_HEIGHT = 0.01
 TRAY_MU_BULLET = TRAY_MU / EE_MU
+TRAY_COLOR = (0.122, 0.467, 0.706, 1)
 
 CUBOID1_MASS = 0.5
 CUBOID1_TRAY_MU = 0.5
 CUBOID1_MU_BULLET = CUBOID1_TRAY_MU / TRAY_MU_BULLET
 CUBOID1_COM_HEIGHT = 0.075
 CUBOID1_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID1_COM_HEIGHT)
+CUBOID1_COLOR = (1, 0, 0, 1)  # TODO
 
 CYLINDER1_MASS = 0.5
 CYLINDER1_SUPPORT_MU = 0.5
 CYLINDER1_MU_BULLET = CYLINDER1_SUPPORT_MU / TRAY_MU_BULLET
-CYLINDER1_RADIUS = 0.05
+CYLINDER1_RADIUS = 0.04
 CYLINDER1_COM_HEIGHT = 0.075
+CYLINDER1_COLOR = (1, 0.498, 0.055, 1)
 
 CYLINDER2_MASS = 0.5
 CYLINDER2_SUPPORT_MU = 0.5
 CYLINDER2_MU_BULLET_FLAT = CYLINDER2_SUPPORT_MU / TRAY_MU_BULLET
 CYLINDER2_MU_BULLET_STACKED = CYLINDER2_SUPPORT_MU / CYLINDER1_MU_BULLET
-CYLINDER2_RADIUS = 0.05
+CYLINDER2_RADIUS = 0.04
 CYLINDER2_COM_HEIGHT = 0.075
+CYLINDER2_COLOR = (0.173, 0.627, 0.173, 1)
 
 CYLINDER3_MASS = 0.5
 CYLINDER3_SUPPORT_MU = 0.5
 CYLINDER3_MU_BULLET_FLAT = CYLINDER3_SUPPORT_MU / TRAY_MU_BULLET
 CYLINDER3_MU_BULLET_STACKED = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET_STACKED
-CYLINDER3_RADIUS = 0.05
+CYLINDER3_RADIUS = 0.04
 CYLINDER3_COM_HEIGHT = 0.075
+CYLINDER3_COLOR = (0.839, 0.153, 0.157, 1)
 
 # TODO may need to think about this: can all problems be solved by keeping this
 # tight?
 OBJ_ZMP_MARGIN = 0.01
 
-FLAT_OFFSET = -0.07
+FLAT_OFFSET = np.array([0, 0, 0])  # [0, -0.07, 0]
 
 BASE_HOME = [0, 0, 0]
 UR10_HOME_STANDARD = [
@@ -255,7 +260,10 @@ class Simulation:
             )
             tray.mass_error = 0
             # tray.com_error = np.array([0.1, 0, 0])
-            tray.add_to_sim(bullet_mu=TRAY_MU_BULLET, color=(0.122, 0.467, 0.706, 1))
+            tray.add_to_sim(bullet_mu=TRAY_MU_BULLET, color=TRAY_COLOR)
+
+            # add 0.05 to account for EE height; this is fixed when the sim is
+            # settled later
             r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
             tray.bullet.reset_pose(position=r_tw_w)
 
@@ -265,6 +273,18 @@ class Simulation:
                 controller_objects[name] = tray
 
         c1, c2, c3 = self.compute_cylinder_xy_positions(L=0.08)
+
+        def add_obj_to_sim(obj, name, bullet_mu, color, parent, offset_xy=(0, 0)):
+            obj.add_to_sim(bullet_mu=bullet_mu, color=color)
+
+            r_ow_w = parent.bullet.get_pose()[0] + [
+                offset_xy[0],
+                offset_xy[1],
+                parent.com_height + obj.com_height,
+            ]
+            obj.bullet.reset_pose(position=r_ow_w)
+            objects[name] = obj
+            parent.children.append(name)
 
         name = "stacked_cylinder1"
         if name in all_obj_names:
@@ -278,20 +298,15 @@ class Simulation:
                 height=2 * CYLINDER1_COM_HEIGHT,
                 mu=CYLINDER1_SUPPORT_MU,
             )
-            obj.add_to_sim(bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1))
-
-            # add 0.05 to account for EE height; this is fixed when the sim is
-            # settled later
-            r_ow_w = r_ew_w + [
-                0,
-                0,
-                2 * TRAY_COM_HEIGHT + CYLINDER1_COM_HEIGHT + 0.05,
-            ]
-            obj.bullet.reset_pose(position=r_ow_w)
 
             if name in obj_names:
-                objects[name] = obj
-                objects["tray"].children.append(name)
+                add_obj_to_sim(
+                    obj=obj,
+                    name=name,
+                    bullet_mu=CYLINDER1_MU_BULLET,
+                    color=CYLINDER1_COLOR,
+                    parent=objects["tray"],
+                )
             if name in controller_obj_names:
                 controller_objects[name] = obj
                 controller_objects["tray"].children.append(name)
@@ -309,20 +324,16 @@ class Simulation:
                 mu=CYLINDER1_SUPPORT_MU,
             )
             objects[name].mass_error = 0
-            objects[name].com_error = np.array([0, FLAT_OFFSET, 0])
-            objects[name].add_to_sim(
-                bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1)
+            objects[name].com_error = FLAT_OFFSET
+
+            add_obj_to_sim(
+                obj=objects[name],
+                name=name,
+                bullet_mu=CYLINDER1_MU_BULLET,
+                color=CYLINDER1_COLOR,
+                parent=objects["tray"],
+                offset_xy=c1 - FLAT_OFFSET[:2],
             )
-
-            # flat
-            r_ow_w = r_ew_w + [
-                c1[0],
-                c1[1] - FLAT_OFFSET,
-                2 * TRAY_COM_HEIGHT + CYLINDER1_COM_HEIGHT + 0.05,
-            ]
-
-            objects[name].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append(name)
 
         name = "stacked_cylinder2"
         if name in obj_names:
@@ -339,21 +350,14 @@ class Simulation:
             objects[name].mass_error = 0
             # objects[name].com_error = np.array([0, 0, 0.075])
             # objects[name].com_height_error = 0.075
-            objects[name].add_to_sim(
-                bullet_mu=CYLINDER2_MU_BULLET_STACKED, color=(0.173, 0.627, 0.173, 1)
-            )
 
-            # stacked
-            r_ow_w = r_ew_w + [
-                0,
-                0,
-                2 * TRAY_COM_HEIGHT
-                + 2 * CYLINDER1_COM_HEIGHT
-                + CYLINDER2_COM_HEIGHT
-                + 0.05,
-            ]
-            objects[name].bullet.reset_pose(position=r_ow_w)
-            objects["stacked_cylinder1"].children.append(name)
+            add_obj_to_sim(
+                obj=objects[name],
+                name=name,
+                bullet_mu=CYLINDER2_MU_BULLET_STACKED,
+                color=CYLINDER2_COLOR,
+                parent=objects["stacked_cylinder1"],
+            )
 
         name = "flat_cylinder2"
         if name in obj_names:
@@ -368,20 +372,16 @@ class Simulation:
                 mu=CYLINDER2_SUPPORT_MU,
             )
             objects[name].mass_error = 0
-            objects[name].com_error = np.array([0, FLAT_OFFSET, 0])
-            objects[name].add_to_sim(
-                bullet_mu=CYLINDER2_MU_BULLET_FLAT, color=(0.173, 0.627, 0.173, 1)
+            objects[name].com_error = FLAT_OFFSET
+
+            add_obj_to_sim(
+                obj=objects[name],
+                name=name,
+                bullet_mu=CYLINDER2_MU_BULLET_FLAT,
+                color=CYLINDER2_COLOR,
+                parent=objects["tray"],
+                offset_xy=c2 - FLAT_OFFSET[:2],
             )
-
-            # flat
-            r_ow_w = r_ew_w + [
-                c2[0],
-                c2[1] - FLAT_OFFSET,
-                2 * TRAY_COM_HEIGHT + CYLINDER2_COM_HEIGHT + 0.05,
-            ]
-
-            objects[name].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append(name)
 
         name = "stacked_cylinder3"
         if name in obj_names:
@@ -398,21 +398,14 @@ class Simulation:
             objects[name].mass_error = 0
             # objects[name].com_error = np.array([0, 0, 0.075])
             # objects[name].com_height_error = 0.075
-            objects[name].add_to_sim(
-                bullet_mu=CYLINDER3_MU_BULLET_STACKED, color=(0.839, 0.153, 0.157, 1)
-            )
 
-            r_ow_w = r_ew_w + [
-                0,
-                0,
-                2 * TRAY_COM_HEIGHT
-                + 2 * CYLINDER1_COM_HEIGHT
-                + 2 * CYLINDER2_COM_HEIGHT
-                + CYLINDER3_COM_HEIGHT
-                + 0.05,
-            ]
-            objects[name].bullet.reset_pose(position=r_ow_w)
-            objects["stacked_cylinder2"].children.append(name)
+            add_obj_to_sim(
+                obj=objects[name],
+                name=name,
+                bullet_mu=CYLINDER3_MU_BULLET_STACKED,
+                color=CYLINDER3_COLOR,
+                parent=objects["stacked_cylinder2"],
+            )
 
         name = "flat_cylinder3"
         if name in obj_names:
@@ -427,20 +420,16 @@ class Simulation:
                 mu=CYLINDER3_SUPPORT_MU,
             )
             objects[name].mass_error = 0
-            objects[name].com_error = np.array([0, FLAT_OFFSET, 0])
-            objects[name].add_to_sim(
-                bullet_mu=CYLINDER3_MU_BULLET_FLAT, color=(0.839, 0.153, 0.157, 1)
+            objects[name].com_error = FLAT_OFFSET
+
+            add_obj_to_sim(
+                obj=objects[name],
+                name=name,
+                bullet_mu=CYLINDER3_MU_BULLET_FLAT,
+                color=CYLINDER3_COLOR,
+                parent=objects["tray"],
+                offset_xy=c3 - FLAT_OFFSET[:2],
             )
-
-            # flat
-            r_ow_w = r_ew_w + [
-                c3[0],
-                c3[1] - FLAT_OFFSET,
-                2 * TRAY_COM_HEIGHT + CYLINDER3_COM_HEIGHT + 0.05,
-            ]
-
-            objects[name].bullet.reset_pose(position=r_ow_w)
-            objects["tray"].children.append(name)
 
         # name = "rod"
         # if name in obj_names:

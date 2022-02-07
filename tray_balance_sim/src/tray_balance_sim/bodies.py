@@ -44,7 +44,7 @@ class BulletBody:
         """Pose in the vertical x-z plane."""
         pos, orn = self.get_pose()
         pitch = pyb.getEulerFromQuaternion(orn)[1]
-        return np.array([pos[0], pos[2], pitch])  # x, y, pitch
+        return np.array([pos[0], pos[2], pitch])  # x, z, pitch
 
     def reset_pose(self, position=None, orientation=None):
         current_pos, current_orn = self.get_pose()
