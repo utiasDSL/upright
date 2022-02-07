@@ -39,30 +39,24 @@ TRAY_COLOR = (0.122, 0.467, 0.706, 1)
 
 CUBOID1_MASS = 0.5
 CUBOID1_TRAY_MU = 0.5
-CUBOID1_MU_BULLET = CUBOID1_TRAY_MU / TRAY_MU_BULLET
 CUBOID1_COM_HEIGHT = 0.075
 CUBOID1_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID1_COM_HEIGHT)
 CUBOID1_COLOR = (1, 0, 0, 1)  # TODO
 
 CYLINDER1_MASS = 0.5
 CYLINDER1_SUPPORT_MU = 0.5
-CYLINDER1_MU_BULLET = CYLINDER1_SUPPORT_MU / TRAY_MU_BULLET
 CYLINDER1_RADIUS = 0.04
 CYLINDER1_COM_HEIGHT = 0.075
 CYLINDER1_COLOR = (1, 0.498, 0.055, 1)
 
 CYLINDER2_MASS = 0.5
 CYLINDER2_SUPPORT_MU = 0.5
-CYLINDER2_MU_BULLET_FLAT = CYLINDER2_SUPPORT_MU / TRAY_MU_BULLET
-CYLINDER2_MU_BULLET_STACKED = CYLINDER2_SUPPORT_MU / CYLINDER1_MU_BULLET
 CYLINDER2_RADIUS = 0.04
 CYLINDER2_COM_HEIGHT = 0.075
 CYLINDER2_COLOR = (0.173, 0.627, 0.173, 1)
 
 CYLINDER3_MASS = 0.5
 CYLINDER3_SUPPORT_MU = 0.5
-CYLINDER3_MU_BULLET_FLAT = CYLINDER3_SUPPORT_MU / TRAY_MU_BULLET
-CYLINDER3_MU_BULLET_STACKED = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET_STACKED
 CYLINDER3_RADIUS = 0.04
 CYLINDER3_COM_HEIGHT = 0.075
 CYLINDER3_COLOR = (0.839, 0.153, 0.157, 1)
@@ -274,7 +268,7 @@ class Simulation:
 
         c1, c2, c3 = self.compute_cylinder_xy_positions(L=0.08)
 
-        def add_obj_to_sim(obj, name, bullet_mu, color, parent, offset_xy=(0, 0)):
+        def add_obj_to_sim(obj, name, color, parent, offset_xy=(0, 0)):
             bullet_mu = obj.mu / parent.bullet.mu
             obj.add_to_sim(bullet_mu=bullet_mu, color=color)
 
@@ -307,7 +301,6 @@ class Simulation:
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
-                bullet_mu=CUBOID1_MU_BULLET,
                 color=CUBOID1_COLOR,
                 parent=objects["tray"],
             )
@@ -329,7 +322,6 @@ class Simulation:
                 add_obj_to_sim(
                     obj=obj,
                     name=name,
-                    bullet_mu=CYLINDER1_MU_BULLET,
                     color=CYLINDER1_COLOR,
                     # parent=objects["tray"],
                     parent=objects["cuboid1"],
@@ -356,7 +348,6 @@ class Simulation:
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
-                bullet_mu=CYLINDER1_MU_BULLET,
                 color=CYLINDER1_COLOR,
                 parent=objects["tray"],
                 offset_xy=c1 - FLAT_OFFSET[:2],
@@ -381,7 +372,6 @@ class Simulation:
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
-                bullet_mu=CYLINDER2_MU_BULLET_STACKED,
                 color=CYLINDER2_COLOR,
                 parent=objects["stacked_cylinder1"],
             )
@@ -404,7 +394,6 @@ class Simulation:
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
-                bullet_mu=CYLINDER2_MU_BULLET_FLAT,
                 color=CYLINDER2_COLOR,
                 parent=objects["tray"],
                 offset_xy=c2 - FLAT_OFFSET[:2],
@@ -429,7 +418,6 @@ class Simulation:
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
-                bullet_mu=CYLINDER3_MU_BULLET_STACKED,
                 color=CYLINDER3_COLOR,
                 parent=objects["stacked_cylinder2"],
             )
@@ -452,7 +440,6 @@ class Simulation:
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
-                bullet_mu=CYLINDER3_MU_BULLET_FLAT,
                 color=CYLINDER3_COLOR,
                 parent=objects["tray"],
                 offset_xy=c3 - FLAT_OFFSET[:2],
@@ -561,23 +548,23 @@ class MobileManipulatorSimulation(Simulation):
             r_ow_w, _ = obj.bullet.get_pose()
             obj.com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
 
-        # composites = super().composite_setup(objects)
-        ocs2_objects = {}
-        for name, obj in objects.items():
-            ocs2_objects[name] = obj.convert_to_ocs2()
-        big_cylinder = ocs2.BalancedObject.compose(
-            [
-                ocs2_objects[name]
-                for name in [
-                    "cuboid1",
-                    "stacked_cylinder1",
-                    "stacked_cylinder2",
-                ]
-            ]
-        )
-        tray_big_cylinder = ocs2.BalancedObject.compose(
-            [ocs2_objects["tray"], big_cylinder]
-        )
-        composites = [tray_big_cylinder, big_cylinder]
+        composites = super().composite_setup(objects)
+        # ocs2_objects = {}
+        # for name, obj in objects.items():
+        #     ocs2_objects[name] = obj.convert_to_ocs2()
+        # big_cylinder = ocs2.BalancedObject.compose(
+        #     [
+        #         ocs2_objects[name]
+        #         for name in [
+        #             "cuboid1",
+        #             "stacked_cylinder1",
+        #             "stacked_cylinder2",
+        #         ]
+        #     ]
+        # )
+        # tray_big_cylinder = ocs2.BalancedObject.compose(
+        #     [ocs2_objects["tray"], big_cylinder]
+        # )
+        # composites = [tray_big_cylinder, big_cylinder]
 
         return robot, objects, composites
