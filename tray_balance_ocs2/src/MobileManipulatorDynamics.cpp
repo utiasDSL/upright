@@ -45,20 +45,21 @@ ad_vector_t MobileManipulatorDynamics::systemFlowMap(
     ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
     const ad_vector_t& parameters) const {
     ad_vector_t dxdt(STATE_DIM);
-    const auto theta = state(2);
-    ad_vector_t velocity = state.tail(NUM_DOFS);
+    ad_vector_t dqdt = state.template tail<NV>();
 
     // clang-format off
-    ad_matrix_t C(2, 2);
-    C << cos(theta), -sin(theta),
-         sin(theta),  cos(theta);
+    const auto theta = state(2);
+    Eigen::Matrix<ad_scalar_t, 2, 2> C_wb;
+    C_wb << cos(theta), -sin(theta),
+            sin(theta),  cos(theta);
     // clang-format on
 
     // convert acceleration input from body frame to world frame
-    ad_vector_t acceleration(INPUT_DIM);
-    acceleration << C * input.head<2>(), input.tail<7>();
+    ad_vector_t dvdt(INPUT_DIM);
+    dvdt << C_wb * input.template head<2>(),
+        input.template tail<INPUT_DIM - 2>();
 
-    dxdt << velocity, acceleration;
+    dxdt << dqdt, dvdt;
     return dxdt;
 }
 

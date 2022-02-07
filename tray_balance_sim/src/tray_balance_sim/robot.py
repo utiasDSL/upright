@@ -140,7 +140,7 @@ class SimulatedRobot:
     def step(self):
         """One step of the physics engine."""
         self.cmd_vel += self.dt * self.cmd_acc
-        # acceleration is already in the body frame, so no need to rotate the
+        # acceleration is already in the world frame, so no need to rotate the
         # velocity
         self.command_velocity(self.cmd_vel, bodyframe=False)
 

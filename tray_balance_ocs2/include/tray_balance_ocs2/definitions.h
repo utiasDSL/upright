@@ -34,20 +34,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
-constexpr size_t NUM_DOFS = 6 + 3;  // 6 DOF arm + 2D position + heading
+// constexpr size_t NUM_DOFS = 6 + 3;  // 6 DOF arm + 2D position + heading
+constexpr size_t NQ = 9;
+constexpr size_t NV = 9;
 constexpr size_t INPUT_DIM = 6 + 3;  // 6 DOF arm vel. + forward vel. + rotational vel.
-constexpr size_t STATE_DIM = NUM_DOFS * 2;  // position + velocity
-
-// tray balance parameters
-// constexpr size_t NUM_TRAY_BALANCE_CONSTRAINTS = 4;
-
-constexpr double GRAVITY = 9.81;
-constexpr double TRAY_MASS = 0.5;
-constexpr double TRAY_COM_HEIGHT = 0.01;
-constexpr double TRAY_RADIUS = 0.25;
-constexpr double EE_TRIANGLE_SIDE_LENGTH = 0.3;
-constexpr double TRAY_MU = 0.5;
-
+constexpr size_t STATE_DIM = NQ + NV;  // position + velocity
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2

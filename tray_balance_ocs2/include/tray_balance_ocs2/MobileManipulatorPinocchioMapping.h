@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <iostream>
 
-#include <tray_balance_ocs2/definitions.h>
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
+#include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -52,17 +52,28 @@ class MobileManipulatorPinocchioMapping final
     }
 
     vector_t getPinocchioJointPosition(const vector_t& state) const override {
-        return state.head(NUM_DOFS);
+        return state.template head<NQ>();
     }
 
     vector_t getPinocchioJointVelocity(const vector_t& state,
                                        const vector_t& input) const override {
-        return state.tail(NUM_DOFS);
+        return state.template tail<NV>();
     }
 
     vector_t getPinocchioJointAcceleration(
         const vector_t& state, const vector_t& input) const override {
-        return input;
+        // clang-format off
+         const auto theta = state(2);
+         Eigen::Matrix<SCALAR, 2, 2> C_wb;
+         C_wb << cos(theta), -sin(theta),
+                 sin(theta),  cos(theta);
+        // clang-format on
+
+        // convert acceleration input from body frame to world frame
+        vector_t acceleration(INPUT_DIM);
+        acceleration << C_wb * input.template head<2>(),
+            input.template tail<INPUT_DIM - 2>();
+        return acceleration;
     }
 
     // NOTE: maps the Jacobians of an arbitrary function f w.r.t q and v
