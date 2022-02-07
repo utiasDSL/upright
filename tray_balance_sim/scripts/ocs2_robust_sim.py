@@ -73,7 +73,8 @@ def get_object_point_cloud(camera, objects):
 
 
 def set_bounding_spheres(robot, objects, settings, k=2, plot_point_cloud=False):
-    target = objects["stacked_cylinder2"].bullet.get_pose()[0]
+    # target = objects["stacked_cylinder2"].bullet.get_pose()[0]
+    target = objects["flat_cylinder1"].bullet.get_pose()[0]
     cam_pos = [target[0], target[1] - 1, target[2]]
     camera = Camera(
         camera_position=cam_pos,
@@ -184,8 +185,8 @@ def main():
 
     # simulation objects and model
     robot, objects, composites = sim.setup(
-        ["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
-        # ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
+        # ["tray", "stacked_cylinder1", "stacked_cylinder2", "stacked_cylinder3"]
+        ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
         # ["tray"]
     )
 

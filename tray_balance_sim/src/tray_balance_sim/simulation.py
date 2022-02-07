@@ -62,7 +62,11 @@ CYLINDER3_MU_BULLET_STACKED = CYLINDER3_SUPPORT_MU / CYLINDER2_MU_BULLET_STACKED
 CYLINDER3_RADIUS = 0.05
 CYLINDER3_COM_HEIGHT = 0.075
 
+# TODO may need to think about this: can all problems be solved by keeping this
+# tight?
 OBJ_ZMP_MARGIN = 0.01
+
+FLAT_OFFSET = -0.07
 
 BASE_HOME = [0, 0, 0]
 UR10_HOME_STANDARD = [
@@ -305,6 +309,7 @@ class Simulation:
                 mu=CYLINDER1_SUPPORT_MU,
             )
             objects[name].mass_error = 0
+            objects[name].com_error = np.array([0, FLAT_OFFSET, 0])
             objects[name].add_to_sim(
                 bullet_mu=CYLINDER1_MU_BULLET, color=(1, 0.498, 0.055, 1)
             )
@@ -312,7 +317,7 @@ class Simulation:
             # flat
             r_ow_w = r_ew_w + [
                 c1[0],
-                c1[1],
+                c1[1] - FLAT_OFFSET,
                 2 * TRAY_COM_HEIGHT + CYLINDER1_COM_HEIGHT + 0.05,
             ]
 
@@ -363,6 +368,7 @@ class Simulation:
                 mu=CYLINDER2_SUPPORT_MU,
             )
             objects[name].mass_error = 0
+            objects[name].com_error = np.array([0, FLAT_OFFSET, 0])
             objects[name].add_to_sim(
                 bullet_mu=CYLINDER2_MU_BULLET_FLAT, color=(0.173, 0.627, 0.173, 1)
             )
@@ -370,7 +376,7 @@ class Simulation:
             # flat
             r_ow_w = r_ew_w + [
                 c2[0],
-                c2[1],
+                c2[1] - FLAT_OFFSET,
                 2 * TRAY_COM_HEIGHT + CYLINDER2_COM_HEIGHT + 0.05,
             ]
 
@@ -421,6 +427,7 @@ class Simulation:
                 mu=CYLINDER3_SUPPORT_MU,
             )
             objects[name].mass_error = 0
+            objects[name].com_error = np.array([0, FLAT_OFFSET, 0])
             objects[name].add_to_sim(
                 bullet_mu=CYLINDER3_MU_BULLET_FLAT, color=(0.839, 0.153, 0.157, 1)
             )
@@ -428,7 +435,7 @@ class Simulation:
             # flat
             r_ow_w = r_ew_w + [
                 c3[0],
-                c3[1],
+                c3[1] - FLAT_OFFSET,
                 2 * TRAY_COM_HEIGHT + CYLINDER3_COM_HEIGHT + 0.05,
             ]
 
