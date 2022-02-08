@@ -64,6 +64,9 @@ class SimulatedRobot:
         self.cmd_vel = np.zeros(9)
         self.cmd_acc = np.zeros_like(self.cmd_vel)
 
+        # standard deviation of zero-mean Gaussian noise added to velocity inputs
+        self.v_cmd_stdev = 0.0
+
         # build a dict of all joints, keyed by name
         self.joints = {}
         for i in range(pyb.getNumJoints(self.uid)):
@@ -121,11 +124,15 @@ class SimulatedRobot:
             C_wb = self._base_rotation_matrix()
             ub = u[:3]
             u[:3] = C_wb @ ub
+
+        # add process noise
+        u_noisy = u + np.random.normal(scale=self.v_cmd_stdev, size=u.shape)
+
         pyb.setJointMotorControlArray(
             self.uid,
             self.robot_joint_indices,
             controlMode=pyb.VELOCITY_CONTROL,
-            targetVelocities=list(u),
+            targetVelocities=list(u_noisy),
         )
 
     def command_acceleration(self, cmd_acc):

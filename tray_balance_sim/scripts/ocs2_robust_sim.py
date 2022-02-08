@@ -23,13 +23,14 @@ import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 
 # simulation parameters
 SIM_DT = 0.001
-CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
+CTRL_PERIOD = 20  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 6.0  # duration of trajectory (s)
 
 # state noise
-Q_STDEV = 0
-V_STDEV = 0
+Q_STDEV = 0.0
+V_STDEV = 0.0
+V_CMD_STDEV = 0.0
 
 # video recording parameters
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -48,9 +49,9 @@ def main():
 
     # simulation objects and model
     robot, objects, composites = sim.setup(
-        ["tray", "cuboid1", "stacked_cylinder1", "stacked_cylinder2"]
+        # ["tray", "cuboid1", "stacked_cylinder1", "stacked_cylinder2"]
         # ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
-        # ["tray", "cuboid1"]
+        ["tray", "cuboid1"]
         # ["tray"]
     )
 
@@ -65,7 +66,7 @@ def main():
             robot,
             objects,
             settings_wrapper.settings,
-            target=objects["stacked_cylinder1"].bullet.get_pose()[0],
+            target=objects["cuboid1"].bullet.get_pose()[0],
             sim_timestep=SIM_DT,
             plot_point_cloud=True,
         )
@@ -73,6 +74,9 @@ def main():
             robot, settings_wrapper.settings.tray_balance_settings.robust_params
         )
         IPython.embed()
+
+    # set process noise after initial routine to get robust spheres
+    robot.v_cmd_stdev = V_CMD_STDEV
 
     # data recorder and plotter
     recorder = Recorder(
@@ -159,14 +163,14 @@ def main():
         v_noisy = v + np.random.normal(scale=V_STDEV, size=v.shape)
         x_noisy = np.concatenate((q_noisy, v_noisy))
 
-        # mpc.setObservation(t, x_noisy, u)
+        mpc.setObservation(t, x_opt, u)
 
         # by using x_opt, we're basically just doing pure open-loop planning,
         # since the state never deviates from the optimal trajectory (at least
         # due to noise)
         # this does have the benefit of smoothing out the state used for
         # computation, which is important for constraint handling
-        mpc.setObservation(t, x_opt, u)
+        # mpc.setObservation(t, x_opt, u)
 
         # TODO this should be set to reflect the MPC time step
         # we can increase it if the MPC rate is faster
@@ -192,7 +196,6 @@ def main():
         # x_opt_new = np.zeros(robot.ns)
         u = np.zeros(robot.ni)
         mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
-
         robot.command_acceleration(u)
 
         if recorder.now_is_the_time(i):
