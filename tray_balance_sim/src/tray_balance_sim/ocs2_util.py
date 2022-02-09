@@ -24,7 +24,10 @@ class TaskSettingsWrapper:
         settings.collision_avoidance_settings.minimum_distance = 0
 
         # dynamic obstacle settings
-        settings.dynamic_obstacle_settings.enabled = False
+        settings.dynamic_obstacle_settings.enabled = True
+
+        # TODO probably want to be able to set this dynamically from robust
+        # settings
         settings.dynamic_obstacle_settings.collision_link_names = [
             "thing_tool",
             "elbow_collision_link",
@@ -61,6 +64,16 @@ class TaskSettingsWrapper:
             return len(self.settings.tray_balance_settings.robust_params.balls) * 3
         return self.settings.tray_balance_settings.config.num_constraints()
 
+    def get_num_collision_avoidance_constraints(self):
+        if self.settings.collision_avoidance_settings.enabled:
+            return len(self.settings.collision_avoidance_settings.collision_link_pairs)
+        return 0
+
+    def get_num_dynamic_obstacle_constraints(self):
+        if self.settings.dynamic_obstacle_settings.enabled:
+            return len(self.settings.dynamic_obstacle_settings.collision_link_names)
+        return 0
+
 
 def get_task_info_path():
     rospack = rospkg.RosPack()
@@ -69,5 +82,31 @@ def get_task_info_path():
     )
 
 
-def setup_ocs2_mpc_interface(settings):
-    return ocs2.mpc_interface(get_task_info_path(), LIBRARY_PATH, settings)
+def make_target_trajectories(target_times, target_states, target_inputs):
+    assert len(target_times) == len(target_states)
+    assert len(target_times) == len(target_inputs)
+
+    target_times_ocs2 = ocs2.scalar_array()
+    for target_time in target_times:
+        target_times_ocs2.push_back(target_time)
+
+    target_states_ocs2 = ocs2.vector_array()
+    for target_state in target_states:
+        target_states_ocs2.push_back(target_state)
+
+    target_inputs_ocs2 = ocs2.vector_array()
+    for target_input in target_inputs:
+        target_inputs_ocs2.push_back(target_input)
+
+    return ocs2.TargetTrajectories(
+        target_times_ocs2, target_states_ocs2, target_inputs_ocs2
+    )
+
+
+def setup_ocs2_mpc_interface(settings, target_times, target_states, target_inputs):
+    mpc = ocs2.mpc_interface(get_task_info_path(), LIBRARY_PATH, settings)
+    target_trajectories = make_target_trajectories(
+        target_times, target_states, target_inputs
+    )
+    mpc.reset(target_trajectories)
+    return mpc

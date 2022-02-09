@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Testing of the robust balancing constraints"""
+import enum
 import time
 import datetime
 import sys
@@ -12,13 +13,23 @@ import pybullet as pyb
 import rospkg
 
 from tray_balance_sim import util, ocs2_util, pyb_util, robustness
-from tray_balance_sim.simulation import MobileManipulatorSimulation
+from tray_balance_sim.simulation import MobileManipulatorSimulation, DynamicObstacle
 from tray_balance_sim.recording import Recorder, VideoRecorder
 
 import IPython
 
 # hook into the bindings from the OCS2-based controller
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
+
+
+@enum.unique
+class SimType(enum.Enum):
+    POSE_TO_POSE = 1
+    DYNAMIC_OBSTACLE = 2
+    STATIC_OBSTACLE = 3
+
+
+SIM_TYPE = SimType.DYNAMIC_OBSTACLE
 
 
 # simulation parameters
@@ -39,25 +50,37 @@ VIDEO_PATH = VIDEO_DIR / ("robust_stack3_" + TIMESTAMP)
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
+# goal 1
+# POSITION_GOAL = np.array([2, 0, -0.5])
+# ORIENTATION_GOAL = np.array([0, 0, 0, 1])
+
+# goal 2
+# POSITION_GOAL = np.array([0, 2, 0.5])
+# ORIENTATION_GOAL = np.array([0, 0, 0, 1])
+
+# goal 3
+POSITION_GOAL = np.array([0, -2, 0])
+ORIENTATION_GOAL = np.array([0, 0, 1, 0])
+
 
 def main():
     np.set_printoptions(precision=3, suppress=True)
+    N = int(DURATION / SIM_DT)
 
+    # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
-
-    N = int(DURATION / sim.dt)
-
-    # simulation objects and model
     robot, objects, composites = sim.setup(
         # ["tray", "cuboid1", "stacked_cylinder1", "stacked_cylinder2"]
-        # ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
-        ["tray", "cuboid1"]
+        ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
+        # ["tray", "cuboid1"]
         # ["tray"]
     )
 
-    # initial state
+    # initial time, state, input
+    t = 0.0
     q, v = robot.joint_states()
     x = np.concatenate((q, v))
+    u = np.zeros(robot.ni)
 
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
 
@@ -88,8 +111,8 @@ def main():
         n_objects=len(objects),
         control_period=CTRL_PERIOD,
         n_balance_con=settings_wrapper.get_num_balance_constraints(),
-        n_collision_pair=0,
-        n_dynamic_obs=0,
+        n_collision_pair=settings_wrapper.get_num_collision_avoidance_constraints(),
+        n_dynamic_obs=settings_wrapper.get_num_dynamic_obstacle_constraints(),
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -105,55 +128,72 @@ def main():
 
     r_ew_w, Q_we = robot.link_pose()
 
-    # initial time and input
-    t = 0.0
-    u = np.zeros(robot.ni)
+    if SIM_TYPE == SimType.POSE_TO_POSE:
+        target_times = [0]
+        target_inputs = [u]
 
-    target_times = [0]
-    r_obs0 = np.array(r_ew_w) + [0, -10, 0]
+        # goal pose
+        r_ew_w_d = r_ew_w + POSITION_GOAL
+        Qd = util.quat_multiply(Q_we, ORIENTATION_GOAL)
+        r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
-    mpc = ocs2_util.setup_ocs2_mpc_interface(settings_wrapper.settings)
+        target_states = [np.concatenate((r_ew_w_d, Qd, r_obs0))]
 
-    # setup EE target
-    t_target = ocs2.scalar_array()
-    for target_time in target_times:
-        t_target.push_back(target_time)
+        # visual indicator for target
+        # NOTE: debug frame doesn't show up in the recording
+        pyb_util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
+        pyb_util.GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
 
-    input_target = ocs2.vector_array()
-    for _ in target_times:
-        input_target.push_back(u)
+    elif SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
+        target_times = [0, 5]  # TODO
+        target_inputs = [u, u]
 
-    # goal 1
-    # r_ew_w_d = np.array(r_ew_w) + [2, 0, -0.5]
-    # Qd = Q_we
+        # create the dynamic obstacle
+        r_obs0 = np.array(r_ew_w) + [0, -1, 0]
+        v_obs = np.array([0, 1.0, 0])
+        obstacle = DynamicObstacle(r_obs0, radius=0.1, velocity=v_obs)
 
-    # goal 2
-    # r_ew_w_d = np.array(r_ew_w) + [0, 2, 0.5]
-    # Qd = Q_we
+        # stationary pose
+        r_ew_w_d = r_ew_w
+        Qd = Q_we
 
-    # goal 3
-    r_ew_w_d = np.array(r_ew_w) + [0, -2, 0]
-    Qd = util.quat_multiply(Q_we, np.array([0, 0, 1, 0]))
+        # start with the obstacle out of the way
+        r_obs_out_of_the_way = r_ew_w + [0, -10, 0]
 
-    # NOTE: doesn't show up in the recording
-    pyb_util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
+        target_states = [
+            np.concatenate((r_ew_w_d, Qd, r_obs_out_of_the_way)),
+            np.concatenate((r_ew_w_d, Qd, r_obs_out_of_the_way)),
+        ]
 
-    pyb_util.GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
+        # trajectories are modified to introduce dynamic obstacles
+        target_times_obs1 = [0, 5]
+        target_times_obs2 = [2, 7]
 
-    state_target = ocs2.vector_array()
-    state_target.push_back(np.concatenate((r_ew_w_d, Qd, r_obs0)))
+        r_obsf = obstacle.sample_position(target_times_obs1[-1])
+        target_states_obs = [
+            np.concatenate((r_ew_w_d, Qd, r_obs0)),
+            np.concatenate((r_ew_w_d, Qd, r_obsf)),
+        ]
 
-    target_trajectories = ocs2.TargetTrajectories(t_target, state_target, input_target)
-    mpc.reset(target_trajectories)
+        # obstacle appears at t = 0
+        target_trajectories_obs1 = ocs2_util.make_target_trajectories(
+            target_times_obs1, target_states_obs, target_inputs
+        )
+
+        # obstacle appears again at t = 2
+        target_trajectories_obs2 = ocs2_util.make_target_trajectories(
+            target_times_obs2, target_states_obs, target_inputs
+        )
+
+    mpc = ocs2_util.setup_ocs2_mpc_interface(
+        settings_wrapper.settings, target_times, target_states, target_inputs
+    )
 
     target_idx = 0
 
-    assert len(state_target) == len(target_times)
-    assert len(t_target) == len(target_times)
-    assert len(input_target) == len(target_times)
-
     x_opt = np.copy(x)
 
+    # simulation loop
     for i in range(N):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
@@ -194,7 +234,7 @@ def main():
         # entire time horizon, without accounting for the given state. So it is
         # like doing feedforward input only, which is bad.
         # x_opt_new = np.zeros(robot.ns)
-        u = np.zeros(robot.ni)
+        # u = np.zeros(robot.ni)
         mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
         robot.command_acceleration(u)
 
@@ -215,9 +255,17 @@ def main():
                 else:
                     con = mpc.softStateInputInequalityConstraint("trayBalance", t, x, u)
                     recorder.ineq_cons[idx, :] = con
+            if settings_wrapper.settings.dynamic_obstacle_settings.enabled:
+                recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
+                    "dynamicObstacleAvoidance", t, x
+                )
+            if settings_wrapper.settings.collision_avoidance_settings.enabled:
+                recorder.collision_pair_distance[
+                    idx, :
+                ] = mpc.stateInequalityConstraint("collisionAvoidance", t, x)
 
-            r_ew_w_d = state_target[target_idx][:3]
-            Q_we_d = state_target[target_idx][3:7]
+            r_ew_w_d = target_states[target_idx][:3]
+            Q_we_d = target_states[target_idx][3:7]
 
             # record
             recorder.us[idx, :] = u
@@ -241,6 +289,17 @@ def main():
             robust_spheres.update()
         t += sim.dt
         time.sleep(sim.dt)
+
+        # set the target trajectories to make controller aware of dynamic
+        # obstacles
+        if SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
+            if i == 0:
+                mpc.setTargetTrajectories(target_trajectories_obs1)
+            elif i == 2000:
+                # reset the obstacle to use again
+                obstacle.reset_pose(r_obs0, (0, 0, 0, 1))
+                obstacle.reset_velocity(obstacle.velocity)
+                mpc.setTargetTrajectories(target_trajectories_obs2)
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
             video.save_frame()

@@ -12,7 +12,7 @@ import pybullet as pyb
 from PIL import Image
 
 from tray_balance_sim import util, ocs2_util
-from tray_balance_sim.simulation import MobileManipulatorSimulation
+from tray_balance_sim.simulation import MobileManipulatorSimulation, DynamicObstacle
 from tray_balance_sim.recording import Recorder, VideoRecorder
 
 from ocs2_mobile_manipulator_modified import (
@@ -36,37 +36,6 @@ VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/ICRA22/")
 VIDEO_PATH = VIDEO_DIR / ("dynamic_obstacle_" + TIMESTAMP)
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
-
-
-class DynamicObstacle:
-    def __init__(self, initial_position, radius=0.1, velocity=None):
-        collision_uid = pyb.createCollisionShape(
-            shapeType=pyb.GEOM_SPHERE,
-            radius=radius,
-        )
-        visual_uid = pyb.createVisualShape(
-            shapeType=pyb.GEOM_SPHERE,
-            radius=radius,
-            rgbaColor=(1, 0, 0, 1),
-        )
-        self.uid = pyb.createMultiBody(
-            baseMass=0,  # non-dynamic body
-            baseCollisionShapeIndex=-1,  # NOTE
-            baseVisualShapeIndex=visual_uid,
-            basePosition=list(initial_position),
-            baseOrientation=(0, 0, 0, 1),
-        )
-        self.initial_position = initial_position
-
-        self.velocity = velocity
-        if self.velocity is None:
-            self.velocity = np.zeros(3)
-        pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
-
-    def sample_position(self, t):
-        """Sample the position of the object at a given time."""
-        # assume constant velocity
-        return self.initial_position + t * self.velocity
 
 
 def main():

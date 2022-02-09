@@ -87,6 +87,44 @@ UR10_HOME_TRAY_BALANCE = [
 ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
 
 
+class DynamicObstacle:
+    def __init__(self, initial_position, radius=0.1, velocity=None):
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_SPHERE,
+            radius=radius,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_SPHERE,
+            radius=radius,
+            rgbaColor=(1, 0, 0, 1),
+        )
+        self.uid = pyb.createMultiBody(
+            baseMass=0,  # non-dynamic body
+            # baseCollisionShapeIndex=-1,  # NOTE
+            baseVisualShapeIndex=visual_uid,
+            basePosition=list(initial_position),
+            baseOrientation=(0, 0, 0, 1),
+        )
+        self.initial_position = initial_position
+
+        self.velocity = velocity
+        if self.velocity is None:
+            self.velocity = np.zeros(3)
+        pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
+
+    def sample_position(self, t):
+        """Sample the position of the object at a given time."""
+        # assume constant velocity
+        return self.initial_position + t * self.velocity
+
+    def reset_pose(self, r, Q):
+        pyb.resetBasePositionAndOrientation(self.uid, list(r), list(Q))
+
+    def reset_velocity(self, v):
+        self.velocity = v
+        pyb.resetBaseVelocity(self.uid, linearVelocity=list(v))
+
+
 class Simulation:
     def __init__(self, dt):
         self.dt = dt  # simulation timestep (s)
