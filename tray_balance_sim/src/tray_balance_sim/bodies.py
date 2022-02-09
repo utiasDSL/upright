@@ -81,6 +81,7 @@ class BalancedBody:
         # there in simulation
         self.mass_error = 0
         self.r_tau_error = 0
+        self.mu_error = 0
 
         # TODO these should be dependent
         self.com_error = np.zeros(3)
@@ -97,7 +98,7 @@ class BalancedBody:
             self.com_height + self.com_height_error,
             self.support_area,
             self.r_tau + self.r_tau_error,
-            self.mu,
+            self.mu + self.mu_error,
         )
 
 

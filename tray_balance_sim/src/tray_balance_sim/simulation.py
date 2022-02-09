@@ -299,6 +299,7 @@ class Simulation:
                 mu=CUBOID1_TRAY_MU,
             )
             # objects[name].r_tau_error = 10*r_tau_nominal
+            objects[name].mu_error = 0
 
             add_obj_to_sim(
                 obj=objects[name],

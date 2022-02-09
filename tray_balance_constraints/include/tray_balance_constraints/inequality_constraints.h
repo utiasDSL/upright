@@ -115,10 +115,9 @@ template <typename Scalar>
 struct BalancedObject {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    BalancedObject(
-        const RigidBody<Scalar>& body, Scalar com_height,
-        const SupportAreaBase<Scalar>& support_area,
-        Scalar r_tau, Scalar mu)
+    BalancedObject(const RigidBody<Scalar>& body, Scalar com_height,
+                   const SupportAreaBase<Scalar>& support_area, Scalar r_tau,
+                   Scalar mu)
         : body(body),
           com_height(com_height),
           support_area_ptr(support_area.clone()),
@@ -171,12 +170,11 @@ struct BalancedObject {
 
         if (num_params_remaining == 4) {
             auto support = CircleSupportArea<Scalar>::from_parameters(p, start);
-            return BalancedObject<Scalar>(body, com_height, support,
-                                          r_tau, mu);
+            return BalancedObject<Scalar>(body, com_height, support, r_tau, mu);
         } else {
-            auto support = PolygonSupportArea<Scalar>::from_parameters(p, start);
-            return BalancedObject<Scalar>(body, com_height, support,
-                                          r_tau, mu);
+            auto support =
+                PolygonSupportArea<Scalar>::from_parameters(p, start);
+            return BalancedObject<Scalar>(body, com_height, support, r_tau, mu);
         }
 
         // return BalancedObject<Scalar>(body, com_height, *support_ptr,
@@ -211,8 +209,7 @@ struct BalancedObject {
             objects[0].support_area_ptr->clone());
         support_area_ptr->offset = delta.head(2);
 
-        BalancedObject<Scalar> composite(body, com_height,
-                                         *support_area_ptr,
+        BalancedObject<Scalar> composite(body, com_height, *support_area_ptr,
                                          objects[0].r_tau, objects[0].mu);
         return composite;
     }
@@ -302,7 +299,8 @@ Vector<Scalar> inequality_constraints(const Mat3<Scalar>& orientation,
         object.mu * alpha(2) - sqrt(squared(alpha(0)) + squared(alpha(1)) +
                                     squared(beta(2) / object.r_tau) + eps);
     // Scalar h1 =
-    //     squared(object.mu * alpha(2)) - squared(alpha(0)) + squared(alpha(1)) -
+    //     squared(object.mu * alpha(2)) - squared(alpha(0)) + squared(alpha(1))
+    //     -
     //                                 squared(beta(2) / object.r_tau) + eps;
 
     // normal constraint
