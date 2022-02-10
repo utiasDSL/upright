@@ -37,17 +37,52 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
+template <typename Scalar>
+struct CollisionSphere {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    CollisionSphere(const std::string& name,
+                    const std::string& parent_joint_name,
+                    const Eigen::Matrix<Scalar, 3, 1>& offset,
+                    const Scalar radius)
+        : name(name),
+          parent_joint_name(parent_joint_name),
+          offset(offset),
+          radius(radius) {}
+
+    // Name of this collision sphere.
+    std::string name;
+
+    // Name of the robot joint this collision sphere is attached to.
+    std::string parent_joint_name;
+
+    // Offset from that joint (in the joint's frame).
+    Eigen::Matrix<Scalar, 3, 1> offset;
+
+    // Radius of this collision sphere.
+    Scalar radius;
+};
 
 struct CollisionAvoidanceSettings {
     bool enabled = false;
+
+    // List of pairs of collision objects to check
     std::vector<std::pair<std::string, std::string>> collision_link_pairs;
+
+    // Minimum distance allowed between collision objects
     scalar_t minimum_distance = 0;
+
+    // Relaxed barrier function parameters
     scalar_t mu = 1e-2;
     scalar_t delta = 1e-3;
+
+    // Extra collision spheres to attach to the robot body for collision
+    // avoidance.
+    std::vector<CollisionSphere<scalar_t>> extra_spheres;
 };
 
-class CollisionAvoidanceConstraint final
-    : public SelfCollisionConstraint {
+
+class CollisionAvoidanceConstraint final : public SelfCollisionConstraint {
    public:
     CollisionAvoidanceConstraint(
         const PinocchioStateInputMapping<scalar_t>& mapping,
@@ -57,8 +92,8 @@ class CollisionAvoidanceConstraint final
               mapping, std::move(pinocchioGeometryInterface), minimumDistance) {
     }
     ~CollisionAvoidanceConstraint() override = default;
-    CollisionAvoidanceConstraint(
-        const CollisionAvoidanceConstraint& other) = default;
+    CollisionAvoidanceConstraint(const CollisionAvoidanceConstraint& other) =
+        default;
     CollisionAvoidanceConstraint* clone() const {
         return new CollisionAvoidanceConstraint(*this);
     }

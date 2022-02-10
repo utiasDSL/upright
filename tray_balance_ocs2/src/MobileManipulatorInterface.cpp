@@ -30,6 +30,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <pinocchio/fwd.hpp>
 #include <pinocchio/multibody/joint/joint-composite.hpp>
 #include <pinocchio/multibody/model.hpp>
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
 
 #include <ocs2_core/cost/QuadraticStateCost.h>
 #include <ocs2_core/initialization/DefaultInitializer.h>
@@ -412,10 +414,81 @@ MobileManipulatorInterface::getDynamicObstacleConstraint(
     PinocchioInterface pinocchioInterface,
     const DynamicObstacleSettings& settings, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
+
+
+    // Add collision spheres to the Pinocchio model
+    // TODO might have to rebuild the interface...
+    PinocchioInterface::Model model = pinocchioInterface.getModel();
+
+    // TODO can I build a model from scratch?
+    // PinocchioInterface::Model model;
+    // pinocchio::urdf::buildModel(urdf_path, model);
+
+    Eigen::Matrix<scalar_t, 3, 3> R = Eigen::Matrix<scalar_t, 3, 3>::Identity();
+    for (const auto& sphere : settings.collision_spheres) {
+        pinocchio::JointIndex parent_joint_id =
+            model.getJointId(sphere.parent_joint_name); // TODO rename
+        pinocchio::SE3 T_fs(R, sphere.offset);
+        // pinocchio::Frame frame(sphere.name, parent_joint_id, /* TODO */, T_fs);
+        pinocchio::FrameIndex idx = model.addBodyFrame(sphere.name, parent_joint_id, T_fs);
+        std::cerr << "frame index = " << idx << std::endl;
+    }
+    // pinocchioInterface = PinocchioInterface(model);
+
+    // for (const auto& name : settings.get_collision_frame_names()) {
+    //     std::cerr << "body index = " << pinocchioInterface.getModel().getBodyId(name) << std::endl;
+    // }
+    //
+    auto pinocchioInterfaceCppAD = PinocchioInterface(model).toCppAd();
+
+    auto& data = pinocchioInterfaceCppAD.getData();
+    ad_vector_t q(9);
+    q.setZero();
+
+    // TODO maybe the data is somehow wrong?
+    std::cerr << "last frame = " << pinocchioInterfaceCppAD.getModel().frames.back().name << std::endl;
+    std::cerr << "frame exists = " << pinocchioInterfaceCppAD.getModel().existFrame("thing_tool_collision_link") << std::endl;
+    std::cerr << "joint exists = " << pinocchioInterfaceCppAD.getModel().existJointName("tool0_tcp_fixed_joint") << std::endl;
+
+    pinocchio::forwardKinematics(pinocchioInterfaceCppAD.getModel(), data, q);
+
+    std::cerr << "data.oMf.size() = " << data.oMf.size() << std::endl;
+    std::cerr << "data.oMi.size() = " << data.oMi.size() << std::endl;
+
+    PinocchioInterfaceCppAd::Data::SE3 I = PinocchioInterfaceCppAd::Data::SE3::Identity();
+
+    for(pinocchio::JointIndex i=1; i < (pinocchio::JointIndex) data.oMi.size(); ++i)
+    {
+        // PinocchioInterfaceCppAd::Data::SE3 x = data.oMi[i] * I;
+        std::cerr << "joint[ " << i << "] = " << model.names[i] << std::endl;
+    }
+
+    for(pinocchio::FrameIndex i=1; i < (pinocchio::FrameIndex) pinocchioInterfaceCppAD.getModel().nframes; ++i)
+    {
+      const PinocchioInterfaceCppAd::Model::Frame frame = pinocchioInterfaceCppAD.getModel().frames[i];
+      std::cerr << "frame[" << i << "] = " << frame.name << std::endl;
+      // const pinocchio::JointIndex parent = frame.parent;
+      //
+      // std::cerr << "[" << i << "] first" << std::endl;
+      // std::cerr << "parent joint index = " << parent << std::endl;
+      //
+      // PinocchioInterfaceCppAd::Data::SE3 x = data.oMi[parent] * I;
+      //
+      // std::cerr << "[" << i << "] first.half" << std::endl;
+      // data.oMf[i] = x;  // fails
+      //
+      // std::cerr << "[" << i << "] second" << std::endl;
+      // data.oMf[i] = data.oMf[i]*frame.placement;
+    }
+
+    std::cerr << "done manual frame update" << std::endl;
+
+    pinocchio::updateFramePlacements(pinocchioInterfaceCppAD.getModel(), data);
+
     MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
     PinocchioEndEffectorKinematicsCppAd eeKinematics(
         pinocchioInterface, pinocchioMappingCppAd,
-        settings.collision_link_names, STATE_DIM, INPUT_DIM,
+        settings.get_collision_frame_names(), STATE_DIM, INPUT_DIM,
         "obstacle_ee_kinematics", libraryFolder, recompileLibraries, false);
 
     std::unique_ptr<StateConstraint> constraint(new DynamicObstacleConstraint(
@@ -542,6 +615,29 @@ MobileManipulatorInterface::getCollisionAvoidanceConstraint(
     pinocchio::GeometryModel obs_geom_model =
         build_geometry_model(obstacle_urdf_path);
     geometryInterface.addGeometryObjects(obs_geom_model);
+
+    PinocchioInterface::Model model = pinocchioInterface.getModel();
+    Eigen::Matrix<scalar_t, 3, 3> R = Eigen::Matrix<scalar_t, 3, 3>::Identity();
+    std::vector<pinocchio::GeometryObject> extra_spheres;
+    for (auto& sphere : settings.extra_spheres) {
+        // The collision sphere is specified relative to a link, but the
+        // geometry interface works relative to joints. Thus we need to find
+        // the parent joint and the sphere's transform w.r.t. it.
+        pinocchio::FrameIndex parent_frame_id =
+            model.getFrameId(sphere.parent_joint_name);
+        pinocchio::Frame parent_frame = model.frames[parent_frame_id];
+
+        pinocchio::JointIndex parent_joint_id = parent_frame.parent;
+        pinocchio::SE3 T_jf = parent_frame.placement;
+        pinocchio::SE3 T_fs(R, sphere.offset);
+        pinocchio::SE3 T_js = T_jf * T_fs;  // sphere relative to joint
+
+        pinocchio::GeometryObject::CollisionGeometryPtr geom_ptr(
+            new hpp::fcl::Sphere(sphere.radius));
+        extra_spheres.push_back(pinocchio::GeometryObject(
+            sphere.name, parent_joint_id, geom_ptr, T_js));
+    }
+    geometryInterface.addGeometryObjects(extra_spheres);
 
     // pinocchio::GeometryModel& geometry_model =
     //     geometryInterface.getGeometryModel();

@@ -66,7 +66,9 @@ def set_bounding_spheres(
     points1_e = T_ew1.dot(points1_w)
 
     # rotate to take picture of the other side of the objects
-    rotate_end_effector(robot, angle=-np.pi, sim_timestep=sim_timestep, duration=5.0)
+    rotate_end_effector(
+        robot, angle=-np.pi, sim_timestep=sim_timestep, duration=5.0, realtime=False
+    )
 
     points2_w = get_object_point_cloud(camera, objects)
 
@@ -79,7 +81,9 @@ def set_bounding_spheres(
     points_e = np.vstack((points1_e, points2_e))
 
     # rotate back to initial position
-    rotate_end_effector(robot, angle=np.pi, sim_timestep=sim_timestep, duration=5.0)
+    rotate_end_effector(
+        robot, angle=np.pi, sim_timestep=sim_timestep, duration=5.0, realtime=False
+    )
 
     # compute max_radius for robust inertia
     max_radius = 0.5 * np.max(pdist(points_e))

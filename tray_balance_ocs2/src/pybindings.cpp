@@ -112,6 +112,16 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .value("Soft", ConstraintType::Soft)
         .value("Hard", ConstraintType::Hard);
 
+
+    pybind11::class_<CollisionSphere<scalar_t>>(m, "CollisionSphere")
+        .def(pybind11::init<const std::string&, const std::string&,
+                            const Eigen::Matrix<scalar_t, 3, 1>&, const scalar_t>(),
+             "name"_a, "parent_joint_name"_a, "offset"_a, "radius"_a)
+        .def_readwrite("name", &CollisionSphere<scalar_t>::name)
+        .def_readwrite("parent_joint_name", &CollisionSphere<scalar_t>::parent_joint_name)
+        .def_readwrite("offset", &CollisionSphere<scalar_t>::offset)
+        .def_readwrite("radius", &CollisionSphere<scalar_t>::radius);
+
     pybind11::class_<CollisionAvoidanceSettings>(m,
                                                  "CollisionAvoidanceSettings")
         .def(pybind11::init<>())
@@ -121,7 +131,8 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("minimum_distance",
                        &CollisionAvoidanceSettings::minimum_distance)
         .def_readwrite("mu", &CollisionAvoidanceSettings::mu)
-        .def_readwrite("delta", &CollisionAvoidanceSettings::delta);
+        .def_readwrite("delta", &CollisionAvoidanceSettings::delta)
+        .def_readwrite("extra_spheres", &CollisionAvoidanceSettings::extra_spheres);
 
     pybind11::class_<DynamicObstacleSettings>(m, "DynamicObstacleSettings")
         .def(pybind11::init<>())
@@ -133,7 +144,8 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("obstacle_radius",
                        &DynamicObstacleSettings::obstacle_radius)
         .def_readwrite("mu", &DynamicObstacleSettings::mu)
-        .def_readwrite("delta", &DynamicObstacleSettings::delta);
+        .def_readwrite("delta", &DynamicObstacleSettings::delta)
+        .def_readwrite("collision_spheres", &DynamicObstacleSettings::collision_spheres);
 
     pybind11::class_<TaskSettings> task_settings(m, "TaskSettings");
     task_settings.def(pybind11::init<>())

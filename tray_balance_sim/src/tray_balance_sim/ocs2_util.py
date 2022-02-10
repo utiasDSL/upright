@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import rospkg
 
 from tray_balance_sim import geometry
@@ -15,29 +16,6 @@ class TaskSettingsWrapper:
 
         settings.method = ocs2.TaskSettings.Method.DDP
         settings.initial_state = x0
-
-        # collision avoidance settings
-        settings.collision_avoidance_settings.enabled = False
-        settings.collision_avoidance_settings.collision_link_pairs = [
-            ("forearm_collision_link_0", "balanced_object_collision_link_0")
-        ]
-        settings.collision_avoidance_settings.minimum_distance = 0
-
-        # dynamic obstacle settings
-        settings.dynamic_obstacle_settings.enabled = True
-
-        # TODO probably want to be able to set this dynamically from robust
-        # settings
-        settings.dynamic_obstacle_settings.collision_link_names = [
-            "thing_tool",
-            "elbow_collision_link",
-            "forearm_collision_sphere_link1",
-            "forearm_collision_sphere_link2",
-            "wrist_collision_link",
-        ]
-        for r in [0.25, 0.15, 0.15, 0.15, 0.15]:
-            settings.dynamic_obstacle_settings.collision_sphere_radii.push_back(r)
-        settings.dynamic_obstacle_settings.obstacle_radius = 0.1
 
         # tray balance settings
         settings.tray_balance_settings.enabled = True
@@ -56,6 +34,78 @@ class TaskSettingsWrapper:
         robust_params.min_mu = 0.5
         robust_params.min_r_tau = geometry.circle_r_tau(robust_params.min_support_dist)
         settings.tray_balance_settings.robust_params = robust_params
+
+        # collision avoidance settings
+        settings.collision_avoidance_settings.enabled = False
+        settings.collision_avoidance_settings.collision_link_pairs = [
+            ("forearm_collision_link_0", "balanced_object_collision_link_0")
+        ]
+        settings.collision_avoidance_settings.minimum_distance = 0
+
+        # dynamic obstacle settings
+        settings.dynamic_obstacle_settings.enabled = True
+        # for names in [
+        #     "elbow_collision_link",
+        #     "forearm_collision_sphere_link1",
+        #     "forearm_collision_sphere_link2",
+        #     "wrist_collision_link",
+        # ]:
+        # TODO how to change this list after creation?
+        settings.dynamic_obstacle_settings.collision_spheres = [
+            ocs2.CollisionSphere(
+                name="elbow_collision_link",
+                parent_joint_name="elbow_collision_joint",
+                offset=np.zeros(3),
+                radius=0.15,
+            ),
+            ocs2.CollisionSphere(
+                name="forearm_collision_sphere_link1",
+                parent_joint_name="forearm_collision_sphere_joint1",
+                offset=np.zeros(3),
+                radius=0.15,
+            ),
+            ocs2.CollisionSphere(
+                name="forearm_collision_sphere_link2",
+                parent_joint_name="forearm_collision_sphere_joint2",
+                offset=np.zeros(3),
+                radius=0.15,
+            ),
+            ocs2.CollisionSphere(
+                name="wrist_collision_link",
+                parent_joint_name="wrist_collision_joint",
+                offset=np.zeros(3),
+                radius=0.15,
+            ),
+            ocs2.CollisionSphere(
+                name="thing_tool_collision_link",
+                parent_joint_name="tool0_tcp_fixed_joint",
+                offset=np.zeros(3),
+                radius=0.25,
+            ),
+        ]
+        # settings.dynamic_obstacle_settings.collision_link_names = []
+        # settings.dynamic_obstacle_settings.collision_sphere_radii = ocs2.scalar_array()
+
+        # settings.dynamic_obstacle_settings.collision_link_names = [
+        #     "elbow_collision_link",
+        #     "forearm_collision_sphere_link1",
+        #     "forearm_collision_sphere_link2",
+        #     "wrist_collision_link",
+        #     # "balanced_object_collision_joint",
+        #     "thing_tool",
+        # ]
+        # for r in [0.15, 0.15, 0.15, 0.15, 0.25]:
+        #     settings.dynamic_obstacle_settings.collision_sphere_radii.push_back(r)
+        settings.dynamic_obstacle_settings.obstacle_radius = 0.1
+
+        # If we are not using robust constraints, just apply a hard-coded
+        # sphere around the balanced objects. If we are robust, this should be
+        # added later to correspond to the robust spheres.
+        # if not settings.tray_balance_settings.robust:
+        #     settings.dynamic_obstacle_settings.collision_link_names.append(
+        #         "balanced_object_collision_joint"
+        #     )
+        #     settings.dynamic_obstacle_settings.collision_sphere_radii.push_back(0.25)
 
         self.settings = settings
 

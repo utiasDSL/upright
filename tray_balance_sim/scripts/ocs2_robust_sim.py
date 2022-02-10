@@ -50,6 +50,9 @@ VIDEO_PATH = VIDEO_DIR / ("robust_stack3_" + TIMESTAMP)
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
+# robust bounding spheres
+NUM_BOUNDING_SPHERES = 1
+
 # goal 1
 # POSITION_GOAL = np.array([2, 0, -0.5])
 # ORIENTATION_GOAL = np.array([0, 0, 0, 1])
@@ -89,9 +92,10 @@ def main():
             robot,
             objects,
             settings_wrapper.settings,
-            target=objects["cuboid1"].bullet.get_pose()[0],
+            target=objects["tray"].bullet.get_pose()[0],
             sim_timestep=SIM_DT,
             plot_point_cloud=True,
+            k=NUM_BOUNDING_SPHERES,
         )
         robust_spheres = robustness.RobustSpheres(
             robot, settings_wrapper.settings.tray_balance_settings.robust_params
@@ -259,6 +263,7 @@ def main():
                 recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
                     "dynamicObstacleAvoidance", t, x
                 )
+                print(recorder.dynamic_obs_distance[idx, :])
             if settings_wrapper.settings.collision_avoidance_settings.enabled:
                 recorder.collision_pair_distance[
                     idx, :
