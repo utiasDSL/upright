@@ -51,25 +51,25 @@ class TaskSettingsWrapper:
         for sphere in [
             ocs2.CollisionSphere(
                 name="elbow_collision_link",
-                parent_frame_name="elbow_collision_joint",
+                parent_frame_name="ur10_arm_forearm_link",
                 offset=np.zeros(3),
                 radius=0.15,
             ),
             ocs2.CollisionSphere(
                 name="forearm_collision_sphere_link1",
-                parent_frame_name="forearm_collision_sphere_joint1",
-                offset=np.zeros(3),
+                parent_frame_name="ur10_arm_forearm_link",
+                offset=np.array([0, 0, 0.2]),
                 radius=0.15,
             ),
             ocs2.CollisionSphere(
                 name="forearm_collision_sphere_link2",
-                parent_frame_name="forearm_collision_sphere_joint2",
-                offset=np.zeros(3),
+                parent_frame_name="ur10_arm_forearm_link",
+                offset=np.array([0, 0, 0.4]),
                 radius=0.15,
             ),
             ocs2.CollisionSphere(
                 name="wrist_collision_link",
-                parent_frame_name="wrist_collision_joint",
+                parent_frame_name="ur10_arm_wrist_3_link",
                 offset=np.zeros(3),
                 radius=0.15,
             ),

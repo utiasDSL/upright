@@ -195,17 +195,16 @@ def main():
         for (
             sphere
         ) in settings_wrapper.settings.dynamic_obstacle_settings.collision_spheres:
-            joint_idx = robot.joints[sphere.parent_frame_name][0]
+            link_idx = robot.links[sphere.parent_frame_name][0]
             ghosts.append(
                 GhostSphere(
                     sphere.radius,
                     position=sphere.offset,
                     parent_body_uid=robot.uid,
-                    parent_link_index=joint_idx,
+                    parent_link_index=link_idx,
                     color=(0, 1, 0, 0.3),
                 )
             )
-            break
 
     mpc = ocs2_util.setup_ocs2_mpc_interface(
         settings_wrapper.settings, target_times, target_states, target_inputs

@@ -69,10 +69,13 @@ class SimulatedRobot:
 
         # build a dict of all joints, keyed by name
         self.joints = {}
+        self.links = {}
         for i in range(pyb.getNumJoints(self.uid)):
             info = pyb.getJointInfo(self.uid, i)
-            name = info[1].decode("utf-8")
-            self.joints[name] = info
+            joint_name = info[1].decode("utf-8")
+            link_name = info[12].decode("utf-8")
+            self.joints[joint_name] = info
+            self.links[link_name] = info
 
         # get the indices for the UR10 joints
         self.robot_joint_indices = []
@@ -165,12 +168,15 @@ class SimulatedRobot:
     def link_pose(self, link_idx=None):
         """Get the pose of a particular link in the world frame.
 
+        It is the pose of origin of the link w.r.t. the world. The origin of
+        the link is the location of its parent joint.
+
         If no link_idx is provided, defaults to that of the tool.
         """
         if link_idx is None:
             link_idx = self.tool_idx
         state = pyb.getLinkState(self.uid, link_idx, computeForwardKinematics=True)
-        pos, orn = state[0], state[1]
+        pos, orn = state[4], state[5]
         return np.array(pos), np.array(orn)
 
     def link_velocity(self, link_idx=None):
