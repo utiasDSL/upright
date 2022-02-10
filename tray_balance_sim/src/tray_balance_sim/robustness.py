@@ -136,25 +136,3 @@ def set_bounding_spheres(
             )
     settings.tray_balance_settings.robust_params.balls = balls
     settings.tray_balance_settings.robust_params.max_radius = max_radius
-
-
-# TODO: could build a generic object to attach a visual object to a multibody
-class RobustSpheres:
-    def __init__(self, robot, robust_params, color=(0.5, 0.5, 0.5, 0.5)):
-        self.robot = robot
-        r_ew_w, _ = robot.link_pose()
-
-        self.spheres = []
-        self.centers = []
-        for ball in robust_params.balls:
-            position = r_ew_w + ball.center
-            self.centers.append(ball.center)
-            self.spheres.append(
-                pyb_util.GhostSphere(radius=ball.radius, position=position, color=color)
-            )
-
-    def update(self):
-        r_ew_w, Q_we = self.robot.link_pose()
-        for i in range(len(self.spheres)):
-            position = util.transform_point(r_ew_w, Q_we, self.centers[i])
-            self.spheres[i].set_position(position)

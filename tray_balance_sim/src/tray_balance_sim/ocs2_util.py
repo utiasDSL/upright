@@ -21,7 +21,7 @@ class TaskSettingsWrapper:
 
         # tray balance settings
         settings.tray_balance_settings.enabled = True
-        settings.tray_balance_settings.robust = True
+        settings.tray_balance_settings.robust = False
         settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
         settings.tray_balance_settings.mu = 1e-2
         settings.tray_balance_settings.delta = 1e-3
@@ -45,7 +45,7 @@ class TaskSettingsWrapper:
         settings.collision_avoidance_settings.minimum_distance = 0
 
         # dynamic obstacle settings
-        settings.dynamic_obstacle_settings.enabled = True
+        settings.dynamic_obstacle_settings.enabled = False
         settings.dynamic_obstacle_settings.obstacle_radius = 0.1
 
         for sphere in [

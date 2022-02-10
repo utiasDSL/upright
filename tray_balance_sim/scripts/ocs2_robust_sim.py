@@ -30,7 +30,7 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.DYNAMIC_OBSTACLE
+SIM_TYPE = SimType.POSE_TO_POSE
 
 
 # simulation parameters
@@ -88,6 +88,7 @@ def main():
 
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
 
+    ghosts = []  # ghost (i.e., pure visual) objects
     if settings_wrapper.settings.tray_balance_settings.robust:
         robustness.set_bounding_spheres(
             robot,
@@ -98,10 +99,19 @@ def main():
             plot_point_cloud=True,
             k=NUM_BOUNDING_SPHERES,
         )
-        robust_spheres = robustness.RobustSpheres(
-            robot, settings_wrapper.settings.tray_balance_settings.robust_params
-        )
-        IPython.embed()
+
+        for ball in settings_wrapper.settings.tray_balance_settings.robust_params.balls:
+            ghosts.append(
+                GhostSphere(
+                    ball.radius,
+                    position=ball.center,
+                    parent_body_uid=robot.uid,
+                    parent_link_index=robot.tool_idx,
+                    color=(0, 0, 1, 0.3),
+                )
+            )
+
+        # IPython.embed()
 
     # set process noise after initial routine to get robust spheres
     robot.v_cmd_stdev = V_CMD_STDEV
@@ -132,7 +142,6 @@ def main():
         )
 
     r_ew_w, Q_we = robot.link_pose()
-    ghosts = []
 
     if SIM_TYPE == SimType.POSE_TO_POSE:
         target_times = [0]
@@ -195,6 +204,9 @@ def main():
         for (
             sphere
         ) in settings_wrapper.settings.dynamic_obstacle_settings.collision_spheres:
+            # robust spheres already have ghost spheres
+            if sphere.name.startswith("robust"):
+                continue
             link_idx = robot.links[sphere.parent_frame_name][0]
             ghosts.append(
                 GhostSphere(
@@ -308,8 +320,6 @@ def main():
         sim.step(step_robot=True)
         if settings_wrapper.settings.dynamic_obstacle_settings.enabled:
             obstacle.step()
-        if settings_wrapper.settings.tray_balance_settings.robust:
-            robust_spheres.update()
         for ghost in ghosts:
             ghost.update()
         t += sim.dt

@@ -30,7 +30,7 @@ def debug_frame_world(size, origin, orientation=(0, 0, 0, 1), line_width=1):
 
 
 def debug_frame(size, obj_uid, link_index):
-    """Attach at a frame to a link for debugging purposes."""
+    """Attach a frame to a link for debugging purposes."""
     pyb.addUserDebugLine(
         [0, 0, 0],
         [size, 0, 0],
@@ -52,21 +52,3 @@ def debug_frame(size, obj_uid, link_index):
         parentObjectUniqueId=obj_uid,
         parentLinkIndex=link_index,
     )
-
-
-class GhostSphere:
-    def __init__(self, radius, position, color):
-        visual_uid = pyb.createVisualShape(
-            shapeType=pyb.GEOM_SPHERE,
-            radius=radius,
-            rgbaColor=color,
-        )
-        self.uid = pyb.createMultiBody(
-            baseMass=0,  # non-dynamic body has mass = 0
-            baseVisualShapeIndex=visual_uid,
-            basePosition=list(position),
-            baseOrientation=(0, 0, 0, 1),
-        )
-
-    def set_position(self, position):
-        pyb.resetBasePositionAndOrientation(self.uid, list(position), (0, 0, 0, 1))
