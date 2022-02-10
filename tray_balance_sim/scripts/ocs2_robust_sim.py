@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as pyb
 import rospkg
+from pyb_utils.ghost import GhostSphere
 
 from tray_balance_sim import util, ocs2_util, pyb_util, robustness
 from tray_balance_sim.simulation import MobileManipulatorSimulation, DynamicObstacle
@@ -131,6 +132,7 @@ def main():
         )
 
     r_ew_w, Q_we = robot.link_pose()
+    ghosts = []
 
     if SIM_TYPE == SimType.POSE_TO_POSE:
         target_times = [0]
@@ -146,7 +148,8 @@ def main():
         # visual indicator for target
         # NOTE: debug frame doesn't show up in the recording
         pyb_util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
-        pyb_util.GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
+        # pyb_util.GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
+        ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
 
     elif SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
         target_times = [0, 5]  # TODO
@@ -188,6 +191,21 @@ def main():
         target_trajectories_obs2 = ocs2_util.make_target_trajectories(
             target_times_obs2, target_states_obs, target_inputs
         )
+
+        for (
+            sphere
+        ) in settings_wrapper.settings.dynamic_obstacle_settings.collision_spheres:
+            joint_idx = robot.joints[sphere.parent_frame_name][0]
+            ghosts.append(
+                GhostSphere(
+                    sphere.radius,
+                    position=sphere.offset,
+                    parent_body_uid=robot.uid,
+                    parent_link_index=joint_idx,
+                    color=(0, 1, 0, 0.3),
+                )
+            )
+            break
 
     mpc = ocs2_util.setup_ocs2_mpc_interface(
         settings_wrapper.settings, target_times, target_states, target_inputs
@@ -289,9 +307,12 @@ def main():
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
         sim.step(step_robot=True)
-        obstacle.step()
+        if settings_wrapper.settings.dynamic_obstacle_settings.enabled:
+            obstacle.step()
         if settings_wrapper.settings.tray_balance_settings.robust:
             robust_spheres.update()
+        for ghost in ghosts:
+            ghost.update()
         t += sim.dt
         time.sleep(sim.dt)
 
@@ -334,7 +355,9 @@ def main():
     recorder.plot_joint_config(last_sim_index)
 
     if recorder.dynamic_obs_distance.shape[1] > 0:
-        print(f"Min dynamic obstacle distance = {np.min(recorder.dynamic_obs_distance, axis=0)}")
+        print(
+            f"Min dynamic obstacle distance = {np.min(recorder.dynamic_obs_distance, axis=0)}"
+        )
         recorder.plot_dynamic_obs_dist(last_sim_index)
 
     plt.show()
