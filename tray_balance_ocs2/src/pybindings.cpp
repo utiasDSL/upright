@@ -24,12 +24,18 @@ PYBIND11_MAKE_OPAQUE(ocs2::scalar_array_t)
 PYBIND11_MAKE_OPAQUE(ocs2::vector_array_t)
 PYBIND11_MAKE_OPAQUE(ocs2::matrix_array_t)
 
+using CollisionSphereVector = std::vector<CollisionSphere<scalar_t>>;
+
+PYBIND11_MAKE_OPAQUE(CollisionSphereVector)
+
 /* create a python module */
 PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
     /* bind vector types so they can be used natively in python */
     VECTOR_TYPE_BINDING(ocs2::scalar_array_t, "scalar_array")
     VECTOR_TYPE_BINDING(ocs2::vector_array_t, "vector_array")
     VECTOR_TYPE_BINDING(ocs2::matrix_array_t, "matrix_array")
+
+    VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
 
     /* bind settings */
     /// Robust balancing
@@ -137,10 +143,6 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
     pybind11::class_<DynamicObstacleSettings>(m, "DynamicObstacleSettings")
         .def(pybind11::init<>())
         .def_readwrite("enabled", &DynamicObstacleSettings::enabled)
-        .def_readwrite("collision_link_names",
-                       &DynamicObstacleSettings::collision_link_names)
-        .def_readwrite("collision_sphere_radii",
-                       &DynamicObstacleSettings::collision_sphere_radii)
         .def_readwrite("obstacle_radius",
                        &DynamicObstacleSettings::obstacle_radius)
         .def_readwrite("mu", &DynamicObstacleSettings::mu)

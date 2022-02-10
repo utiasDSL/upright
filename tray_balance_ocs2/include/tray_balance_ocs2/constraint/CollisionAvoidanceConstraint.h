@@ -41,6 +41,14 @@ template <typename Scalar>
 struct CollisionSphere {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+    // Empty constructor required for binding as opaque vector type.
+    CollisionSphere() {
+        name = "";
+        parent_frame_name = "";
+        offset = Eigen::Matrix<Scalar, 3, 1>::Zero();
+        radius = 0;
+    }
+
     CollisionSphere(const std::string& name,
                     const std::string& parent_frame_name,
                     const Eigen::Matrix<Scalar, 3, 1>& offset,

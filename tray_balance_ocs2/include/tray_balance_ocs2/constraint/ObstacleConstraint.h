@@ -45,8 +45,6 @@ namespace mobile_manipulator {
 
 struct DynamicObstacleSettings {
     bool enabled = false;
-    std::vector<std::string> collision_link_names;
-    std::vector<scalar_t> collision_sphere_radii;
     std::vector<CollisionSphere<scalar_t>> collision_spheres;
     scalar_t obstacle_radius = 0.1;
     scalar_t mu = 1e-3;
