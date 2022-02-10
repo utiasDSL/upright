@@ -116,9 +116,9 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
     pybind11::class_<CollisionSphere<scalar_t>>(m, "CollisionSphere")
         .def(pybind11::init<const std::string&, const std::string&,
                             const Eigen::Matrix<scalar_t, 3, 1>&, const scalar_t>(),
-             "name"_a, "parent_joint_name"_a, "offset"_a, "radius"_a)
+             "name"_a, "parent_frame_name"_a, "offset"_a, "radius"_a)
         .def_readwrite("name", &CollisionSphere<scalar_t>::name)
-        .def_readwrite("parent_joint_name", &CollisionSphere<scalar_t>::parent_joint_name)
+        .def_readwrite("parent_frame_name", &CollisionSphere<scalar_t>::parent_frame_name)
         .def_readwrite("offset", &CollisionSphere<scalar_t>::offset)
         .def_readwrite("radius", &CollisionSphere<scalar_t>::radius);
 

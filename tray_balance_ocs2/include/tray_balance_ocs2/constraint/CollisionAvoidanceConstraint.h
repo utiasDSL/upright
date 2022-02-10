@@ -42,11 +42,11 @@ struct CollisionSphere {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     CollisionSphere(const std::string& name,
-                    const std::string& parent_joint_name,
+                    const std::string& parent_frame_name,
                     const Eigen::Matrix<Scalar, 3, 1>& offset,
                     const Scalar radius)
         : name(name),
-          parent_joint_name(parent_joint_name),
+          parent_frame_name(parent_frame_name),
           offset(offset),
           radius(radius) {}
 
@@ -54,7 +54,7 @@ struct CollisionSphere {
     std::string name;
 
     // Name of the robot joint this collision sphere is attached to.
-    std::string parent_joint_name;
+    std::string parent_frame_name;
 
     // Offset from that joint (in the joint's frame).
     Eigen::Matrix<Scalar, 3, 1> offset;

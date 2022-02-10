@@ -263,7 +263,6 @@ def main():
                 recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
                     "dynamicObstacleAvoidance", t, x
                 )
-                print(recorder.dynamic_obs_distance[idx, :])
             if settings_wrapper.settings.collision_avoidance_settings.enabled:
                 recorder.collision_pair_distance[
                     idx, :
@@ -332,6 +331,10 @@ def main():
     recorder.plot_control_durations(last_sim_index)
     recorder.plot_cmd_vs_real_vel(last_sim_index)
     recorder.plot_joint_config(last_sim_index)
+
+    if recorder.dynamic_obs_distance.shape[1] > 0:
+        print(f"Min dynamic obstacle distance = {np.min(recorder.dynamic_obs_distance, axis=0)}")
+        recorder.plot_dynamic_obs_dist(last_sim_index)
 
     plt.show()
 

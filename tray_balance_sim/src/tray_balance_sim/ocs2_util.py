@@ -54,31 +54,31 @@ class TaskSettingsWrapper:
         settings.dynamic_obstacle_settings.collision_spheres = [
             ocs2.CollisionSphere(
                 name="elbow_collision_link",
-                parent_joint_name="elbow_collision_joint",
+                parent_frame_name="elbow_collision_joint",
                 offset=np.zeros(3),
                 radius=0.15,
             ),
             ocs2.CollisionSphere(
                 name="forearm_collision_sphere_link1",
-                parent_joint_name="forearm_collision_sphere_joint1",
+                parent_frame_name="forearm_collision_sphere_joint1",
                 offset=np.zeros(3),
                 radius=0.15,
             ),
             ocs2.CollisionSphere(
                 name="forearm_collision_sphere_link2",
-                parent_joint_name="forearm_collision_sphere_joint2",
+                parent_frame_name="forearm_collision_sphere_joint2",
                 offset=np.zeros(3),
                 radius=0.15,
             ),
             ocs2.CollisionSphere(
                 name="wrist_collision_link",
-                parent_joint_name="wrist_collision_joint",
+                parent_frame_name="wrist_collision_joint",
                 offset=np.zeros(3),
                 radius=0.15,
             ),
             ocs2.CollisionSphere(
                 name="thing_tool_collision_link",
-                parent_joint_name="tool0_tcp_fixed_joint",
+                parent_frame_name="tool0_tcp_fixed_joint",
                 offset=np.zeros(3),
                 radius=0.25,
             ),
@@ -121,7 +121,7 @@ class TaskSettingsWrapper:
 
     def get_num_dynamic_obstacle_constraints(self):
         if self.settings.dynamic_obstacle_settings.enabled:
-            return len(self.settings.dynamic_obstacle_settings.collision_link_names)
+            return len(self.settings.dynamic_obstacle_settings.collision_spheres)
         return 0
 
 
