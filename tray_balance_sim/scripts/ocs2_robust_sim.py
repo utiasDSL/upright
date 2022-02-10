@@ -289,6 +289,7 @@ def main():
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
         sim.step(step_robot=True)
+        obstacle.step()
         if settings_wrapper.settings.tray_balance_settings.robust:
             robust_spheres.update()
         t += sim.dt

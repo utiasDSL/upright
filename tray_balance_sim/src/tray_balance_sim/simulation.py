@@ -99,8 +99,8 @@ class DynamicObstacle:
             rgbaColor=(1, 0, 0, 1),
         )
         self.uid = pyb.createMultiBody(
-            baseMass=0,  # non-dynamic body
-            # baseCollisionShapeIndex=-1,  # NOTE
+            baseMass=0.1,
+            baseCollisionShapeIndex=collision_uid,
             baseVisualShapeIndex=visual_uid,
             basePosition=list(initial_position),
             baseOrientation=(0, 0, 0, 1),
@@ -123,6 +123,9 @@ class DynamicObstacle:
     def reset_velocity(self, v):
         self.velocity = v
         pyb.resetBaseVelocity(self.uid, linearVelocity=list(v))
+
+    def step(self):
+        pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
 
 
 class Simulation:

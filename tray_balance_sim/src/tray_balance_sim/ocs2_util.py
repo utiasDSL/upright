@@ -21,7 +21,7 @@ class TaskSettingsWrapper:
 
         # tray balance settings
         settings.tray_balance_settings.enabled = True
-        settings.tray_balance_settings.robust = False
+        settings.tray_balance_settings.robust = True
         settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
         settings.tray_balance_settings.mu = 1e-2
         settings.tray_balance_settings.delta = 1e-3
@@ -84,7 +84,7 @@ class TaskSettingsWrapper:
                 ocs2.CollisionSphere(
                     name="thing_tool_collision_link",
                     parent_frame_name="thing_tool",
-                    offset=np.zeros(3),
+                    offset=np.array([0, 0, 0]),
                     radius=0.25,
                 )
             )

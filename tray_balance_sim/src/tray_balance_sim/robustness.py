@@ -128,7 +128,7 @@ def set_bounding_spheres(
         if settings.dynamic_obstacle_settings.enabled:
             settings.dynamic_obstacle_settings.collision_spheres.push_back(
                 ocs2.CollisionSphere(
-                    name="robust_collision_sphere" + i,
+                    name="robust_collision_sphere" + str(i),
                     parent_frame_name="thing_tool",
                     offset=centers[i, :],
                     radius=radii[i],
