@@ -125,6 +125,15 @@ def set_bounding_spheres(
     balls = []
     for i in range(k):
         balls.append(ocs2.Ball(centers[i, :], radii[i]))
+        if settings.dynamic_obstacle_settings.enabled:
+            settings.dynamic_obstacle_settings.collision_spheres.push_back(
+                ocs2.CollisionSphere(
+                    name="robust_collision_sphere" + i,
+                    parent_frame_name="thing_tool",
+                    offset=centers[i, :],
+                    radius=radii[i],
+                )
+            )
     settings.tray_balance_settings.robust_params.balls = balls
     settings.tray_balance_settings.robust_params.max_radius = max_radius
 

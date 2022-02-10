@@ -83,7 +83,7 @@ class TaskSettingsWrapper:
             settings.dynamic_obstacle_settings.collision_spheres.push_back(
                 ocs2.CollisionSphere(
                     name="thing_tool_collision_link",
-                    parent_frame_name="tool0_tcp_fixed_joint",
+                    parent_frame_name="thing_tool",
                     offset=np.zeros(3),
                     radius=0.25,
                 )

@@ -429,6 +429,14 @@ MobileManipulatorInterface::getDynamicObstacleConstraint(
         pinocchio::SE3 T_fs(R, sphere.offset);
         pinocchio::SE3 T_js = T_jf * T_fs;  // sphere relative to joint
 
+        std::cerr << sphere.name << std::endl;
+        std::cerr << sphere.parent_frame_name << std::endl;
+        std::cerr << "parent frame id = " << parent_frame_id << std::endl;
+
+        std::cerr << "T_jf = " << T_jf << std::endl;
+        std::cerr << "T_fs = " << T_fs << std::endl;
+        std::cerr << "T_js = " << T_js << std::endl;
+
         model.addBodyFrame(sphere.name, parent_joint_id, T_js);
     }
 
