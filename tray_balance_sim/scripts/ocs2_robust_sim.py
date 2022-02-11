@@ -12,8 +12,9 @@ import matplotlib.pyplot as plt
 import pybullet as pyb
 import rospkg
 from pyb_utils.ghost import GhostSphere
+from pyb_utils.frame import debug_frame_world
 
-from tray_balance_sim import util, ocs2_util, pyb_util, robustness
+from tray_balance_sim import util, ocs2_util, robustness
 from tray_balance_sim.simulation import MobileManipulatorSimulation, DynamicObstacle
 from tray_balance_sim.recording import Recorder, VideoRecorder
 
@@ -194,7 +195,7 @@ def main():
 
         # visual indicator for target
         # NOTE: debug frame doesn't show up in the recording
-        pyb_util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
+        debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
         ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
 
     elif SIM_TYPE == SimType.DYNAMIC_OBSTACLE:

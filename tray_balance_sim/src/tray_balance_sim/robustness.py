@@ -8,7 +8,7 @@ import liegroups
 from scipy.spatial.distance import pdist, squareform
 from scipy.spatial import KDTree
 
-from tray_balance_sim import util, pyb_util, clustering
+from tray_balance_sim import util, clustering
 from tray_balance_sim.camera import Camera
 
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
