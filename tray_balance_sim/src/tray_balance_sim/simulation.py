@@ -153,7 +153,7 @@ class Simulation:
         """Record a video of the simulation to the given file."""
         self.video_file_name = str(file_name)
 
-    def basic_setup(self):
+    def basic_setup(self, load_static_obstacles):
         if EE_INSCRIBED_RADIUS < TRAY_MU * TRAY_COM_HEIGHT:
             print("warning: w < μh")
 
@@ -247,10 +247,10 @@ class Simulation:
         pyb.loadURDF("plane.urdf", [0, 0, 0])
 
         # setup obstacles
-        # obstacles_uid = pyb.loadURDF(OBSTACLES_URDF_PATH)
-        # pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
-
-        # pyb.setCollisionFilterGroupMask(obstacles_uid, -1, 0, 0)
+        if load_static_obstacles:
+            obstacles_uid = pyb.loadURDF(OBSTACLES_URDF_PATH)
+            pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
+            # pyb.setCollisionFilterGroupMask(obstacles_uid, -1, 0, 0)
 
     def compute_cylinder_xy_positions(self, L=0.08):
         """L is distance along vector toward each vertex."""
@@ -560,9 +560,9 @@ class MobileManipulatorSimulation(Simulation):
     def __init__(self, dt=0.001):
         super().__init__(dt)
 
-    def setup(self, tray_balance_settings):
+    def setup(self, tray_balance_settings, load_static_obstacles=False):
         """Setup pybullet simulation."""
-        super().basic_setup()
+        super().basic_setup(load_static_obstacles)
 
         # setup floating end effector
         # robot = EndEffector(self.dt, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))

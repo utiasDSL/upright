@@ -30,14 +30,14 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.POSE_TO_POSE
+SIM_TYPE = SimType.STATIC_OBSTACLE
 
 
 # simulation parameters
 SIM_DT = 0.001
 CTRL_PERIOD = 20  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 6.0  # duration of trajectory (s)
+DURATION = 10.0  # duration of trajectory (s)
 
 # state noise
 Q_STDEV = 0.0
@@ -74,10 +74,11 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        # ["tray", "cuboid1", "stacked_cylinder1", "stacked_cylinder2"]
-        ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"]
-        # ["tray", "cuboid1"]
-        # ["tray"]
+        # ["tray", "cuboid1", "stacked_cylinder1", "stacked_cylinder2"],
+        ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"],
+        # ["tray", "cuboid1"],
+        # ["tray"],
+        load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
     # initial time, state, input
@@ -87,6 +88,10 @@ def main():
     u = np.zeros(robot.ni)
 
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
+    settings_wrapper.settings.tray_balance_settings.enabled = True
+    settings_wrapper.settings.tray_balance_settings.robust = True
+    settings_wrapper.settings.collision_avoidance_settings.enabled = True
+    settings_wrapper.settings.dynamic_obstacle_settings.enabled = False
 
     ghosts = []  # ghost (i.e., pure visual) objects
     if settings_wrapper.settings.tray_balance_settings.robust:
@@ -111,7 +116,40 @@ def main():
                 )
             )
 
-        # IPython.embed()
+        # fmt: off
+        for pair in [
+            ("robust_collision_sphere_0", "chair3_1_link_0"),
+            ("robust_collision_sphere_0", "chair4_2_link_0"),
+            ("robust_collision_sphere_0", "chair2_1_link_0"),
+            ("robust_collision_sphere_0", "forearm_collision_link_0"),
+        ]:
+            settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.push_back(pair)
+        # fmt: on
+
+    else:
+        # if not using robust approach, use a default collision sphere
+        balanced_object_collision_sphere = ocs2.CollisionSphere(
+            name="thing_tool_collision_link",
+            parent_frame_name="thing_tool",
+            offset=np.array([0, 0, 0]),
+            radius=0.25,
+        )
+        settings_wrapper.settings.dynamic_obstacle_settings.collision_spheres.push_back(
+            balanced_object_collision_sphere
+        )
+
+        settings_wrapper.settings.collision_avoidance_settings.extra_spheres.push_back(
+            balanced_object_collision_sphere
+        )
+        # fmt: off
+        for pair in [
+            ("thing_tool_collision_link", "chair3_1_link_0"),
+            ("thing_tool_collision_link", "chair4_2_link_0"),
+            ("thing_tool_collision_link", "chair2_1_link_0"),
+            ("thing_tool_collision_link", "forearm_collision_link_0"),
+        ]:
+            settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.push_back(pair)
+        # fmt: on
 
     # set process noise after initial routine to get robust spheres
     robot.v_cmd_stdev = V_CMD_STDEV
@@ -157,12 +195,11 @@ def main():
         # visual indicator for target
         # NOTE: debug frame doesn't show up in the recording
         pyb_util.debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
-        # pyb_util.GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))
         ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
 
     elif SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
         target_times = [0, 5]  # TODO
-        target_inputs = [u, u]
+        target_inputs = [u for _ in target_times]
 
         # create the dynamic obstacle
         r_obs0 = np.array(r_ew_w) + [0, -1, 0]
@@ -217,6 +254,22 @@ def main():
                     color=(0, 1, 0, 0.3),
                 )
             )
+
+    elif SIM_TYPE == SimType.STATIC_OBSTACLE:
+        target_times = np.array([0, 2, 4, 6, 8, 10])
+        target_inputs = [u for _ in target_times]
+
+        Qd = Q_we
+        r_obs0 = np.array(r_ew_w) + [0, -10, 0]
+
+        target_states = [
+            np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)),
+            np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)),
+            np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)),
+            np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)),
+            np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)),
+            np.concatenate((r_ew_w + [5, 0, 0], Qd, r_obs0)),
+        ]
 
     mpc = ocs2_util.setup_ocs2_mpc_interface(
         settings_wrapper.settings, target_times, target_states, target_inputs

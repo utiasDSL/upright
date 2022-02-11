@@ -576,8 +576,11 @@ MobileManipulatorInterface::getCollisionAvoidanceConstraint(
 
     PinocchioInterface::Model model = pinocchioInterface.getModel();
     Eigen::Matrix<scalar_t, 3, 3> R = Eigen::Matrix<scalar_t, 3, 3>::Identity();
+
+    std::cerr << "Number of extra collision spheres = " << settings.extra_spheres.size() << std::endl;
+
     std::vector<pinocchio::GeometryObject> extra_spheres;
-    for (auto& sphere : settings.extra_spheres) {
+    for (const auto& sphere : settings.extra_spheres) {
         // The collision sphere is specified relative to a link, but the
         // geometry interface works relative to joints. Thus we need to find
         // the parent joint and the sphere's transform w.r.t. it.
@@ -597,11 +600,12 @@ MobileManipulatorInterface::getCollisionAvoidanceConstraint(
     }
     geometryInterface.addGeometryObjects(extra_spheres);
 
-    // pinocchio::GeometryModel& geometry_model =
-    //     geometryInterface.getGeometryModel();
-    // for (int i = 0; i < geometry_model.ngeoms; ++i) {
-    //     std::cout << geometry_model.geometryObjects[i].name << std::endl;
-    // }
+    pinocchio::GeometryModel& geometry_model =
+        geometryInterface.getGeometryModel();
+    for (int i = 0; i < geometry_model.ngeoms; ++i) {
+        std::cout << geometry_model.geometryObjects[i].name << std::endl;
+    }
+
     geometryInterface.addCollisionPairsByName(settings.collision_link_pairs);
 
     const size_t numCollisionPairs = geometryInterface.getNumCollisionPairs();

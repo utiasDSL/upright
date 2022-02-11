@@ -25,8 +25,10 @@ PYBIND11_MAKE_OPAQUE(ocs2::vector_array_t)
 PYBIND11_MAKE_OPAQUE(ocs2::matrix_array_t)
 
 using CollisionSphereVector = std::vector<CollisionSphere<scalar_t>>;
+using StringPairVector = std::vector<std::pair<std::string, std::string>>;
 
 PYBIND11_MAKE_OPAQUE(CollisionSphereVector)
+PYBIND11_MAKE_OPAQUE(StringPairVector)
 
 /* create a python module */
 PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
@@ -36,6 +38,7 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
     VECTOR_TYPE_BINDING(ocs2::matrix_array_t, "matrix_array")
 
     VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
+    VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
 
     /* bind settings */
     /// Robust balancing

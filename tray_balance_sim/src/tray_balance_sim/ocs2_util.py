@@ -39,14 +39,52 @@ class TaskSettingsWrapper:
 
         # collision avoidance settings
         settings.collision_avoidance_settings.enabled = False
-        settings.collision_avoidance_settings.collision_link_pairs = [
-            ("forearm_collision_link_0", "balanced_object_collision_link_0")
-        ]
+        # fmt: off
+        for pair in [
+            # the base with most everything
+            ("base_collision_link_0", "table1_link_0"),
+            ("base_collision_link_0", "table2_link_0"),
+            ("base_collision_link_0", "table3_link_0"),
+            ("base_collision_link_0", "table4_link_0"),
+            ("base_collision_link_0", "table5_link_0"),
+            ("base_collision_link_0", "chair1_1_link_0"),
+            ("base_collision_link_0", "chair1_2_link_0"),
+            ("base_collision_link_0", "chair2_1_link_0"),
+            ("base_collision_link_0", "chair3_1_link_0"),
+            ("base_collision_link_0", "chair3_2_link_0"),
+            ("base_collision_link_0", "chair4_1_link_0"),
+            ("base_collision_link_0", "chair4_2_link_0"),
+
+            # wrist and tables
+            ("wrist_collision_link_0", "table1_link_0"),
+            ("wrist_collision_link_0", "table2_link_0"),
+            ("wrist_collision_link_0", "table3_link_0"),
+            ("wrist_collision_link_0", "table4_link_0"),
+            ("wrist_collision_link_0", "table5_link_0"),
+
+            # elbow and tables
+            ("elbow_collision_link_0", "table1_link_0"),
+            ("elbow_collision_link_0", "table2_link_0"),
+            ("elbow_collision_link_0", "table3_link_0"),
+            ("elbow_collision_link_0", "table4_link_0"),
+            ("elbow_collision_link_0", "table5_link_0"),
+
+            # elbow and tall chairs
+            ("elbow_collision_link_0", "chair3_1_link_0"),
+            ("elbow_collision_link_0", "chair4_2_link_0"),
+            ("elbow_collision_link_0", "chair2_1_link_0"),
+        ]:
+            settings.collision_avoidance_settings.collision_link_pairs.push_back(pair)
+        # fmt: on
         settings.collision_avoidance_settings.minimum_distance = 0
+        settings.collision_avoidance_settings.mu = 1e-2
+        settings.collision_avoidance_settings.delta = 1e-3
 
         # dynamic obstacle settings
         settings.dynamic_obstacle_settings.enabled = False
         settings.dynamic_obstacle_settings.obstacle_radius = 0.1
+        settings.dynamic_obstacle_settings.mu = 1e-3  # NOTE lower than others
+        settings.dynamic_obstacle_settings.delta = 1e-3
 
         for sphere in [
             ocs2.CollisionSphere(
@@ -75,19 +113,6 @@ class TaskSettingsWrapper:
             ),
         ]:
             settings.dynamic_obstacle_settings.collision_spheres.push_back(sphere)
-
-        # If we are not using robust constraints, just apply a hard-coded
-        # sphere around the balanced objects. If we are robust, this should be
-        # added later to correspond to the robust spheres.
-        if not settings.tray_balance_settings.robust:
-            settings.dynamic_obstacle_settings.collision_spheres.push_back(
-                ocs2.CollisionSphere(
-                    name="thing_tool_collision_link",
-                    parent_frame_name="thing_tool",
-                    offset=np.array([0, 0, 0]),
-                    radius=0.25,
-                )
-            )
 
         self.settings = settings
 
