@@ -328,9 +328,6 @@ class Simulation:
                 CUBOID1_SIDE_LENGTHS[0], CUBOID1_SIDE_LENGTHS[1],
                 margin=OBJ_ZMP_MARGIN,
             )
-            # support_area=ocs2.PolygonSupportArea.circle(
-            #     CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
-            # )
             r_tau_nominal = geometry.rectangle_r_tau(*CUBOID1_SIDE_LENGTHS[:2])
             objects[name] = bodies.Cuboid(
                 r_tau=r_tau_nominal,
@@ -370,9 +367,9 @@ class Simulation:
                     # parent=objects["tray"],
                     parent=objects["cuboid1"],
                 )
-            if name in controller_obj_names:
-                controller_objects[name] = obj
-                controller_objects["tray"].children.append(name)
+            # if name in controller_obj_names:
+            #     controller_objects[name] = obj
+            #     controller_objects["tray"].children.append(name)
 
         name = "flat_cylinder1"
         if name in obj_names:

@@ -31,12 +31,12 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.STATIC_OBSTACLE
+SIM_TYPE = SimType.POSE_TO_POSE
 
 
 # simulation parameters
 SIM_DT = 0.001
-CTRL_PERIOD = 20  # generate new control signal every CTRL_PERIOD timesteps
+CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 10.0  # duration of trajectory (s)
 
@@ -53,7 +53,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 # robust bounding spheres
-NUM_BOUNDING_SPHERES = 1
+NUM_BOUNDING_SPHERES = 2
 
 # goal 1
 # POSITION_GOAL = np.array([2, 0, -0.5])
@@ -75,8 +75,8 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        # ["tray", "cuboid1", "stacked_cylinder1", "stacked_cylinder2"],
-        ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"],
+        ["tray", "cuboid1", "stacked_cylinder1", "stacked_cylinder2"],
+        # ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"],
         # ["tray", "cuboid1"],
         # ["tray"],
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
@@ -90,8 +90,8 @@ def main():
 
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
-    settings_wrapper.settings.tray_balance_settings.robust = True
-    settings_wrapper.settings.collision_avoidance_settings.enabled = True
+    settings_wrapper.settings.tray_balance_settings.robust = False
+    settings_wrapper.settings.collision_avoidance_settings.enabled = False
     settings_wrapper.settings.dynamic_obstacle_settings.enabled = False
 
     ghosts = []  # ghost (i.e., pure visual) objects
@@ -405,23 +405,28 @@ def main():
         fname = prefix + "_" + TIMESTAMP
         recorder.save(fname)
 
-    last_sim_index = i
-    recorder.plot_ee_position(last_sim_index)
-    recorder.plot_ee_orientation(last_sim_index)
-    recorder.plot_ee_velocity(last_sim_index)
-    for j in range(len(objects)):
-        recorder.plot_object_error(last_sim_index, j)
-    recorder.plot_balancing_constraints(last_sim_index)
-    recorder.plot_commands(last_sim_index)
-    recorder.plot_control_durations(last_sim_index)
-    recorder.plot_cmd_vs_real_vel(last_sim_index)
-    recorder.plot_joint_config(last_sim_index)
+    # trying to catch non-unit-length quaternion bug
+    try:
+        last_sim_index = i
+        recorder.plot_ee_position(last_sim_index)
+        recorder.plot_ee_orientation(last_sim_index)
+        recorder.plot_ee_velocity(last_sim_index)
+        for j in range(len(objects)):
+            recorder.plot_object_error(last_sim_index, j)
+        recorder.plot_balancing_constraints(last_sim_index)
+        recorder.plot_commands(last_sim_index)
+        recorder.plot_control_durations(last_sim_index)
+        recorder.plot_cmd_vs_real_vel(last_sim_index)
+        recorder.plot_joint_config(last_sim_index)
 
-    if recorder.dynamic_obs_distance.shape[1] > 0:
-        print(
-            f"Min dynamic obstacle distance = {np.min(recorder.dynamic_obs_distance, axis=0)}"
-        )
-        recorder.plot_dynamic_obs_dist(last_sim_index)
+        if recorder.dynamic_obs_distance.shape[1] > 0:
+            print(
+                f"Min dynamic obstacle distance = {np.min(recorder.dynamic_obs_distance, axis=0)}"
+            )
+            recorder.plot_dynamic_obs_dist(last_sim_index)
+    except ValueError as e:
+        print(e)
+        IPython.embed()
 
     plt.show()
 

@@ -87,7 +87,9 @@ struct CircleSupportArea : public SupportAreaBase<Scalar> {
     Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp) const override {
         Vec2<Scalar> e = zmp - this->offset;
         Vector<Scalar> constraints(num_constraints());
-        // TODO it may be better if this were sqrt'd
+        // In the squared case here, the constraint is easily violated. In the
+        // non-squared case below, the controller does not generate a stable
+        // rollout.
         constraints << squared(radius - this->margin) - e.dot(e);
         // Scalar eps(0.01);
         // constraints << radius - this->margin - sqrt(e.dot(e) + eps);
@@ -118,8 +120,9 @@ struct CircleSupportArea : public SupportAreaBase<Scalar> {
 
     static CircleSupportArea<Scalar> from_parameters(const Vector<Scalar>& p,
                                                      const size_t index = 0) {
-        if (p.size() != 4) {
-            throw std::runtime_error("Parameter vector is wrong size.");
+        size_t n = p.size() - index;
+        if (n < 4) {
+            throw std::runtime_error("[CircleSupportArea] Parameter vector is wrong size.");
         }
 
         Vec2<Scalar> offset = p.template segment<2>(index);
@@ -190,7 +193,7 @@ struct PolygonSupportArea : public SupportAreaBase<Scalar> {
         // Need at least three vertices in the support area
         size_t n = p.size() - index;
         if (n < 3 + 2 * 3) {
-            throw std::runtime_error("Parameter vector is wrong size.");
+            throw std::runtime_error("[PolygonSupportArea] Parameter vector is wrong size.");
         }
 
         Vec2<Scalar> offset = p.template segment<2>(index);

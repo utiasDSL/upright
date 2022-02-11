@@ -166,7 +166,7 @@ struct BalancedObject {
         auto body = RigidBody<Scalar>::from_parameters(p, start);
 
         start += body.num_parameters();
-        size_t num_params_remaining = p.size() - start - 1;
+        size_t num_params_remaining = p.size() - start;
 
         if (num_params_remaining == 4) {
             auto support = CircleSupportArea<Scalar>::from_parameters(p, start);
