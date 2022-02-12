@@ -38,7 +38,7 @@ SIM_TYPE = SimType.POSE_TO_POSE
 SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 10.0  # duration of trajectory (s)
+DURATION = 6.0  # duration of trajectory (s)
 
 # state noise
 Q_STDEV = 0.0
@@ -67,6 +67,12 @@ NUM_BOUNDING_SPHERES = 2
 POSITION_GOAL = np.array([0, -2, 0])
 ORIENTATION_GOAL = np.array([0, 0, 1, 0])
 
+# object configurations
+SHORT_CONFIG = ["tray", "cuboid_short"]
+TALL_CONFIG = ["tray", "cuboid_tall"]
+STACK_CONFIG = ["cuboid_base_stack", "cuboid1_stack", "cuboid2_stack", "cylinder3_stack"]
+CUP_CONFIG = ["tray", "cylinder1_cup", "cylinder2_cup", "cylinder3_cup"]
+
 
 def main():
     np.set_printoptions(precision=3, suppress=True)
@@ -75,10 +81,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        ["tray", "cuboid1", "stacked_cylinder1", "stacked_cylinder2"],
-        # ["tray", "flat_cylinder1", "flat_cylinder2", "flat_cylinder3"],
-        # ["tray", "cuboid1"],
-        # ["tray"],
+        STACK_CONFIG,
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -100,7 +103,7 @@ def main():
             robot,
             objects,
             settings_wrapper.settings,
-            target=objects["tray"].bullet.get_pose()[0],
+            target=objects["cuboid1_stack"].bullet.get_pose()[0],
             sim_timestep=SIM_DT,
             plot_point_cloud=True,
             k=NUM_BOUNDING_SPHERES,

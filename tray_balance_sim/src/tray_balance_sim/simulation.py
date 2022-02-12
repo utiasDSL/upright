@@ -27,46 +27,90 @@ EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LEN
 GRAVITY_MAG = 9.81
 GRAVITY_VECTOR = np.array([0, 0, -GRAVITY_MAG])
 
+# coefficient of friction for the EE
 EE_MU = 1.0
 
-# tray parameters
+# need at least some margin here to avoid objects falling
+OBJ_ZMP_MARGIN = 0.01
+
+# colors used by matplotlib: nice to use for object colors as well
+PLT_COLOR1 = (0.122, 0.467, 0.706, 1)
+PLT_COLOR2 = (1, 0.498, 0.055, 1)
+PLT_COLOR3 = (0.173, 0.627, 0.173, 1)
+PLT_COLOR4 = (0.839, 0.153, 0.157, 1)
+
+# tray
+
 TRAY_RADIUS = 0.2
 TRAY_MASS = 0.5
 TRAY_MU = 0.5
 TRAY_COM_HEIGHT = 0.01
 TRAY_MU_BULLET = TRAY_MU / EE_MU
-TRAY_COLOR = (0.122, 0.467, 0.706, 1)
+TRAY_COLOR = PLT_COLOR1
 
-CUBOID1_MASS = 0.5
-CUBOID1_TRAY_MU = 0.5
-CUBOID1_COM_HEIGHT = 0.075
-CUBOID1_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID1_COM_HEIGHT)
-CUBOID1_COLOR = (1, 0, 0, 1)  # TODO
+# short and tall cuboids
 
-CYLINDER1_MASS = 0.5
-CYLINDER1_SUPPORT_MU = 0.5
-CYLINDER1_RADIUS = 0.04
-CYLINDER1_COM_HEIGHT = 0.075
-CYLINDER1_COLOR = (1, 0.498, 0.055, 1)
+CUBOID_SHORT_MASS = 0.5
+CUBOID_SHORT_TRAY_MU = 0.5
+CUBOID_SHORT_COM_HEIGHT = 0.075
+CUBOID_SHORT_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID_SHORT_COM_HEIGHT)
+CUBOID_SHORT_COLOR = PLT_COLOR2
 
-CYLINDER2_MASS = 0.5
-CYLINDER2_SUPPORT_MU = 0.5
-CYLINDER2_RADIUS = 0.04
-CYLINDER2_COM_HEIGHT = 0.075
-CYLINDER2_COLOR = (0.173, 0.627, 0.173, 1)
+# only difference between tall and short cuboid is the dimensions
+CUBOID_TALL_MASS = CUBOID_SHORT_MASS
+CUBOID_TALL_TRAY_MU = CUBOID_SHORT_TRAY_MU
+CUBOID_TALL_COM_HEIGHT = 0.25
+CUBOID_TALL_SIDE_LENGTHS = (0.1, 0.1, 2 * CUBOID_TALL_COM_HEIGHT)
+CUBOID_TALL_COLOR = PLT_COLOR2
 
-CYLINDER3_MASS = 0.5
-CYLINDER3_SUPPORT_MU = 0.5
-CYLINDER3_RADIUS = 0.04
-CYLINDER3_COM_HEIGHT = 0.075
-CYLINDER3_COLOR = (0.839, 0.153, 0.157, 1)
+# stack of boxes
+# TODO still need to figure out mass offsets for failure
 
-# TODO may need to think about this: can all problems be solved by keeping this
-# tight?
-OBJ_ZMP_MARGIN = 0.01
+CUBOID_BASE_STACK_MASS = 0.5
+CUBOID_BASE_STACK_MU = 0.5
+CUBOID_BASE_STACK_MU_BULLET = CUBOID_BASE_STACK_MU / EE_MU
+CUBOID_BASE_STACK_COM_HEIGHT = 0.05
+CUBOID_BASE_STACK_SIDE_LENGTHS = (0.3, 0.3, 2 * CUBOID_BASE_STACK_COM_HEIGHT)
+CUBOID_BASE_STACK_COLOR = PLT_COLOR1
 
-FLAT_OFFSET = np.array([0, 0, 0])  # [0, -0.07, 0]
+# the same as the short cuboid for now
+CUBOID1_STACK_MASS = 0.5
+CUBOID1_STACK_TRAY_MU = 0.5
+CUBOID1_STACK_COM_HEIGHT = 0.075
+CUBOID1_STACK_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID1_STACK_COM_HEIGHT)
+CUBOID1_STACK_COLOR = PLT_COLOR2
 
+CUBOID2_STACK_MASS = 0.5
+CUBOID2_STACK_TRAY_MU = 0.25  # NOTE lower
+CUBOID2_STACK_COM_HEIGHT = 0.1
+CUBOID2_STACK_SIDE_LENGTHS = (0.1, 0.1, 2 * CUBOID2_STACK_COM_HEIGHT)
+CUBOID2_STACK_COLOR = PLT_COLOR3
+# horizontal offset of CoM relative to parent (CUBOID1_STACK)
+CUBOID2_STACK_OFFSET = 0.5 * (
+    np.array(CUBOID1_STACK_SIDE_LENGTHS[:2]) - CUBOID2_STACK_SIDE_LENGTHS[:2]
+)
+
+CYLINDER3_STACK_MASS = 0.5
+CYLINDER3_STACK_SUPPORT_MU = 0.5
+CYLINDER3_STACK_RADIUS = 0.04
+CYLINDER3_STACK_COM_HEIGHT = 0.05
+CYLINDER3_STACK_COLOR = PLT_COLOR4
+CYLINDER3_STACK_OFFSET = (
+    0.5 * np.array(CUBOID2_STACK_SIDE_LENGTHS[:2]) - CYLINDER3_STACK_RADIUS
+)
+
+# set of cups
+
+CYLINDER_CUP_MASS = 0.5
+CYLINDER_CUP_SUPPORT_MU = 0.5
+CYLINDER_CUP_RADIUS = 0.04
+CYLINDER_CUP_COM_HEIGHT = 0.075
+CYLINDER_CUP_COLORS = [PLT_COLOR2, PLT_COLOR3, PLT_COLOR4]
+
+# add offset to all cup positions (in sim but not controller)
+CUPS_OFFSET = np.array([0, 0, 0])  # [0, -0.07, 0]
+
+# robot starting configurations
 BASE_HOME = [0, 0, 0]
 UR10_HOME_STANDARD = [
     0.0,
@@ -125,6 +169,8 @@ class DynamicObstacle:
         pyb.resetBaseVelocity(self.uid, linearVelocity=list(v))
 
     def step(self):
+        # velocity needs to be reset at each step of the simulation to negate
+        # the effects of gravity
         pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
 
 
@@ -275,14 +321,11 @@ class Simulation:
     def object_setup(self, r_ew_w, obj_names, controller_obj_names=None):
         # controller objects are the ones the controller thinks are there
         objects = {}
-        controller_objects = {}
 
-        if controller_obj_names is None:
-            controller_obj_names = obj_names
-        all_obj_names = set(obj_names).union(controller_obj_names)
+        # tray
 
         name = "tray"
-        if name in all_obj_names:
+        if name in obj_names:
             tray = bodies.Cylinder(
                 r_tau=EE_INSCRIBED_RADIUS,
                 support_area=ocs2.PolygonSupportArea.equilateral_triangle(
@@ -293,8 +336,6 @@ class Simulation:
                 height=2 * TRAY_COM_HEIGHT,
                 mu=TRAY_MU,
             )
-            tray.mass_error = 0
-            # tray.com_error = np.array([0.1, 0, 0])
             tray.add_to_sim(bullet_mu=TRAY_MU_BULLET, color=TRAY_COLOR)
 
             # add 0.05 to account for EE height; this is fixed when the sim is
@@ -302,12 +343,25 @@ class Simulation:
             r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
             tray.bullet.reset_pose(position=r_tw_w)
 
-            if name in obj_names:
-                objects[name] = tray
-            if name in controller_obj_names:
-                controller_objects[name] = tray
+            objects[name] = tray
 
-        c1, c2, c3 = self.compute_cylinder_xy_positions(L=0.08)
+        name = "cuboid_base_stack"
+        if name in obj_names:
+            objects[name] = bodies.Cuboid(
+                r_tau=geometry.rectangle_r_tau(*CUBOID_BASE_STACK_SIDE_LENGTHS[:2]),
+                support_area=ocs2.PolygonSupportArea.equilateral_triangle(
+                    EE_SIDE_LENGTH
+                ),
+                mass=CUBOID_BASE_STACK_MASS,
+                side_lengths=CUBOID_BASE_STACK_SIDE_LENGTHS,
+                mu=CUBOID_BASE_STACK_MU,
+            )
+
+            objects[name].add_to_sim(
+                bullet_mu=CUBOID_BASE_STACK_MU_BULLET, color=CUBOID_BASE_STACK_COLOR
+            )
+            r_tw_w = r_ew_w + [0, 0, 0.5 * CUBOID_BASE_STACK_SIDE_LENGTHS[2] + 0.05]
+            objects[name].bullet.reset_pose(position=r_tw_w)
 
         def add_obj_to_sim(obj, name, color, parent, offset_xy=(0, 0)):
             bullet_mu = obj.mu / parent.bullet.mu
@@ -322,169 +376,231 @@ class Simulation:
             objects[name] = obj
             parent.children.append(name)
 
-        name = "cuboid1"
+        # flat and tall cuboids
+
+        name = "cuboid_short"
         if name in obj_names:
             support_area = ocs2.PolygonSupportArea.axis_aligned_rectangle(
-                CUBOID1_SIDE_LENGTHS[0], CUBOID1_SIDE_LENGTHS[1],
+                CUBOID_SHORT_SIDE_LENGTHS[0],
+                CUBOID_SHORT_SIDE_LENGTHS[1],
                 margin=OBJ_ZMP_MARGIN,
             )
-            r_tau_nominal = geometry.rectangle_r_tau(*CUBOID1_SIDE_LENGTHS[:2])
             objects[name] = bodies.Cuboid(
-                r_tau=r_tau_nominal,
+                r_tau=geometry.rectangle_r_tau(*CUBOID_SHORT_SIDE_LENGTHS[:2]),
                 support_area=support_area,
-                mass=CUBOID1_MASS,
-                side_lengths=CUBOID1_SIDE_LENGTHS,
-                mu=CUBOID1_TRAY_MU,
+                mass=CUBOID_SHORT_MASS,
+                side_lengths=CUBOID_SHORT_SIDE_LENGTHS,
+                mu=CUBOID_SHORT_TRAY_MU,
             )
-            # objects[name].r_tau_error = 10*r_tau_nominal
-            objects[name].mu_error = 0
-
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
-                color=CUBOID1_COLOR,
+                color=CUBOID_SHORT_COLOR,
                 parent=objects["tray"],
             )
 
-        name = "stacked_cylinder1"
-        if name in all_obj_names:
-            obj = bodies.Cylinder(
-                r_tau=geometry.circle_r_tau(CYLINDER1_RADIUS),
-                support_area=ocs2.PolygonSupportArea.circle(
-                    CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
-                ),
-                mass=CYLINDER1_MASS,
-                radius=CYLINDER1_RADIUS,
-                height=2 * CYLINDER1_COM_HEIGHT,
-                mu=CYLINDER1_SUPPORT_MU,
+        name = "cuboid_tall"
+        if name in obj_names:
+            support_area = ocs2.PolygonSupportArea.axis_aligned_rectangle(
+                CUBOID_TALL_SIDE_LENGTHS[0],
+                CUBOID_TALL_SIDE_LENGTHS[1],
+                margin=OBJ_ZMP_MARGIN,
+            )
+            objects[name] = bodies.Cuboid(
+                r_tau=geometry.rectangle_r_tau(*CUBOID_TALL_SIDE_LENGTHS[:2]),
+                support_area=support_area,
+                mass=CUBOID_TALL_MASS,
+                side_lengths=CUBOID_TALL_SIDE_LENGTHS,
+                mu=CUBOID_TALL_TRAY_MU,
+            )
+            add_obj_to_sim(
+                obj=objects[name],
+                name=name,
+                color=CUBOID_TALL_COLOR,
+                parent=objects["tray"],
             )
 
+        # stack of boxes
+
+        name = "cuboid1_stack"
+        if name in obj_names:
+            support_area = ocs2.PolygonSupportArea.axis_aligned_rectangle(
+                CUBOID1_STACK_SIDE_LENGTHS[0],
+                CUBOID1_STACK_SIDE_LENGTHS[1],
+                margin=OBJ_ZMP_MARGIN,
+            )
+            objects[name] = bodies.Cuboid(
+                r_tau=geometry.rectangle_r_tau(*CUBOID1_STACK_SIDE_LENGTHS[:2]),
+                support_area=support_area,
+                mass=CUBOID1_STACK_MASS,
+                side_lengths=CUBOID1_STACK_SIDE_LENGTHS,
+                mu=CUBOID1_STACK_TRAY_MU,
+            )
+            add_obj_to_sim(
+                obj=objects[name],
+                name=name,
+                color=CUBOID1_STACK_COLOR,
+                parent=objects["cuboid_base_stack"],
+            )
+
+        name = "cuboid2_stack"
+        if name in obj_names:
+            support_area = ocs2.PolygonSupportArea.axis_aligned_rectangle(
+                CUBOID2_STACK_SIDE_LENGTHS[0],
+                CUBOID2_STACK_SIDE_LENGTHS[1],
+                margin=OBJ_ZMP_MARGIN,
+            )
+            objects[name] = bodies.Cuboid(
+                r_tau=geometry.rectangle_r_tau(*CUBOID2_STACK_SIDE_LENGTHS[:2]),
+                support_area=support_area,
+                mass=CUBOID2_STACK_MASS,
+                side_lengths=CUBOID2_STACK_SIDE_LENGTHS,
+                mu=CUBOID2_STACK_TRAY_MU,
+            )
+            add_obj_to_sim(
+                obj=objects[name],
+                name=name,
+                color=CUBOID2_STACK_COLOR,
+                parent=objects["cuboid1_stack"],
+                offset_xy=CUBOID2_STACK_OFFSET,
+            )
+
+        name = "cylinder3_stack"
+        if name in obj_names:
+            objects[name] = bodies.Cylinder(
+                r_tau=geometry.circle_r_tau(CYLINDER3_STACK_RADIUS),
+                support_area=ocs2.PolygonSupportArea.circle(
+                    CYLINDER3_STACK_RADIUS, margin=OBJ_ZMP_MARGIN
+                ),
+                mass=CYLINDER3_STACK_MASS,
+                radius=CYLINDER3_STACK_RADIUS,
+                height=2 * CYLINDER3_STACK_COM_HEIGHT,
+                mu=CYLINDER3_STACK_SUPPORT_MU,
+            )
+            add_obj_to_sim(
+                obj=objects[name],
+                name=name,
+                color=CYLINDER3_STACK_COLOR,
+                parent=objects["cuboid2_stack"],
+                offset_xy=CYLINDER3_STACK_OFFSET,
+            )
+
+        # set of cups
+
+        cup_positions = self.compute_cylinder_xy_positions(L=0.08)
+        for i, name in enumerate(["cylinder1_cup", "cylinder2_cup", "cylinder3_cup"]):
             if name in obj_names:
-                add_obj_to_sim(
-                    obj=obj,
-                    name=name,
-                    color=CYLINDER1_COLOR,
-                    # parent=objects["tray"],
-                    parent=objects["cuboid1"],
+                objects[name] = bodies.Cylinder(
+                    r_tau=geometry.circle_r_tau(CYLINDER_CUP_RADIUS),
+                    support_area=ocs2.PolygonSupportArea.circle(
+                        CYLINDER_CUP_RADIUS, margin=OBJ_ZMP_MARGIN
+                    ),
+                    mass=CYLINDER_CUP_MASS,
+                    radius=CYLINDER_CUP_RADIUS,
+                    height=2 * CYLINDER_CUP_COM_HEIGHT,
+                    mu=CYLINDER_CUP_SUPPORT_MU,
                 )
-            # if name in controller_obj_names:
-            #     controller_objects[name] = obj
-            #     controller_objects["tray"].children.append(name)
+                objects[name].com_error = CUPS_OFFSET
 
-        name = "flat_cylinder1"
-        if name in obj_names:
-            objects[name] = bodies.Cylinder(
-                r_tau=geometry.circle_r_tau(CYLINDER1_RADIUS),
-                support_area=ocs2.PolygonSupportArea.circle(
-                    CYLINDER1_RADIUS, margin=OBJ_ZMP_MARGIN
-                ),
-                mass=CYLINDER1_MASS,
-                radius=CYLINDER1_RADIUS,
-                height=2 * CYLINDER1_COM_HEIGHT,
-                mu=CYLINDER1_SUPPORT_MU,
-            )
-            objects[name].mass_error = 0
-            objects[name].com_error = FLAT_OFFSET
+                add_obj_to_sim(
+                    obj=objects[name],
+                    name=name,
+                    color=CYLINDER_CUP_COLORS[i],
+                    parent=objects["tray"],
+                    offset_xy=cup_positions[i] - CUPS_OFFSET[:2],
+                )
 
-            add_obj_to_sim(
-                obj=objects[name],
-                name=name,
-                color=CYLINDER1_COLOR,
-                parent=objects["tray"],
-                offset_xy=c1 - FLAT_OFFSET[:2],
-            )
-
-        name = "stacked_cylinder2"
-        if name in obj_names:
-            objects[name] = bodies.Cylinder(
-                r_tau=geometry.circle_r_tau(CYLINDER2_RADIUS),
-                support_area=ocs2.PolygonSupportArea.circle(
-                    CYLINDER2_RADIUS, margin=OBJ_ZMP_MARGIN
-                ),
-                mass=CYLINDER2_MASS,
-                radius=CYLINDER2_RADIUS,
-                height=2 * CYLINDER2_COM_HEIGHT,
-                mu=CYLINDER2_SUPPORT_MU,
-            )
-            objects[name].mass_error = 0
-            # objects[name].com_error = np.array([0, 0, 0.075])
-            # objects[name].com_height_error = 0.075
-
-            add_obj_to_sim(
-                obj=objects[name],
-                name=name,
-                color=CYLINDER2_COLOR,
-                parent=objects["stacked_cylinder1"],
-            )
-
-        name = "flat_cylinder2"
-        if name in obj_names:
-            objects[name] = bodies.Cylinder(
-                r_tau=geometry.circle_r_tau(CYLINDER2_RADIUS),
-                support_area=ocs2.PolygonSupportArea.circle(
-                    CYLINDER2_RADIUS, margin=OBJ_ZMP_MARGIN
-                ),
-                mass=CYLINDER2_MASS,
-                radius=CYLINDER2_RADIUS,
-                height=2 * CYLINDER2_COM_HEIGHT,
-                mu=CYLINDER2_SUPPORT_MU,
-            )
-            objects[name].mass_error = 0
-            objects[name].com_error = FLAT_OFFSET
-
-            add_obj_to_sim(
-                obj=objects[name],
-                name=name,
-                color=CYLINDER2_COLOR,
-                parent=objects["tray"],
-                offset_xy=c2 - FLAT_OFFSET[:2],
-            )
-
-        name = "stacked_cylinder3"
-        if name in obj_names:
-            objects[name] = bodies.Cylinder(
-                r_tau=geometry.circle_r_tau(CYLINDER3_RADIUS),
-                support_area=ocs2.PolygonSupportArea.circle(
-                    CYLINDER3_RADIUS, margin=OBJ_ZMP_MARGIN
-                ),
-                mass=CYLINDER3_MASS,
-                radius=CYLINDER3_RADIUS,
-                height=2 * CYLINDER3_COM_HEIGHT,
-                mu=CYLINDER3_SUPPORT_MU,
-            )
-            objects[name].mass_error = 0
-            # objects[name].com_error = np.array([0, 0, 0.075])
-            # objects[name].com_height_error = 0.075
-
-            add_obj_to_sim(
-                obj=objects[name],
-                name=name,
-                color=CYLINDER3_COLOR,
-                parent=objects["stacked_cylinder2"],
-            )
-
-        name = "flat_cylinder3"
-        if name in obj_names:
-            objects[name] = bodies.Cylinder(
-                r_tau=geometry.circle_r_tau(CYLINDER3_RADIUS),
-                support_area=ocs2.PolygonSupportArea.circle(
-                    CYLINDER3_RADIUS, margin=OBJ_ZMP_MARGIN
-                ),
-                mass=CYLINDER3_MASS,
-                radius=CYLINDER3_RADIUS,
-                height=2 * CYLINDER3_COM_HEIGHT,
-                mu=CYLINDER3_SUPPORT_MU,
-            )
-            objects[name].mass_error = 0
-            objects[name].com_error = FLAT_OFFSET
-
-            add_obj_to_sim(
-                obj=objects[name],
-                name=name,
-                color=CYLINDER3_COLOR,
-                parent=objects["tray"],
-                offset_xy=c3 - FLAT_OFFSET[:2],
-            )
+        # name = "stacked_cylinder2"
+        # if name in obj_names:
+        #     objects[name] = bodies.Cylinder(
+        #         r_tau=geometry.circle_r_tau(CYLINDER2_RADIUS),
+        #         support_area=ocs2.PolygonSupportArea.circle(
+        #             CYLINDER2_RADIUS, margin=OBJ_ZMP_MARGIN
+        #         ),
+        #         mass=CYLINDER2_MASS,
+        #         radius=CYLINDER2_RADIUS,
+        #         height=2 * CYLINDER2_COM_HEIGHT,
+        #         mu=CYLINDER2_SUPPORT_MU,
+        #     )
+        #     objects[name].mass_error = 0
+        #     # objects[name].com_error = np.array([0, 0, 0.075])
+        #     # objects[name].com_height_error = 0.075
+        #
+        #     add_obj_to_sim(
+        #         obj=objects[name],
+        #         name=name,
+        #         color=CYLINDER2_COLOR,
+        #         parent=objects["stacked_cylinder1"],
+        #     )
+        #
+        # name = "flat_cylinder2"
+        # if name in obj_names:
+        #     objects[name] = bodies.Cylinder(
+        #         r_tau=geometry.circle_r_tau(CYLINDER2_RADIUS),
+        #         support_area=ocs2.PolygonSupportArea.circle(
+        #             CYLINDER2_RADIUS, margin=OBJ_ZMP_MARGIN
+        #         ),
+        #         mass=CYLINDER2_MASS,
+        #         radius=CYLINDER2_RADIUS,
+        #         height=2 * CYLINDER2_COM_HEIGHT,
+        #         mu=CYLINDER2_SUPPORT_MU,
+        #     )
+        #     objects[name].mass_error = 0
+        #     objects[name].com_error = FLAT_OFFSET
+        #
+        #     add_obj_to_sim(
+        #         obj=objects[name],
+        #         name=name,
+        #         color=CYLINDER2_COLOR,
+        #         parent=objects["tray"],
+        #         offset_xy=c2 - FLAT_OFFSET[:2],
+        #     )
+        #
+        # name = "stacked_cylinder3"
+        # if name in obj_names:
+        #     objects[name] = bodies.Cylinder(
+        #         r_tau=geometry.circle_r_tau(CYLINDER3_RADIUS),
+        #         support_area=ocs2.PolygonSupportArea.circle(
+        #             CYLINDER3_RADIUS, margin=OBJ_ZMP_MARGIN
+        #         ),
+        #         mass=CYLINDER3_MASS,
+        #         radius=CYLINDER3_RADIUS,
+        #         height=2 * CYLINDER3_COM_HEIGHT,
+        #         mu=CYLINDER3_SUPPORT_MU,
+        #     )
+        #     objects[name].mass_error = 0
+        #     # objects[name].com_error = np.array([0, 0, 0.075])
+        #     # objects[name].com_height_error = 0.075
+        #
+        #     add_obj_to_sim(
+        #         obj=objects[name],
+        #         name=name,
+        #         color=CYLINDER3_COLOR,
+        #         parent=objects["stacked_cylinder2"],
+        #     )
+        #
+        # name = "flat_cylinder3"
+        # if name in obj_names:
+        #     objects[name] = bodies.Cylinder(
+        #         r_tau=geometry.circle_r_tau(CYLINDER3_RADIUS),
+        #         support_area=ocs2.PolygonSupportArea.circle(
+        #             CYLINDER3_RADIUS, margin=OBJ_ZMP_MARGIN
+        #         ),
+        #         mass=CYLINDER3_MASS,
+        #         radius=CYLINDER3_RADIUS,
+        #         height=2 * CYLINDER3_COM_HEIGHT,
+        #         mu=CYLINDER3_SUPPORT_MU,
+        #     )
+        #     objects[name].mass_error = 0
+        #     objects[name].com_error = FLAT_OFFSET
+        #
+        #     add_obj_to_sim(
+        #         obj=objects[name],
+        #         name=name,
+        #         color=CYLINDER3_COLOR,
+        #         parent=objects["tray"],
+        #         offset_xy=c3 - FLAT_OFFSET[:2],
+        #     )
 
         # name = "rod"
         # if name in obj_names:

@@ -45,6 +45,16 @@ DATA_PATHS_HEIGHT2 = [
 
 
 def compute_object_error(ts, r_ew_ws, Q_wes, r_ow_ws, Q_wos, tf=None):
+    """Compute error of an object.
+
+    ts:      Array of times.
+    r_ew_ws: Array of end effector positions wrt the world.
+    Q_wes:   Array of end effector orientations (as quaternions).
+    r_ow_ws: Array of object positions wrt the world.
+    Q_wos:   Array of object positions wrt the world.
+    tf:      Final time: do not use any data after this time.
+    """
+    # truncate length of data to a given final time
     data_length = ts.shape[0]
     if tf is not None:
         for i in range(ts.shape[0]):
@@ -52,6 +62,7 @@ def compute_object_error(ts, r_ew_ws, Q_wes, r_ow_ws, Q_wos, tf=None):
                 data_length = i
                 break
 
+    # compute position errors at each time step
     r_oe_es = np.zeros_like(r_ow_ws)
     for i in range(r_oe_es.shape[0]):
         C_ew = SO3.from_quaternion(Q_wes[i, :], ordering="xyzw").inv()
