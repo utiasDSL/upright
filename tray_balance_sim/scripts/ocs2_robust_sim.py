@@ -40,10 +40,16 @@ CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 DURATION = 6.0  # duration of trajectory (s)
 
-# state noise
-Q_STDEV = 0.0
-V_STDEV = 0.0
-V_CMD_STDEV = 0.0
+# measurement and process noise
+USE_NOISY_STATE_TO_PLAN = True
+
+Q_VAR = 0
+V_VAR = 0
+V_CMD_VAR = 0
+
+Q_STDEV = np.sqrt(Q_VAR)
+V_STDEV = np.sqrt(V_VAR)
+V_CMD_STDEV = np.sqrt(V_CMD_VAR)
 
 # video recording parameters
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -70,7 +76,12 @@ ORIENTATION_GOAL = np.array([0, 0, 1, 0])
 # object configurations
 SHORT_CONFIG = ["tray", "cuboid_short"]
 TALL_CONFIG = ["tray", "cuboid_tall"]
-STACK_CONFIG = ["cuboid_base_stack", "cuboid1_stack", "cuboid2_stack", "cylinder3_stack"]
+STACK_CONFIG = [
+    "cuboid_base_stack",
+    "cuboid1_stack",
+    "cuboid2_stack",
+    "cylinder3_stack",
+]
 CUP_CONFIG = ["tray", "cylinder1_cup", "cylinder2_cup", "cylinder3_cup"]
 
 
@@ -81,7 +92,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        STACK_CONFIG,
+        SHORT_CONFIG,
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -293,14 +304,15 @@ def main():
         v_noisy = v + np.random.normal(scale=V_STDEV, size=v.shape)
         x_noisy = np.concatenate((q_noisy, v_noisy))
 
-        mpc.setObservation(t, x_opt, u)
-
         # by using x_opt, we're basically just doing pure open-loop planning,
         # since the state never deviates from the optimal trajectory (at least
         # due to noise)
         # this does have the benefit of smoothing out the state used for
         # computation, which is important for constraint handling
-        # mpc.setObservation(t, x_opt, u)
+        if USE_NOISY_STATE_TO_PLAN:
+            mpc.setObservation(t, x_noisy, u)
+        else:
+            mpc.setObservation(t, x_opt, u)
 
         # TODO this should be set to reflect the MPC time step
         # we can increase it if the MPC rate is faster
@@ -359,7 +371,8 @@ def main():
 
             # record
             recorder.us[idx, :] = u
-            recorder.xs[idx, :] = x_noisy
+            recorder.xs[idx, :] = x
+            recorder.xs_noisy[idx, :] = x_noisy
             recorder.r_ew_wds[idx, :] = r_ew_w_d
             recorder.r_ew_ws[idx, :] = r_ew_w
             recorder.Q_wes[idx, :] = Q_we
@@ -409,27 +422,23 @@ def main():
         recorder.save(fname)
 
     # trying to catch non-unit-length quaternion bug
-    try:
-        last_sim_index = i
-        recorder.plot_ee_position(last_sim_index)
-        recorder.plot_ee_orientation(last_sim_index)
-        recorder.plot_ee_velocity(last_sim_index)
-        for j in range(len(objects)):
-            recorder.plot_object_error(last_sim_index, j)
-        recorder.plot_balancing_constraints(last_sim_index)
-        recorder.plot_commands(last_sim_index)
-        recorder.plot_control_durations(last_sim_index)
-        recorder.plot_cmd_vs_real_vel(last_sim_index)
-        recorder.plot_joint_config(last_sim_index)
+    last_sim_index = i
+    recorder.plot_ee_position(last_sim_index)
+    recorder.plot_ee_orientation(last_sim_index)
+    recorder.plot_ee_velocity(last_sim_index)
+    for j in range(len(objects)):
+        recorder.plot_object_error(last_sim_index, j)
+    recorder.plot_balancing_constraints(last_sim_index)
+    recorder.plot_commands(last_sim_index)
+    recorder.plot_control_durations(last_sim_index)
+    recorder.plot_cmd_vs_real_vel(last_sim_index)
+    recorder.plot_joint_config(last_sim_index)
 
-        if recorder.dynamic_obs_distance.shape[1] > 0:
-            print(
-                f"Min dynamic obstacle distance = {np.min(recorder.dynamic_obs_distance, axis=0)}"
-            )
-            recorder.plot_dynamic_obs_dist(last_sim_index)
-    except ValueError as e:
-        print(e)
-        IPython.embed()
+    if recorder.dynamic_obs_distance.shape[1] > 0:
+        print(
+            f"Min dynamic obstacle distance = {np.min(recorder.dynamic_obs_distance, axis=0)}"
+        )
+        recorder.plot_dynamic_obs_dist(last_sim_index)
 
     plt.show()
 

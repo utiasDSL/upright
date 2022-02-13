@@ -56,12 +56,20 @@ CUBOID_SHORT_COM_HEIGHT = 0.075
 CUBOID_SHORT_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID_SHORT_COM_HEIGHT)
 CUBOID_SHORT_COLOR = PLT_COLOR2
 
+# controller things μ is CUBOID_SHORT_TRAY_MU + CUBOID_SHORT_MU_ERROR, when it
+# is actually just CUBOID_SHORT_TRAY_MU
+CUBOID_SHORT_MU_CONTROL = CUBOID_SHORT_TRAY_MU
+CUBOID_SHORT_MU_ERROR = CUBOID_SHORT_MU_CONTROL - CUBOID_SHORT_TRAY_MU
+
 # only difference between tall and short cuboid is the dimensions
 CUBOID_TALL_MASS = CUBOID_SHORT_MASS
-CUBOID_TALL_TRAY_MU = CUBOID_SHORT_TRAY_MU
+CUBOID_TALL_TRAY_MU = 0.5
 CUBOID_TALL_COM_HEIGHT = 0.25
 CUBOID_TALL_SIDE_LENGTHS = (0.1, 0.1, 2 * CUBOID_TALL_COM_HEIGHT)
 CUBOID_TALL_COLOR = PLT_COLOR2
+
+CUBOID_TALL_MU_CONTROL = CUBOID_TALL_TRAY_MU
+CUBOID_TALL_MU_ERROR = CUBOID_SHORT_MU_CONTROL - CUBOID_SHORT_TRAY_MU
 
 # stack of boxes
 # TODO still need to figure out mass offsets for failure
@@ -392,6 +400,7 @@ class Simulation:
                 side_lengths=CUBOID_SHORT_SIDE_LENGTHS,
                 mu=CUBOID_SHORT_TRAY_MU,
             )
+            objects[name].mu_error = CUBOID_SHORT_MU_ERROR
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
@@ -413,6 +422,7 @@ class Simulation:
                 side_lengths=CUBOID_TALL_SIDE_LENGTHS,
                 mu=CUBOID_TALL_TRAY_MU,
             )
+            objects[name].mu_error = CUBOID_TALL_MU_ERROR
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,

@@ -13,9 +13,6 @@ import IPython
 from tray_balance_sim.util import (
     dhtf,
     rot2d,
-    pose_from_pos_quat,
-    pose_to_pos_quat,
-    skew3,
 )
 
 rospack = rospkg.RosPack()
@@ -310,7 +307,6 @@ class RobotModel:
         r = T.translation()
         Q = T.rotation().as_quaternion_xyzw()
         return r, Q
-        # return pose_from_pos_quat(r, Q)
 
     def tool_velocity(self, q, v):
         """Calculate velocity at the tool with given joint state.

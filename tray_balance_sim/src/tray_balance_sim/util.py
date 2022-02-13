@@ -5,6 +5,9 @@ import liegroups
 from scipy.linalg import expm
 
 
+# TODO these quaternion etc. transforms can be handled from elegantly (i.e.,
+# extracted away better)
+
 
 def quaternion_to_matrix(Q):
     """Convert quaternion to rotation matrix."""
@@ -24,37 +27,6 @@ def rot2d(θ, np=np):
     return np.array([[c, -s], [s, c]])
 
 
-def pose_to_pos_quat(P):
-    return P[:3], P[3:]
-
-
-def pose_from_pos_quat(r, Q):
-    return jnp.concatenate((r, Q))
-
-
-def pose_error(Pd, P):
-    rd, Qd = pose_to_pos_quat(Pd)
-    Cd = SO3.from_quaternion_xyzw(Qd)
-
-    r, Q = pose_to_pos_quat(P)
-    C = SO3.from_quaternion_xyzw(Q)
-
-    r_err = rd - r
-    Q_err = Cd.multiply(C.inverse()).as_quaternion_xyzw()
-    return jnp.concatenate((r_err, Q_err[:3]))  # exclude w term
-
-
-def state_error(xd, x):
-    Pd, Vd = xd[:7], xd[7:]
-    P, V = x[:7], x[7:]
-    return jnp.concatenate((pose_error(Pd, P), Vd - V))
-
-
-def pitch_from_quat(Q):
-    """Get pitch from a quaternion."""
-    return SO3.from_quaternion_xyzw(Q).compute_pitch_radians()
-
-
 def quat_error(q):
     xyz = q[:3]
     w = q[3]
@@ -62,8 +34,11 @@ def quat_error(q):
     return 2 * np.arctan2(np.linalg.norm(xyz), w)
 
 
-def quat_multiply(q0, q1):
+def quat_multiply(q0, q1, normalize=True):
     """Hamilton product of two quaternions."""
+    if normalize:
+        q0 = q0 / np.linalg.norm(q0)
+        q1 = q1 / np.linalg.norm(q1)
     C0 = liegroups.SO3.from_quaternion(q0, ordering="xyzw")
     C1 = liegroups.SO3.from_quaternion(q1, ordering="xyzw")
     return C0.dot(C1).to_quaternion(ordering="xyzw")

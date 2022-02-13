@@ -11,7 +11,7 @@ from tray_balance_sim.camera import Camera
 
 import IPython
 
-DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/ICRA22")
+DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/IROS-RAL22")
 
 
 class VideoRecorder(Camera):
@@ -73,6 +73,7 @@ class Recorder:
         self.ts = period * dt * np.arange(self.num_records)
         self.us = zeros(ni)
         self.xs = zeros(ns)
+        self.xs_noisy = zeros(ns)
         self.r_ew_ws = zeros(3)
         self.r_ew_wds = zeros(3)
         self.Q_wes = zeros(4)
@@ -108,6 +109,7 @@ class Recorder:
             ts=self.ts,
             us=self.us,
             xs=self.xs,
+            xs_noisy=self.xs_noisy,
             r_ew_ws=self.r_ew_ws,
             r_ew_wds=self.r_ew_wds,
             Q_wes=self.Q_wes,
@@ -213,8 +215,11 @@ class Recorder:
         Q_oe0 = util.quat_multiply(util.quat_inverse(Q_wos[0, :]), self.Q_wes[0, :])
         Q_eo_err = np.zeros_like(Q_wos)
         for i in range(Q_eo_err.shape[0]):
-            Q_eo = util.quat_multiply(util.quat_inverse(self.Q_wes[i, :]), Q_wos[i, :])
-            Q_eo_err[i, :] = util.quat_multiply(Q_oe0, Q_eo)
+            try:
+                Q_eo = util.quat_multiply(util.quat_inverse(self.Q_wes[i, :]), Q_wos[i, :])
+                Q_eo_err[i, :] = util.quat_multiply(Q_oe0, Q_eo)
+            except ValueError as e:
+                IPython.embed()
 
         plt.plot(ts, Q_eo_err[:, 0], label="$Q_x$")
         plt.plot(ts, Q_eo_err[:, 1], label="$Q_y$")
@@ -310,7 +315,7 @@ class Recorder:
         for j in range(9):
             plt.plot(ts, self.xs[s, 9 + j], label=f"$v_{{{j+1}}}$")
         for j in range(9):
-            plt.plot(ts, self.cmd_vels[s, j], label=f"$v_{{cmd_{j+1}}}$")
+            plt.plot(ts, self.cmd_vels[s, j], label=f"$v_{{cmd_{j+1}}}$", linestyle="--")
         plt.grid()
         plt.legend()
         plt.xlabel("Time (s)")
