@@ -73,6 +73,10 @@ NUM_BOUNDING_SPHERES = 2
 POSITION_GOAL = np.array([0, -2, 0])
 ORIENTATION_GOAL = np.array([0, 0, 1, 0])
 
+# pure rotation by 180 deg
+# POSITION_GOAL = np.array([0, 0, 0])
+# ORIENTATION_GOAL = np.array([0, 0, 1, 0])
+
 # object configurations
 SHORT_CONFIG = ["tray", "cuboid_short"]
 TALL_CONFIG = ["tray", "cuboid_tall"]
@@ -92,7 +96,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        SHORT_CONFIG,
+        CUP_CONFIG,
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 

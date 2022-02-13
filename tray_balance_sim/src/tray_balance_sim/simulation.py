@@ -39,7 +39,7 @@ PLT_COLOR2 = (1, 0.498, 0.055, 1)
 PLT_COLOR3 = (0.173, 0.627, 0.173, 1)
 PLT_COLOR4 = (0.839, 0.153, 0.157, 1)
 
-# tray
+### tray ###
 
 TRAY_RADIUS = 0.2
 TRAY_MASS = 0.5
@@ -48,12 +48,13 @@ TRAY_COM_HEIGHT = 0.01
 TRAY_MU_BULLET = TRAY_MU / EE_MU
 TRAY_COLOR = PLT_COLOR1
 
-# short and tall cuboids
+### short cuboid ###
 
 CUBOID_SHORT_MASS = 0.5
 CUBOID_SHORT_TRAY_MU = 0.5
 CUBOID_SHORT_COM_HEIGHT = 0.075
 CUBOID_SHORT_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID_SHORT_COM_HEIGHT)
+CUBOID_SHORT_R_TAU = geometry.rectangle_r_tau(*CUBOID_SHORT_SIDE_LENGTHS[:2])
 CUBOID_SHORT_COLOR = PLT_COLOR2
 
 # controller things μ is CUBOID_SHORT_TRAY_MU + CUBOID_SHORT_MU_ERROR, when it
@@ -61,16 +62,25 @@ CUBOID_SHORT_COLOR = PLT_COLOR2
 CUBOID_SHORT_MU_CONTROL = CUBOID_SHORT_TRAY_MU
 CUBOID_SHORT_MU_ERROR = CUBOID_SHORT_MU_CONTROL - CUBOID_SHORT_TRAY_MU
 
+CUBOID_SHORT_R_TAU_CONTROL = CUBOID_SHORT_R_TAU
+CUBOID_SHORT_R_TAU_ERROR = CUBOID_SHORT_R_TAU_CONTROL - CUBOID_SHORT_R_TAU
+
+### tall cuboid ###
+
 CUBOID_TALL_MASS = 0.5
 CUBOID_TALL_TRAY_MU = 0.5
 CUBOID_TALL_COM_HEIGHT = 0.25
 CUBOID_TALL_SIDE_LENGTHS = (0.1, 0.1, 2 * CUBOID_TALL_COM_HEIGHT)
+CUBOID_TALL_R_TAU = geometry.rectangle_r_tau(*CUBOID_TALL_SIDE_LENGTHS[:2])
 CUBOID_TALL_COLOR = PLT_COLOR2
 
 CUBOID_TALL_MU_CONTROL = CUBOID_TALL_TRAY_MU
 CUBOID_TALL_MU_ERROR = CUBOID_TALL_MU_CONTROL - CUBOID_TALL_TRAY_MU
 
-# stack of boxes
+CUBOID_TALL_R_TAU_CONTROL = CUBOID_TALL_R_TAU
+CUBOID_TALL_R_TAU_ERROR = CUBOID_TALL_R_TAU_CONTROL - CUBOID_TALL_R_TAU
+
+### stack of boxes ###
 # TODO still need to figure out mass offsets for failure
 
 CUBOID_BASE_STACK_MASS = 0.5
@@ -106,7 +116,7 @@ CYLINDER3_STACK_OFFSET = (
     0.5 * np.array(CUBOID2_STACK_SIDE_LENGTHS[:2]) - CYLINDER3_STACK_RADIUS
 )
 
-# set of cups
+### set of cups ###
 
 CYLINDER_CUP_MASS = 0.5
 CYLINDER_CUP_SUPPORT_MU = 0.5
@@ -115,9 +125,11 @@ CYLINDER_CUP_COM_HEIGHT = 0.075
 CYLINDER_CUP_COLORS = [PLT_COLOR2, PLT_COLOR3, PLT_COLOR4]
 
 # add offset to all cup positions (in sim but not controller)
-CUPS_OFFSET = np.array([0, 0, 0])  # [0, -0.07, 0]
+# CUPS_OFFSET = np.zeros(3)
+CUPS_OFFSET = np.array([0, -0.06, 0])
 
-# robot starting configurations
+### robot starting configurations ###
+
 BASE_HOME = [0, 0, 0]
 UR10_HOME_STANDARD = [
     0.0,
@@ -393,13 +405,14 @@ class Simulation:
                 margin=OBJ_ZMP_MARGIN,
             )
             objects[name] = bodies.Cuboid(
-                r_tau=geometry.rectangle_r_tau(*CUBOID_SHORT_SIDE_LENGTHS[:2]),
+                r_tau=CUBOID_SHORT_R_TAU,
                 support_area=support_area,
                 mass=CUBOID_SHORT_MASS,
                 side_lengths=CUBOID_SHORT_SIDE_LENGTHS,
                 mu=CUBOID_SHORT_TRAY_MU,
             )
             objects[name].mu_error = CUBOID_SHORT_MU_ERROR
+            objects[name].r_tau_error = CUBOID_SHORT_R_TAU_ERROR
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
@@ -415,13 +428,14 @@ class Simulation:
                 margin=OBJ_ZMP_MARGIN,
             )
             objects[name] = bodies.Cuboid(
-                r_tau=geometry.rectangle_r_tau(*CUBOID_TALL_SIDE_LENGTHS[:2]),
+                r_tau=CUBOID_TALL_R_TAU,
                 support_area=support_area,
                 mass=CUBOID_TALL_MASS,
                 side_lengths=CUBOID_TALL_SIDE_LENGTHS,
                 mu=CUBOID_TALL_TRAY_MU,
             )
             objects[name].mu_error = CUBOID_TALL_MU_ERROR
+            objects[name].r_tau_error = CUBOID_TALL_R_TAU_ERROR
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
