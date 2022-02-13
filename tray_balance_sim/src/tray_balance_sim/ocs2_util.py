@@ -28,6 +28,9 @@ class TaskSettingsWrapper:
 
         config = ocs2.TrayBalanceConfiguration()
         config.objects = composites
+        config.enabled.normal = True
+        config.enabled.friction = True
+        config.enabled.zmp = True
         settings.tray_balance_settings.config = config
 
         # robust settings

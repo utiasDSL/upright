@@ -6,6 +6,12 @@
 #include "tray_balance_constraints/types.h"
 #include "tray_balance_constraints/util.h"
 
+struct BalanceConstraintsEnabled {
+    bool normal = true;
+    bool friction = true;
+    bool zmp = true;
+};
+
 template <typename Scalar>
 Scalar circle_r_tau(Scalar radius) {
     return Scalar(2.0) * radius / Scalar(3.0);
@@ -263,11 +269,11 @@ Vec2<Scalar> compute_zmp(const Mat3<Scalar>& orientation,
 }
 
 template <typename Scalar>
-Vector<Scalar> inequality_constraints(const Mat3<Scalar>& orientation,
-                                      const Vec3<Scalar>& angular_vel,
-                                      const Vec3<Scalar>& linear_acc,
-                                      const Vec3<Scalar>& angular_acc,
-                                      const BalancedObject<Scalar>& object) {
+Vector<Scalar> inequality_constraints(
+    const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
+    const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
+    const BalancedObject<Scalar>& object,
+    const BalanceConstraintsEnabled& enabled) {
     // Tray inertia (in the tray's own frame)
     Mat3<Scalar> It = object.body.inertia;
 
@@ -318,6 +324,16 @@ Vector<Scalar> inequality_constraints(const Mat3<Scalar>& orientation,
 
     // Vector<Scalar> h3_ones = Vector<Scalar>::Ones(h3.rows());
 
+    if (!enabled.friction) {
+        h1 = 1;
+    }
+    if (!enabled.normal) {
+        h2 = 1;
+    }
+    if (!enabled.zmp) {
+        h3 = Vector<Scalar>::Ones(h3.rows());
+    }
+
     Vector<Scalar> constraints(object.num_constraints());
     constraints << h1, h2, h3;
     return constraints;
@@ -328,7 +344,8 @@ template <typename Scalar>
 Vector<Scalar> balancing_constraints(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
-    const std::vector<BalancedObject<Scalar>>& objects) {
+    const std::vector<BalancedObject<Scalar>>& objects,
+    const BalanceConstraintsEnabled& enabled) {
     size_t num_constraints = 0;
     for (const auto& object : objects) {
         num_constraints += object.num_constraints();
@@ -338,7 +355,7 @@ Vector<Scalar> balancing_constraints(
     size_t index = 0;
     for (const auto& object : objects) {
         Vector<Scalar> v = inequality_constraints(
-            orientation, angular_vel, linear_acc, angular_acc, object);
+            orientation, angular_vel, linear_acc, angular_acc, object, enabled);
         constraints.segment(index, v.rows()) = v;
         index += v.rows();
     }

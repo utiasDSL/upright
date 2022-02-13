@@ -102,7 +102,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         }
 
         ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
-            C_we, angular_vel, linear_acc, angular_acc, objects);
+            C_we, angular_vel, linear_acc, angular_acc, objects, config_.enabled);
 
         return constraints;
     }

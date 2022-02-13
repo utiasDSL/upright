@@ -81,18 +81,18 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         m, "PolygonSupportArea")
         .def(pybind11::init<const std::vector<Vec2<scalar_t>>&,
                             const Vec2<scalar_t>&, const scalar_t>(),
-             "vertices"_a, "offset"_a, "margin"_a=0)
+             "vertices"_a, "offset"_a, "margin"_a = 0)
         .def_readwrite("vertices", &PolygonSupportArea<scalar_t>::vertices)
         .def_readwrite("offset", &PolygonSupportArea<scalar_t>::offset)
         .def_readwrite("margin", &PolygonSupportArea<scalar_t>::margin)
         .def_static("circle", &PolygonSupportArea<scalar_t>::circle, "radius"_a,
-                    "margin"_a=0)
+                    "margin"_a = 0)
         .def_static("equilateral_triangle",
                     &PolygonSupportArea<scalar_t>::equilateral_triangle,
-                    "side_length"_a, "margin"_a=0)
+                    "side_length"_a, "margin"_a = 0)
         .def_static("axis_aligned_rectangle",
                     &PolygonSupportArea<scalar_t>::axis_aligned_rectangle,
-                    "sx"_a, "sy"_a, "margin"_a=0);
+                    "sx"_a, "sy"_a, "margin"_a = 0);
 
     pybind11::class_<BalancedObject<scalar_t>>(m, "BalancedObject")
         .def(pybind11::init<const RigidBody<scalar_t>&, scalar_t,
@@ -101,9 +101,16 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
              "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
         .def_static("compose", &BalancedObject<scalar_t>::compose, "objects"_a);
 
+    pybind11::class_<BalanceConstraintsEnabled>(m, "BalanceConstraintsEnabled")
+        .def(pybind11::init<>())
+        .def_readwrite("normal", &BalanceConstraintsEnabled::normal)
+        .def_readwrite("friction", &BalanceConstraintsEnabled::friction)
+        .def_readwrite("zmp", &BalanceConstraintsEnabled::zmp);
+
     pybind11::class_<TrayBalanceConfiguration>(m, "TrayBalanceConfiguration")
         .def(pybind11::init<>())
         .def_readwrite("objects", &TrayBalanceConfiguration::objects)
+        .def_readwrite("enabled", &TrayBalanceConfiguration::enabled)
         .def("num_constraints", &TrayBalanceConfiguration::num_constraints);
 
     pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
@@ -121,13 +128,14 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .value("Soft", ConstraintType::Soft)
         .value("Hard", ConstraintType::Hard);
 
-
     pybind11::class_<CollisionSphere<scalar_t>>(m, "CollisionSphere")
         .def(pybind11::init<const std::string&, const std::string&,
-                            const Eigen::Matrix<scalar_t, 3, 1>&, const scalar_t>(),
+                            const Eigen::Matrix<scalar_t, 3, 1>&,
+                            const scalar_t>(),
              "name"_a, "parent_frame_name"_a, "offset"_a, "radius"_a)
         .def_readwrite("name", &CollisionSphere<scalar_t>::name)
-        .def_readwrite("parent_frame_name", &CollisionSphere<scalar_t>::parent_frame_name)
+        .def_readwrite("parent_frame_name",
+                       &CollisionSphere<scalar_t>::parent_frame_name)
         .def_readwrite("offset", &CollisionSphere<scalar_t>::offset)
         .def_readwrite("radius", &CollisionSphere<scalar_t>::radius);
 
@@ -141,7 +149,8 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
                        &CollisionAvoidanceSettings::minimum_distance)
         .def_readwrite("mu", &CollisionAvoidanceSettings::mu)
         .def_readwrite("delta", &CollisionAvoidanceSettings::delta)
-        .def_readwrite("extra_spheres", &CollisionAvoidanceSettings::extra_spheres);
+        .def_readwrite("extra_spheres",
+                       &CollisionAvoidanceSettings::extra_spheres);
 
     pybind11::class_<DynamicObstacleSettings>(m, "DynamicObstacleSettings")
         .def(pybind11::init<>())
@@ -150,7 +159,8 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
                        &DynamicObstacleSettings::obstacle_radius)
         .def_readwrite("mu", &DynamicObstacleSettings::mu)
         .def_readwrite("delta", &DynamicObstacleSettings::delta)
-        .def_readwrite("collision_spheres", &DynamicObstacleSettings::collision_spheres);
+        .def_readwrite("collision_spheres",
+                       &DynamicObstacleSettings::collision_spheres);
 
     pybind11::class_<TaskSettings> task_settings(m, "TaskSettings");
     task_settings.def(pybind11::init<>())

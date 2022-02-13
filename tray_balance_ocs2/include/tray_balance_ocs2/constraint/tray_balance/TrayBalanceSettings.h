@@ -12,6 +12,9 @@ namespace mobile_manipulator {
 struct TrayBalanceConfiguration {
     std::vector<BalancedObject<scalar_t>> objects;
 
+    // TODO debatable whether this should be here or in TrayBalanceSettings
+    BalanceConstraintsEnabled enabled;
+
     size_t num_constraints() const {
         size_t n = 0;
         for (auto& obj : objects) {
