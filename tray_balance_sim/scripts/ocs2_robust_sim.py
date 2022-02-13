@@ -108,6 +108,10 @@ def main():
     settings_wrapper.settings.collision_avoidance_settings.enabled = False
     settings_wrapper.settings.dynamic_obstacle_settings.enabled = False
 
+    settings_wrapper.settings.tray_balance_settings.config.enabled.normal = True
+    settings_wrapper.settings.tray_balance_settings.config.enabled.friction = True
+    settings_wrapper.settings.tray_balance_settings.config.enabled.zmp = True
+
     ghosts = []  # ghost (i.e., pure visual) objects
     if settings_wrapper.settings.tray_balance_settings.robust:
         robustness.set_bounding_spheres(

@@ -25,13 +25,7 @@ class TaskSettingsWrapper:
         settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
         settings.tray_balance_settings.mu = 1e-2
         settings.tray_balance_settings.delta = 1e-3
-
-        config = ocs2.TrayBalanceConfiguration()
-        config.objects = composites
-        config.enabled.normal = True
-        config.enabled.friction = True
-        config.enabled.zmp = True
-        settings.tray_balance_settings.config = config
+        settings.tray_balance_settings.config.objects = composites
 
         # robust settings
         robust_params = ocs2.RobustParameterSet()

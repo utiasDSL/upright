@@ -322,8 +322,7 @@ Vector<Scalar> inequality_constraints(
     // beta.head(2); Vector<Scalar> h3 =
     //     object.support_area_ptr->zmp_constraints_scaled(az_zmp, alpha(2));
 
-    // Vector<Scalar> h3_ones = Vector<Scalar>::Ones(h3.rows());
-
+    // Set disabled constraint values to unity so they are always satisfied.
     if (!enabled.friction) {
         h1 = 1;
     }
