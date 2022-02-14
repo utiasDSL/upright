@@ -81,7 +81,19 @@ CUBOID_TALL_R_TAU_CONTROL = CUBOID_TALL_R_TAU
 CUBOID_TALL_R_TAU_ERROR = CUBOID_TALL_R_TAU_CONTROL - CUBOID_TALL_R_TAU
 
 ### stack of boxes ###
-# TODO still need to figure out mass offsets for failure
+
+CYLINDER_BASE_STACK_MASS = 0.75
+CYLINDER_BASE_STACK_MU = 0.5
+CYLINDER_BASE_STACK_MU_BULLET = CYLINDER_BASE_STACK_MU / EE_MU
+CYLINDER_BASE_STACK_COM_HEIGHT = 0.05
+CYLINDER_BASE_STACK_RADIUS = 0.15
+CYLINDER_BASE_STACK_COLOR = PLT_COLOR1
+
+CYLINDER_BASE_STACK_CONTROL_MASS = CYLINDER_BASE_STACK_MASS
+# CYLINDER_BASE_STACK_CONTROL_MASS = 1.0
+CYLINDER_BASE_STACK_MASS_ERROR = (
+    CYLINDER_BASE_STACK_CONTROL_MASS - CYLINDER_BASE_STACK_MASS
+)
 
 CUBOID_BASE_STACK_MASS = 0.75
 CUBOID_BASE_STACK_MU = 0.5
@@ -105,7 +117,7 @@ CUBOID1_STACK_CONTROL_MASS = CUBOID1_STACK_MASS
 CUBOID1_STACK_MASS_ERROR = CUBOID1_STACK_CONTROL_MASS - CUBOID1_STACK_MASS
 
 CUBOID2_STACK_MASS = 1.25
-CUBOID2_STACK_TRAY_MU = 0.25  # NOTE lower
+CUBOID2_STACK_TRAY_MU = 0.25
 CUBOID2_STACK_COM_HEIGHT = 0.1
 CUBOID2_STACK_SIDE_LENGTHS = (0.1, 0.1, 2 * CUBOID2_STACK_COM_HEIGHT)
 CUBOID2_STACK_COLOR = PLT_COLOR3
@@ -379,10 +391,30 @@ class Simulation:
 
             objects[name] = tray
 
+        name = "cylinder_base_stack"
+        if name in obj_names:
+            objects[name] = bodies.Cylinder(
+                r_tau=EE_INSCRIBED_RADIUS,
+                support_area=ocs2.PolygonSupportArea.equilateral_triangle(
+                    EE_SIDE_LENGTH
+                ),
+                mass=CYLINDER_BASE_STACK_MASS,
+                radius=CYLINDER_BASE_STACK_RADIUS,
+                height=2 * CYLINDER_BASE_STACK_COM_HEIGHT,
+                mu=CYLINDER_BASE_STACK_MU,
+            )
+            objects[name].mass_error = CYLINDER_BASE_STACK_MASS_ERROR
+            objects[name].add_to_sim(
+                bullet_mu=CYLINDER_BASE_STACK_MU_BULLET, color=CYLINDER_BASE_STACK_COLOR
+            )
+
+            r_tw_w = r_ew_w + [0, 0, CYLINDER_BASE_STACK_COM_HEIGHT + 0.05]
+            objects[name].bullet.reset_pose(position=r_tw_w)
+
         name = "cuboid_base_stack"
         if name in obj_names:
             objects[name] = bodies.Cuboid(
-                r_tau=geometry.rectangle_r_tau(*CUBOID_BASE_STACK_SIDE_LENGTHS[:2]),
+                r_tau=EE_SIDE_LENGTH,
                 support_area=ocs2.PolygonSupportArea.equilateral_triangle(
                     EE_SIDE_LENGTH
                 ),
@@ -480,7 +512,8 @@ class Simulation:
                 obj=objects[name],
                 name=name,
                 color=CUBOID1_STACK_COLOR,
-                parent=objects["cuboid_base_stack"],
+                # parent=objects["cuboid_base_stack"],
+                parent=objects["cylinder_base_stack"],
             )
 
         name = "cuboid2_stack"

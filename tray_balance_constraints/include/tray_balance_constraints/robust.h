@@ -24,7 +24,7 @@ struct Ball {
     Ball(const Vec3<Scalar>& center, const Scalar radius)
         : center(center), radius(radius) {}
 
-    Scalar max_z() { return center(2) + radius; }
+    Scalar max_z() const { return center(2) + radius; }
 
     Vec3<Scalar> center;
     Scalar radius;
@@ -82,7 +82,7 @@ Vector<Scalar> robust_balancing_constraints(
 
     Vec3<Scalar> g;
     g << Scalar(0), Scalar(0), Scalar(-9.81);
-    Scalar eps(0.01);
+    Scalar eps(0.0001);
 
     Eigen::Matrix<Scalar, 2, 3> S_xy;
     S_xy << Scalar(1), Scalar(0), Scalar(0), Scalar(0), Scalar(1), Scalar(0);
@@ -109,7 +109,7 @@ Vector<Scalar> robust_balancing_constraints(
 
     Vector<Scalar> constraints(3 * param_set.balls.size());
     size_t index = 0;
-    for (auto ball : param_set.balls) {
+    for (const auto& ball : param_set.balls) {
         // TODO .norm() computes Frobenius norm for matrices, which is not
         // actually what we want
         Scalar alpha_max =
@@ -144,6 +144,8 @@ Vector<Scalar> robust_balancing_constraints(
         // squaring seems to improve numerical stability somewhat
         Scalar h3 = squared(alpha_z_min * param_set.min_support_dist) -
                     squared(ball.max_z() * alpha_xy_max + beta_max);
+        // Scalar h3 = alpha_z_min * param_set.min_support_dist -
+        //             ball.max_z() * alpha_xy_max - beta_max;
 
         constraints.segment(index, 3) << h1, h2, h3;
         index += 3;

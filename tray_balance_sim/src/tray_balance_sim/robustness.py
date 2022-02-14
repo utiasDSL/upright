@@ -28,6 +28,11 @@ def rotate_end_effector(robot, angle, duration, sim_timestep, realtime=True):
         pyb.stepSimulation()
         t += sim_timestep
 
+    # reset velocity to zero so we're in a resting state when we start the
+    # trajectory proper
+    robot.command_velocity(np.zeros(robot.ni))
+    pyb.stepSimulation()
+
 
 def get_object_point_cloud(camera, objects):
     w, h, rgb, dep, seg = camera.get_frame()
@@ -96,7 +101,7 @@ def set_bounding_spheres(
     # rotate back to initial position
     rotate_end_effector(
         robot,
-        angle=total_angle,
+        angle=-total_angle,
         sim_timestep=sim_timestep,
         duration=12.0,
         realtime=False,
@@ -118,8 +123,8 @@ def set_bounding_spheres(
     points = points[~remove, :]
 
     # cluster point cloud points and bound with spheres
-    centers, radii = clustering.cluster_and_bound(
-        points, k=k, cluster_type="greedy", bound_type="fischer"
+    centers, radii, assignments = clustering.cluster_and_bound(
+        points, k=k, cluster_type="greedy", bound_type="fischer", n=10
     )
 
     # also rotate camera target into EE frame

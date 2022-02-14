@@ -15,6 +15,10 @@ Scalar epsilon_norm(const Matrix<Scalar>& x, const Scalar eps) {
     // x_vec.resize(x.cols() * x.rows(), 1);
     Eigen::Map<const Vector<Scalar>> x_vec(x.data(), x.size(), 1);
     return sqrt(x_vec.dot(x_vec) + eps);
+
+    // Unfortunately we cannot diff through this:
+    // Eigen::JacobiSVD<Matrix<Scalar>> svd(x);
+    // return svd.singularValues()(0);
 }
 
 // Compute skew-symmetric matrix from 3-dimensional vector.

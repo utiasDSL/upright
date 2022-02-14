@@ -38,7 +38,7 @@ SIM_TYPE = SimType.POSE_TO_POSE
 SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 6.0  # duration of trajectory (s)
+DURATION = 8.0  # duration of trajectory (s)
 
 # measurement and process noise
 USE_NOISY_STATE_TO_PLAN = True
@@ -59,7 +59,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 # robust bounding spheres
-NUM_BOUNDING_SPHERES = 1
+NUM_BOUNDING_SPHERES = 3
 
 # goal 1
 # POSITION_GOAL = np.array([2, 0, -0.5])
@@ -81,7 +81,7 @@ ORIENTATION_GOAL = np.array([0, 0, 1, 0])
 SHORT_CONFIG = ["tray", "cuboid_short"]
 TALL_CONFIG = ["tray", "cuboid_tall"]
 STACK_CONFIG = [
-    "cuboid_base_stack",
+    "cylinder_base_stack",
     "cuboid1_stack",
     "cuboid2_stack",
     "cylinder3_stack",
@@ -181,6 +181,10 @@ def main():
         ]:
             settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.push_back(pair)
         # fmt: on
+
+    q, v = robot.joint_states()
+    x = np.concatenate((q, v))
+    settings_wrapper.settings.initial_state = x
 
     # set process noise after initial routine to get robust spheres
     robot.v_cmd_stdev = V_CMD_STDEV

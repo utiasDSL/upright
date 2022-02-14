@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.spatial.distance import pdist
+from scipy.spatial.distance import pdist, squareform
 from scipy.cluster import hierarchy, vq
 from miniball import miniball
 import IPython
@@ -79,7 +79,44 @@ def iterative_miniball(assignments, points, k, n=10, algorithm="ritter"):
         for i in range(k):
             dists[:, i] = np.sum(np.square(points - centers[i, :]), axis=1)
         assignments = np.argmin(dists, axis=1)
-    return centers, radii
+    return centers, radii, assignments
+
+
+# def cluster_greedy_kcenter(points, k=3):
+#     # k-centers, initialize the first one randomly
+#     C = np.zeros((k, points.shape[1]))
+#
+#     # only one center, then just return an arbitrary point
+#     if k == 1:
+#         C[0, :] = points[0, :]
+#         assignments = np.zeros(points.shape[0])
+#         return C, assignments
+#
+#     # first two centers are the two points that are farthest apart
+#     D2 = squareform(pdist(points))
+#     indices = np.unravel_index(np.argmax(D2), D2.shape)
+#     C[0, :] = points[indices[0], :]
+#     C[1, :] = points[indices[1], :]
+#
+#     # compute distances to the current center points
+#     D = np.zeros((points.shape[0], k))
+#     D[:, 0] = np.sum(np.square(points - C[0, :]), axis=1)
+#     D[:, 1] = np.sum(np.square(points - C[1, :]), axis=1)
+#
+#     # remaining points are chosen greedily
+#     for i in range(2, k):
+#         # minimum distance of each point to the set of current centers
+#         Dmin = np.min(D[:, :i], axis=1)
+#
+#         # new center point is farthest from all current centers
+#         idx = np.argmax(Dmin)
+#         C[i, :] = points[idx, :]
+#
+#         # compute distances of all points to the new center point
+#         D[:, i] = np.sum(np.square(points - C[i, :]), axis=1)
+#
+#     assignments = np.argmin(D, axis=1)
+#     return C, assignments
 
 
 def cluster_greedy_kcenter(points, k=3):
@@ -92,11 +129,14 @@ def cluster_greedy_kcenter(points, k=3):
     D[:, 0] = np.sum(np.square(points - C[0, :]), axis=1)
 
     for i in range(1, k):
+        # minimum distance of each point to the set of current centers
         Dmin = np.min(D[:, :i], axis=1)
 
         # new center point is farthest from all current centers
         idx = np.argmax(Dmin)
         C[i, :] = points[idx, :]
+
+        # compute distances of all points to the new center point
         D[:, i] = np.sum(np.square(points - C[i, :]), axis=1)
 
     assignments = np.argmin(D, axis=1)
@@ -130,12 +170,12 @@ def cluster_and_bound(points, k, cluster_type="kmeans", bound_type="ritter", n=1
     elif cluster_type == "hierarchy":
         _, assignments = cluster_hierarchy(points, k=k)
     elif cluster_type == "greedy":
-        _, assignments = cluster_greedy_kcenter(points, k=k)
+        C, assignments = cluster_greedy_kcenter(points, k=k)
     else:
         raise Exception(f"Unknown cluster type: {cluster_type}")
 
     # bound
-    centers, radii = iterative_miniball(
+    centers, radii, assignments = iterative_miniball(
         assignments, points, k, n=n, algorithm=bound_type
     )
-    return centers, radii
+    return centers, radii, assignments
