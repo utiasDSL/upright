@@ -59,7 +59,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 # robust bounding spheres
-NUM_BOUNDING_SPHERES = 2
+NUM_BOUNDING_SPHERES = 1
 
 # goal 1
 # POSITION_GOAL = np.array([2, 0, -0.5])
@@ -96,7 +96,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        CUP_CONFIG,
+            STACK_CONFIG,
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -108,7 +108,7 @@ def main():
 
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
-    settings_wrapper.settings.tray_balance_settings.robust = False
+    settings_wrapper.settings.tray_balance_settings.robust = True
     settings_wrapper.settings.collision_avoidance_settings.enabled = False
     settings_wrapper.settings.dynamic_obstacle_settings.enabled = False
 
@@ -116,13 +116,15 @@ def main():
     settings_wrapper.settings.tray_balance_settings.config.enabled.friction = True
     settings_wrapper.settings.tray_balance_settings.config.enabled.zmp = True
 
+    r_ew_w, Q_we = robot.link_pose()
+
     ghosts = []  # ghost (i.e., pure visual) objects
     if settings_wrapper.settings.tray_balance_settings.robust:
         robustness.set_bounding_spheres(
             robot,
             objects,
             settings_wrapper.settings,
-            target=objects["cuboid1_stack"].bullet.get_pose()[0],
+            target=r_ew_w + [0, 0, 0.1],
             sim_timestep=SIM_DT,
             plot_point_cloud=True,
             k=NUM_BOUNDING_SPHERES,
@@ -138,6 +140,12 @@ def main():
                     color=(0, 0, 1, 0.3),
                 )
             )
+
+        # instantly move all cups
+        # offset = np.array([0, 0.07, 0])
+        # for name in CUP_CONFIG[1:]:
+        #     r_ow_w, _ = objects[name].bullet.get_pose()
+        #     objects[name].bullet.reset_pose(r_ow_w + offset)
 
         # fmt: off
         for pair in [
@@ -201,8 +209,6 @@ def main():
             yaw=42,
             target_position=[1.28, 0.045, 0.647],
         )
-
-    r_ew_w, Q_we = robot.link_pose()
 
     if SIM_TYPE == SimType.POSE_TO_POSE:
         target_times = [0]

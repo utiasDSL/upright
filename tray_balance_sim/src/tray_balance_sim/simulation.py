@@ -83,21 +83,28 @@ CUBOID_TALL_R_TAU_ERROR = CUBOID_TALL_R_TAU_CONTROL - CUBOID_TALL_R_TAU
 ### stack of boxes ###
 # TODO still need to figure out mass offsets for failure
 
-CUBOID_BASE_STACK_MASS = 0.5
+CUBOID_BASE_STACK_MASS = 0.75
 CUBOID_BASE_STACK_MU = 0.5
 CUBOID_BASE_STACK_MU_BULLET = CUBOID_BASE_STACK_MU / EE_MU
 CUBOID_BASE_STACK_COM_HEIGHT = 0.05
 CUBOID_BASE_STACK_SIDE_LENGTHS = (0.3, 0.3, 2 * CUBOID_BASE_STACK_COM_HEIGHT)
 CUBOID_BASE_STACK_COLOR = PLT_COLOR1
 
-# the same as the short cuboid for now
-CUBOID1_STACK_MASS = 0.5
-CUBOID1_STACK_TRAY_MU = 0.5
+CUBOID_BASE_STACK_CONTROL_MASS = CUBOID_BASE_STACK_MASS
+# CUBOID_BASE_STACK_CONTROL_MASS = 1.0
+CUBOID_BASE_STACK_MASS_ERROR = CUBOID_BASE_STACK_CONTROL_MASS - CUBOID_BASE_STACK_MASS
+
+CUBOID1_STACK_MASS = 0.75
+CUBOID1_STACK_TRAY_MU = 0.25
 CUBOID1_STACK_COM_HEIGHT = 0.075
 CUBOID1_STACK_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID1_STACK_COM_HEIGHT)
 CUBOID1_STACK_COLOR = PLT_COLOR2
 
-CUBOID2_STACK_MASS = 0.5
+CUBOID1_STACK_CONTROL_MASS = CUBOID1_STACK_MASS
+# CUBOID1_STACK_CONTROL_MASS = 1.0
+CUBOID1_STACK_MASS_ERROR = CUBOID1_STACK_CONTROL_MASS - CUBOID1_STACK_MASS
+
+CUBOID2_STACK_MASS = 1.25
 CUBOID2_STACK_TRAY_MU = 0.25  # NOTE lower
 CUBOID2_STACK_COM_HEIGHT = 0.1
 CUBOID2_STACK_SIDE_LENGTHS = (0.1, 0.1, 2 * CUBOID2_STACK_COM_HEIGHT)
@@ -107,14 +114,22 @@ CUBOID2_STACK_OFFSET = 0.5 * (
     np.array(CUBOID1_STACK_SIDE_LENGTHS[:2]) - CUBOID2_STACK_SIDE_LENGTHS[:2]
 )
 
-CYLINDER3_STACK_MASS = 0.5
-CYLINDER3_STACK_SUPPORT_MU = 0.5
+CUBOID2_STACK_CONTROL_MASS = CUBOID2_STACK_MASS
+# CUBOID2_STACK_CONTROL_MASS = 1.0
+CUBOID2_STACK_MASS_ERROR = CUBOID2_STACK_CONTROL_MASS - CUBOID2_STACK_MASS
+
+CYLINDER3_STACK_MASS = 1.25
+CYLINDER3_STACK_SUPPORT_MU = 0.25
 CYLINDER3_STACK_RADIUS = 0.04
 CYLINDER3_STACK_COM_HEIGHT = 0.05
 CYLINDER3_STACK_COLOR = PLT_COLOR4
 CYLINDER3_STACK_OFFSET = (
     0.5 * np.array(CUBOID2_STACK_SIDE_LENGTHS[:2]) - CYLINDER3_STACK_RADIUS
 )
+
+CYLINDER3_STACK_CONTROL_MASS = CYLINDER3_STACK_MASS
+# CYLINDER3_STACK_CONTROL_MASS = 1.0
+CYLINDER3_STACK_MASS_ERROR = CYLINDER3_STACK_CONTROL_MASS - CYLINDER3_STACK_MASS
 
 ### set of cups ###
 
@@ -125,8 +140,8 @@ CYLINDER_CUP_COM_HEIGHT = 0.075
 CYLINDER_CUP_COLORS = [PLT_COLOR2, PLT_COLOR3, PLT_COLOR4]
 
 # add offset to all cup positions (in sim but not controller)
-# CUPS_OFFSET = np.zeros(3)
-CUPS_OFFSET = np.array([0, -0.06, 0])
+CUPS_OFFSET = np.zeros(3)
+# CUPS_OFFSET = np.array([0, -0.07, 0])
 
 ### robot starting configurations ###
 
@@ -375,6 +390,7 @@ class Simulation:
                 side_lengths=CUBOID_BASE_STACK_SIDE_LENGTHS,
                 mu=CUBOID_BASE_STACK_MU,
             )
+            objects[name].mass_error = CUBOID_BASE_STACK_MASS_ERROR
 
             objects[name].add_to_sim(
                 bullet_mu=CUBOID_BASE_STACK_MU_BULLET, color=CUBOID_BASE_STACK_COLOR
@@ -459,6 +475,7 @@ class Simulation:
                 side_lengths=CUBOID1_STACK_SIDE_LENGTHS,
                 mu=CUBOID1_STACK_TRAY_MU,
             )
+            objects[name].mass_error = CUBOID1_STACK_MASS_ERROR
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
@@ -480,6 +497,7 @@ class Simulation:
                 side_lengths=CUBOID2_STACK_SIDE_LENGTHS,
                 mu=CUBOID2_STACK_TRAY_MU,
             )
+            objects[name].mass_error = CUBOID2_STACK_MASS_ERROR
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
@@ -500,6 +518,7 @@ class Simulation:
                 height=2 * CYLINDER3_STACK_COM_HEIGHT,
                 mu=CYLINDER3_STACK_SUPPORT_MU,
             )
+            objects[name].mass_error = CYLINDER3_STACK_MASS_ERROR
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,

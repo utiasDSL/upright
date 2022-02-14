@@ -43,8 +43,22 @@ def get_object_point_cloud(camera, objects):
     return points
 
 
+def get_T_we(robot):
+    r_ew_w, Q_we = robot.link_pose()
+    return liegroups.SE3(
+        rot=liegroups.SO3.from_quaternion(Q_we, ordering="xyzw"), trans=r_ew_w
+    )
+
+
 def set_bounding_spheres(
-    robot, objects, settings, target, sim_timestep, k=2, plot_point_cloud=False
+    robot,
+    objects,
+    settings,
+    target,
+    sim_timestep,
+    k=2,
+    num_images=4,
+    plot_point_cloud=False,
 ):
     cam_pos = [target[0], target[1] - 1, target[2]]
     camera = Camera(
@@ -56,62 +70,65 @@ def set_bounding_spheres(
         near=0.1,
         far=5,
     )
-    points1_w = get_object_point_cloud(camera, objects)
 
-    # TODO abstract this away
-    r_ew_w, Q_we = robot.link_pose()
-    T_ew1 = liegroups.SE3(
-        rot=liegroups.SO3.from_quaternion(Q_we, ordering="xyzw"), trans=r_ew_w
-    ).inv()
-    points1_e = T_ew1.dot(points1_w)
+    # rotate EE around z-axis for a total rotation of `total_angle`, taking
+    # `num_images` depth images
+    total_angle = -2 * np.pi
+    angle_increment = total_angle / num_images
+    points_list = []
+    for i in range(num_images):
+        # get points (in world frame) and transform them into EE frame
+        points_w = get_object_point_cloud(camera, objects)
+        points_e = get_T_we(robot).inv().dot(points_w)
+        points_list.append(points_e)
 
-    # rotate to take picture of the other side of the objects
-    rotate_end_effector(
-        robot, angle=-np.pi, sim_timestep=sim_timestep, duration=5.0, realtime=False
-    )
+        # we do an extra rotation at the end, but that's fine
+        rotate_end_effector(
+            robot,
+            angle=angle_increment,
+            sim_timestep=sim_timestep,
+            duration=3.0,
+            realtime=False,
+        )
 
-    points2_w = get_object_point_cloud(camera, objects)
-
-    r_ew_w, Q_we = robot.link_pose()
-    T_ew2 = liegroups.SE3(
-        rot=liegroups.SO3.from_quaternion(Q_we, ordering="xyzw"), trans=r_ew_w
-    ).inv()
-    points2_e = T_ew2.dot(points2_w)
-
-    points_e = np.vstack((points1_e, points2_e))
+    points = np.vstack(points_list)
 
     # rotate back to initial position
     rotate_end_effector(
-        robot, angle=np.pi, sim_timestep=sim_timestep, duration=5.0, realtime=False
+        robot,
+        angle=total_angle,
+        sim_timestep=sim_timestep,
+        duration=12.0,
+        realtime=False,
     )
 
     # compute max_radius for robust inertia
-    max_radius = 0.5 * np.max(pdist(points_e))
+    max_radius = 0.5 * np.max(pdist(points))
     print(f"max_radius = {max_radius}")
 
     # remove points within a given radius of other points
-    tree = KDTree(points_e)
-    remove = np.zeros(points_e.shape[0], dtype=bool)
-    for i in range(points_e.shape[0]):
+    tree = KDTree(points)
+    remove = np.zeros(points.shape[0], dtype=bool)
+    for i in range(points.shape[0]):
         if not remove[i]:
-            idx = tree.query_ball_point(points_e[i, :], r=0.005)
+            idx = tree.query_ball_point(points[i, :], r=0.005)
             for j in idx:
                 if j != i:
                     remove[j] = True
-    points_e = points_e[~remove, :]
+    points = points[~remove, :]
 
     # cluster point cloud points and bound with spheres
     centers, radii = clustering.cluster_and_bound(
-        points_e, k=k, cluster_type="greedy", bound_type="fischer"
+        points, k=k, cluster_type="greedy", bound_type="fischer"
     )
 
     # also rotate camera target into EE frame
-    target_e = T_ew1.dot(camera.target)
+    target_e = get_T_we(robot).inv().dot(camera.target)
 
     if plot_point_cloud:
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
-        ax.scatter(points_e[:, 0], points_e[:, 1], zs=points_e[:, 2])
+        ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
         ax.scatter(target_e[0], target_e[1], zs=target_e[2])
         ax.set_xlabel("x")
         ax.set_ylabel("y")
