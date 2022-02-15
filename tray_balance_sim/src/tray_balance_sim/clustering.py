@@ -70,7 +70,7 @@ def iterative_miniball(assignments, points, k, n=10, algorithm="ritter"):
     # NOTE: iterations don't really seem to change the result, even though a
     # few points may change assignment
     for _ in range(n):
-        # compute new center based on Ritter's bounding sphere
+        # compute new center based on bounding sphere algorithm
         for i in range(k):
             (idx,) = np.nonzero(assignments == i)
             centers[i, :], radii[i] = func(points[idx, :])

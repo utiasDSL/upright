@@ -95,16 +95,16 @@ CYLINDER_BASE_STACK_MASS_ERROR = (
     CYLINDER_BASE_STACK_CONTROL_MASS - CYLINDER_BASE_STACK_MASS
 )
 
-CUBOID_BASE_STACK_MASS = 0.75
-CUBOID_BASE_STACK_MU = 0.5
-CUBOID_BASE_STACK_MU_BULLET = CUBOID_BASE_STACK_MU / EE_MU
-CUBOID_BASE_STACK_COM_HEIGHT = 0.05
-CUBOID_BASE_STACK_SIDE_LENGTHS = (0.3, 0.3, 2 * CUBOID_BASE_STACK_COM_HEIGHT)
-CUBOID_BASE_STACK_COLOR = PLT_COLOR1
-
-CUBOID_BASE_STACK_CONTROL_MASS = CUBOID_BASE_STACK_MASS
-# CUBOID_BASE_STACK_CONTROL_MASS = 1.0
-CUBOID_BASE_STACK_MASS_ERROR = CUBOID_BASE_STACK_CONTROL_MASS - CUBOID_BASE_STACK_MASS
+# CUBOID_BASE_STACK_MASS = 0.75
+# CUBOID_BASE_STACK_MU = 0.5
+# CUBOID_BASE_STACK_MU_BULLET = CUBOID_BASE_STACK_MU / EE_MU
+# CUBOID_BASE_STACK_COM_HEIGHT = 0.05
+# CUBOID_BASE_STACK_SIDE_LENGTHS = (0.3, 0.3, 2 * CUBOID_BASE_STACK_COM_HEIGHT)
+# CUBOID_BASE_STACK_COLOR = PLT_COLOR1
+#
+# CUBOID_BASE_STACK_CONTROL_MASS = CUBOID_BASE_STACK_MASS
+# # CUBOID_BASE_STACK_CONTROL_MASS = 1.0
+# CUBOID_BASE_STACK_MASS_ERROR = CUBOID_BASE_STACK_CONTROL_MASS - CUBOID_BASE_STACK_MASS
 
 CUBOID1_STACK_MASS = 0.75
 CUBOID1_STACK_TRAY_MU = 0.25
@@ -118,7 +118,7 @@ CUBOID1_STACK_MASS_ERROR = CUBOID1_STACK_CONTROL_MASS - CUBOID1_STACK_MASS
 
 CUBOID2_STACK_MASS = 1.25
 CUBOID2_STACK_TRAY_MU = 0.25
-CUBOID2_STACK_COM_HEIGHT = 0.1
+CUBOID2_STACK_COM_HEIGHT = 0.075
 CUBOID2_STACK_SIDE_LENGTHS = (0.1, 0.1, 2 * CUBOID2_STACK_COM_HEIGHT)
 CUBOID2_STACK_COLOR = PLT_COLOR3
 # horizontal offset of CoM relative to parent (CUBOID1_STACK)
@@ -508,6 +508,7 @@ class Simulation:
                 mu=CUBOID1_STACK_TRAY_MU,
             )
             objects[name].mass_error = CUBOID1_STACK_MASS_ERROR
+            objects[name].mu_error = 0.05
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
@@ -531,6 +532,7 @@ class Simulation:
                 mu=CUBOID2_STACK_TRAY_MU,
             )
             objects[name].mass_error = CUBOID2_STACK_MASS_ERROR
+            objects[name].mu_error = 0.05
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
@@ -552,6 +554,7 @@ class Simulation:
                 mu=CYLINDER3_STACK_SUPPORT_MU,
             )
             objects[name].mass_error = CYLINDER3_STACK_MASS_ERROR
+            objects[name].mu_error = 0.05
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,

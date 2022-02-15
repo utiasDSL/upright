@@ -82,7 +82,10 @@ Vector<Scalar> robust_balancing_constraints(
 
     Vec3<Scalar> g;
     g << Scalar(0), Scalar(0), Scalar(-9.81);
-    Scalar eps(0.0001);
+
+    // Numerics are actually pretty sensitive to this value: using 0.0001
+    // results in controller instability
+    Scalar eps(0.01);
 
     Eigen::Matrix<Scalar, 2, 3> S_xy;
     S_xy << Scalar(1), Scalar(0), Scalar(0), Scalar(0), Scalar(1), Scalar(0);
@@ -123,7 +126,8 @@ Vector<Scalar> robust_balancing_constraints(
 
         Scalar alpha_z_min =
             (C_ew * (linear_acc + ddC_we * ball.center - g))(2) -
-            ball.radius * (ddC_we.transpose() * C_we * z).norm();
+            ball.radius *
+                epsilon_norm<Scalar>(ddC_we.transpose() * C_we * z, eps);
 
         // friction
         // Scalar h1 = param_set.min_mu * alpha_z_min -
@@ -132,10 +136,9 @@ Vector<Scalar> robust_balancing_constraints(
         Scalar h1 = sqrt(Scalar(1) + squared(param_set.min_mu)) * alpha_z_min -
                     sqrt(squared(alpha_max) +
                          squared(beta_max / param_set.min_r_tau) + eps);
-        // Scalar h1 = (Scalar(1) + squared(param_set.min_mu)) *
-        // squared(alpha_z_min) -
-        //             squared(alpha_max) - squared(beta_max /
-        //             param_set.min_r_tau);
+        // Scalar h1 =
+        //     (Scalar(1) + squared(param_set.min_mu)) * squared(alpha_z_min) -
+        //     squared(alpha_max) - squared(beta_max / param_set.min_r_tau);
 
         // contact
         Scalar h2 = alpha_z_min;

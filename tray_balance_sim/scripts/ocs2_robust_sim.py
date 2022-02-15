@@ -38,7 +38,7 @@ SIM_TYPE = SimType.POSE_TO_POSE
 SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 8.0  # duration of trajectory (s)
+DURATION = 12.0  # duration of trajectory (s)
 
 # measurement and process noise
 USE_NOISY_STATE_TO_PLAN = True
@@ -59,7 +59,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 # robust bounding spheres
-NUM_BOUNDING_SPHERES = 3
+NUM_BOUNDING_SPHERES = 4
 
 # goal 1
 # POSITION_GOAL = np.array([2, 0, -0.5])
@@ -108,7 +108,7 @@ def main():
 
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
-    settings_wrapper.settings.tray_balance_settings.robust = True
+    settings_wrapper.settings.tray_balance_settings.robust = False
     settings_wrapper.settings.collision_avoidance_settings.enabled = False
     settings_wrapper.settings.dynamic_obstacle_settings.enabled = False
 

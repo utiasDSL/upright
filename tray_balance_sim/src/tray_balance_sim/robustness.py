@@ -124,7 +124,7 @@ def set_bounding_spheres(
 
     # cluster point cloud points and bound with spheres
     centers, radii, assignments = clustering.cluster_and_bound(
-        points, k=k, cluster_type="greedy", bound_type="fischer", n=10
+        points, k=k, cluster_type="greedy", bound_type="fischer", n=1
     )
 
     # also rotate camera target into EE frame
@@ -133,8 +133,17 @@ def set_bounding_spheres(
     if plot_point_cloud:
         fig = plt.figure()
         ax = fig.add_subplot(projection="3d")
-        ax.scatter(points[:, 0], points[:, 1], zs=points[:, 2])
+        for i in range(k):
+            (idx,) = np.nonzero(assignments == i)
+            ax.scatter(points[idx, 0], points[idx, 1], zs=points[idx, 2])
         ax.scatter(target_e[0], target_e[1], zs=target_e[2])
+        # for i in range(k):
+        #     ax.scatter(
+        #         cluster_centers[i, 0],
+        #         cluster_centers[i, 1],
+        #         zs=cluster_centers[i, 2],
+        #         color="k",
+        #     )
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
