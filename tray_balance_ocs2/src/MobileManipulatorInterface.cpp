@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_core/soft_constraint/penalties/DoubleSidedPenalty.h>
 #include <ocs2_core/soft_constraint/penalties/QuadraticPenalty.h>
 #include <ocs2_core/soft_constraint/penalties/RelaxedBarrierPenalty.h>
+#include <ocs2_core/soft_constraint/penalties/SquaredHingePenalty.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
@@ -549,6 +550,7 @@ MobileManipulatorInterface::getTrayBalanceSoftConstraint(
         constraint->getNumConstraints(0));
     for (int i = 0; i < constraint->getNumConstraints(0); i++) {
         penaltyArray[i].reset(
+            // new SquaredHingePenalty({settings.mu, settings.delta}));
             new RelaxedBarrierPenalty({settings.mu, settings.delta}));
     }
 

@@ -508,7 +508,8 @@ class Simulation:
                 mu=CUBOID1_STACK_TRAY_MU,
             )
             objects[name].mass_error = CUBOID1_STACK_MASS_ERROR
-            objects[name].mu_error = 0.05
+            # objects[name].mu_error = -0.05
+            objects[name].mu_error = 0
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
@@ -532,7 +533,8 @@ class Simulation:
                 mu=CUBOID2_STACK_TRAY_MU,
             )
             objects[name].mass_error = CUBOID2_STACK_MASS_ERROR
-            objects[name].mu_error = 0.05
+            # objects[name].mu_error = -0.05
+            objects[name].mu_error = 0
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,
@@ -554,7 +556,8 @@ class Simulation:
                 mu=CYLINDER3_STACK_SUPPORT_MU,
             )
             objects[name].mass_error = CYLINDER3_STACK_MASS_ERROR
-            objects[name].mu_error = 0.05
+            # objects[name].mu_error = -0.05
+            objects[name].mu_error = 0
             add_obj_to_sim(
                 obj=objects[name],
                 name=name,

@@ -149,7 +149,10 @@ struct BalancedObject {
     ~BalancedObject() = default;
 
     size_t num_constraints() const {
-        return 2 + support_area_ptr->num_constraints();
+        const size_t num_normal = 1;
+        const size_t num_fric = 1;
+        const size_t num_zmp = support_area_ptr->num_constraints();
+        return num_normal + num_fric + num_zmp;
     }
 
     size_t num_parameters() const {
@@ -309,6 +312,22 @@ Vector<Scalar> inequality_constraints(
     //     -
     //                                 squared(beta(2) / object.r_tau) + eps;
 
+    // clang-format off
+    Scalar a = alpha(0);
+    Scalar b = alpha(1);
+    Scalar c = beta(2) / object.r_tau;
+    Scalar d = object.mu * alpha(2);
+    Eigen::Matrix<Scalar, 8, 1> h_fric;
+    h_fric << d - ( a + b + c),
+              d - (-a + b + c),
+              d - ( a - b + c),
+              d - (-a - b + c),
+              d - ( a + b - c),
+              d - (-a + b - c),
+              d - ( a - b - c),
+              d - (-a - b - c);
+    // clang-format on
+
     // normal constraint
     Scalar h2 = alpha(2);
 
@@ -325,6 +344,7 @@ Vector<Scalar> inequality_constraints(
     // Set disabled constraint values to unity so they are always satisfied.
     if (!enabled.friction) {
         h1 = 1;
+        h_fric = Eigen::Matrix<Scalar, 8, 1>::Ones();
     }
     if (!enabled.normal) {
         h2 = 1;

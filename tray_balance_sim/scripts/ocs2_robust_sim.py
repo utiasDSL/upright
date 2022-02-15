@@ -108,7 +108,7 @@ def main():
 
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
-    settings_wrapper.settings.tray_balance_settings.robust = False
+    settings_wrapper.settings.tray_balance_settings.robust = True
     settings_wrapper.settings.collision_avoidance_settings.enabled = False
     settings_wrapper.settings.dynamic_obstacle_settings.enabled = False
 
@@ -342,6 +342,7 @@ def main():
                 t1 = time.time()
             except RuntimeError as e:
                 print(e)
+                print("exit the interpreter to proceed to plots")
                 IPython.embed()
                 i -= 1  # for the recorder
                 break
@@ -357,6 +358,9 @@ def main():
         # u = np.zeros(robot.ni)
         mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
         robot.command_acceleration(u)
+
+        # if i == 300:
+        #     IPython.embed()
 
         if recorder.now_is_the_time(i):
             idx = recorder.record_index(i)
