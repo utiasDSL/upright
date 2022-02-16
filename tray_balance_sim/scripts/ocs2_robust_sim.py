@@ -14,7 +14,7 @@ import rospkg
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
-from tray_balance_sim import util, ocs2_util, robustness
+from tray_balance_sim import util, ocs2_util, robustness, cameras
 from tray_balance_sim.simulation import MobileManipulatorSimulation, DynamicObstacle
 from tray_balance_sim.recording import Recorder, VideoRecorder
 
@@ -31,7 +31,7 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.POSE_TO_POSE
+SIM_TYPE = SimType.STATIC_OBSTACLE
 
 
 # simulation parameters
@@ -59,7 +59,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 # robust bounding spheres
-NUM_BOUNDING_SPHERES = 4
+NUM_BOUNDING_SPHERES = 1
 
 # goal 1
 # POSITION_GOAL = np.array([2, 0, -0.5])
@@ -96,7 +96,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-            STACK_CONFIG,
+        CUP_CONFIG,
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -109,7 +109,7 @@ def main():
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
     settings_wrapper.settings.tray_balance_settings.robust = True
-    settings_wrapper.settings.collision_avoidance_settings.enabled = False
+    settings_wrapper.settings.collision_avoidance_settings.enabled = True
     settings_wrapper.settings.dynamic_obstacle_settings.enabled = False
 
     settings_wrapper.settings.tray_balance_settings.config.enabled.normal = True
@@ -214,6 +214,9 @@ def main():
             target_position=[1.28, 0.045, 0.647],
         )
 
+    cameras.BalancedObjectCamera(robot).save_frame()
+    cameras.RobotCamera(robot).save_frame()
+
     if SIM_TYPE == SimType.POSE_TO_POSE:
         target_times = [0]
         target_inputs = [u]
@@ -289,7 +292,11 @@ def main():
             )
 
     elif SIM_TYPE == SimType.STATIC_OBSTACLE:
-        target_times = np.array([0, 2, 4, 6, 8, 10])
+        target_duration = 10
+        num_waypoints = 6
+        target_dt = target_duration / (num_waypoints - 1)
+        # target_times = np.array([0, 2, 4, 6, 8, 10])
+        target_times = np.array([i * target_dt for i in range(num_waypoints)])
         target_inputs = [u for _ in target_times]
 
         Qd = Q_we
@@ -427,6 +434,11 @@ def main():
                 obstacle.reset_pose(r_obs0, (0, 0, 0, 1))
                 obstacle.reset_velocity(obstacle.velocity)
                 mpc.setTargetTrajectories(target_trajectories_obs2)
+
+
+        if SIM_TYPE == SimType.STATIC_OBSTACLE:
+            if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
+                target_idx += 1
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
             video.save_frame()

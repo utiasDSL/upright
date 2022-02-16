@@ -246,9 +246,6 @@ class Simulation:
         self.video_file_name = str(file_name)
 
     def basic_setup(self, load_static_obstacles):
-        if EE_INSCRIBED_RADIUS < TRAY_MU * TRAY_COM_HEIGHT:
-            print("warning: w < μh")
-
         # pyb.connect(pyb.GUI)
         pyb.connect(pyb.GUI, options="--width=1280 --height=720")
 

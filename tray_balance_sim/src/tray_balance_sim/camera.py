@@ -8,7 +8,7 @@ class Camera:
         self,
         target_position,
         distance=None,
-        roll=None,
+        roll=0,
         pitch=None,
         yaw=None,
         camera_position=None,

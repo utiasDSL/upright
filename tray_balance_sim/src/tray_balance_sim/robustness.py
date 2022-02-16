@@ -64,6 +64,7 @@ def set_bounding_spheres(
     k=2,
     num_images=4,
     plot_point_cloud=False,
+    save_point_cloud=True,
 ):
     cam_pos = [target[0], target[1] - 1, target[2]]
     camera = Camera(
@@ -148,6 +149,14 @@ def set_bounding_spheres(
         ax.set_ylabel("y")
         ax.set_zlabel("z")
         plt.show()
+
+    if save_point_cloud:
+        np.savez_compressed(
+            "pointcloud.npz",
+            points=points,
+            assignments=assignments,
+            target=target_e,
+        )
 
     r_ew_w, Q_we = robot.link_pose()
     C_we = util.quaternion_to_matrix(Q_we)

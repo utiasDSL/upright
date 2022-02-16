@@ -144,14 +144,14 @@
 
   <link name="chair3_1_link">
     <visual>
-      <origin rpy="0 0 0" xyz="4.25 0.25 0.675"/>
+      <origin rpy="0 0 0" xyz="4.25 0 0.675"/>
       <geometry>
         <cylinder length="1.35" radius="0.2"/>
       </geometry>
       <material name="person_color"/>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="4.25 0.25 0.675"/>
+      <origin rpy="0 0 0" xyz="4.25 0 0.675"/>
       <geometry>
         <cylinder length="1.35" radius="0.2"/>
       </geometry>
