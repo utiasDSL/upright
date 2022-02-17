@@ -250,6 +250,9 @@
       <geometry>
         <mesh filename="file:///home/adam/phd/code/projects/tray_balance/catkin_ws/src/tray_balance/tray_balance_assets/meshes/tor11_mech.dae"/>
       </geometry>
+      <material name="LightGrey">
+        <color rgba="0.7 0.7 0.7 1.0"/>
+      </material>
     </visual>
     <!-- <collision> -->
     <!-- 	<geometry> -->

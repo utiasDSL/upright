@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Testing of the robust balancing constraints"""
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -64,21 +65,22 @@ def main():
         load_static_obstacles=True,
     )
 
-    # front view
-    # pyb.resetDebugVisualizerCamera(
-    #     cameraDistance=4.8,
-    #     cameraYaw=78,
-    #     cameraPitch=-28.2,
-    #     cameraTargetPosition=[2.77, 0.043, 0.142],
-    # )
-
-    # side view
-    pyb.resetDebugVisualizerCamera(
-        cameraDistance=2.97,
-        cameraYaw=0,
-        cameraPitch=-43.8,
-        cameraTargetPosition=[2.77, 0.043, 0.142],
-    )
+    if len(sys.argv) > 1 and sys.argv[1] == "--front":
+        # front view
+        pyb.resetDebugVisualizerCamera(
+            cameraDistance=4.8,
+            cameraYaw=78,
+            cameraPitch=-28.2,
+            cameraTargetPosition=[2.77, 0.043, 0.142],
+        )
+    else:
+        # side view
+        pyb.resetDebugVisualizerCamera(
+            cameraDistance=2.97,
+            cameraYaw=0,
+            cameraPitch=-43.8,
+            cameraTargetPosition=[2.77, 0.043, 0.142],
+        )
 
     q, v = robot.joint_states()
     x = np.concatenate((q, v))

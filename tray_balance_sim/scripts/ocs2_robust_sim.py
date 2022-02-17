@@ -31,7 +31,7 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.STATIC_OBSTACLE
+SIM_TYPE = SimType.POSE_TO_POSE
 
 
 # simulation parameters
@@ -96,7 +96,8 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        CUP_CONFIG,
+        # CUP_CONFIG,
+        [],
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -108,7 +109,7 @@ def main():
 
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
-    settings_wrapper.settings.tray_balance_settings.robust = True
+    settings_wrapper.settings.tray_balance_settings.robust = False
     settings_wrapper.settings.collision_avoidance_settings.enabled = True
     settings_wrapper.settings.dynamic_obstacle_settings.enabled = False
 

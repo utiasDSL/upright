@@ -254,6 +254,9 @@
       <geometry>
         <mesh filename="file://$(find tray_balance_assets)/meshes/tor11_mech.dae"/>
       </geometry>
+      <material name="LightGrey">
+        <color rgba="0.7 0.7 0.7 1.0"/>
+      </material>
     </visual>
     <!-- <collision> -->
     <!-- 	<geometry> -->
