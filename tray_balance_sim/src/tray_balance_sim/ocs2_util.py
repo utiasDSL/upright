@@ -59,6 +59,9 @@ class TaskSettingsWrapper:
             ("wrist_collision_link_0", "table4_link_0"),
             ("wrist_collision_link_0", "table5_link_0"),
 
+            # wrist and shoulder
+            ("wrist_collision_link_0", "shoulder_collision_link_0"),
+
             # elbow and tables
             ("elbow_collision_link_0", "table1_link_0"),
             ("elbow_collision_link_0", "table2_link_0"),

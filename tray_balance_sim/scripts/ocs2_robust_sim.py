@@ -31,7 +31,7 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.POSE_TO_POSE
+SIM_TYPE = SimType.STATIC_OBSTACLE
 
 
 # simulation parameters
@@ -96,8 +96,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        # CUP_CONFIG,
-        [],
+        CUP_CONFIG,
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -109,7 +108,7 @@ def main():
 
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
-    settings_wrapper.settings.tray_balance_settings.robust = False
+    settings_wrapper.settings.tray_balance_settings.robust = True
     settings_wrapper.settings.collision_avoidance_settings.enabled = True
     settings_wrapper.settings.dynamic_obstacle_settings.enabled = False
 
@@ -293,24 +292,34 @@ def main():
             )
 
     elif SIM_TYPE == SimType.STATIC_OBSTACLE:
-        target_duration = 10
-        num_waypoints = 6
-        target_dt = target_duration / (num_waypoints - 1)
-        # target_times = np.array([0, 2, 4, 6, 8, 10])
-        target_times = np.array([i * target_dt for i in range(num_waypoints)])
-        target_inputs = [u for _ in target_times]
+        # target_duration = 8
+        # num_waypoints = 6
+        # target_dt = target_duration / (num_waypoints - 1)
+        # # target_times = np.array([0, 2, 4, 6, 8, 10])
+        # target_times = np.array([i * target_dt for i in range(num_waypoints)])
+        # target_inputs = [u for _ in target_times]
+        #
+        # Qd = Q_we
+        # r_obs0 = np.array(r_ew_w) + [0, -10, 0]
+        #
+        # target_states = [
+        #     np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)),
+        #     np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)),
+        #     np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)),
+        #     np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)),
+        #     np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)),
+        #     np.concatenate((r_ew_w + [5, 0, 0], Qd, r_obs0)),
+        # ]
 
+        target_times = [0]
+        target_inputs = [u]
+
+        # goal pose
+        r_ew_w_d = r_ew_w + [5, 0, 0]
         Qd = Q_we
         r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
-        target_states = [
-            np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)),
-            np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)),
-            np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)),
-            np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)),
-            np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)),
-            np.concatenate((r_ew_w + [5, 0, 0], Qd, r_obs0)),
-        ]
+        target_states = [np.concatenate((r_ew_w_d, Qd, r_obs0))]
 
     mpc = ocs2_util.setup_ocs2_mpc_interface(
         settings_wrapper.settings, target_times, target_states, target_inputs
