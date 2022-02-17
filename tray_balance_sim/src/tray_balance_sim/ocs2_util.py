@@ -83,7 +83,7 @@ class TaskSettingsWrapper:
         # dynamic obstacle settings
         settings.dynamic_obstacle_settings.enabled = False
         settings.dynamic_obstacle_settings.obstacle_radius = 0.1
-        settings.dynamic_obstacle_settings.mu = 1e-3  # NOTE lower than others
+        settings.dynamic_obstacle_settings.mu = 1e-2  # NOTE now matching others
         settings.dynamic_obstacle_settings.delta = 1e-3
 
         for sphere in [

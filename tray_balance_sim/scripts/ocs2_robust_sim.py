@@ -31,14 +31,15 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.STATIC_OBSTACLE
+SIM_TYPE = SimType.DYNAMIC_OBSTACLE
 
 
 # simulation parameters
 SIM_DT = 0.001
 CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 12.0  # duration of trajectory (s)
+# DURATION = 12.0  # duration of trajectory (s)
+DURATION = 6.0  # duration of trajectory (s)
 
 # measurement and process noise
 USE_NOISY_STATE_TO_PLAN = True
@@ -109,8 +110,13 @@ def main():
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
     settings_wrapper.settings.tray_balance_settings.robust = True
-    settings_wrapper.settings.collision_avoidance_settings.enabled = True
-    settings_wrapper.settings.dynamic_obstacle_settings.enabled = False
+
+    if SIM_TYPE == SimType.STATIC_OBSTACLE:
+        settings_wrapper.settings.collision_avoidance_settings.enabled = True
+
+    if SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
+        settings_wrapper.settings.collision_avoidance_settings.enabled = True
+        settings_wrapper.settings.dynamic_obstacle_settings.enabled = True
 
     settings_wrapper.settings.tray_balance_settings.config.enabled.normal = True
     settings_wrapper.settings.tray_balance_settings.config.enabled.friction = True
@@ -291,6 +297,11 @@ def main():
                 )
             )
 
+        settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.clear()
+        settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.push_back(
+            ("robust_collision_sphere_0", "forearm_collision_link_0"),
+        )
+
     elif SIM_TYPE == SimType.STATIC_OBSTACLE:
         # target_duration = 8
         # num_waypoints = 6
@@ -444,7 +455,6 @@ def main():
                 obstacle.reset_pose(r_obs0, (0, 0, 0, 1))
                 obstacle.reset_velocity(obstacle.velocity)
                 mpc.setTargetTrajectories(target_trajectories_obs2)
-
 
         if SIM_TYPE == SimType.STATIC_OBSTACLE:
             if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
