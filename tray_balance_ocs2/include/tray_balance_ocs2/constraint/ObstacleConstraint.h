@@ -90,7 +90,7 @@ class DynamicObstacleConstraint final : public StateConstraint {
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        return settings_.collision_spheres.size();
+        return settings_.collision_spheres.size() + 1;
     }
 
     vector_t getValue(scalar_t time, const vector_t& state,
@@ -117,8 +117,19 @@ class DynamicObstacleConstraint final : public StateConstraint {
             vector3_t r_so_w = r_sw_w - r_ow_w;
             scalar_t r = settings_.collision_spheres[i].radius +
                          settings_.obstacle_radius;
-            constraints(i) = r_so_w.norm() - r;
+            // Controller seems to require less compute when use this smooth
+            // version of the constraint
+            constraints(i) = r_so_w.dot(r_so_w) - r * r;
+            // constraints(i) = r_so_w.norm() - r;
         }
+
+        // Extra hard-coded hack to do self-collision avoidance between
+        // balanced objects and the forearm.
+        vector3_t vec = frame_positions[4] - frame_positions[1];
+        scalar_t r = settings_.collision_spheres[1].radius +
+                     settings_.collision_spheres[4].radius;
+        constraints(frame_positions.size()) = vec.dot(vec) - r * r;
+
         return constraints;
     }
 
@@ -143,8 +154,15 @@ class DynamicObstacleConstraint final : public StateConstraint {
         for (int i = 0; i < ee_positions.size(); ++i) {
             vector3_t vec = ee_positions[i].f - obstacle_pos;
             approximation.dfdx.row(i) =
-                vec.transpose() * ee_positions[i].dfdx / vec.norm();
+                2 * vec.transpose() * ee_positions[i].dfdx;
+            // approximation.dfdx.row(i) =
+            //     vec.transpose() * ee_positions[i].dfdx / vec.norm();
         }
+
+        vector3_t vec = ee_positions[4].f - ee_positions[1].f;
+        approximation.dfdx.row(ee_positions.size()) =
+            2 * vec.transpose() * ee_positions[4].dfdx -
+            2 * vec.transpose() * ee_positions[1].dfdx;
 
         return approximation;
     }

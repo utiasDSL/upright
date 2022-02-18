@@ -31,15 +31,15 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.POSE_TO_POSE
+SIM_TYPE = SimType.DYNAMIC_OBSTACLE
 
 
 # simulation parameters
 SIM_DT = 0.001
-CTRL_PERIOD = 25  # generate new control signal every CTRL_PERIOD timesteps
+CTRL_PERIOD = 40  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 12.0  # duration of trajectory (s)
-# DURATION = 6.0  # duration of trajectory (s)
+# DURATION = 12.0  # duration of trajectory (s)
+DURATION = 6.0  # duration of trajectory (s)
 
 # measurement and process noise
 USE_NOISY_STATE_TO_PLAN = True
@@ -60,7 +60,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 # robust bounding spheres
-USE_ROBUST_CONSTRAINTS = False
+USE_ROBUST_CONSTRAINTS = True
 NUM_BOUNDING_SPHERES = 1
 
 # goal 1
@@ -103,7 +103,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-            CUPS_CONFIG[:1],
+        CUPS_CONFIG,
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -121,7 +121,7 @@ def main():
         settings_wrapper.settings.collision_avoidance_settings.enabled = True
 
     if SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
-        settings_wrapper.settings.collision_avoidance_settings.enabled = True
+        settings_wrapper.settings.collision_avoidance_settings.enabled = False
         settings_wrapper.settings.dynamic_obstacle_settings.enabled = True
 
     settings_wrapper.settings.tray_balance_settings.config.enabled.normal = True
@@ -214,7 +214,7 @@ def main():
         control_period=CTRL_PERIOD,
         n_balance_con=settings_wrapper.get_num_balance_constraints(),
         n_collision_pair=settings_wrapper.get_num_collision_avoidance_constraints(),
-        n_dynamic_obs=settings_wrapper.get_num_dynamic_obstacle_constraints(),
+        n_dynamic_obs=settings_wrapper.get_num_dynamic_obstacle_constraints()+1,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
@@ -307,7 +307,7 @@ def main():
 
         settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.clear()
         settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.push_back(
-            ("robust_collision_sphere_0", "forearm_collision_link_0"),
+            ("robust_collision_sphere_0", "forearm_collision_sphere_link1_0"),
         )
 
     elif SIM_TYPE == SimType.STATIC_OBSTACLE:

@@ -111,6 +111,12 @@ class TaskSettingsWrapper:
                 offset=np.zeros(3),
                 radius=0.15,
             ),
+            # ocs2.CollisionSphere(
+            #     name="wrist_collision_link2",
+            #     parent_frame_name="ur10_arm_wrist_3_link",
+            #     offset=np.array([0, 0.25, 0]),
+            #     radius=0.03,
+            # ),
         ]:
             settings.dynamic_obstacle_settings.collision_spheres.push_back(sphere)
 
