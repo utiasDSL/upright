@@ -54,10 +54,14 @@ V_CMD_STDEV = np.sqrt(V_CMD_VAR)
 
 # video recording parameters
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/tray-balance/robust/")
-VIDEO_PATH = VIDEO_DIR / ("robust_stack3_" + TIMESTAMP)
+VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/heins-ral22/")
+VIDEO_PATH = VIDEO_DIR / ("dynamic_cups4_robust1_" + TIMESTAMP)
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
-RECORD_VIDEO = False
+RECORD_VIDEO = True
+if RECORD_VIDEO:
+    VIDEO_RECORDER = cameras.DynamicObstacleVideoRecorder3(VIDEO_PATH)
+
+DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
 
 # robust bounding spheres
 USE_ROBUST_CONSTRAINTS = True
@@ -121,7 +125,6 @@ def main():
         settings_wrapper.settings.collision_avoidance_settings.enabled = True
 
     if SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
-        settings_wrapper.settings.collision_avoidance_settings.enabled = False
         settings_wrapper.settings.dynamic_obstacle_settings.enabled = True
 
     settings_wrapper.settings.tray_balance_settings.config.enabled.normal = True
@@ -218,18 +221,9 @@ def main():
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
-    if RECORD_VIDEO:
-        video = VideoRecorder(
-            path=VIDEO_PATH,
-            distance=4,
-            roll=0,
-            pitch=-35.8,
-            yaw=42,
-            target_position=[1.28, 0.045, 0.647],
-        )
-
     cameras.BalancedObjectCamera(robot).save_frame()
     cameras.RobotCamera(robot).save_frame()
+    dynamic_cam = cameras.DynamicObstacleCamera()
 
     if SIM_TYPE == SimType.POSE_TO_POSE:
         target_times = [0]
@@ -466,7 +460,11 @@ def main():
                 target_idx += 1
 
         if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
-            video.save_frame()
+            VIDEO_RECORDER.save_frame()
+
+        # every 0.5 seconds
+        if DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT and i % 500 == 0:
+            dynamic_cam.save_frame(f"t{i}.png")
 
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")

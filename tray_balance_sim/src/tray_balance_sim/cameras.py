@@ -1,5 +1,5 @@
-
 from tray_balance_sim.camera import Camera
+from tray_balance_sim.recording import VideoRecorder
 
 
 class BalancedObjectCamera(Camera):
@@ -24,3 +24,53 @@ class RobotCamera(Camera):
 
     def save_frame(self):
         super().save_frame("robot.png")
+
+
+class DynamicObstacleCamera(Camera):
+    def __init__(self):
+        super().__init__(
+            distance=1.8,
+            roll=0,
+            pitch=-29,
+            yaw=147.6,
+            target_position=[1.28, 0.045, 0.647],
+        )
+
+
+# dynamic obstacle course POV #1
+class DynamicObstacleVideoRecorder1(VideoRecorder):
+    def __init__(self, path):
+        super().__init__(
+            path=path,
+            distance=1.8,
+            roll=0,
+            pitch=-29,
+            yaw=147.6,
+            target_position=[1.28, 0.045, 0.647],
+        )
+
+
+# dynamic obstacle course POV #2
+class DynamicObstacleVideoRecorder2(VideoRecorder):
+    def __init__(self, path):
+        super().__init__(
+            path=path,
+            distance=2.6,
+            roll=0,
+            pitch=-20.6,
+            yaw=-3.2,
+            target_position=[1.28, 0.045, 0.647],
+        )
+
+
+# static obstacle course POV #3
+class DynamicObstacleVideoRecorder3(VideoRecorder):
+    def __init__(self, path):
+        super().__init__(
+            path=path,
+            distance=4.8,
+            roll=0,
+            pitch=-13.4,
+            yaw=87.6,
+            target_position=[2.77, 0.043, 0.142],
+        )
