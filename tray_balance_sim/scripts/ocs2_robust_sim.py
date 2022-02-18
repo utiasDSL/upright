@@ -31,15 +31,15 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.DYNAMIC_OBSTACLE
+SIM_TYPE = SimType.POSE_TO_POSE
 
 
 # simulation parameters
 SIM_DT = 0.001
-CTRL_PERIOD = 50  # generate new control signal every CTRL_PERIOD timesteps
+CTRL_PERIOD = 25  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-# DURATION = 12.0  # duration of trajectory (s)
-DURATION = 6.0  # duration of trajectory (s)
+DURATION = 12.0  # duration of trajectory (s)
+# DURATION = 6.0  # duration of trajectory (s)
 
 # measurement and process noise
 USE_NOISY_STATE_TO_PLAN = True
@@ -60,6 +60,7 @@ VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = False
 
 # robust bounding spheres
+USE_ROBUST_CONSTRAINTS = False
 NUM_BOUNDING_SPHERES = 1
 
 # goal 1
@@ -71,12 +72,15 @@ NUM_BOUNDING_SPHERES = 1
 # ORIENTATION_GOAL = np.array([0, 0, 0, 1])
 
 # goal 3
-POSITION_GOAL = np.array([0, -2, 0])
-ORIENTATION_GOAL = np.array([0, 0, 1, 0])
+# POSITION_GOAL = np.array([0, -2, 0])
+# ORIENTATION_GOAL = np.array([0, 0, 1, 0])
 
 # pure rotation by 180 deg
 # POSITION_GOAL = np.array([0, 0, 0])
 # ORIENTATION_GOAL = np.array([0, 0, 1, 0])
+
+POSITION_GOAL = np.array([0, -2, -0.5])
+ORIENTATION_GOAL = np.array([0, 0, 1, 0])
 
 # object configurations
 SHORT_CONFIG = ["tray", "cuboid_short"]
@@ -87,7 +91,9 @@ STACK_CONFIG = [
     "cuboid2_stack",
     "cylinder3_stack",
 ]
-CUP_CONFIG = ["tray", "cylinder1_cup", "cylinder2_cup", "cylinder3_cup"]
+
+# note rearrangement to remove the most challenging cup first
+CUPS_CONFIG = ["tray", "cylinder3_cup", "cylinder1_cup", "cylinder2_cup"]
 
 
 def main():
@@ -97,7 +103,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        CUP_CONFIG,
+            CUPS_CONFIG[:1],
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -109,7 +115,7 @@ def main():
 
     settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
-    settings_wrapper.settings.tray_balance_settings.robust = True
+    settings_wrapper.settings.tray_balance_settings.robust = USE_ROBUST_CONSTRAINTS
 
     if SIM_TYPE == SimType.STATIC_OBSTACLE:
         settings_wrapper.settings.collision_avoidance_settings.enabled = True
@@ -147,12 +153,6 @@ def main():
                 )
             )
 
-        # instantly move all cups
-        # offset = np.array([0, 0.07, 0])
-        # for name in CUP_CONFIG[1:]:
-        #     r_ow_w, _ = objects[name].bullet.get_pose()
-        #     objects[name].bullet.reset_pose(r_ow_w + offset)
-
         # fmt: off
         for pair in [
             ("robust_collision_sphere_0", "chair3_1_link_0"),
@@ -162,6 +162,14 @@ def main():
         ]:
             settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.push_back(pair)
         # fmt: on
+
+        # instantly move all cups
+        # check if we are using cup config
+        if "cylinder1_cup" in objects:
+            offset = np.array([0, 0.07, 0])
+            for name in CUPS_CONFIG[1:]:
+                r_ow_w, _ = objects[name].bullet.get_pose()
+                objects[name].bullet.reset_pose(r_ow_w + offset)
 
     else:
         # if not using robust approach, use a default collision sphere
@@ -387,9 +395,6 @@ def main():
         mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
         robot.command_acceleration(u)
 
-        # if i == 300:
-        #     IPython.embed()
-
         if recorder.now_is_the_time(i):
             idx = recorder.record_index(i)
 
@@ -443,7 +448,7 @@ def main():
         for ghost in ghosts:
             ghost.update()
         t += sim.dt
-        time.sleep(sim.dt)
+        # time.sleep(sim.dt)
 
         # set the target trajectories to make controller aware of dynamic
         # obstacles

@@ -98,7 +98,7 @@ class BalancedBody:
             self.com_height + self.com_height_error,
             self.support_area,
             self.r_tau + self.r_tau_error,
-            self.mu + self.mu_error,
+            self.mu + self.mu_error - 0.01,
         )
 
 
