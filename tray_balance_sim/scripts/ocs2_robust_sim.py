@@ -57,7 +57,7 @@ TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/heins-ral22/")
 VIDEO_PATH = VIDEO_DIR / ("static_cups4_robust1_" + TIMESTAMP)
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
-RECORD_VIDEO = True
+RECORD_VIDEO = False
 if RECORD_VIDEO:
     # select appropriate recorder here
     VIDEO_RECORDER = cameras.StaticObstacleVideoRecorder3(VIDEO_PATH)
@@ -469,6 +469,9 @@ def main():
         # every 0.5 seconds
         if DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT and i % 500 == 0:
             dynamic_cam.save_frame(f"t{i}.png")
+
+        if i > 1000 and i % 200 == 0:
+            IPython.embed()
 
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
