@@ -31,15 +31,15 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.DYNAMIC_OBSTACLE
+SIM_TYPE = SimType.STATIC_OBSTACLE
 
 
 # simulation parameters
 SIM_DT = 0.001
-CTRL_PERIOD = 40  # generate new control signal every CTRL_PERIOD timesteps
+CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-# DURATION = 12.0  # duration of trajectory (s)
-DURATION = 6.0  # duration of trajectory (s)
+DURATION = 12.0  # duration of trajectory (s)
+# DURATION = 6.0  # duration of trajectory (s)
 
 # measurement and process noise
 USE_NOISY_STATE_TO_PLAN = True
@@ -55,11 +55,12 @@ V_CMD_STDEV = np.sqrt(V_CMD_VAR)
 # video recording parameters
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/heins-ral22/")
-VIDEO_PATH = VIDEO_DIR / ("dynamic_cups4_robust1_" + TIMESTAMP)
+VIDEO_PATH = VIDEO_DIR / ("static_cups4_robust1_" + TIMESTAMP)
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 RECORD_VIDEO = True
 if RECORD_VIDEO:
-    VIDEO_RECORDER = cameras.DynamicObstacleVideoRecorder3(VIDEO_PATH)
+    # select appropriate recorder here
+    VIDEO_RECORDER = cameras.StaticObstacleVideoRecorder3(VIDEO_PATH)
 
 DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
 
@@ -162,6 +163,7 @@ def main():
             ("robust_collision_sphere_0", "chair4_2_link_0"),
             ("robust_collision_sphere_0", "chair2_1_link_0"),
             ("robust_collision_sphere_0", "forearm_collision_link_0"),
+            # ("robust_collision_sphere_0", "forearm_collision_sphere_link1_0"),
         ]:
             settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.push_back(pair)
         # fmt: on
@@ -334,6 +336,8 @@ def main():
 
         target_states = [np.concatenate((r_ew_w_d, Qd, r_obs0))]
 
+        # ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
+
     mpc = ocs2_util.setup_ocs2_mpc_interface(
         settings_wrapper.settings, target_times, target_states, target_inputs
     )
@@ -478,7 +482,6 @@ def main():
         fname = prefix + "_" + TIMESTAMP
         recorder.save(fname)
 
-    # trying to catch non-unit-length quaternion bug
     last_sim_index = i
     recorder.plot_ee_position(last_sim_index)
     recorder.plot_ee_orientation(last_sim_index)
@@ -491,7 +494,7 @@ def main():
     recorder.plot_cmd_vs_real_vel(last_sim_index)
     recorder.plot_joint_config(last_sim_index)
 
-    if recorder.dynamic_obs_distance.shape[1] > 0:
+    if settings_wrapper.settings.dynamic_obstacle_settings.enabled:
         print(
             f"Min dynamic obstacle distance = {np.min(recorder.dynamic_obs_distance, axis=0)}"
         )

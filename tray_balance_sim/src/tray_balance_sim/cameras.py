@@ -63,8 +63,8 @@ class DynamicObstacleVideoRecorder2(VideoRecorder):
         )
 
 
-# static obstacle course POV #3
-class DynamicObstacleVideoRecorder3(VideoRecorder):
+# static obstacle course POV #1
+class StaticObstacleVideoRecorder1(VideoRecorder):
     def __init__(self, path):
         super().__init__(
             path=path,
@@ -74,3 +74,47 @@ class DynamicObstacleVideoRecorder3(VideoRecorder):
             yaw=87.6,
             target_position=[2.77, 0.043, 0.142],
         )
+
+# static obstacle course POV #2
+class StaticObstacleVideoRecorder2(VideoRecorder):
+    def __init__(self, path):
+        super().__init__(
+            path=path,
+            distance=3.4,
+            roll=0,
+            pitch=-23.4,
+            yaw=10.0,
+            target_position=[2.77, 0.043, 0.142],
+        )
+
+# static obstacle course POV #3
+class StaticObstacleVideoRecorder3(VideoRecorder):
+    def __init__(self, path):
+        super().__init__(
+            path=path,
+            distance=3.6,
+            roll=0,
+            pitch=-38.2,
+            yaw=-39.6,
+            target_position=[1.66, -0.31, 0.03],
+        )
+
+        # static obstacle course POV #1
+        # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+        #     distance=3.6,
+        #     yaw=-39.6,
+        #     pitch=-38.2,
+        #     roll=0,
+        #     cameraTargetPosition=[1.66, -0.31, 0.03],
+        #     upAxisIndex=2,
+        # )
+
+        # static obstacle course POV #2
+        # cam_view_matrix = pyb.computeViewMatrixFromYawPitchRoll(
+        #     distance=3.4,
+        #     yaw=10.0,
+        #     pitch=-23.4,
+        #     roll=0,
+        #     cameraTargetPosition=[2.77, 0.043, 0.142],
+        #     upAxisIndex=2,
+        # )
