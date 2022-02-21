@@ -68,24 +68,12 @@ DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
 USE_ROBUST_CONSTRAINTS = False
 NUM_BOUNDING_SPHERES = 1
 
-# goal 1
-# POSITION_GOAL = np.array([2, 0, -0.5])
-# ORIENTATION_GOAL = np.array([0, 0, 0, 1])
-
-# goal 2
-# POSITION_GOAL = np.array([0, 2, 0.5])
-# ORIENTATION_GOAL = np.array([0, 0, 0, 1])
-
-# goal 3
-# POSITION_GOAL = np.array([0, -2, 0])
-# ORIENTATION_GOAL = np.array([0, 0, 1, 0])
-
 # pure rotation by 180 deg
-POSITION_GOAL = np.array([0, 0, 0])
-ORIENTATION_GOAL = np.array([0, 0, 1, 0])
-
-# POSITION_GOAL = np.array([0, -2, -0.5])
+# POSITION_GOAL = np.array([0, 0, 0])
 # ORIENTATION_GOAL = np.array([0, 0, 1, 0])
+
+POSITION_GOAL = np.array([0, -2, -0.5])
+ORIENTATION_GOAL = np.array([0, 0, 1, 0])
 
 # object configurations
 SHORT_CONFIG = ["tray", "cuboid_short"]
