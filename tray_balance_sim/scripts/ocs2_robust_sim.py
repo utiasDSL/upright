@@ -53,14 +53,17 @@ V_STDEV = np.sqrt(V_VAR)
 V_CMD_STDEV = np.sqrt(V_CMD_VAR)
 
 # video recording parameters
+RECORD_VIDEO = True
+VIDEO_NAME = "short_all_mu0.5"
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/heins-ral22/")
-VIDEO_PATH = VIDEO_DIR / ("static_cups4_robust1_" + TIMESTAMP)
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
-RECORD_VIDEO = False
-if RECORD_VIDEO:
-    # select appropriate recorder here
-    VIDEO_RECORDER = cameras.StaticObstacleVideoRecorder3(VIDEO_PATH)
+# select appropriate video recorders here
+VIDEO_RECORDER_TYPES = [
+        (cameras.PoseToPoseVideoRecorder1, "view1"),
+        (cameras.PoseToPoseVideoRecorder2, "view2"),
+]
+    # VIDEO_RECORDER = cameras.PoseToPoseVideoRecorder2(VIDEO_PATH)
 
 DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
 
@@ -96,7 +99,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        TALL_CONFIG,
+        SHORT_CONFIG,
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -210,6 +213,13 @@ def main():
         n_dynamic_obs=settings_wrapper.get_num_dynamic_obstacle_constraints()+1,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
+
+    # set up video recordings
+    videos = []
+    if RECORD_VIDEO:
+        for video_type, postfix in VIDEO_RECORDER_TYPES:
+            name = "_".join([VIDEO_NAME, postfix, TIMESTAMP])
+            videos.append(video_type(VIDEO_DIR, name))
 
     cameras.BalancedObjectCamera(robot).save_frame()
     cameras.RobotCamera(robot).save_frame()
@@ -451,8 +461,11 @@ def main():
             if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
                 target_idx += 1
 
-        if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
-            VIDEO_RECORDER.save_frame()
+        # if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
+        #     VIDEO_RECORDER.save_frame()
+        if i % VIDEO_PERIOD == 0:
+            for video in videos:
+                video.save_frame()
 
         # every 0.5 seconds
         if DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT and i % 500 == 0:

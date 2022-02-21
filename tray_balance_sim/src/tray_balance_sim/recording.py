@@ -1,4 +1,6 @@
 import os
+import shutil
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as pyb
@@ -17,7 +19,8 @@ DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/IROS-RAL22/v2")
 class VideoRecorder(Camera):
     def __init__(
         self,
-        path,
+        directory,
+        name,
         distance,
         roll,
         pitch,
@@ -38,8 +41,12 @@ class VideoRecorder(Camera):
             height=height,
         )
 
-        os.makedirs(path)
-        self.path = path
+        self.path = directory / name
+        os.makedirs(self.path)
+
+        # copy in the frame -> video conversion script
+        shutil.copy(directory / "ffmpeg_png2mp4.sh", self.path)
+
         self.frame_count = 0
 
     def save_frame(self):
