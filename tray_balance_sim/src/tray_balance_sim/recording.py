@@ -122,6 +122,7 @@ class Recorder:
             dynamic_obs_distance=self.dynamic_obs_distance,
             collision_pair_distance=self.collision_pair_distance,
             control_durations=self.control_durations,
+            control_period=self.control_period,
         )
         print(f"Saved data to {path}.")
 

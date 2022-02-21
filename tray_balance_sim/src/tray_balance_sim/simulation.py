@@ -76,7 +76,7 @@ CUBOID_SHORT_COLOR = PLT_COLOR2
 CUBOID_SHORT_MU_CONTROL = CUBOID_SHORT_TRAY_MU
 CUBOID_SHORT_MU_ERROR = CUBOID_SHORT_MU_CONTROL - CUBOID_SHORT_TRAY_MU
 
-CUBOID_SHORT_R_TAU_CONTROL = CUBOID_SHORT_R_TAU
+CUBOID_SHORT_R_TAU_CONTROL = 10 * CUBOID_SHORT_R_TAU
 CUBOID_SHORT_R_TAU_ERROR = CUBOID_SHORT_R_TAU_CONTROL - CUBOID_SHORT_R_TAU
 
 ### tall cuboid ###
@@ -91,7 +91,7 @@ CUBOID_TALL_COLOR = PLT_COLOR2
 CUBOID_TALL_MU_CONTROL = CUBOID_TALL_TRAY_MU
 CUBOID_TALL_MU_ERROR = CUBOID_TALL_MU_CONTROL - CUBOID_TALL_TRAY_MU
 
-CUBOID_TALL_R_TAU_CONTROL = CUBOID_TALL_R_TAU
+CUBOID_TALL_R_TAU_CONTROL = 10 * CUBOID_TALL_R_TAU
 CUBOID_TALL_R_TAU_ERROR = CUBOID_TALL_R_TAU_CONTROL - CUBOID_TALL_R_TAU
 
 ### stack of boxes ###
@@ -766,11 +766,10 @@ class MobileManipulatorSimulation(Simulation):
         """Setup pybullet simulation."""
         super().basic_setup(load_static_obstacles)
 
-        # setup floating end effector
-        # robot = EndEffector(self.dt, side_length=EE_SIDE_LENGTH, position=(0, 0, 1))
-        robot = SimulatedRobot(self.dt)
+        robot = SimulatedRobot(
+            self.dt, load_static_collision_objects=load_static_obstacles
+        )
         self.robot = robot
-        # util.debug_frame(0.1, robot.uid, -1)
         robot.reset_joint_configuration(ROBOT_HOME)
 
         # simulate briefly to let the robot settle down after being positioned

@@ -4,3 +4,4 @@
 # hardcoding.
 xacro mm_ocs2.urdf.xacro -o mm_ocs2.urdf
 xacro mm_pyb.urdf.xacro -o mm_pyb.urdf
+xacro mm_pyb_static_obs.urdf.xacro -o mm_pyb_static_obs.urdf

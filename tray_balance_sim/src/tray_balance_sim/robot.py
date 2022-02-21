@@ -16,7 +16,12 @@ from tray_balance_sim.util import (
 )
 
 rospack = rospkg.RosPack()
-ROBOT_URDF_PATH = os.path.join(rospack.get_path("tray_balance_assets"), "urdf", "mm_pyb.urdf")
+ROBOT_URDF_PATH = os.path.join(
+    rospack.get_path("tray_balance_assets"), "urdf", "mm_pyb.urdf"
+)
+ROBOT_WITH_STATIC_OBS_URDF_PATH = os.path.join(
+    rospack.get_path("tray_balance_assets"), "urdf", "mm_pyb_static_obs.urdf"
+)
 
 BASE_JOINT_NAMES = ["x_to_world_joint", "y_to_x_joint", "base_to_y_joint"]
 
@@ -47,12 +52,23 @@ D7 = 0.290
 
 
 class SimulatedRobot:
-    def __init__(self, dt, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
+    def __init__(
+        self,
+        dt,
+        load_static_collision_objects=False,
+        position=(0, 0, 0),
+        orientation=(0, 0, 0, 1),
+    ):
         # NOTE: passing the flag URDF_MERGE_FIXED_LINKS is good for performance
         # but messes up the origins of the merged links, so this is not
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
-        self.uid = pyb.loadURDF(ROBOT_URDF_PATH, position, orientation)
+        if load_static_collision_objects:
+            self.uid = pyb.loadURDF(
+                ROBOT_WITH_STATIC_OBS_URDF_PATH, position, orientation
+            )
+        else:
+            self.uid = pyb.loadURDF(ROBOT_URDF_PATH, position, orientation)
 
         self.dt = dt
         self.ns = 18  # num state

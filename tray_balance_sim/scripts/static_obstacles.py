@@ -15,8 +15,8 @@ import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 import IPython
 
 
-DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/IROS-RAL22")
-DATA_DRIVE_FILE = "static_obstacles_robust1_test_2022-02-16_19-22-59.npz"
+DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/IROS-RAL22/v2")
+DATA_DRIVE_FILE = "static-obstacle/static_cups4_robust1_ctrlprd100_2022-02-18_23-44-44.npz"
 
 MAX_TIME = 10.0
 LINE_WIDTH = 5

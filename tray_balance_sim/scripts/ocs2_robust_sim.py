@@ -31,15 +31,15 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.STATIC_OBSTACLE
+SIM_TYPE = SimType.POSE_TO_POSE
 
 
 # simulation parameters
 SIM_DT = 0.001
-CTRL_PERIOD = 100  # generate new control signal every CTRL_PERIOD timesteps
+CTRL_PERIOD = 25  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
-DURATION = 12.0  # duration of trajectory (s)
-# DURATION = 6.0  # duration of trajectory (s)
+# DURATION = 12.0  # duration of trajectory (s)
+DURATION = 6.0  # duration of trajectory (s)
 
 # measurement and process noise
 USE_NOISY_STATE_TO_PLAN = True
@@ -65,7 +65,7 @@ if RECORD_VIDEO:
 DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
 
 # robust bounding spheres
-USE_ROBUST_CONSTRAINTS = True
+USE_ROBUST_CONSTRAINTS = False
 NUM_BOUNDING_SPHERES = 1
 
 # goal 1
@@ -81,11 +81,11 @@ NUM_BOUNDING_SPHERES = 1
 # ORIENTATION_GOAL = np.array([0, 0, 1, 0])
 
 # pure rotation by 180 deg
-# POSITION_GOAL = np.array([0, 0, 0])
-# ORIENTATION_GOAL = np.array([0, 0, 1, 0])
-
-POSITION_GOAL = np.array([0, -2, -0.5])
+POSITION_GOAL = np.array([0, 0, 0])
 ORIENTATION_GOAL = np.array([0, 0, 1, 0])
+
+# POSITION_GOAL = np.array([0, -2, -0.5])
+# ORIENTATION_GOAL = np.array([0, 0, 1, 0])
 
 # object configurations
 SHORT_CONFIG = ["tray", "cuboid_short"]
@@ -108,7 +108,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        CUPS_CONFIG,
+        TALL_CONFIG,
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -470,8 +470,9 @@ def main():
         if DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT and i % 500 == 0:
             dynamic_cam.save_frame(f"t{i}.png")
 
-        if i > 1000 and i % 200 == 0:
-            IPython.embed()
+        # for taking pictures manually during a trajectory
+        # if i > 1000 and i % 200 == 0:
+        #     IPython.embed()
 
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")
