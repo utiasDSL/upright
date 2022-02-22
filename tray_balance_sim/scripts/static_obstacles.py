@@ -36,24 +36,24 @@ def compute_data_length(times, max_time):
     return data_length
 
 
-def draw_curve(waypoints, rgb=(1, 0, 0), dist=0.05, linewidth=1, dashed=False):
-    # process waypoints to space them (roughly) evenly
-    visual_points = [waypoints[0, :]]
-    for i in range(1, len(waypoints)):
-        d = np.linalg.norm(waypoints[i, :] - visual_points[-1])
-        if d >= dist:
-            visual_points.append(waypoints[i, :])
-
-    step = 2 if dashed else 1
-    for i in range(0, len(visual_points) - 1, step):
-        start = visual_points[i]
-        end = visual_points[i + 1]
-        pyb.addUserDebugLine(
-            list(start),
-            list(end),
-            lineColorRGB=rgb,
-            lineWidth=linewidth,
-        )
+# def draw_curve(waypoints, rgb=(1, 0, 0), dist=0.05, linewidth=1, dashed=False):
+#     # process waypoints to space them (roughly) evenly
+#     visual_points = [waypoints[0, :]]
+#     for i in range(1, len(waypoints)):
+#         d = np.linalg.norm(waypoints[i, :] - visual_points[-1])
+#         if d >= dist:
+#             visual_points.append(waypoints[i, :])
+#
+#     step = 2 if dashed else 1
+#     for i in range(0, len(visual_points) - 1, step):
+#         start = visual_points[i]
+#         end = visual_points[i + 1]
+#         pyb.addUserDebugLine(
+#             list(start),
+#             list(end),
+#             lineColorRGB=rgb,
+#             lineWidth=linewidth,
+#         )
 
 
 def main():
@@ -128,16 +128,16 @@ def main():
 
     # draw from end to start to ensure the last point is drawn despite being
     # dashed (otherwise it looks like the error is large)
-    draw_curve(
+    util.draw_curve(
         np.flip(r_ew_wds, axis=0), linewidth=LINE_WIDTH, dashed=True, rgb=(0, 0, 0)
     )
-    draw_curve(
+    util.draw_curve(
         r_ew_ws[:data_length, :],
         linewidth=LINE_WIDTH,
         dashed=False,
         rgb=(0.839, 0.153, 0.157),
     )
-    draw_curve(
+    util.draw_curve(
         base_position[:data_length, :],
         linewidth=LINE_WIDTH,
         dashed=False,

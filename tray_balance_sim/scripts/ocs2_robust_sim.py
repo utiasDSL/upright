@@ -31,12 +31,12 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.POSE_TO_POSE
+SIM_TYPE = SimType.DYNAMIC_OBSTACLE
 
 
 # simulation parameters
 SIM_DT = 0.001
-CTRL_PERIOD = 25  # generate new control signal every CTRL_PERIOD timesteps
+CTRL_PERIOD = 40  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 # DURATION = 12.0  # duration of trajectory (s)
 DURATION = 6.0  # duration of trajectory (s)
@@ -44,31 +44,38 @@ DURATION = 6.0  # duration of trajectory (s)
 # measurement and process noise
 USE_NOISY_STATE_TO_PLAN = True
 
-Q_VAR = 0
-V_VAR = 0
-V_CMD_VAR = 0
+# Q_VAR = 0
+# V_VAR = 0
+# V_CMD_VAR = 0
 
-Q_STDEV = np.sqrt(Q_VAR)
-V_STDEV = np.sqrt(V_VAR)
-V_CMD_STDEV = np.sqrt(V_CMD_VAR)
+# Q_STDEV = np.sqrt(Q_VAR)
+# V_STDEV = np.sqrt(V_VAR)
+# V_CMD_STDEV = np.sqrt(V_CMD_VAR)
+
+# divide by 1000 to convert from mm to meters
+# Q_STDEV = 10 / 1000
+# V_STDEV = 100 / 1000
+# V_CMD_STDEV = 10 / 1000
+Q_STDEV = 0
+V_STDEV = 0
+V_CMD_STDEV = 0
 
 # video recording parameters
-RECORD_VIDEO = True
-VIDEO_NAME = "short_all_mu0.5"
+RECORD_VIDEO = False
+VIDEO_NAME = "stack4_nominal_uncertain"
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/heins-ral22/")
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 # select appropriate video recorders here
 VIDEO_RECORDER_TYPES = [
-        (cameras.PoseToPoseVideoRecorder1, "view1"),
-        (cameras.PoseToPoseVideoRecorder2, "view2"),
+    (cameras.PoseToPoseVideoRecorder1, "view1"),
+    (cameras.PoseToPoseVideoRecorder2, "view2"),
 ]
-    # VIDEO_RECORDER = cameras.PoseToPoseVideoRecorder2(VIDEO_PATH)
 
-DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
+DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = True
 
 # robust bounding spheres
-USE_ROBUST_CONSTRAINTS = False
+USE_ROBUST_CONSTRAINTS = True
 NUM_BOUNDING_SPHERES = 1
 
 # pure rotation by 180 deg
@@ -77,6 +84,14 @@ NUM_BOUNDING_SPHERES = 1
 
 POSITION_GOAL = np.array([0, -2, -0.5])
 ORIENTATION_GOAL = np.array([0, 0, 1, 0])
+
+# stack alernative
+# POSITION_GOAL = np.array([1, 1, 0])
+# ORIENTATION_GOAL = np.array([0, 0, 0, 1])
+
+# cups alternative
+# POSITION_GOAL = np.array([1.5, 0, 0.5])
+# ORIENTATION_GOAL = np.array([0, 0, 0, 1])
 
 # object configurations
 SHORT_CONFIG = ["tray", "cuboid_short"]
@@ -99,7 +114,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        SHORT_CONFIG,
+        CUPS_CONFIG,
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
@@ -125,6 +140,14 @@ def main():
 
     r_ew_w, Q_we = robot.link_pose()
 
+    # set up video recordings
+    # need to set it up here to pass into robust sphere generation
+    videos = []
+    if RECORD_VIDEO:
+        for video_type, postfix in VIDEO_RECORDER_TYPES:
+            name = "_".join([VIDEO_NAME, postfix, TIMESTAMP])
+            videos.append(video_type(VIDEO_DIR, name))
+
     ghosts = []  # ghost (i.e., pure visual) objects
     if settings_wrapper.settings.tray_balance_settings.robust:
         robustness.set_bounding_spheres(
@@ -133,6 +156,7 @@ def main():
             settings_wrapper.settings,
             target=r_ew_w + [0, 0, 0.1],
             sim_timestep=SIM_DT,
+            videos=None,
             plot_point_cloud=True,
             k=NUM_BOUNDING_SPHERES,
         )
@@ -210,16 +234,9 @@ def main():
         control_period=CTRL_PERIOD,
         n_balance_con=settings_wrapper.get_num_balance_constraints(),
         n_collision_pair=settings_wrapper.get_num_collision_avoidance_constraints(),
-        n_dynamic_obs=settings_wrapper.get_num_dynamic_obstacle_constraints()+1,
+        n_dynamic_obs=settings_wrapper.get_num_dynamic_obstacle_constraints() + 1,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
-
-    # set up video recordings
-    videos = []
-    if RECORD_VIDEO:
-        for video_type, postfix in VIDEO_RECORDER_TYPES:
-            name = "_".join([VIDEO_NAME, postfix, TIMESTAMP])
-            videos.append(video_type(VIDEO_DIR, name))
 
     cameras.BalancedObjectCamera(robot).save_frame()
     cameras.RobotCamera(robot).save_frame()
@@ -281,6 +298,17 @@ def main():
         target_trajectories_obs2 = ocs2_util.make_target_trajectories(
             target_times_obs2, target_states_obs, target_inputs
         )
+
+        if DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT:
+            # add visualizations for EE desired pose and obstacle trajectory
+            ghosts.append(
+                GhostSphere(radius=0.025, position=r_ew_w_d, color=(0, 0, 0, 1))
+            )
+            dots = np.linspace(r_obs0, r_obs0 + 2 * v_obs, 40)
+            for i in range(dots.shape[0]):
+                ghosts.append(
+                    GhostSphere(radius=0.01, position=dots[i, :], color=(1, 0, 0, 0.8))
+                )
 
         for (
             sphere

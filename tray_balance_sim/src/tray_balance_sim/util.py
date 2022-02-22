@@ -1,3 +1,4 @@
+import pybullet as pyb
 import numpy as np
 import jax.numpy as jnp
 from jaxlie import SO3
@@ -105,3 +106,23 @@ def calc_Q_et(Q_we, Q_wt):
 
 def quat_inverse(Q):
     return np.append(-Q[:3], Q[3])
+
+
+def draw_curve(waypoints, rgb=(1, 0, 0), dist=0.05, linewidth=1, dashed=False):
+    # process waypoints to space them (roughly) evenly
+    visual_points = [waypoints[0, :]]
+    for i in range(1, len(waypoints)):
+        d = np.linalg.norm(waypoints[i, :] - visual_points[-1])
+        if d >= dist:
+            visual_points.append(waypoints[i, :])
+
+    step = 2 if dashed else 1
+    for i in range(0, len(visual_points) - 1, step):
+        start = visual_points[i]
+        end = visual_points[i + 1]
+        pyb.addUserDebugLine(
+            list(start),
+            list(end),
+            lineColorRGB=rgb,
+            lineWidth=linewidth,
+        )

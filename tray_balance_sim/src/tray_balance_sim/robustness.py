@@ -7,6 +7,7 @@ import pybullet as pyb
 import liegroups
 from scipy.spatial.distance import pdist, squareform
 from scipy.spatial import KDTree
+from pyb_utils.ghost import GhostObject
 
 from tray_balance_sim import util, clustering
 from tray_balance_sim.camera import Camera
@@ -16,17 +17,24 @@ import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 import IPython
 
 
-def rotate_end_effector(robot, angle, duration, sim_timestep, realtime=True):
+# TODO we should pass this in
+VIDEO_PERIOD = 40
+
+
+def rotate_end_effector(robot, angle, duration, sim_timestep, videos=None, realtime=True):
     u = np.zeros(robot.ni)
     u[-1] = angle / duration
     robot.command_velocity(u)
 
-    t = 0
-    while t < duration:
+    N = int(duration / sim_timestep)
+    for i in range(N):
         if realtime:
             time.sleep(sim_timestep)
         pyb.stepSimulation()
-        t += sim_timestep
+        if i % VIDEO_PERIOD == 0:
+            if videos is not None:
+                for video in videos:
+                    video.save_frame()
 
     # reset velocity to zero so we're in a resting state when we start the
     # trajectory proper
@@ -63,6 +71,7 @@ def set_bounding_spheres(
     sim_timestep,
     k=2,
     num_images=4,
+    videos=None,
     plot_point_cloud=False,
     save_point_cloud=True,
 ):
@@ -76,6 +85,14 @@ def set_bounding_spheres(
         near=0.1,
         far=5,
     )
+
+    # TODO setup ghost camera, then delete once done
+    cam_visual_uid = pyb.createVisualShape(
+        shapeType=pyb.GEOM_BOX,
+        halfExtents=[0.05, 0.025, 0.025],
+        rgbaColor=(0, 0, 0, 1),
+    )
+    ghost_cam = GhostObject(cam_visual_uid, position=cam_pos)
 
     # rotate EE around z-axis for a total rotation of `total_angle`, taking
     # `num_images` depth images
@@ -94,6 +111,7 @@ def set_bounding_spheres(
             angle=angle_increment,
             sim_timestep=sim_timestep,
             duration=3.0,
+            videos=videos,
             realtime=False,
         )
 
@@ -105,8 +123,11 @@ def set_bounding_spheres(
         angle=-total_angle,
         sim_timestep=sim_timestep,
         duration=12.0,
+        videos=videos,
         realtime=False,
     )
+
+    pyb.removeBody(ghost_cam.uid)
 
     # compute max_radius for robust inertia
     max_radius = 0.5 * np.max(pdist(points))
