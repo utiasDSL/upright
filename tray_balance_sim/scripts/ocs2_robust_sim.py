@@ -31,15 +31,22 @@ class SimType(enum.Enum):
     STATIC_OBSTACLE = 3
 
 
-SIM_TYPE = SimType.DYNAMIC_OBSTACLE
+SIM_TYPE = SimType.POSE_TO_POSE
 
 
 # simulation parameters
 SIM_DT = 0.001
-CTRL_PERIOD = 40  # generate new control signal every CTRL_PERIOD timesteps
 RECORD_PERIOD = 10
 # DURATION = 12.0  # duration of trajectory (s)
 DURATION = 6.0  # duration of trajectory (s)
+
+# generate new control signal every CTRL_PERIOD timesteps
+if SIM_TYPE == SimType.POSE_TO_POSE:
+    CTRL_PERIOD = 25
+elif SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
+    CTRL_PERIOD = 40
+elif SIM_TYPE == SimType.STATIC_OBSTACLE:
+    CTRL_PERIOD = 100
 
 # measurement and process noise
 USE_NOISY_STATE_TO_PLAN = True
@@ -72,10 +79,10 @@ VIDEO_RECORDER_TYPES = [
     (cameras.PoseToPoseVideoRecorder2, "view2"),
 ]
 
-DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = True
+DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
 
 # robust bounding spheres
-USE_ROBUST_CONSTRAINTS = True
+USE_ROBUST_CONSTRAINTS = False
 NUM_BOUNDING_SPHERES = 1
 
 # pure rotation by 180 deg
@@ -190,6 +197,12 @@ def main():
             for name in CUPS_CONFIG[1:]:
                 r_ow_w, _ = objects[name].bullet.get_pose()
                 objects[name].bullet.reset_pose(r_ow_w + offset)
+
+        ball = settings_wrapper.settings.tray_balance_settings.robust_params.balls[0]
+        r_ow_w, _ = objects["cylinder2_cup"].bullet.get_pose()
+        r_ew_w, Q_we = robot.link_pose()
+        com = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
+        IPython.embed()
 
     else:
         # if not using robust approach, use a default collision sphere

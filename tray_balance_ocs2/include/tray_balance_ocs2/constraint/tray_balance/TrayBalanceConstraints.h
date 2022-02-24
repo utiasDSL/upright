@@ -42,7 +42,8 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         // pre-compute parameter values (since they don't currently change
         // during execution)
         size_t index = 0;
-        for (auto& obj : config_.objects) {
+        for (const auto& obj : config_.objects) {
+            // std::cout << obj.body.inertia << std::endl;
             vector_t p = obj.get_parameters();
             size_t n = p.size();
             params_.segment(index, n) = p;

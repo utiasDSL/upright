@@ -22,10 +22,10 @@ USE_STACK_ERROR = False
 USE_CUPS_ERROR = False
 
 # use this with robust
-CUPS_OFFSET_SIM = np.array([0, 0, 0])
+# CUPS_OFFSET_SIM = np.array([0, 0, 0])
 
 # use this with nominal
-# CUPS_OFFSET_SIM = np.array([0, 0.07, 0])
+CUPS_OFFSET_SIM = np.array([0, 0.07, 0])
 
 if USE_CUPS_ERROR:
     CUPS_OFFSET_CONTROL = -CUPS_OFFSET_SIM
