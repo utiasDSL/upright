@@ -1,3 +1,4 @@
 *.mp4
 *.pdf
 *.npz
+artifacts/
