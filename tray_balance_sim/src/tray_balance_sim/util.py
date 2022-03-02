@@ -1,7 +1,5 @@
 import pybullet as pyb
 import numpy as np
-import jax.numpy as jnp
-from jaxlie import SO3
 import liegroups
 from scipy.linalg import expm
 
@@ -50,12 +48,12 @@ def skew1(x):
     return np.array([[0, -x], [x, 0]])
 
 
-def skew3(x, np=jnp):
+def skew3(x):
     """3D skew-symmetric operator."""
     return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
 
 
-def dhtf(q, a, d, α, np=jnp):
+def dhtf(q, a, d, α):
     """Constuct a transformation matrix from D-H parameters."""
     cα = np.cos(α)
     sα = np.sin(α)
@@ -94,14 +92,17 @@ def calc_r_te_e(r_ew_w, Q_we, r_tw_w):
     """Calculate position of tray relative to the EE."""
     # C_{ew} @ (r^{tw}_w - r^{ew}_w)
     r_te_w = r_tw_w - r_ew_w
-    return SO3.from_quaternion_xyzw(Q_we).inverse() @ r_te_w
+    C_ew = quaternion_to_matrix(Q_we).T
+    return C_ew @ r_te_w
 
 
 def calc_Q_et(Q_we, Q_wt):
     """Calculate orientation of tray relative to the EE."""
-    SO3_we = SO3.from_quaternion_xyzw(Q_we)
-    SO3_wt = SO3.from_quaternion_xyzw(Q_wt)
-    return SO3_we.inverse().multiply(SO3_wt).as_quaternion_xyzw()
+    SO3_we = liegroups.SO3.from_quaternion(Q_we, ordering="xyzw")
+    SO3_wt = liegroups.SO3.from_quaternion(Q_wt, ordering="xyzw")
+    # SO3_we = SO3.from_quaternion_xyzw(Q_we)
+    # SO3_wt = SO3.from_quaternion_xyzw(Q_wt)
+    return SO3_we.inverse().dot(SO3_wt).to_quaternion(ordering="xyzw")
 
 
 def quat_inverse(Q):

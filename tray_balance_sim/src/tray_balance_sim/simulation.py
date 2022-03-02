@@ -5,7 +5,6 @@ import pybullet as pyb
 import pybullet_data
 import rospkg
 
-from tray_balance_sim.end_effector import EndEffector
 from tray_balance_sim.robot import SimulatedRobot
 import tray_balance_sim.util as util
 import tray_balance_sim.geometry as geometry
