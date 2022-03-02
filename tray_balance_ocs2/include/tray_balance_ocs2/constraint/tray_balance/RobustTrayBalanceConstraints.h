@@ -12,7 +12,6 @@
 
 #include <tray_balance_constraints/inequality_constraints.h>
 #include <tray_balance_constraints/robust.h>
-#include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceConfigurations.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {

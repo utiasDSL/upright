@@ -13,7 +13,6 @@
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ConstraintType.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
-#include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceConfigurations.h"
 #include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h"
 
 using namespace ocs2;
