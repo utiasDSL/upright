@@ -1,19 +1,13 @@
 import os
 
 import numpy as np
-import jax
-import jax.numpy as jnp
-from jax.scipy.linalg import block_diag
 import pybullet as pyb
-import jaxlie
 import rospkg
+import pinocchio
+import liegroups
 
 import IPython
 
-from tray_balance_sim.util import (
-    dhtf,
-    rot2d,
-)
 
 rospack = rospkg.RosPack()
 ROBOT_URDF_PATH = os.path.join(
@@ -37,18 +31,7 @@ UR10_JOINT_NAMES = [
 ROBOT_JOINT_NAMES = BASE_JOINT_NAMES + UR10_JOINT_NAMES
 
 TOOL_JOINT_NAME = "tool0_tcp_fixed_joint"
-
-# DH parameters
-PX = 0.27
-PY = 0.01
-PZ = 0.653
-D1 = 0.1273
-A2 = -0.612
-A3 = -0.5723
-D4 = 0.163941
-D5 = 0.1157
-D6 = 0.0922
-D7 = 0.290
+TOOL_LINK_NAME = "thing_tool"
 
 
 class SimulatedRobot:
@@ -129,9 +112,10 @@ class SimulatedRobot:
         """
         state = pyb.getJointState(self.uid, self.robot_joint_indices[2])
         yaw = state[0]
-        C_wb = np.array(
-            [[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]]
-        )
+        # C_wb = np.array(
+        #     [[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]]
+        # )
+        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
         return C_wb
 
     def command_velocity(self, u, bodyframe=True):
@@ -216,142 +200,99 @@ class SimulatedRobot:
         return J
 
 
-class KinematicChain:
-    """All transforms on the robot kinematic chain for a given configuration."""
+class PinocchioRobot:
+    def __init__(self):
+        rospack = rospkg.RosPack()
+        urdf_path = os.path.join(
+            rospack.get_path("tray_balance_assets"), "urdf", "mm_ocs2.urdf"
+        )
 
-    # world to base
-    T0 = dhtf(np.pi / 2, 0, 0.01, np.pi / 2)
-    T_w_0 = T0
+        root_joint = pinocchio.JointModelComposite(3)
+        root_joint.addJoint(pinocchio.JointModelPX())
+        root_joint.addJoint(pinocchio.JointModelPY())
+        root_joint.addJoint(pinocchio.JointModelRZ())
+        self.model = pinocchio.buildModelFromUrdf(urdf_path, root_joint)
 
-    # base to arm
-    T4 = dhtf(0, PX, PZ, -np.pi / 2)
-    T5 = dhtf(0, 0, PY, np.pi / 2)
+        self.nq = self.model.nq
+        self.nv = self.model.nv
+        self.ns = self.nq + self.nv
+        self.ni = self.nv
 
-    # tool offset
-    T12 = dhtf(np.pi, 0, D7, 0)
+        self.data = self.model.createData()
 
-    def __init__(self, q):
-        self.T1 = dhtf(np.pi / 2, 0, q[0], np.pi / 2)
-        self.T2 = dhtf(np.pi / 2, 0, q[1], np.pi / 2)
-        self.T3 = dhtf(q[2], 0, 0, 0)
+        self.tool_idx = self.model.getBodyId(TOOL_LINK_NAME)
 
-        self.T6 = dhtf(q[3], 0, D1, np.pi / 2)
-        self.T7 = dhtf(q[4], A2, 0, 0)
-        self.T8 = dhtf(q[5], A3, 0, 0)
-        self.T9 = dhtf(q[6], 0, D4, np.pi / 2)
-        self.T10 = dhtf(q[7], 0, D5, -np.pi / 2)
-        self.T11 = dhtf(q[8], 0, D6, 0)
+    def forward_qva(self, q, v=None, a=None):
+        """Forward kinematics using (q, v, a) all in the world frame (i.e.,
+        corresponding directly to the Pinocchio model."""
+        if v is None:
+            v = np.zeros(self.nv)
+        if a is None:
+            a = np.zeros(self.ni)
 
-        self.T_w_1 = self.T_w_0 @ self.T1
-        self.T_w_2 = self.T_w_1 @ self.T2
-        self.T_w_3 = self.T_w_2 @ self.T3
+        pinocchio.forwardKinematics(self.model, self.data, q, v, a)
+        pinocchio.updateFramePlacements(self.model, self.data)
 
-        self.T_w_5 = self.T_w_3 @ self.T4 @ self.T5
-        self.T_w_6 = self.T_w_5 @ self.T6
-        self.T_w_7 = self.T_w_6 @ self.T7
-        self.T_w_8 = self.T_w_7 @ self.T8
-        self.T_w_9 = self.T_w_8 @ self.T9
-        self.T_w_10 = self.T_w_9 @ self.T10
-        self.T_w_11 = self.T_w_10 @ self.T11
+    def forward(self, x, u=None):
+        """Forward kinematics. Must be called before the link pose, velocity,
+        or acceleration methods."""
+        q, v = x[: self.nq], x[self.nq :]
+        assert v.shape[0] == self.nv
+        if u is None:
+            u = np.zeros(self.ni)
 
-        self.T_w_12 = self.T_w_11 @ self.T12
-        self.T_w_tool = self.T_w_12
+        # rotate input into the world frame
+        a = np.copy(u)
+        C_wb = liegroups.SO3.rotz(q[2]).as_matrix()
+        a[:3] = C_wb @ u[:3]
 
+        self.forward_qva(q, v, a)
 
-class RobotModel:
-    def __init__(self, dt):
-        self.dt = dt
-        self.ni = 9
-        self.ns = 9 + 9
+    def link_pose(self, link_idx=None):
+        if link_idx is None:
+            link_idx = self.tool_idx
+        pose = self.data.oMf[link_idx]
+        r = pose.translation
+        Q = liegroups.SO3(pose.rotation).to_quaternion(ordering="xyzw")
+        return r.copy(), Q.copy()
 
-        self.dJdq = jax.jit(jax.jacfwd(self.jacobian))
+    def link_velocity(self, link_idx=None):
+        if link_idx is None:
+            link_idx = self.tool_idx
+        V = pinocchio.getFrameVelocity(
+            self.model,
+            self.data,
+            link_idx,
+            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
+        )
+        return V.linear, V.angular
+
+    def link_acceleration(self, link_idx=None):
+        if link_idx is None:
+            link_idx = self.tool_idx
+        A = pinocchio.getFrameClassicalAcceleration(
+            self.model,
+            self.data,
+            link_idx,
+            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
+        )
+        return A.linear, A.angular
 
     def jacobian(self, q):
-        """Compute geometric Jacobian."""
+        return pinocchio.computeFrameJacobian(self.model, self.data, q, self.tool_idx)
 
-        def rotation(T):
-            return T[:3, :3]
-
-        def translation(T):
-            return T[:3, 3]
-
-        chain = KinematicChain(q)
-        z = np.array([0, 0, 1])  # Unit vector along z-axis
-
-        # axis for each joint's angular velocity is the z-axis of the previous
-        # transform
-        z0 = rotation(chain.T_w_0) @ z
-        z1 = rotation(chain.T_w_1) @ z
-        z2 = rotation(chain.T_w_2) @ z
-
-        z5 = rotation(chain.T_w_5) @ z
-        z6 = rotation(chain.T_w_6) @ z
-        z7 = rotation(chain.T_w_7) @ z
-        z8 = rotation(chain.T_w_8) @ z
-        z9 = rotation(chain.T_w_9) @ z
-        z10 = rotation(chain.T_w_10) @ z
-
-        # Angular Jacobian
-        # joints xb and yb are prismatic, and so cause no angular velocity.
-        Jo = jnp.vstack((np.zeros(3), np.zeros(3), z2, z5, z6, z7, z8, z9, z10)).T
-
-        pe = translation(chain.T_w_tool)
-        Jp = jnp.vstack(
-            (
-                z0,
-                z1,
-                jnp.cross(z2, pe - translation(chain.T_w_2)),
-                jnp.cross(z5, pe - translation(chain.T_w_5)),
-                jnp.cross(z6, pe - translation(chain.T_w_6)),
-                jnp.cross(z7, pe - translation(chain.T_w_7)),
-                jnp.cross(z8, pe - translation(chain.T_w_8)),
-                jnp.cross(z9, pe - translation(chain.T_w_9)),
-                jnp.cross(z10, pe - translation(chain.T_w_10)),
-            )
-        ).T
-
-        # Full Jacobian
-        return jnp.vstack((Jp, Jo))
-
-    def tool_pose_matrix(self, q):
-        """Tool pose as 4x4 homogeneous transformation matrix."""
-        return KinematicChain(q).T_w_tool
-
-    def tool_pose(self, q):
-        """Tool pose as position and quaternion."""
-        T = jaxlie.SE3.from_matrix(self.tool_pose_matrix(q))
-        r = T.translation()
-        Q = T.rotation().as_quaternion_xyzw()
-        return r, Q
-
-    def tool_velocity(self, q, v):
-        """Calculate velocity at the tool with given joint state.
-
-        x = [q, dq] is the joint state.
-        """
-        # NOTE it is much faster to let pybullet do this, so do that unless
-        # there is good reason not too
-        return pose_to_pos_quat(self.jacobian(q) @ v)
-
-    def tool_acceleration(self, x, u):
-        """Calculate acceleration at the tool with given joint state.
-
-        x = [q, dq] is the joint state.
-        """
-        q, v = x[: self.ni], x[self.ni :]
-        return self.jacobian(q) @ u + v @ self.dJdq(q) @ v
-
-    def tangent(self, x, u):
-        """Tangent vector dx = f(x, u)."""
-        B = block_diag(rot2d(x[2], np=jnp), jnp.eye(7))
-        return jnp.concatenate((x[self.ni :], B @ u))
-
-    def simulate(self, x, u):
-        """Forward simulate the model."""
-        # TODO not sure if I can somehow use RK4 for part and not for
-        # all---we'd have to split base and arm
-        k1 = self.tangent(x, u)
-        k2 = self.tangent(x + self.dt * k1 / 2, u)
-        k3 = self.tangent(x + self.dt * k2 / 2, u)
-        k4 = self.tangent(x + self.dt * k3, u)
-        return x + self.dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
+    # TODO need to update these methods from previous iteration of the model
+    # def tangent(self, x, u):
+    #     """Tangent vector dx = f(x, u)."""
+    #     B = block_diag(rot2d(x[2], np=jnp), jnp.eye(7))
+    #     return jnp.concatenate((x[self.ni :], B @ u))
+    #
+    # def simulate(self, x, u):
+    #     """Forward simulate the model."""
+    #     # TODO not sure if I can somehow use RK4 for part and not for
+    #     # all---we'd have to split base and arm
+    #     k1 = self.tangent(x, u)
+    #     k2 = self.tangent(x + self.dt * k1 / 2, u)
+    #     k3 = self.tangent(x + self.dt * k2 / 2, u)
+    #     k4 = self.tangent(x + self.dt * k3, u)
+    #     return x + self.dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6

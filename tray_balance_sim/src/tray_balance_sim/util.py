@@ -21,10 +21,10 @@ def transform_point(r_ba_a, Q_ab, r_cb_b):
     return r_ba_a + C_ab @ r_cb_b
 
 
-def rot2d(θ, np=np):
+def rot2d(angle):
     """2D rotation matrix: rotates points counter-clockwise."""
-    c = np.cos(θ)
-    s = np.sin(θ)
+    c = np.cos(angle)
+    s = np.sin(angle)
     return np.array([[c, -s], [s, c]])
 
 
