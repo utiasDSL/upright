@@ -22,7 +22,6 @@ set(CATKIN_PACKAGE_DEPENDENCIES
   ocs2_self_collision
   ocs2_self_collision_visualization
   tray_balance_constraints
-  tray_balance_msgs
   ocs2_python_interface
 )
 
@@ -92,78 +91,6 @@ target_link_libraries(${PROJECT_NAME}
 )
 target_compile_options(${PROJECT_NAME} PUBLIC ${FLAGS})
 
-# MPC node
-# add_executable(mobile_manipulator_mpc_node
-#   src/MobileManipulatorMpcNode.cpp
-# )
-# add_dependencies(mobile_manipulator_mpc_node
-#   ${PROJECT_NAME}
-#   ${catkin_EXPORTED_TARGETS}
-# )
-# target_link_libraries(mobile_manipulator_mpc_node
-#   ${PROJECT_NAME}
-#   ${catkin_LIBRARIES}
-# )
-# target_compile_options(mobile_manipulator_mpc_node PUBLIC ${FLAGS})
-
-# DistanceVisualization node
-# add_executable(mobile_manipulator_distance_visualization
-#   src/MobileManipulatorDistanceVisualization.cpp
-# )
-# add_dependencies(mobile_manipulator_distance_visualization
-#   ${PROJECT_NAME}
-#   ${catkin_EXPORTED_TARGETS}
-# )
-# target_link_libraries(mobile_manipulator_distance_visualization
-#   ${PROJECT_NAME}
-#   ${catkin_LIBRARIES}
-# )
-# target_compile_options(mobile_manipulator_distance_visualization PUBLIC ${FLAGS})
-
-# Dummy node
-# add_executable(mobile_manipulator_dummy_mrt_node
-#   src/MobileManipulatorDummyMRT.cpp
-#   src/MobileManipulatorDummyVisualization.cpp
-# )
-# add_dependencies(mobile_manipulator_dummy_mrt_node
-#   ${PROJECT_NAME}
-#   ${catkin_EXPORTED_TARGETS}
-# )
-# target_link_libraries(mobile_manipulator_dummy_mrt_node
-#   ${PROJECT_NAME}
-#   ${catkin_LIBRARIES}
-# )
-# target_compile_options(mobile_manipulator_dummy_mrt_node PUBLIC ${FLAGS})
-
-# Target node
-# add_executable(mobile_manipulator_target
-#   src/MobileManipulatorTarget.cpp
-# )
-# add_dependencies(mobile_manipulator_target
-#   ${PROJECT_NAME}
-#   ${catkin_EXPORTED_TARGETS}
-# )
-# target_link_libraries(mobile_manipulator_target
-#   ${PROJECT_NAME}
-#   ${catkin_LIBRARIES}
-# )
-# target_compile_options(mobile_manipulator_target PUBLIC ${FLAGS})
-
-# My new MPC-MRT node
-# add_executable(mpc_mrt_node
-#   src/mpc_mrt_node.cpp
-#   src/MobileManipulatorDummyVisualization.cpp
-# )
-# add_dependencies(mpc_mrt_node
-#   ${PROJECT_NAME}
-#   ${catkin_EXPORTED_TARGETS}
-# )
-# target_link_libraries(mpc_mrt_node
-#   ${PROJECT_NAME}
-#   ${catkin_LIBRARIES}
-# )
-# target_compile_options(mpc_mrt_node PUBLIC ${FLAGS})
-
 # python bindings
 pybind11_add_module(MobileManipulatorPythonInterface SHARED
   src/pybindings.cpp
@@ -181,21 +108,6 @@ set_target_properties(MobileManipulatorPythonInterface
 )
 
 catkin_python_setup()
-
-####################
-## Clang tooling ###
-####################
-
-# find_package(cmake_clang_tools QUIET)
-# if (cmake_clang_tools_FOUND)
-#   message(STATUS "Run clang tooling")
-#   add_clang_tooling(
-#     TARGETS ${PROJECT_NAME} mobile_manipulator_mpc_node mobile_manipulator_dummy_mrt_node
-#     SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/include
-#     CT_HEADER_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
-#     CF_WERROR
-#   )
-# endif (cmake_clang_tools_FOUND)
 
 #############
 ## Install ##
