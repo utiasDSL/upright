@@ -4,7 +4,8 @@
 
 #include <ocs2_core/Types.h>
 #include <ocs2_python_interface/PybindMacros.h>
-#include <tray_balance_constraints/inequality_constraints.h>
+#include <tray_balance_constraints/dynamics.h>
+#include <tray_balance_constraints/nominal.h>
 #include <tray_balance_constraints/robust.h>
 #include <tray_balance_constraints/types.h>
 
@@ -106,11 +107,11 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("friction", &BalanceConstraintsEnabled::friction)
         .def_readwrite("zmp", &BalanceConstraintsEnabled::zmp);
 
-    pybind11::class_<TrayBalanceConfiguration>(m, "TrayBalanceConfiguration")
+    pybind11::class_<TrayBalanceConfiguration<scalar_t>>(m, "TrayBalanceConfiguration")
         .def(pybind11::init<>())
-        .def_readwrite("objects", &TrayBalanceConfiguration::objects)
-        .def_readwrite("enabled", &TrayBalanceConfiguration::enabled)
-        .def("num_constraints", &TrayBalanceConfiguration::num_constraints);
+        .def_readwrite("objects", &TrayBalanceConfiguration<scalar_t>::objects)
+        .def_readwrite("enabled", &TrayBalanceConfiguration<scalar_t>::enabled)
+        .def("num_constraints", &TrayBalanceConfiguration<scalar_t>::num_constraints);
 
     pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
         .def(pybind11::init<>())

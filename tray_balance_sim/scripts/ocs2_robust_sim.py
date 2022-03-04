@@ -116,6 +116,7 @@ CUPS_CONFIG = ["tray", "cylinder3_cup", "cylinder1_cup", "cylinder2_cup"]
 
 def main():
     np.set_printoptions(precision=3, suppress=True)
+
     N = int(DURATION / SIM_DT)
 
     # simulation, objects, and model

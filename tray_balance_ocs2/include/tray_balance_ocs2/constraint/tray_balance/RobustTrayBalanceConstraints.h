@@ -10,7 +10,6 @@
 #include <ocs2_core/constraint/StateInputConstraintCppAd.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 
-#include <tray_balance_constraints/inequality_constraints.h>
 #include <tray_balance_constraints/robust.h>
 
 namespace ocs2 {

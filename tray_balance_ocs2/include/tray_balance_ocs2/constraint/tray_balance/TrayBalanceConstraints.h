@@ -10,7 +10,7 @@
 #include <ocs2_core/constraint/StateInputConstraintCppAd.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 
-#include <tray_balance_constraints/inequality_constraints.h>
+#include <tray_balance_constraints/nominal.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -27,27 +27,16 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
 
     TrayBalanceConstraints(
         const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-        const TrayBalanceConfiguration& config, bool recompileLibraries)
+        const TrayBalanceConfiguration<scalar_t>& config,
+        bool recompileLibraries)
         : StateInputConstraintCppAd(ConstraintOrder::Linear),
           pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
           config_(config),
-          params_(config.num_parameters()) {
+          params_(config.get_parameters()) {
         if (pinocchioEEKinematics.getIds().size() != 1) {
             throw std::runtime_error(
                 "[TrayBalanaceConstraint] endEffectorKinematics has wrong "
                 "number of end effector IDs.");
-        }
-
-        // pre-compute parameter values (since they don't currently change
-        // during execution)
-        size_t index = 0;
-        for (const auto& obj : config_.objects) {
-            // std::cout << obj.body.inertia << std::endl;
-            vector_t p = obj.get_parameters();
-            size_t n = p.size();
-            params_.segment(index, n) = p;
-            index += n;
-            param_sizes_.push_back(n);
         }
 
         // initialize everything, mostly the CppAD interface (compile the
@@ -69,7 +58,10 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
 
-    vector_t getParameters(scalar_t time) const override { return params_; }
+    vector_t getParameters(scalar_t time) const override {
+        // Parameters are constant for now
+        return params_;
+    }
 
    protected:
     ad_vector_t constraintFunction(
@@ -83,37 +75,16 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        // for debugging purposes: we can skip using the parameters and just
-        // hardcode the values into the AD library
-        // std::vector<BalancedObject<ad_scalar_t>> objects;
-        // for (auto& obj : config_.objects) {
-        //     objects.push_back(obj.cast<ad_scalar_t>());
-        // }
-
-        // Reconstruct the objects from the parameters
-        std::vector<BalancedObject<ad_scalar_t>> objects;
-        size_t index = 0;
-        for (int i = 0; i < param_sizes_.size(); ++i) {
-            size_t n = param_sizes_[i];
-            auto obj = BalancedObject<ad_scalar_t>::from_parameters(
-                parameters.segment(index, n));
-            objects.push_back(obj);
-            index += n;
-        }
-
-        ad_vector_t constraints = balancing_constraints<ad_scalar_t>(
-            C_we, angular_vel, linear_acc, angular_acc, objects, config_.enabled);
-
-        return constraints;
+        auto config = config_.cast_with_parameters<ad_scalar_t>(parameters);
+        return config.balancing_constraints(C_we, angular_vel, linear_acc,
+                                            angular_acc);
     }
 
    private:
     TrayBalanceConstraints(const TrayBalanceConstraints& other) = default;
 
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
-    TrayBalanceConfiguration config_;
-
-    std::vector<size_t> param_sizes_;
+    TrayBalanceConfiguration<scalar_t> config_;
     vector_t params_;
 };
 

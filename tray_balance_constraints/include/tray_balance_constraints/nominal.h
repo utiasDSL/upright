@@ -2,6 +2,7 @@
 
 #include <Eigen/Eigen>
 
+#include "tray_balance_constraints/dynamics.h"
 #include "tray_balance_constraints/support_area.h"
 #include "tray_balance_constraints/types.h"
 #include "tray_balance_constraints/util.h"
@@ -10,111 +11,6 @@ struct BalanceConstraintsEnabled {
     bool normal = true;
     bool friction = true;
     bool zmp = true;
-};
-
-template <typename Scalar>
-Scalar circle_r_tau(Scalar radius) {
-    return Scalar(2.0) * radius / Scalar(3.0);
-}
-
-template <typename Scalar>
-Scalar alpha_rect(Scalar w, Scalar h) {
-    // alpha_rect for half of the rectangle
-    Scalar d = sqrt(h * h + w * w);
-    return (w * h * d + w * w * w * (log(h + d) - log(w))) / 12.0;
-}
-
-template <typename Scalar>
-Scalar rectangle_r_tau(Scalar w, Scalar h) {
-    // (see pushing notes)
-    return (alpha_rect(w, h) + alpha_rect(h, w)) / (w * h);
-}
-
-template <typename Scalar>
-Mat3<Scalar> cylinder_inertia_matrix(Scalar mass, Scalar radius,
-                                     Scalar height) {
-    // diagonal elements
-    Scalar xx =
-        mass * (Scalar(3.0) * radius * radius + height * height) / Scalar(12.0);
-    Scalar yy = xx;
-    Scalar zz = Scalar(0.5) * mass * radius * radius;
-
-    // construct the inertia matrix
-    Mat3<Scalar> I = Mat3<Scalar>::Zero();
-    I.diagonal() << xx, yy, zz;
-    return I;
-}
-
-template <typename Scalar>
-Mat3<Scalar> cuboid_inertia_matrix(Scalar mass,
-                                   const Vec3<Scalar>& side_lengths) {
-    Scalar lx = side_lengths(0);
-    Scalar ly = side_lengths(1);
-    Scalar lz = side_lengths(2);
-
-    Scalar xx = mass * (squared(ly) + squared(lz)) / Scalar(12.0);
-    Scalar yy = mass * (squared(lx) + squared(lz)) / Scalar(12.0);
-    Scalar zz = mass * (squared(lx) + squared(ly)) / Scalar(12.0);
-
-    Mat3<Scalar> I = Mat3<Scalar>::Zero();
-    I.diagonal() << xx, yy, zz;
-    return I;
-}
-
-template <typename Scalar>
-struct RigidBody {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    RigidBody(const Scalar mass, const Mat3<Scalar>& inertia,
-              const Vec3<Scalar>& com)
-        : mass(mass), inertia(inertia), com(com) {}
-
-    // Compose multiple rigid bodies into one.
-    static RigidBody<Scalar> compose(
-        const std::vector<RigidBody<Scalar>>& bodies) {
-        // Compute new mass and center of mass.
-        Scalar mass = Scalar(0);
-        Vec3<Scalar> com = Vec3<Scalar>::Zero();
-        for (int i = 0; i < bodies.size(); ++i) {
-            mass += bodies[i].mass;
-            com += bodies[i].mass * bodies[i].com;
-        }
-        com = com / mass;
-
-        // Parallel axis theorem to compute new moment of inertia.
-        Mat3<Scalar> inertia = Mat3<Scalar>::Zero();
-        for (int i = 0; i < bodies.size(); ++i) {
-            Vec3<Scalar> r = bodies[i].com - com;
-            Mat3<Scalar> R = skew3(r);
-            inertia += bodies[i].inertia - bodies[i].mass * R * R;
-        }
-
-        return RigidBody<Scalar>(mass, inertia, com);
-    }
-
-    // Create a RigidBody from a parameter vector
-    static RigidBody<Scalar> from_parameters(const Vector<Scalar>& parameters,
-                                             const size_t index = 0) {
-        Scalar mass(parameters(index));
-        Vec3<Scalar> com(parameters.template segment<3>(index + 1));
-        Vector<Scalar> I_vec(parameters.template segment<9>(index + 4));
-        Mat3<Scalar> inertia(Eigen::Map<Mat3<Scalar>>(I_vec.data(), 3, 3));
-        return RigidBody(mass, inertia, com);
-    }
-
-    size_t num_parameters() const { return 1 + 3 + 9; }
-
-    Vector<Scalar> get_parameters() const {
-        Vector<Scalar> p(num_parameters());
-        Vector<Scalar> I_vec(
-            Eigen::Map<const Vector<Scalar>>(inertia.data(), inertia.size()));
-        p << mass, com, I_vec;
-        return p;
-    }
-
-    Scalar mass;
-    Mat3<Scalar> inertia;
-    Vec3<Scalar> com;
 };
 
 template <typename Scalar>
@@ -148,10 +44,11 @@ struct BalancedObject {
 
     ~BalancedObject() = default;
 
-    size_t num_constraints() const {
-        const size_t num_normal = 1;
-        const size_t num_fric = 1;
-        const size_t num_zmp = support_area_ptr->num_constraints();
+    size_t num_constraints(const BalanceConstraintsEnabled& enabled) const {
+        const size_t num_normal = 1 * enabled.normal;
+        const size_t num_fric = 1 * enabled.friction;
+        const size_t num_zmp =
+            support_area_ptr->num_constraints() * enabled.zmp;
         return num_normal + num_fric + num_zmp;
     }
 
@@ -272,7 +169,64 @@ Vec2<Scalar> compute_zmp(const Mat3<Scalar>& orientation,
 }
 
 template <typename Scalar>
-Vector<Scalar> inequality_constraints(
+Vector<Scalar> friction_constraint_ellipsoidal(
+    const BalancedObject<Scalar>& object, const Vec3<Scalar>& alpha,
+    const Vec3<Scalar>& beta, const Scalar eps) {
+    /*** Ellipsoidal approximation ***/
+    Vector<Scalar> friction_constraint(1);
+    friction_constraint << object.mu * alpha(2) -
+                               sqrt(squared(alpha(0)) + squared(alpha(1)) +
+                                    squared(beta(2) / object.r_tau) + eps);
+    // Scalar h1 =
+    //     squared(object.mu * alpha(2)) - squared(alpha(0)) + squared(alpha(1))
+    //     -
+    //                                 squared(beta(2) / object.r_tau) + eps;
+    return friction_constraint;
+}
+
+template <typename Scalar>
+Vector<Scalar> friction_constraint_pyramidal(
+    const BalancedObject<Scalar>& object, const Vec3<Scalar>& alpha,
+    const Vec3<Scalar>& beta, const Scalar eps) {
+    /*** Pyramidal approximation ***/
+    Vector<Scalar> friction_constraint(8);
+    Scalar a = alpha(0);
+    Scalar b = alpha(1);
+    Scalar c = beta(2) / object.r_tau;
+    Scalar d = object.mu * alpha(2);
+
+    // clang-format off
+    friction_constraint << d - ( a + b + c),
+              d - (-a + b + c),
+              d - ( a - b + c),
+              d - (-a - b + c),
+              d - ( a + b - c),
+              d - (-a + b - c),
+              d - ( a - b - c),
+              d - (-a - b - c);
+    // clang-format on
+
+    return friction_constraint;
+}
+
+template <typename Scalar>
+Vector<Scalar> zmp_constraint(const BalancedObject<Scalar>& object,
+                              const Vec3<Scalar>& alpha,
+                              const Vec3<Scalar>& beta, const Scalar eps) {
+    Eigen::Matrix<Scalar, 2, 2> S;
+    S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
+
+    Vec2<Scalar> zmp =
+        (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
+    return object.support_area_ptr->zmp_constraints(zmp);
+
+    // Vec2<Scalar> az_zmp = -object.com_height * alpha.head(2) - S *
+    // beta.head(2); return
+    // object.support_area_ptr->zmp_constraints_scaled(az_zmp, alpha(2));
+}
+
+template <typename Scalar>
+Vector<Scalar> balancing_constraints_single(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
     const BalancedObject<Scalar>& object,
@@ -298,86 +252,112 @@ Vector<Scalar> inequality_constraints(
     Vec3<Scalar> beta =
         C_ew * S_angular_vel * Iw * angular_vel + It * C_ew * angular_acc;
 
-    // friction constraint
     // NOTE: SLQ solver with soft constraints is sensitive to constraint
     // values, so having small values squared makes them too close to zero.
     Scalar eps(0.01);
-    // Scalar h1 = sqrt(squared(object.mu * alpha(2)) - squared(alpha(0)) -
-    //             squared(alpha(1)) - squared(beta(2) / object.r_tau) + eps);
-    Scalar h1 =
-        object.mu * alpha(2) - sqrt(squared(alpha(0)) + squared(alpha(1)) +
-                                    squared(beta(2) / object.r_tau) + eps);
-    // Scalar h1 =
-    //     squared(object.mu * alpha(2)) - squared(alpha(0)) + squared(alpha(1))
-    //     -
-    //                                 squared(beta(2) / object.r_tau) + eps;
 
-    // clang-format off
-    Scalar a = alpha(0);
-    Scalar b = alpha(1);
-    Scalar c = beta(2) / object.r_tau;
-    Scalar d = object.mu * alpha(2);
-    Eigen::Matrix<Scalar, 8, 1> h_fric;
-    h_fric << d - ( a + b + c),
-              d - (-a + b + c),
-              d - ( a - b + c),
-              d - (-a - b + c),
-              d - ( a + b - c),
-              d - (-a + b - c),
-              d - ( a - b - c),
-              d - (-a - b - c);
-    // clang-format on
+    // normal contact constraint
+    Vector<Scalar> g_con(1);
+    g_con << alpha(2);
 
-    // normal constraint
-    Scalar h2 = alpha(2);
+    // friction constraint
+    Vector<Scalar> g_fric =
+        friction_constraint_ellipsoidal(object, alpha, beta, eps);
 
     // tipping constraint
-    Eigen::Matrix<Scalar, 2, 2> S;
-    S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
-    Vec2<Scalar> zmp =
-        (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
-    Vector<Scalar> h3 = object.support_area_ptr->zmp_constraints(zmp);
-    // Vec2<Scalar> az_zmp = -object.com_height * alpha.head(2) - S *
-    // beta.head(2); Vector<Scalar> h3 =
-    //     object.support_area_ptr->zmp_constraints_scaled(az_zmp, alpha(2));
+    Vector<Scalar> g_zmp = zmp_constraint(object, alpha, beta, eps);
 
     // Set disabled constraint values to unity so they are always satisfied.
     if (!enabled.friction) {
-        h1 = 1;
-        h_fric = Eigen::Matrix<Scalar, 8, 1>::Ones();
+        g_fric.setZero(0);
     }
     if (!enabled.normal) {
-        h2 = 1;
+        g_con.setZero(0);
     }
     if (!enabled.zmp) {
-        h3 = Vector<Scalar>::Ones(h3.rows());
+        g_zmp.setZero(0);
     }
 
-    Vector<Scalar> constraints(object.num_constraints());
-    constraints << h1, h2, h3;
-    return constraints;
+    Vector<Scalar> g_bal(object.num_constraints(enabled));
+    g_bal << g_con, g_fric, g_zmp;
+    return g_bal;
 }
 
-// This is the external API to be called for multiple objects
 template <typename Scalar>
-Vector<Scalar> balancing_constraints(
-    const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
-    const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
-    const std::vector<BalancedObject<Scalar>>& objects,
-    const BalanceConstraintsEnabled& enabled) {
-    size_t num_constraints = 0;
-    for (const auto& object : objects) {
-        num_constraints += object.num_constraints();
+struct TrayBalanceConfiguration {
+    TrayBalanceConfiguration() {}
+
+    TrayBalanceConfiguration(const std::vector<BalancedObject<Scalar>>& objects,
+                             const BalanceConstraintsEnabled& enabled)
+        : objects(objects), enabled(enabled) {}
+
+    // Number of balancing constraints.
+    size_t num_constraints() const {
+        size_t n = 0;
+        for (const auto& obj : objects) {
+            n += obj.num_constraints(enabled);
+        }
+        return n;
     }
 
-    Vector<Scalar> constraints(num_constraints);
-    size_t index = 0;
-    for (const auto& object : objects) {
-        Vector<Scalar> v = inequality_constraints(
-            orientation, angular_vel, linear_acc, angular_acc, object, enabled);
-        constraints.segment(index, v.rows()) = v;
-        index += v.rows();
+    // Size of parameter vector.
+    size_t num_parameters() const {
+        size_t n = 0;
+        for (const auto& obj : objects) {
+            n += obj.num_parameters();
+        }
+        return n;
     }
 
-    return constraints;
-}
+    // Get the parameter vector representing all objects in the configuration.
+    Vector<Scalar> get_parameters() const {
+        Vector<Scalar> parameters(num_parameters());
+        size_t index = 0;
+        for (const auto& obj : objects) {
+            Vector<Scalar> p = obj.get_parameters();
+            size_t n = p.size();
+            parameters.segment(index, n) = p;
+            index += n;
+        }
+        return parameters;
+    }
+
+    // Cast the configuration to a different underlying scalar type, creating
+    // the objects from the supplied parameter vector.
+    template <typename T>
+    TrayBalanceConfiguration<T> cast_with_parameters(
+        const Vector<T>& parameters) const {
+        std::vector<BalancedObject<T>> objectsT;
+        size_t index = 0;
+        for (const auto& obj : objects) {
+            size_t n = obj.num_parameters();
+            auto objT = BalancedObject<T>::from_parameters(
+                parameters.segment(index, n));
+            objectsT.push_back(objT);
+            index += n;
+        }
+
+        return TrayBalanceConfiguration<T>(objectsT, enabled);
+    }
+
+    // Compute the nominal balancing constraints for this configuration.
+    Vector<Scalar> balancing_constraints(const Mat3<Scalar>& orientation,
+                                         const Vec3<Scalar>& angular_vel,
+                                         const Vec3<Scalar>& linear_acc,
+                                         const Vec3<Scalar>& angular_acc) {
+        Vector<Scalar> constraints(num_constraints());
+        size_t index = 0;
+        for (const auto& object : objects) {
+            Vector<Scalar> v = balancing_constraints_single(
+                orientation, angular_vel, linear_acc, angular_acc, object,
+                enabled);
+            constraints.segment(index, v.rows()) = v;
+            index += v.rows();
+        }
+
+        return constraints;
+    }
+
+    std::vector<BalancedObject<Scalar>> objects;
+    BalanceConstraintsEnabled enabled;
+};

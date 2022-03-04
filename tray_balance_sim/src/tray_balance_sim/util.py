@@ -7,6 +7,18 @@ from scipy.linalg import expm
 # TODO these quaternion etc. transforms can be handled from elegantly (i.e.,
 # extracted away better)
 
+# def SO3_from_quaternion(Q):
+#     pass
+#
+# def SO3_to_quaternion(S):
+#     pass
+#
+# def SO3_from_matrix(C):
+#     pass
+#
+# def SO3_to_matrix(S):
+#     pass
+
 
 def quaternion_to_matrix(Q):
     """Convert quaternion to rotation matrix."""

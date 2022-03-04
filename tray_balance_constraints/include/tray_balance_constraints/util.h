@@ -11,8 +11,6 @@ Scalar squared(Scalar x) {
 
 template <typename Scalar>
 Scalar epsilon_norm(const Matrix<Scalar>& x, const Scalar eps) {
-    // Matrix<Scalar> x_vec = x;
-    // x_vec.resize(x.cols() * x.rows(), 1);
     Eigen::Map<const Vector<Scalar>> x_vec(x.data(), x.size(), 1);
     return sqrt(x_vec.dot(x_vec) + eps);
 
