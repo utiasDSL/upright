@@ -6,6 +6,7 @@
 #include "tray_balance_constraints/support_area.h"
 #include "tray_balance_constraints/types.h"
 
+
 struct BalanceConstraintsEnabled {
     bool normal = true;
     bool friction = true;
