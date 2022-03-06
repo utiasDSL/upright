@@ -10,23 +10,35 @@ template <typename Scalar>
 struct Ellipsoid {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    Ellipsoid(const Vec3<Scalar>& center, const Vec3<Scalar>& half_lengths;
-              const Mat3<Scalar>& directions, const Scalar eps = 1e-4)
-        : center(center), half_lengths(half_lengths), directions(directions) {
+    Ellipsoid(const Vec3<Scalar>& center,
+              const std::vector<Scalar>& half_lengths_vec;
+              const std::vector<Vec3<Scalar>>& directions_vec,
+              const size_t rank)
+        : center(center), rank(rank) {
+        // Sort indices of half lengths such that half lengths are in
+        // decreasing order.
+        std::vector<int> indices(3);
+        std::iota(indices.begin(), indices.end(), 0);
+        std::sort(indices.begin(), indices.end(), [&](int i, int j) -> bool {
+            return half_lengths_vec[i] > half_lengths_vec[j];
+        });
+
+        // Construct properly-ordered Eigen versions.
+        for (int i = 0; i < 3; ++i) {
+            half_lengths(i) = half_lengths_vec[indices[i]];
+            directions.col(i) = directions_vec[indices[i]];
+        }
+
         Dinv = Mat3<Scalar>::Zero();
         for (int i = 0; i < 3; ++i) {
             Dinv(i, i) = half_lengths(i) * half_lengths(i);
         }
 
-        // we set entries of D to zero if the half length approaches zero
+        // rank = 3 - n means n half lengths are zero. We set entries of D to
+        // zero if the half length is zero.
         D = Mat3<Scalar>::Zero();
-        for (int i = 0; i < 3; ++i) {
-            if (half_lengths(i) >= eps) {
-                D(i, i) = 1. / Dinv(i, i);
-            } else {
-                rank = i;
-                break;
-            }
+        for (int i = 0; i < rank; ++i) {
+            D(i, i) = 1. / Dinv(i, i);
         }
     }
 
@@ -43,5 +55,5 @@ struct Ellipsoid {
     Mat3<Scalar> Dinv;  // diagonal matrix of squared half lengths
     Mat3<Scalar> D;  // inverse of D, except zero where half lengths near zero
 
-    uint32_t rank = 3;
+    size_t rank;
 };

@@ -24,7 +24,7 @@ class TaskSettingsWrapper:
         settings.tray_balance_settings.robust = False
         settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
         settings.tray_balance_settings.mu = 1e-2
-        settings.tray_balance_settings.delta = 1e-3
+        settings.tray_balance_settings.delta = 5e-4
         settings.tray_balance_settings.config.objects = composites
 
         # robust settings

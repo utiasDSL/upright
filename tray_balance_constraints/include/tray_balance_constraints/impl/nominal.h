@@ -151,13 +151,13 @@ Vector<Scalar> friction_constraint_pyramidal(
 
     // clang-format off
     friction_constraint << d - ( a + b + c),
-              d - (-a + b + c),
-              d - ( a - b + c),
-              d - (-a - b + c),
-              d - ( a + b - c),
-              d - (-a + b - c),
-              d - ( a - b - c),
-              d - (-a - b - c);
+                           d - (-a + b + c),
+                           d - ( a - b + c),
+                           d - (-a - b + c),
+                           d - ( a + b - c),
+                           d - (-a + b - c),
+                           d - ( a - b - c),
+                           d - (-a - b - c);
     // clang-format on
 
     return friction_constraint;
@@ -216,6 +216,7 @@ Vector<Scalar> balancing_constraints_single(
 
     // friction constraint
     Vector<Scalar> g_fric =
+        // friction_constraint_pyramidal(object, alpha, beta, eps);
         friction_constraint_ellipsoidal(object, alpha, beta, eps);
 
     // tipping constraint
