@@ -42,12 +42,7 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
 
     /* bind settings */
     /// Robust balancing
-    pybind11::class_<Ball<scalar_t>>(m, "Ball")
-        .def(pybind11::init<const Vec3<scalar_t>&, const scalar_t>(),
-             "center"_a, "radius"_a)
-        .def_readwrite("center", &Ball<scalar_t>::center)
-        .def_readwrite("radius", &Ball<scalar_t>::radius);
-
+    // TODO move this stuff to the tray_balance_constraints package
     pybind11::class_<RobustParameterSet<scalar_t>>(m, "RobustParameterSet")
         .def(pybind11::init<>())
         .def_readwrite("balls", &RobustParameterSet<scalar_t>::balls)

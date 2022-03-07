@@ -12,6 +12,7 @@ from pyb_utils.ghost import GhostObject
 from tray_balance_sim import util, clustering
 from tray_balance_sim.camera import Camera
 
+import tray_balance_constraints as con
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 
 import IPython
@@ -185,7 +186,7 @@ def set_bounding_spheres(
     # balls are already in the EE frame, as required
     balls = []
     for i in range(k):
-        balls.append(ocs2.Ball(centers[i, :], radii[i]))
+        balls.append(con.Ball(centers[i, :], radii[i]))
         collision_sphere = ocs2.CollisionSphere(
             name="robust_collision_sphere_" + str(i),
             parent_frame_name="thing_tool",

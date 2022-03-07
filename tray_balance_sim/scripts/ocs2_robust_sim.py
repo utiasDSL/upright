@@ -82,7 +82,7 @@ VIDEO_RECORDER_TYPES = [
 DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
 
 # robust bounding spheres
-USE_ROBUST_CONSTRAINTS = False
+USE_ROBUST_CONSTRAINTS = True
 NUM_BOUNDING_SPHERES = 1
 
 # pure rotation by 180 deg
