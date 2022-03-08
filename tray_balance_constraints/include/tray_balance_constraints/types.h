@@ -19,3 +19,5 @@ using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
 
 template <typename Scalar>
 using Mat3 = Eigen::Matrix<Scalar, 3, 3>;
+
+const double NEAR_ZERO = 1e-8;

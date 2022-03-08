@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS pybind11_catkin)
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
+find_package(CGAL REQUIRED)
+
 
 ###################################
 ## catkin specific configuration ##
@@ -38,6 +40,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
+  ${CGAL_INCLUDE_DIRS}
 )
 
 pybind11_add_module(bindings SHARED
