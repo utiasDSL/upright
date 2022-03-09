@@ -83,6 +83,22 @@ struct CircleSupportArea : public SupportAreaBase<Scalar> {
 };
 
 template <typename Scalar>
+struct PolygonEdge {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    PolygonEdge(const Vec2<Scalar>& v1, const Vec2<Scalar>& v2)
+        : v1(v1), v2(v2) {
+        Mat2<Scalar> S;
+        S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
+        normal = S * (v2 - v1);
+    }
+
+    Vec2<Scalar> v1;
+    Vec2<Scalar> v2;
+    Vec2<Scalar> normal;  // inward-facing
+};
+
+template <typename Scalar>
 struct PolygonSupportArea : public SupportAreaBase<Scalar> {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -99,6 +115,16 @@ struct PolygonSupportArea : public SupportAreaBase<Scalar> {
 
     size_t num_parameters() const override {
         return 2 + 1 + vertices.size() * 2;
+    }
+
+    // Get the edges of the polygon composing the support area
+    std::vector<PolygonEdge<Scalar>> edges() const {
+        std::vector<PolygonEdge<Scalar>> es;
+        for (int i = 0; i < vertices.size() - 1; ++i) {
+            es.push_back(PolygonEdge<Scalar>(vertices[i], vertices[i + 1]));
+        }
+        es.push_back(PolygonEdge<Scalar>(vertices.back(), vertices.front()));
+        return es;
     }
 
     Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp) const override;

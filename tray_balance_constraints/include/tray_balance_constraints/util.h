@@ -30,3 +30,10 @@ Mat3<Scalar> skew3(const Vec3<Scalar>& x) {
     // clang-format on
     return M;
 }
+
+// Generate a random scalar between 0 and 1
+template <typename Scalar>
+Scalar random_scalar() {
+    Scalar x = Eigen::Matrix<Scalar, 1, 1>::Random()(0);
+    return 0.5 * (x + 1.0);
+}
