@@ -1,6 +1,7 @@
 import numpy as np
 import pybullet as pyb
 
+import tray_balance_constraints as con
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 
 

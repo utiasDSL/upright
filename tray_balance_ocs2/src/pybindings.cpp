@@ -116,7 +116,8 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("mu", &TrayBalanceSettings::mu)
         .def_readwrite("delta", &TrayBalanceSettings::delta)
         .def_readwrite("config", &TrayBalanceSettings::config)
-        .def_readwrite("robust_params", &TrayBalanceSettings::robust_params);
+        .def_readwrite("robust_params", &TrayBalanceSettings::robust_params)
+        .def_readwrite("bounded_config", &TrayBalanceSettings::bounded_config);
 
     /// Other stuff
     pybind11::enum_<ConstraintType>(m, "ConstraintType")

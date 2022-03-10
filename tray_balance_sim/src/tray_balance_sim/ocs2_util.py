@@ -124,7 +124,8 @@ class TaskSettingsWrapper:
 
     def get_num_balance_constraints(self):
         if self.settings.tray_balance_settings.robust:
-            return len(self.settings.tray_balance_settings.robust_params.balls) * 3
+            # return len(self.settings.tray_balance_settings.robust_params.balls) * 3
+            return self.settings.tray_balance_settings.bounded_config.num_constraints()
         return self.settings.tray_balance_settings.config.num_constraints()
 
     def get_num_collision_avoidance_constraints(self):

@@ -58,7 +58,7 @@ struct BoundedRigidBody {
     size_t num_parameters() const { return 2 + 1 + 15; }
 
     Vector<Scalar> get_parameters() const {
-        Vector<Scalar> p;
+        Vector<Scalar> p(num_parameters());
         p << mass_min, mass_max, r_gyr, com_ellipsoid.get_parameters();
         return p;
     }
@@ -85,11 +85,12 @@ struct BoundedBalancedObject {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     BoundedBalancedObject(const BoundedRigidBody<Scalar>& body,
-                          Scalar com_height_max,
+                          Scalar com_height_max, Scalar com_height_min,
                           const PolygonSupportArea<Scalar>& support_area_min,
                           Scalar r_tau_min, Scalar mu_min)
         : body(body),
           com_height_max(com_height_max),
+          com_height_min(com_height_min),
           support_area_min(support_area_min),
           r_tau_min(r_tau_min),
           mu_min(mu_min) {}
@@ -98,6 +99,7 @@ struct BoundedBalancedObject {
     BoundedBalancedObject(const BoundedBalancedObject& other)
         : body(other.body),
           com_height_max(other.com_height_max),
+          com_height_min(other.com_height_min),
           support_area_min(other.support_area_min),
           r_tau_min(other.r_tau_min),
           mu_min(other.mu_min) {}
@@ -112,36 +114,46 @@ struct BoundedBalancedObject {
 
     size_t num_constraints() const {
         const size_t num_normal = 1;
-        const size_t num_fric = 1;
-        const size_t num_zmp = support_area_min.num_constraints();
+        const size_t num_fric = 4;
+        const size_t num_zmp = 2 * support_area_min.num_constraints();
         return num_normal + num_fric + num_zmp;
     }
 
     size_t num_parameters() const {
-        return 3 + body.num_parameters() + support_area_min.num_parameters();
+        return 4 + body.num_parameters() + support_area_min.num_parameters();
     }
 
     Vector<Scalar> get_parameters() const {
         Vector<Scalar> p(num_parameters());
-        p << com_height_max, r_tau_min, mu_min, body.get_parameters(),
-            support_area_min.get_parameters();
+        std::cout << "[BoundedBalancedObject::get_parameters] one" << std::endl;
+        p << com_height_max, com_height_min, r_tau_min, mu_min,
+            body.get_parameters(), support_area_min.get_parameters();
+        std::cout << "[BoundedBalancedObject::get_parameters] two" << std::endl;
         return p;
     }
 
     static BoundedBalancedObject<Scalar> from_parameters(
         const Vector<Scalar>& p) {
+        std::cout << "[BoundedBalancedObject::from_parameters] one" << std::endl;
         Scalar com_height_max = p(0);
-        Scalar r_tau_min = p(1);
-        Scalar mu_min = p(2);
+        Scalar com_height_min = p(1);
+        Scalar r_tau_min = p(2);
+        Scalar mu_min = p(3);
 
-        size_t index = 3;
+        std::cout << "[BoundedBalancedObject::from_parameters] two" << std::endl;
+
+        size_t index = 4;
         auto body = BoundedRigidBody<Scalar>::from_parameters(p, index);
+
+        std::cout << "[BoundedBalancedObject::from_parameters] three" << std::endl;
 
         index += body.num_parameters();
         auto support_area_min =
             PolygonSupportArea<Scalar>::from_parameters(p, index);
-        return BoundedBalancedObject<Scalar>(
-            body, com_height_max, support_area_min, r_tau_min, mu_min);
+        std::cout << "[BoundedBalancedObject::from_parameters] four" << std::endl;
+        return BoundedBalancedObject<Scalar>(body, com_height_max,
+                                             com_height_min, support_area_min,
+                                             r_tau_min, mu_min);
     }
 
     // Cast to another underlying scalar type
@@ -170,56 +182,60 @@ struct BoundedBalancedObject {
     Scalar mu_min;
 };
 
+// Compute the minimum value of p.T * alpha where the CoM is constrained to lie
+// inside of an ellipsoid.
 template <typename Scalar>
 Scalar min_alpha_projection(const Vec3<Scalar> p, const Mat3<Scalar>& ddC_we,
                             const Mat3<Scalar>& C_ew,
                             const Vec3<Scalar>& linear_acc,
                             const Vec3<Scalar>& g,
-                            const BoundedBalancedObject& object, Scalar eps) {
+                            const BoundedBalancedObject<Scalar>& object,
+                            Scalar eps) {
     Vec3<Scalar> a = ddC_we.transpose() * C_ew.transpose() * p;
-    Scalar b = z.transpose() * C_ew * (linear_acc - g);
-    Vec3<Scalar> e = object.com_ellipsoid.center();
-    Mat3<Scalar> Einv = object.com_ellipsoid.Einv();
-    return a.dot(e) - sqrt(a.transpose() * Einv() * a + eps) + b;
+    Scalar b = p.transpose() * C_ew * (linear_acc - g);
+    Vec3<Scalar> e = object.body.com_ellipsoid.center();
+    Mat3<Scalar> Einv = object.body.com_ellipsoid.Einv();
+    return a.dot(e) - sqrt(a.dot(Einv * a) + eps) + b;
 }
 
+// Compute the maximum value of p.T * alpha where the CoM is constrained to lie
+// inside of an ellipsoid.
 template <typename Scalar>
 Scalar max_alpha_projection(const Vec3<Scalar> p, const Mat3<Scalar>& ddC_we,
                             const Mat3<Scalar>& C_ew,
                             const Vec3<Scalar>& linear_acc,
                             const Vec3<Scalar>& g,
-                            const BoundedBalancedObject& object, Scalar eps) {
+                            const BoundedBalancedObject<Scalar>& object,
+                            Scalar eps) {
     Vec3<Scalar> a = ddC_we.transpose() * C_ew.transpose() * p;
-    Scalar b = z.transpose() * C_ew * (linear_acc - g);
-    Vec3<Scalar> e = object.com_ellipsoid.center();
-    Mat3<Scalar> Einv = object.com_ellipsoid.Einv();
+    Scalar b = p.transpose() * C_ew * (linear_acc - g);
+    Vec3<Scalar> e = object.body.com_ellipsoid.center();
+    Mat3<Scalar> Einv = object.body.com_ellipsoid.Einv();
     // TODO only difference from min case is the sign here. refactor
-    return a.dot(e) + sqrt(a.transpose() * Einv() * a + eps) + b;
+    return a.dot(e) + sqrt(a.dot(Einv * a) + eps) + b;
 }
 
 template <typename Scalar>
-Vector<Scalar> bounded_contact_constraint(const Mat3<Scalar>& ddC_we,
-                                          const Mat3<Scalar>& C_ew,
-                                          const Vec3<Scalar>& linear_acc,
-                                          const Vec3<Scalar>& g,
-                                          const BoundedBalancedObject& object,
-                                          Scalar eps) {
+Vector<Scalar> bounded_contact_constraint(
+    const Mat3<Scalar>& ddC_we, const Mat3<Scalar>& C_ew,
+    const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& g,
+    const BoundedBalancedObject<Scalar>& object, Scalar eps) {
     Vec3<Scalar> z;
     z << Scalar(0), Scalar(0), Scalar(1);
 
     Vector<Scalar> contact_constraint(1);
     contact_constraint << min_alpha_projection(z, ddC_we, C_ew, linear_acc, g,
                                                object, eps);
+
+    // Vector<Scalar> contact_constraint = Vector<Scalar>::Ones(1);
     return contact_constraint;
 }
 
 template <typename Scalar>
-Vector<Scalar> bounded_friction_constraint(const Mat3<Scalar>& ddC_we,
-                                           const Mat3<Scalar>& C_ew,
-                                           const Vec3<Scalar>& linear_acc,
-                                           const Vec3<Scalar>& g,
-                                           const BoundedBalancedObject& object,
-                                           Scalar beta_max, Scalar eps) {
+Vector<Scalar> bounded_friction_constraint(
+    const Mat3<Scalar>& ddC_we, const Mat3<Scalar>& C_ew,
+    const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& g,
+    const BoundedBalancedObject<Scalar>& object, Scalar beta_max, Scalar eps) {
     Mat3<Scalar> I = Mat3<Scalar>::Identity();
     Vec3<Scalar> x = I.col(0);
     Vec3<Scalar> y = I.col(1);
@@ -230,54 +246,61 @@ Vector<Scalar> bounded_friction_constraint(const Mat3<Scalar>& ddC_we,
     Scalar alpha_x_min =
         min_alpha_projection(x, ddC_we, C_ew, linear_acc, g, object, eps);
     Scalar alpha_x_max =
-        min_alpha_projection(x, ddC_we, C_ew, linear_acc, g, object, eps);
+        max_alpha_projection(x, ddC_we, C_ew, linear_acc, g, object, eps);
     Scalar alpha_y_min =
         min_alpha_projection(y, ddC_we, C_ew, linear_acc, g, object, eps);
     Scalar alpha_y_max =
-        min_alpha_projection(y, ddC_we, C_ew, linear_acc, g, object, eps);
+        max_alpha_projection(y, ddC_we, C_ew, linear_acc, g, object, eps);
 
-    Vector<Scalar> friction_constraint(4);
+    // TODO for some reason using the comma-initializer causes segfaults/memory
+    // issues, so we are explicit with the indices.
+    Vector<Scalar> friction_constraint = Vector<Scalar>::Ones(4);
     // clang-format off
-    friction_constraint <<
-        object.mu_min * alpha_z_min - alpha_x_max - alpha_y_max - beta_max / object.r_tau_min,
-        object.mu_min * alpha_z_min - alpha_x_max + alpha_y_min - beta_max / object.r_tau_min,
-        object.mu_min * alpha_z_min + alpha_x_min - alpha_y_max - beta_max / object.r_tau_min,
-        object.mu_min * alpha_z_min + alpha_x_min + alpha_y_min - beta_max / object.r_tau_min;
+    friction_constraint(0) = object.mu_min * alpha_z_min - alpha_x_max - alpha_y_max - beta_max / object.r_tau_min;
+    friction_constraint(1) = object.mu_min * alpha_z_min - alpha_x_max + alpha_y_min - beta_max / object.r_tau_min;
+    friction_constraint(2) = object.mu_min * alpha_z_min + alpha_x_min - alpha_y_max - beta_max / object.r_tau_min;
+    friction_constraint(3) = object.mu_min * alpha_z_min + alpha_x_min + alpha_y_min - beta_max / object.r_tau_min;
     // clang-format on
+
+    // Vector<Scalar> friction_constraint = Vector<Scalar>::Ones(4);
     return friction_constraint;
 }
 
-
+// Helper for the ZMP constraint
 template <typename Scalar>
-Vec3<Scalar> compute_p(const Scalar h, const Vec2<Scalar>& normal, const Vec2<Scalar>& vertex) {
+Vec3<Scalar> compute_p(const Scalar h, const Vec2<Scalar>& normal,
+                       const Vec2<Scalar>& vertex) {
     Vec3<Scalar> p;
     p << -h * normal, normal.dot(vertex);
     return p;
 }
 
 template <typename Scalar>
-Vector<Scalar> bounded_zmp_constraint(const Mat3<Scalar>& ddC_we,
-                                      const Mat3<Scalar>& C_ew,
-                                      const Vec3<Scalar>& linear_acc,
-                                      const Vec3<Scalar>& g,
-                                      const BoundedBalancedObject& object,
-                                      Scalar beta_max, Scalar eps) {
-    auto edges = object.support_area_min.edges();
+Vector<Scalar> bounded_zmp_constraint(
+    const Mat3<Scalar>& ddC_we, const Mat3<Scalar>& C_ew,
+    const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& g,
+    const BoundedBalancedObject<Scalar>& object, Scalar beta_max, Scalar eps) {
 
     // Two constraints per edge
+    std::vector<PolygonEdge<Scalar>> edges = object.support_area_min.edges();
     Vector<Scalar> zmp_constraints(edges.size() * 2);
 
     for (int i = 0; i < edges.size(); ++i) {
-        Vec3<Scalar> p1 = compute_p(object.com_height_max, edges[i].normal, edges[i].v1);
-        Vec3<Scalar> p2 = compute_p(object.com_height_min, edges[i].normal, edges[i].v1);
+        Vec3<Scalar> p1 =
+            compute_p(object.com_height_max, edges[i].normal, edges[i].v1);
+        Vec3<Scalar> p2 =
+            compute_p(object.com_height_min, edges[i].normal, edges[i].v1);
 
-        Scalar alpha_max1 = max_alpha_projection(p1, ddC_we, C_ew, linear_acc, g, object, eps);
-        Scalar alpha_max2 = max_alpha_projection(p2, ddC_we, C_ew, linear_acc, g, object, eps);
+        Scalar alpha_max1 =
+            max_alpha_projection(p1, ddC_we, C_ew, linear_acc, g, object, eps);
+        Scalar alpha_max2 =
+            max_alpha_projection(p2, ddC_we, C_ew, linear_acc, g, object, eps);
 
-        zmp_constraints(i*2) = alpha_max1 - beta_max;
-        zmp_constraints(i*2 + 1) = alpha_max2 - beta_max;
+        zmp_constraints(i * 2) = alpha_max1 - beta_max;
+        zmp_constraints(i * 2 + 1) = alpha_max2 - beta_max;
     }
 
+    // Vector<Scalar> zmp_constraints = Vector<Scalar>::Ones(3 * 2);
     return zmp_constraints;
 }
 
@@ -286,6 +309,7 @@ Vector<Scalar> bounded_balancing_constraints_single(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
     const BoundedBalancedObject<Scalar>& object) {
+    std::cout << "[bounded_balancing_constraints_single] one" << std::endl;
     Mat3<Scalar> C_we = orientation;
     Mat3<Scalar> C_ew = C_we.transpose();
 
@@ -297,27 +321,37 @@ Vector<Scalar> bounded_balancing_constraints_single(
     Vec3<Scalar> g;
     g << Scalar(0), Scalar(0), Scalar(-9.81);
 
-    Scalar beta_max =
-        squared(object.r_gyr) *
-        (angular_vel.dot(angular_vel) + epsilon_norm<Scalar>(angular_acc, eps));
-
     // NOTE: SLQ solver with soft constraints is sensitive to constraint
     // values, so having small values squared makes them too close to zero.
     Scalar eps(0.01);
 
+    std::cout << "[bounded_balancing_constraints_single] two" << std::endl;
+
+    Scalar beta_max =
+        squared(object.body.r_gyr) *
+        (angular_vel.dot(angular_vel) + epsilon_norm<Scalar>(angular_acc, eps));
+
+    std::cout << "[bounded_balancing_constraints_single] three" << std::endl;
+
     // normal contact constraint
     Vector<Scalar> g_con =
-        bounded_contact_constraint(ddC_we, C_ew, angular_acc, g, object, eps);
+        bounded_contact_constraint(ddC_we, C_ew, linear_acc, g, object, eps);
+
+    std::cout << "[bounded_balancing_constraints_single] four" << std::endl;
 
     // friction constraint
     Vector<Scalar> g_fric = bounded_friction_constraint(
-        ddC_we, C_ew, angular_acc, g, object, beta_max, eps);
+        ddC_we, C_ew, linear_acc, g, object, beta_max, eps);
+
+    std::cout << "[bounded_balancing_constraints_single] five" << std::endl;
 
     // tipping constraint
-    Vector<Scalar> g_zmp = bounded_zmp_constraint(object, alpha, beta, eps);
+    Vector<Scalar> g_zmp = bounded_zmp_constraint(ddC_we, C_ew, linear_acc, g,
+                                                  object, beta_max, eps);
 
     Vector<Scalar> g_bal(object.num_constraints());
     g_bal << g_con, g_fric, g_zmp;
+    std::cout << "[bounded_balancing_constraints_single] end" << std::endl;
     return g_bal;
 }
 
@@ -331,6 +365,7 @@ struct BoundedTrayBalanceConfiguration {
 
     // Number of balancing constraints.
     size_t num_constraints() const {
+        std::cout << "BoundedTrayBalanceConfiguration::num_constraints] one" << std::endl;
         size_t n = 0;
         for (const auto& obj : objects) {
             n += obj.num_constraints();
@@ -340,6 +375,7 @@ struct BoundedTrayBalanceConfiguration {
 
     // Size of parameter vector.
     size_t num_parameters() const {
+        std::cout << "[BoundedTrayBalanceConfiguration::num_parameters] one" << std::endl;
         size_t n = 0;
         for (const auto& obj : objects) {
             n += obj.num_parameters();
@@ -349,7 +385,9 @@ struct BoundedTrayBalanceConfiguration {
 
     // Get the parameter vector representing all objects in the configuration.
     Vector<Scalar> get_parameters() const {
+        std::cout << "[BoundedTrayBalanceConfiguration::get_parameters] one" << std::endl;
         Vector<Scalar> parameters(num_parameters());
+        std::cout << "[BoundedTrayBalanceConfiguration::get_parameters] num_parameters = " << parameters.size() << std::endl;
         size_t index = 0;
         for (const auto& obj : objects) {
             Vector<Scalar> p = obj.get_parameters();
@@ -367,6 +405,7 @@ struct BoundedTrayBalanceConfiguration {
         const Vector<T>& parameters) const {
         std::vector<BoundedBalancedObject<T>> objectsT;
         size_t index = 0;
+        std::cout << "[BoundedTrayBalanceConfiguration::constraintFunction] objects.size() = " << objects.size() << std::endl;
         for (const auto& obj : objects) {
             size_t n = obj.num_parameters();
             auto objT = BoundedBalancedObject<T>::from_parameters(
@@ -374,7 +413,16 @@ struct BoundedTrayBalanceConfiguration {
             objectsT.push_back(objT);
             index += n;
         }
-        return TrayBalanceConfiguration<T>(objectsT);
+        return BoundedTrayBalanceConfiguration<T>(objectsT);
+    }
+
+    template <typename T>
+    BoundedTrayBalanceConfiguration<T> cast() const {
+        std::vector<BoundedBalancedObject<T>> objectsT;
+        for (const auto& obj : objects) {
+            objectsT.push_back(obj.template cast<T>());
+        }
+        return BoundedTrayBalanceConfiguration<T>(objectsT);
     }
 
     // Compute the nominal balancing constraints for this configuration.
@@ -384,12 +432,15 @@ struct BoundedTrayBalanceConfiguration {
                                          const Vec3<Scalar>& angular_acc) {
         Vector<Scalar> constraints(num_constraints());
         size_t index = 0;
+        std::cout << "[BoundedTrayBalanceConfiguration::balancing_constraints] constraints.size() = " << constraints.size() << std::endl;
         for (const auto& object : objects) {
             Vector<Scalar> v = bounded_balancing_constraints_single(
                 orientation, angular_vel, linear_acc, angular_acc, object);
+            std::cout << "[BoundedTrayBalanceConfiguration::balancing_constraints] v.size() = " << v.size() << std::endl;
             constraints.segment(index, v.rows()) = v;
             index += v.rows();
         }
+        std::cout << "[BoundedTrayBalanceConfiguration::balancing_constraints] end" << std::endl;
         return constraints;
     }
 

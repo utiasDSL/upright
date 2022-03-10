@@ -25,7 +25,7 @@ std::tuple<size_t, Matrix<Scalar>> points_basis(
 }
 
 template <typename Scalar>
-Ellipsoid<Scalar> Ellipsoid<Scalar>::bounding_ellipsoid(
+Ellipsoid<Scalar> bounding_ellipsoid(
     const std::vector<Vec3<Scalar>>& points, const double eps) {
     using Kernel = CGAL::Cartesian_d<Scalar>;
     using Traits =

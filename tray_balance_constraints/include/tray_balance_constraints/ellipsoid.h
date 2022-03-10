@@ -134,9 +134,6 @@ struct Ellipsoid {
         return A.fullPivHouseholderQr().rank();
     }
 
-    static Ellipsoid<Scalar> bounding_ellipsoid(
-        const std::vector<Vec3<Scalar>>& points, const double eps);
-
     // Get the rank of the ellipsoid
     size_t rank() const { return rank_; }
 
@@ -149,10 +146,11 @@ struct Ellipsoid {
     // Get the unit vectors representing the semi-major axes
     Mat3<Scalar> directions() const { return directions_; }
 
+    // TODO make static?
     size_t num_parameters() const { return 3 + 3 + 9; }
 
-    size_t get_parameters() const {
-        Vector<Scalar> p;
+    Vector<Scalar> get_parameters() const {
+        Vector<Scalar> p(num_parameters());
         p << center_, half_lengths_, directions_;
         return p;
     }
@@ -160,8 +158,10 @@ struct Ellipsoid {
     static Ellipsoid<Scalar> from_parameters(const Vector<Scalar>& parameters) {
         Vec3<Scalar> center = parameters.template head<3>();
         Vec3<Scalar> half_lengths = parameters.template segment<3>(3);
-        Mat3<Scalar> directions = Eigen::Map<Mat3<Scalar>>(
-            parameters.template segment<9>(6).data(), 3, 3);
+        Vector<Scalar> directions_vec = parameters.template segment<9>(6);
+        Mat3<Scalar> directions(
+            Eigen::Map<Mat3<Scalar>>(directions_vec.data(), 3, 3));
+
         size_t rank = 3;
         for (int i = 0; i < 3; ++i) {
             if (half_lengths(i) < NEAR_ZERO) {
@@ -208,4 +208,10 @@ struct Ellipsoid {
     size_t rank_;
 };
 
-#include "impl/bounding_ellipsoid.tpp"
+// TODO bring this back after getting single object working
+// template <typename Scalar>
+// Ellipsoid<Scalar> bounding_ellipsoid(const std::vector<Vec3<Scalar>>& points,
+//                                      const double eps);
+//
+//
+// #include "impl/bounding_ellipsoid.tpp"
