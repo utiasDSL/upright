@@ -31,31 +31,23 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
         bool recompileLibraries)
         : StateInputConstraintCppAd(ConstraintOrder::Linear),
           pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
-          config_(config),
-          params_(config.get_parameters()) {
+          config_(config) {
         if (pinocchioEEKinematics.getIds().size() != 1) {
             throw std::runtime_error(
                 "[TrayBalanaceConstraint] endEffectorKinematics has wrong "
                 "number of end effector IDs.");
         }
 
-        std::cout << "[BoundedTrayBalanceConstraints::BoundedTrayBalanceConstraints] one" << std::endl;
-        std::cout << "[BoundedTrayBalanceConstraints::BoundedTrayBalanceConstraints] params_.size() = " << params_.size() << std::endl;
-        std::cout << "[BoundedTrayBalanceConstraints::BoundedTrayBalanceConstraints] config_.num_parameters() = " << config_.num_parameters() << std::endl;
-
-        // TODO can I have 0 parameters?
-
-        // initialize everything, mostly the CppAD interface (compile the
-        // library)
-        initialize(STATE_DIM, INPUT_DIM, 0,
-                   "bounded_tray_balance_constraints", "/tmp/ocs2", recompileLibraries,
-                   true);
+        // compile the CppAD library
+        initialize(STATE_DIM, INPUT_DIM, 0, "bounded_tray_balance_constraints",
+                   "/tmp/ocs2", recompileLibraries, true);
     }
 
     BoundedTrayBalanceConstraints* clone() const override {
         // Always pass recompileLibraries = false to avoid recompiling the same
         // library just because this object is cloned.
-        return new BoundedTrayBalanceConstraints(*pinocchioEEKinPtr_, config_, false);
+        return new BoundedTrayBalanceConstraints(*pinocchioEEKinPtr_, config_,
+                                                 false);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
@@ -83,8 +75,6 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        std::cout << "[BoundedTrayBalanceConstraints::constraintFunction] one" << std::endl;
-
         // auto config = config_.cast_with_parameters<ad_scalar_t>(parameters);
         auto config = config_.cast<ad_scalar_t>();
         return config.balancing_constraints(C_we, angular_vel, linear_acc,
@@ -92,11 +82,12 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
     }
 
    private:
-    BoundedTrayBalanceConstraints(const BoundedTrayBalanceConstraints& other) = default;
+    BoundedTrayBalanceConstraints(const BoundedTrayBalanceConstraints& other) =
+        default;
 
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
     BoundedTrayBalanceConfiguration<scalar_t> config_;
-    vector_t params_;
+    // vector_t params_;  // TODO unused
 };
 
 }  // namespace mobile_manipulator

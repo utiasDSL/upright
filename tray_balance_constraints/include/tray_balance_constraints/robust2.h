@@ -55,7 +55,9 @@ struct BoundedRigidBody {
         return Ellipsoid<Scalar>::combined_rank(ellipsoids);
     }
 
-    size_t num_parameters() const { return 2 + 1 + 15; }
+    size_t num_parameters() const {
+        return 3 + Ellipsoid<Scalar>::num_parameters();
+    }
 
     Vector<Scalar> get_parameters() const {
         Vector<Scalar> p(num_parameters());
@@ -69,8 +71,9 @@ struct BoundedRigidBody {
         Scalar mass_min = parameters(index);
         Scalar mass_max = parameters(index + 1);
         Scalar r_gyr = parameters(index + 2);
+        const size_t num_ell_params = Ellipsoid<Scalar>::num_parameters();
         Ellipsoid<Scalar> com_ellipsoid = Ellipsoid<Scalar>::from_parameters(
-            parameters.template segment<15>(index + 3));
+            parameters.segment(index + 3, num_ell_params));
         return BoundedRigidBody(mass_min, mass_max, r_gyr, com_ellipsoid);
     }
 
@@ -125,36 +128,25 @@ struct BoundedBalancedObject {
 
     Vector<Scalar> get_parameters() const {
         Vector<Scalar> p(num_parameters());
-        std::cout << "[BoundedBalancedObject::get_parameters] one" << std::endl;
         p << com_height_max, com_height_min, r_tau_min, mu_min,
             body.get_parameters(), support_area_min.get_parameters();
-        std::cout << "[BoundedBalancedObject::get_parameters] two" << std::endl;
         return p;
     }
 
     static BoundedBalancedObject<Scalar> from_parameters(
         const Vector<Scalar>& p) {
-        std::cout << "[BoundedBalancedObject::from_parameters] one"
-                  << std::endl;
         Scalar com_height_max = p(0);
         Scalar com_height_min = p(1);
         Scalar r_tau_min = p(2);
         Scalar mu_min = p(3);
 
-        std::cout << "[BoundedBalancedObject::from_parameters] two"
-                  << std::endl;
-
         size_t index = 4;
         auto body = BoundedRigidBody<Scalar>::from_parameters(p, index);
-
-        std::cout << "[BoundedBalancedObject::from_parameters] three"
-                  << std::endl;
 
         index += body.num_parameters();
         auto support_area_min =
             PolygonSupportArea<Scalar>::from_parameters(p, index);
-        std::cout << "[BoundedBalancedObject::from_parameters] four"
-                  << std::endl;
+
         return BoundedBalancedObject<Scalar>(body, com_height_max,
                                              com_height_min, support_area_min,
                                              r_tau_min, mu_min);
@@ -240,7 +232,6 @@ Vector<Scalar> bounded_contact_constraint(
     contact_constraint << min_alpha_projection(z, ddC_we, C_ew, linear_acc, g,
                                                object, eps);
 
-    // Vector<Scalar> contact_constraint = Vector<Scalar>::Ones(1);
     return contact_constraint;
 }
 
@@ -275,7 +266,6 @@ Vector<Scalar> bounded_friction_constraint(
     friction_constraint(3) = object.mu_min * alpha_z_min + alpha_x_min + alpha_y_min - beta_max / object.r_tau_min;
     // clang-format on
 
-    // Vector<Scalar> friction_constraint = Vector<Scalar>::Ones(4);
     return friction_constraint;
 }
 
@@ -301,11 +291,6 @@ Vector<Scalar> bounded_zmp_constraint(
     z << Scalar(0), Scalar(0), Scalar(1);
 
     for (int i = 0; i < edges.size(); ++i) {
-        // Vec3<Scalar> p1 =
-        //     compute_p(object.com_height_max, edges[i].normal, edges[i].v1);
-        // Vec3<Scalar> p2 =
-        //     compute_p(object.com_height_min, edges[i].normal, edges[i].v1);
-
         Vec3<Scalar> normal3;
         normal3 << edges[i].normal, Scalar(0);
         Scalar alpha_xy_max = max_alpha_projection(normal3, ddC_we, C_ew,
@@ -324,13 +309,6 @@ Vector<Scalar> bounded_zmp_constraint(
         Scalar alpha_z_max =
             max_alpha_projection(z, ddC_we, C_ew, linear_acc, g, object, eps);
 
-        // Scalar alpha_max1 =
-        //     max_alpha_projection(p1, ddC_we, C_ew, linear_acc, g, object,
-        //     eps);
-        // Scalar alpha_max2 =
-        //     max_alpha_projection(p2, ddC_we, C_ew, linear_acc, g, object,
-        //     eps);
-
         zmp_constraints(i * 4) = -beta_max -
                                  object.com_height_max * alpha_xy_max -
                                  alpha_z_max * r_xy_max;
@@ -345,7 +323,6 @@ Vector<Scalar> bounded_zmp_constraint(
                                      alpha_z_min * r_xy_max;
     }
 
-    // Vector<Scalar> zmp_constraints = Vector<Scalar>::Ones(3 * 2);
     return zmp_constraints;
 }
 
@@ -354,7 +331,6 @@ Vector<Scalar> bounded_balancing_constraints_single(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
     const BoundedBalancedObject<Scalar>& object) {
-    std::cout << "[bounded_balancing_constraints_single] one" << std::endl;
     Mat3<Scalar> C_we = orientation;
     Mat3<Scalar> C_ew = C_we.transpose();
 
@@ -370,25 +346,17 @@ Vector<Scalar> bounded_balancing_constraints_single(
     // values, so having small values squared makes them too close to zero.
     Scalar eps(0.01);
 
-    std::cout << "[bounded_balancing_constraints_single] two" << std::endl;
-
     Scalar beta_max =
         squared(object.body.r_gyr) *
         (angular_vel.dot(angular_vel) + epsilon_norm<Scalar>(angular_acc, eps));
-
-    std::cout << "[bounded_balancing_constraints_single] three" << std::endl;
 
     // normal contact constraint
     Vector<Scalar> g_con =
         bounded_contact_constraint(ddC_we, C_ew, linear_acc, g, object, eps);
 
-    std::cout << "[bounded_balancing_constraints_single] four" << std::endl;
-
     // friction constraint
     Vector<Scalar> g_fric = bounded_friction_constraint(
         ddC_we, C_ew, linear_acc, g, object, beta_max, eps);
-
-    std::cout << "[bounded_balancing_constraints_single] five" << std::endl;
 
     // tipping constraint
     Vector<Scalar> g_zmp = bounded_zmp_constraint(ddC_we, C_ew, linear_acc, g,
@@ -396,7 +364,6 @@ Vector<Scalar> bounded_balancing_constraints_single(
 
     Vector<Scalar> g_bal(object.num_constraints());
     g_bal << g_con, g_fric, g_zmp;
-    std::cout << "[bounded_balancing_constraints_single] end" << std::endl;
     return g_bal;
 }
 
@@ -414,8 +381,6 @@ struct BoundedTrayBalanceConfiguration {
 
     // Number of balancing constraints.
     size_t num_constraints() const {
-        std::cout << "BoundedTrayBalanceConfiguration::num_constraints] one"
-                  << std::endl;
         size_t n = 0;
         for (const auto& obj : objects) {
             n += obj.num_constraints();
@@ -425,8 +390,6 @@ struct BoundedTrayBalanceConfiguration {
 
     // Size of parameter vector.
     size_t num_parameters() const {
-        std::cout << "[BoundedTrayBalanceConfiguration::num_parameters] one"
-                  << std::endl;
         size_t n = 0;
         for (const auto& obj : objects) {
             n += obj.num_parameters();
@@ -436,12 +399,7 @@ struct BoundedTrayBalanceConfiguration {
 
     // Get the parameter vector representing all objects in the configuration.
     Vector<Scalar> get_parameters() const {
-        std::cout << "[BoundedTrayBalanceConfiguration::get_parameters] one"
-                  << std::endl;
         Vector<Scalar> parameters(num_parameters());
-        std::cout << "[BoundedTrayBalanceConfiguration::get_parameters] "
-                     "num_parameters = "
-                  << parameters.size() << std::endl;
         size_t index = 0;
         for (const auto& obj : objects) {
             Vector<Scalar> p = obj.get_parameters();
@@ -459,9 +417,6 @@ struct BoundedTrayBalanceConfiguration {
         const Vector<T>& parameters) const {
         std::vector<BoundedBalancedObject<T>> objectsT;
         size_t index = 0;
-        std::cout << "[BoundedTrayBalanceConfiguration::constraintFunction] "
-                     "objects.size() = "
-                  << objects.size() << std::endl;
         for (const auto& obj : objects) {
             size_t n = obj.num_parameters();
             auto objT = BoundedBalancedObject<T>::from_parameters(
@@ -488,21 +443,12 @@ struct BoundedTrayBalanceConfiguration {
                                          const Vec3<Scalar>& angular_acc) {
         Vector<Scalar> constraints(num_constraints());
         size_t index = 0;
-        std::cout << "[BoundedTrayBalanceConfiguration::balancing_constraints] "
-                     "constraints.size() = "
-                  << constraints.size() << std::endl;
         for (const auto& object : objects) {
             Vector<Scalar> v = bounded_balancing_constraints_single(
                 orientation, angular_vel, linear_acc, angular_acc, object);
-            std::cout << "[BoundedTrayBalanceConfiguration::balancing_"
-                         "constraints] v.size() = "
-                      << v.size() << std::endl;
             constraints.segment(index, v.rows()) = v;
             index += v.rows();
         }
-        std::cout
-            << "[BoundedTrayBalanceConfiguration::balancing_constraints] end"
-            << std::endl;
         return constraints;
     }
 

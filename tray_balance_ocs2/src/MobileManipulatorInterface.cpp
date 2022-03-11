@@ -531,8 +531,6 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
         //     new RobustTrayBalanceConstraints(pinocchioEEKinematics,
         //                                      settings.robust_params,
         //                                      recompileLibraries));
-        std::cout << "[MobileManipulatorInterface::getTrayBalanceConstraint] one" << std::endl;
-        std::cout << "[MobileManipulatorInterface::getTrayBalanceConstraint] objects.size() = " << settings.bounded_config.objects.size() << std::endl;
         return std::unique_ptr<StateInputConstraint>(
             new BoundedTrayBalanceConstraints(pinocchioEEKinematics,
                                              settings.bounded_config,

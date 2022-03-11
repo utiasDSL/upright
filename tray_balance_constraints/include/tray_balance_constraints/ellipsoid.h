@@ -146,8 +146,7 @@ struct Ellipsoid {
     // Get the unit vectors representing the semi-major axes
     Mat3<Scalar> directions() const { return directions_; }
 
-    // TODO make static?
-    size_t num_parameters() const { return 3 + 3 + 9; }
+    static const size_t num_parameters() { return 3 + 3 + 9; }
 
     Vector<Scalar> get_parameters() const {
         Vector<Scalar> p(num_parameters());
