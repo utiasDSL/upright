@@ -13,7 +13,8 @@ from tray_balance_sim.camera import Camera
 
 import IPython
 
-DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/IROS-RAL22/v2")
+# DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/")
+DATA_DRIVE_PATH = Path("/home/adam/dl/data")
 
 
 class VideoRecorder(Camera):

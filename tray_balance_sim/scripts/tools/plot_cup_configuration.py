@@ -5,6 +5,16 @@ import numpy as np
 import IPython
 
 
+def dist_to_edge(v1, v2, p):
+    S = np.array([[0, 1], [-1, 0]])
+
+    normal = S @ (v2 - v1)  # inward-facing normal vector
+
+    normal = normal / np.linalg.norm(normal)
+
+    return -(p - v1).dot(normal)
+
+
 def main():
     s = 0.2
     h = s / (2 * np.sqrt(3))
@@ -24,6 +34,7 @@ def main():
     c1 = L * n1
     c2 = L * n2
 
+    print(dist_to_edge(vertices[0, :], vertices[1, :], np.zeros(2)))
     # IPython.embed()
 
     plt.figure()

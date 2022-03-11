@@ -162,7 +162,12 @@ def main():
         Δm = 0
         Δh = 0
         r_gyr = 0.15  # radius of the cylinder
-        com_ellipsoid = con.Ellipsoid.point(obj.com)  # TODO
+
+        # com_ellipsoid = con.Ellipsoid.point(obj.com)
+        r_com = 0.045
+        com_ellipsoid = con.Ellipsoid(obj.com, r_com * np.ones(3), np.eye(3), 3)
+
+        # IPython.embed()
 
         # convert the object to the bounded one in bindings
         # TODO it would be nice if there was less duplication between these
