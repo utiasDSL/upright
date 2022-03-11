@@ -47,7 +47,7 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
 
         // initialize everything, mostly the CppAD interface (compile the
         // library)
-        initialize(STATE_DIM, INPUT_DIM, config_.num_parameters(),
+        initialize(STATE_DIM, INPUT_DIM, 0,
                    "bounded_tray_balance_constraints", "/tmp/ocs2", recompileLibraries,
                    true);
     }
@@ -59,14 +59,16 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        return config_.num_constraints();
+        // return config_.num_constraints();
+        return 1;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
 
     vector_t getParameters(scalar_t time) const override {
         // Parameters are constant for now
-        return params_;
+        // return params_;
+        return vector_t(0);
     }
 
    protected:
@@ -84,19 +86,9 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
         std::cout << "[BoundedTrayBalanceConstraints::constraintFunction] one" << std::endl;
 
         // auto config = config_.cast_with_parameters<ad_scalar_t>(parameters);
-        // TODO don't use auto here for some reason
-        BoundedTrayBalanceConfiguration<ad_scalar_t> config = config_.cast<ad_scalar_t>();
-
-        std::cout << "[BoundedTrayBalanceConstraints::constraintFunction] two" << std::endl;
-        ad_vector_t constraints = config.balancing_constraints(C_we, angular_vel, linear_acc,
+        auto config = config_.cast<ad_scalar_t>();
+        return config.balancing_constraints(C_we, angular_vel, linear_acc,
                                             angular_acc);
-        return constraints;
-
-        // std::cout << "[BoundedTrayBalanceConstraints::constraintFunction] getNumConstraints(0) = " << getNumConstraints(0) << std::endl;
-        // std::cout << "[BoundedTrayBalanceConstraints::constraintFunction] constraints.size() = " << constraints.size() << std::endl;
-
-        // return constraints;
-        // return ad_vector_t::Ones(getNumConstraints());
     }
 
    private:

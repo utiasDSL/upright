@@ -151,7 +151,9 @@ struct Ellipsoid {
 
     Vector<Scalar> get_parameters() const {
         Vector<Scalar> p(num_parameters());
-        p << center_, half_lengths_, directions_;
+        Vector<Scalar> directions_vec(
+            Eigen::Map<const Vector<Scalar>>(directions_.data(), directions_.size()));
+        p << center_, half_lengths_, directions_vec;
         return p;
     }
 

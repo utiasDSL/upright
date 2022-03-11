@@ -164,7 +164,7 @@ def main():
         r_gyr = 0.15  # radius of the cylinder
 
         # com_ellipsoid = con.Ellipsoid.point(obj.com)
-        r_com = 0.045
+        r_com = 0.01
         com_ellipsoid = con.Ellipsoid(obj.com, r_com * np.ones(3), np.eye(3), 3)
 
         # IPython.embed()

@@ -313,7 +313,8 @@ Vector<Scalar> bounded_zmp_constraint(
 
         Scalar r_xy_max = optimize_linear_st_ellipsoid(
             normal3,
-            -edges[i].normal.dot(object.body.com_ellipsoid.center().head(2) + edges[i].v1),
+            -edges[i].normal.dot(object.body.com_ellipsoid.center().head(2) +
+                                 edges[i].v1),
             object.body.com_ellipsoid, Scalar(1e-6), false);
 
         // Scalar r_xy_max = -edges[i].normal.dot(edges[i].v1);
@@ -406,6 +407,10 @@ struct BoundedTrayBalanceConfiguration {
     BoundedTrayBalanceConfiguration(
         const std::vector<BoundedBalancedObject<Scalar>>& objects)
         : objects(objects) {}
+
+    BoundedTrayBalanceConfiguration(
+        const BoundedTrayBalanceConfiguration& other)
+        : objects(other.objects) {}
 
     // Number of balancing constraints.
     size_t num_constraints() const {
