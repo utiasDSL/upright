@@ -3,6 +3,8 @@ import numpy as np
 import liegroups
 from scipy.linalg import expm
 
+import IPython
+
 
 # TODO these quaternion etc. transforms can be handled from elegantly (i.e.,
 # extracted away better)
@@ -20,9 +22,17 @@ from scipy.linalg import expm
 #     pass
 
 
-def quaternion_to_matrix(Q):
+def quaternion_to_matrix(Q, normalize=True):
     """Convert quaternion to rotation matrix."""
-    return liegroups.SO3.from_quaternion(Q, ordering="xyzw").as_matrix()
+    if normalize:
+        if np.allclose(Q, 0):
+            Q = np.array([0, 0, 0, 1])
+        else:
+            Q = Q / np.linalg.norm(Q)
+    try:
+        return liegroups.SO3.from_quaternion(Q, ordering="xyzw").as_matrix()
+    except ValueError as e:
+        IPython.embed()
 
 
 def transform_point(r_ba_a, Q_ab, r_cb_b):
@@ -114,7 +124,7 @@ def calc_Q_et(Q_we, Q_wt):
     SO3_wt = liegroups.SO3.from_quaternion(Q_wt, ordering="xyzw")
     # SO3_we = SO3.from_quaternion_xyzw(Q_we)
     # SO3_wt = SO3.from_quaternion_xyzw(Q_wt)
-    return SO3_we.inverse().dot(SO3_wt).to_quaternion(ordering="xyzw")
+    return SO3_we.inv().dot(SO3_wt).to_quaternion(ordering="xyzw")
 
 
 def quat_inverse(Q):
