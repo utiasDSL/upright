@@ -7,6 +7,10 @@
 #include "tray_balance_constraints/robust2.h"
 #include "tray_balance_constraints/types.h"
 
+// we include this directly here rather than from ellipsoid.h because other
+// compilation units complain about the C++14 features imported there
+#include "tray_balance_constraints/impl/bounding_ellipsoid.tpp"
+
 using namespace pybind11::literals;
 
 PYBIND11_MODULE(bindings, m) {
@@ -34,10 +38,8 @@ PYBIND11_MODULE(bindings, m) {
         .def("contains", &Ellipsoid<Scalar>::contains, "x"_a)
         .def("sample", &Ellipsoid<Scalar>::sample, "boundary"_a = false)
         .def_static("point", &Ellipsoid<Scalar>::point, "center"_a)
-        .def_static("segment", &Ellipsoid<Scalar>::segment, "v1"_a, "v2"_a);
-
-    // m.def("bounding_ellipsoid", &bounding_ellipsoid<Scalar>, "points"_a,
-    //               "eps"_a);
+        .def_static("segment", &Ellipsoid<Scalar>::segment, "v1"_a, "v2"_a)
+        .def_static("bounding", &Ellipsoid<Scalar>::bounding, "points"_a, "eps"_a);
 
     // TODO need to expose a bunch of properties to compose these
     pybind11::class_<BoundedRigidBody<Scalar>>(m, "BoundedRigidBody")

@@ -25,8 +25,8 @@ std::tuple<size_t, Matrix<Scalar>> points_basis(
 }
 
 template <typename Scalar>
-Ellipsoid<Scalar> bounding_ellipsoid(
-    const std::vector<Vec3<Scalar>>& points, const double eps) {
+Ellipsoid<Scalar> Ellipsoid<Scalar>::bounding(
+    const std::vector<Vec3<Scalar>>& points, const Scalar eps) {
     using Kernel = CGAL::Cartesian_d<Scalar>;
     using Traits =
         CGAL::Approximate_min_ellipsoid_d_traits_d<Kernel, CGAL::MP_Float>;

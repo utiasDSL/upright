@@ -150,8 +150,8 @@ struct Ellipsoid {
 
     Vector<Scalar> get_parameters() const {
         Vector<Scalar> p(num_parameters());
-        Vector<Scalar> directions_vec(
-            Eigen::Map<const Vector<Scalar>>(directions_.data(), directions_.size()));
+        Vector<Scalar> directions_vec(Eigen::Map<const Vector<Scalar>>(
+            directions_.data(), directions_.size()));
         p << center_, half_lengths_, directions_vec;
         return p;
     }
@@ -172,6 +172,9 @@ struct Ellipsoid {
         }
         return Ellipsoid<Scalar>(center, half_lengths, directions, rank);
     }
+
+    static Ellipsoid<Scalar> bounding(const std::vector<Vec3<Scalar>>& points,
+                                      const Scalar eps);
 
    private:
     // Constructor for when half_lengths and directions are already correctly
@@ -209,10 +212,4 @@ struct Ellipsoid {
     size_t rank_;
 };
 
-// TODO bring this back after getting single object working
-// template <typename Scalar>
-// Ellipsoid<Scalar> bounding_ellipsoid(const std::vector<Vec3<Scalar>>& points,
-//                                      const double eps);
-//
-//
 // #include "impl/bounding_ellipsoid.tpp"
