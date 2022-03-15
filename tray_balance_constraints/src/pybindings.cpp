@@ -39,23 +39,24 @@ PYBIND11_MODULE(bindings, m) {
         .def("sample", &Ellipsoid<Scalar>::sample, "boundary"_a = false)
         .def_static("point", &Ellipsoid<Scalar>::point, "center"_a)
         .def_static("segment", &Ellipsoid<Scalar>::segment, "v1"_a, "v2"_a)
-        .def_static("bounding", &Ellipsoid<Scalar>::bounding, "points"_a, "eps"_a);
+        .def_static("bounding", &Ellipsoid<Scalar>::bounding, "points"_a,
+                    "eps"_a);
 
     // TODO need to expose a bunch of properties to compose these
     pybind11::class_<BoundedRigidBody<Scalar>>(m, "BoundedRigidBody")
-        .def(pybind11::init<const Scalar&, const Scalar&, const Scalar&,
+        .def(pybind11::init<const Scalar&, const Scalar&, const Vec3<Scalar>&,
                             const Ellipsoid<Scalar>&>(),
-             "mass_min"_a, "mass_max"_a, "r_gyr"_a, "com_ellipsoid"_a)
+             "mass_min"_a, "mass_max"_a, "radii_of_gyration"_a, "com_ellipsoid"_a)
         .def("sample", &BoundedRigidBody<Scalar>::sample, "boundary"_a = false)
         .def_static("combined_rank", &BoundedRigidBody<Scalar>::combined_rank,
                     "bodies"_a);
 
     pybind11::class_<BoundedBalancedObject<Scalar>>(m, "BoundedBalancedObject")
         .def(
-            pybind11::init<const BoundedRigidBody<Scalar>&, Scalar, Scalar,
+            pybind11::init<const BoundedRigidBody<Scalar>&, Scalar,
                            const PolygonSupportArea<Scalar>&, Scalar, Scalar>(),
-            "body"_a, "com_height_max"_a, "com_height_min"_a,
-            "support_area_min"_a, "r_tau_min"_a, "mu_min"_a);
+            "body"_a, "com_height"_a, "support_area_min"_a, "r_tau_min"_a,
+            "mu_min"_a);
 
     pybind11::class_<BoundedTrayBalanceConfiguration<Scalar>>(
         m, "BoundedTrayBalanceConfiguration")

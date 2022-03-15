@@ -37,8 +37,8 @@ SIM_TYPE = SimType.POSE_TO_POSE
 # simulation parameters
 SIM_DT = 0.001
 RECORD_PERIOD = 10
-# DURATION = 12.0  # duration of trajectory (s)
-DURATION = 6.0  # duration of trajectory (s)
+DURATION = 12.0  # duration of trajectory (s)
+#DURATION = 6.0  # duration of trajectory (s)
 
 # generate new control signal every CTRL_PERIOD timesteps
 if SIM_TYPE == SimType.POSE_TO_POSE:
@@ -160,25 +160,23 @@ def main():
     if settings_wrapper.settings.tray_balance_settings.robust:
         obj = objects[STACK_CONFIG[0]]
         Δm = 0
-        Δh = 0
-        r_gyr = 0.15  # radius of the cylinder
+        r_gyr = 0.15 * np.array([1, 1, 1])  # radius of the cylinder
 
         # com_ellipsoid = con.Ellipsoid.point(obj.com)
-        r_com = 0.01
-        com_ellipsoid = con.Ellipsoid(obj.com, r_com * np.ones(3), np.eye(3), 3)
+        com_half_lengths = 0.05 * np.array([1, 1, 2])
+        com_ellipsoid = con.Ellipsoid(obj.com, com_half_lengths, np.eye(3), 3)
 
         # IPython.embed()
 
         # convert the object to the bounded one in bindings
-        # TODO it would be nice if there was less duplication between these
-        # classes
+        # TODO it would be nice if there was less duplication between the C++
+        # side and the Python side
         bounded_body = con.BoundedRigidBody(
             obj.mass - Δm, obj.mass + Δm, r_gyr, com_ellipsoid
         )
         bounded_obj = con.BoundedBalancedObject(
             bounded_body,
-            obj.com_height + Δh,
-            obj.com_height - Δh,
+            obj.com_height,
             obj.support_area,
             obj.r_tau,
             obj.mu,
