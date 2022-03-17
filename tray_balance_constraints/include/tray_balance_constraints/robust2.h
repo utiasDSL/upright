@@ -234,23 +234,6 @@ Scalar opt_alpha_projection(const Vec3<Scalar>& p, const Mat3<Scalar>& ddC_we,
                                         type);
 }
 
-// Compute the maximum value of p.T * alpha where the CoM is constrained to lie
-// inside of an ellipsoid.
-// TODO only difference from min case is the sign here. refactor
-// template <typename Scalar>
-// Scalar max_alpha_projection(const Vec3<Scalar>& p, const Mat3<Scalar>&
-// ddC_we,
-//                             const Mat3<Scalar>& C_ew,
-//                             const Vec3<Scalar>& linear_acc,
-//                             const Vec3<Scalar>& g,
-//                             const BoundedBalancedObject<Scalar>& object,
-//                             Scalar eps) {
-//     Vec3<Scalar> a = ddC_we.transpose() * C_ew.transpose() * p;
-//     Scalar b = p.transpose() * C_ew * (linear_acc - g);
-//     return optimize_linear_st_ellipsoid(a, b, object.body.com_ellipsoid, eps,
-//                                         OptType::Max);
-// }
-
 template <typename Scalar>
 Vector<Scalar> bounded_contact_constraint(
     const Mat3<Scalar>& ddC_we, const Mat3<Scalar>& C_ew,

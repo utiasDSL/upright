@@ -69,14 +69,14 @@ V_CMD_STDEV = 0
 
 # video recording parameters
 RECORD_VIDEO = False
-VIDEO_NAME = "stack4_nominal_uncertain"
+VIDEO_NAME = "single_object_r5"
 TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/heins-ral22/")
+VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/tray-balance/bounded")
 VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
 # select appropriate video recorders here
 VIDEO_RECORDER_TYPES = [
     (cameras.PoseToPoseVideoRecorder1, "view1"),
-    (cameras.PoseToPoseVideoRecorder2, "view2"),
+    # (cameras.PoseToPoseVideoRecorder2, "view2"),
 ]
 
 DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
@@ -163,10 +163,8 @@ def main():
         r_gyr = 0.15 * np.array([1, 1, 1])  # radius of the cylinder
 
         # com_ellipsoid = con.Ellipsoid.point(obj.com)
-        com_half_lengths = 0.05 * np.array([1, 1, 2])
+        com_half_lengths = 0.05 * np.array([1, 1, 1])
         com_ellipsoid = con.Ellipsoid(obj.com, com_half_lengths, np.eye(3), 3)
-
-        # IPython.embed()
 
         # convert the object to the bounded one in bindings
         # TODO it would be nice if there was less duplication between the C++
