@@ -30,3 +30,10 @@ Want to find out what Bullet uses if I just apply torque?
   contact point, given mu and normal force
 * Total torque applied to the cube (via friction) is within the allowable
   bounds assuming it could be concentrated at the farthest points on the SA
+
+Basically, it is clear that Bullet must use some representation for
+transferring frictional torque, but it isn't using exactly the four corner
+points of the cube SA (for example). Furthermore, it is not clear how setting
+the spinning friction coefficient affects things, so my current recommendation
+is to not set it at all and just proceed with my assumption of uniform pressure
+distribution everywhere.
