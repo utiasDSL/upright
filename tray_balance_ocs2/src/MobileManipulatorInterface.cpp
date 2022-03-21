@@ -56,7 +56,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
-#include <tray_balance_ocs2/constraint/EndEffectorConstraint.h>
 #include <tray_balance_ocs2/constraint/JointStateInputLimits.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
@@ -255,18 +254,6 @@ void MobileManipulatorInterface::loadSettings(
         std::cerr << "Tray balance constraints disabled." << std::endl;
     }
 
-    // Alternative EE pose matching formulated as a (soft) constraint
-    // problem_.stateSoftConstraintPtr->add(
-    //     "endEffector",
-    //     getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
-    //                              "endEffector", usePreComputation,
-    //                              libraryFolder, recompileLibraries));
-    // problem_.finalSoftConstraintPtr->add(
-    //     "finalEndEffector",
-    //     getEndEffectorConstraint(*pinocchioInterfacePtr_, taskFile,
-    //                              "finalEndEffector", usePreComputation,
-    //                              libraryFolder, recompileLibraries));
-
     problem_.stateCostPtr->add(
         "endEffector", getEndEffectorCost(*pinocchioInterfacePtr_, taskFile,
                                           "endEffector", usePreComputation,
@@ -356,60 +343,6 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getQuadraticStateCost(
     return std::unique_ptr<StateCost>(new QuadraticStateCost(std::move(Q)));
 }
 
-/******************************************************************************************************/
-/******************************************************************************************************/
-/******************************************************************************************************/
-std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorConstraint(
-    PinocchioInterface pinocchioInterface, const std::string& taskFile,
-    const std::string& prefix, bool usePreComputation,
-    const std::string& libraryFolder, bool recompileLibraries) {
-    scalar_t muPosition = 1.0;
-    scalar_t muOrientation = 1.0;
-    std::string name = "thing_tool";
-
-    boost::property_tree::ptree pt;
-    boost::property_tree::read_info(taskFile, pt);
-    std::cerr << "\n #### " << prefix << " Settings: ";
-    std::cerr << "\n #### "
-                 "============================================================="
-                 "================\n";
-    loadData::loadPtreeValue(pt, muPosition, prefix + ".muPosition", true);
-    loadData::loadPtreeValue(pt, muOrientation, prefix + ".muOrientation",
-                             true);
-    std::cerr << " #### "
-                 "============================================================="
-                 "================"
-              << std::endl;
-
-    std::unique_ptr<StateConstraint> constraint;
-    if (usePreComputation) {
-        MobileManipulatorPinocchioMapping<scalar_t> pinocchioMapping;
-        PinocchioEndEffectorKinematics eeKinematics(pinocchioInterface,
-                                                    pinocchioMapping, {name});
-        constraint.reset(
-            new EndEffectorConstraint(eeKinematics, *referenceManagerPtr_));
-    } else {
-        MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
-        PinocchioEndEffectorKinematicsCppAd eeKinematics(
-            pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM,
-            INPUT_DIM, "end_effector_kinematics", libraryFolder,
-            recompileLibraries, false);
-        constraint.reset(
-            new EndEffectorConstraint(eeKinematics, *referenceManagerPtr_));
-    }
-
-    std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(6);
-    std::generate_n(penaltyArray.begin(), 3, [&] {
-        return std::unique_ptr<PenaltyBase>(new QuadraticPenalty(muPosition));
-    });
-    std::generate_n(penaltyArray.begin() + 3, 3, [&] {
-        return std::unique_ptr<PenaltyBase>(
-            new QuadraticPenalty(muOrientation));
-    });
-
-    return std::unique_ptr<StateCost>(new StateSoftConstraint(
-        std::move(constraint), std::move(penaltyArray)));
-}
 
 std::unique_ptr<StateCost>
 MobileManipulatorInterface::getDynamicObstacleConstraint(

@@ -172,22 +172,6 @@ stateCost
   }
 }
 
-endEffector
-{
-  name "thing_tool" ; name defined in the URDF
-
-  ; end effector quadratic penalty scaling
-  muPosition  10.0
-  muOrientation  5.0
-}
-
-finalEndEffector
-{
-  name "thing_tool"
-  muPosition  10.0
-  muOrientation  5.0
-}
-
 endEffectorCost
 {
   W
@@ -203,87 +187,6 @@ endEffectorCost
   }
 
 }
-
-; collisionAvoidance
-; {
-;   collisionLinkPairs
-;   {
-;     [0] "forearm_collision_link_0, balanced_object_collision_link_0"
-; 
-;     ; ; the base with most everything
-;     ; [1] "base_collision_link_0, table1_link_0"
-;     ; [2] "base_collision_link_0, table2_link_0"
-;     ; [3] "base_collision_link_0, table3_link_0"
-;     ; [4] "base_collision_link_0, table4_link_0"
-;     ; [5] "base_collision_link_0, table5_link_0"
-;     ; [6] "base_collision_link_0, chair1_1_link_0"
-;     ; [7] "base_collision_link_0, chair1_2_link_0"
-;     ; [8] "base_collision_link_0, chair2_1_link_0"
-;     ; [9] "base_collision_link_0, chair3_1_link_0"
-;     ; [10] "base_collision_link_0, chair3_2_link_0"
-;     ; [11] "base_collision_link_0, chair4_1_link_0"
-;     ; [12] "base_collision_link_0, chair4_2_link_0"
-; 
-;     ; ; balanced objects with the tall "chairs"
-;     ; [13] "balanced_object_collision_link_0, chair3_1_link_0"
-;     ; [14] "balanced_object_collision_link_0, chair4_2_link_0"
-;     ; [15] "balanced_object_collision_link_0, chair2_1_link_0"
-; 
-;     ; ; wrist and tables
-;     ; [16] "wrist_collision_link_0, table1_link_0"
-;     ; [17] "wrist_collision_link_0, table2_link_0"
-;     ; [18] "wrist_collision_link_0, table3_link_0"
-;     ; [19] "wrist_collision_link_0, table4_link_0"
-;     ; [20] "wrist_collision_link_0, table5_link_0"
-; 
-;     ; ; elbow and tables
-;     ; [21] "elbow_collision_link_0, table1_link_0"
-;     ; [22] "elbow_collision_link_0, table2_link_0"
-;     ; [23] "elbow_collision_link_0, table3_link_0"
-;     ; [24] "elbow_collision_link_0, table4_link_0"
-;     ; [25] "elbow_collision_link_0, table5_link_0"
-; 
-;     ; ; elbow and tall chairs
-;     ; [26] "elbow_collision_link_0, chair3_1_link_0"
-;     ; [27] "elbow_collision_link_0, chair4_2_link_0"
-;     ; [28] "elbow_collision_link_0, chair2_1_link_0"
-;   }
-; 
-;   ; minimum distance allowed between the pairs
-;   ; this should be 0 for obstacle avoidance experiments, but 0.1 for the
-;   ; previous balancing only experiments
-;   minimumDistance  0.1
-; 
-;   mu    1e-2
-;   delta 1e-3
-; }
-
-; dynamicObstacleAvoidance
-; {
-;   collision_link_names
-;   {
-;     [0] "thing_tool"
-;     [1] "elbow_collision_link"
-;     [2] "forearm_collision_sphere_link1"
-;     [3] "forearm_collision_sphere_link2"
-;     [4] "wrist_collision_link"
-;   }
-; 
-;   collision_sphere_radii
-;   {
-;     [0] 0.25
-;     [1] 0.15
-;     [2] 0.15
-;     [3] 0.15
-;     [4] 0.15
-;   }
-; 
-;   obstacle_radius 0.1
-; 
-;   mu    1e-3
-;   delta 1e-3
-; }
-
 
 jointLimits
 {
