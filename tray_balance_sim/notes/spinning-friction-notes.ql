@@ -8,13 +8,15 @@
 * It turns out that the torque is actually just very small on these objects
   even for high angular acceleration, so the r_tau we have assuming uniform
   friction is much higher than required unless friction is very low
+* Bullet combination rule for spinning friction can be found in
+  btManifoldResult.cpp line 43 of the Bullet source code
 
 Now trying with spinning friction to see if it makes a difference
 * Without anisotropic friction, it does seem like there is some yaw slip when
   bullet r_tau=0
 * However, it has been difficult to identify what spinning friction is
   equivalent to just not setting it
-* Suspect spinning friction = μ * r_tau (it wouldn't make sense otherwise)
+* Suspect **spinning friction = μ * r_tau** (it wouldn't make sense otherwise)
 * Spinning friction is not the same as damping (a.k.a. viscous friction, which
   only acts against velocity)
 * Seems like it should be unnecessary to apply a limit on spinning friction

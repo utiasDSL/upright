@@ -35,8 +35,10 @@ class BulletBody:
         )
 
         # set friction
+        # I do not set a spinning friction coefficient here directly, but let
+        # Bullet handle this internally
         self.mu = mu
-        pyb.changeDynamics(self.uid, -1, lateralFriction=mu, spinningFriction=mu * r_tau)
+        pyb.changeDynamics(self.uid, -1, lateralFriction=mu)
 
     def get_pose(self):
         pos, orn = pyb.getBasePositionAndOrientation(self.uid)
