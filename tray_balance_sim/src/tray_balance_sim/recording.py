@@ -13,9 +13,6 @@ from tray_balance_sim.camera import Camera
 
 import IPython
 
-# DATA_DRIVE_PATH = Path("/media/adam/Data/PhD/Data/")
-DATA_DRIVE_PATH = Path("/home/adam/dl/data")
-
 
 class VideoRecorder(Camera):
     def __init__(
@@ -107,11 +104,7 @@ class Recorder:
         num_control_records = int(duration / (dt * control_period)) + 1
         self.control_durations = np.zeros(num_control_records)
 
-    def save(self, filename, use_data_drive=True):
-        if use_data_drive:
-            path = DATA_DRIVE_PATH / filename
-        else:
-            path = filename
+    def save(self, path):
         np.savez_compressed(
             path,
             ts=self.ts,

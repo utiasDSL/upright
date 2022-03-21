@@ -51,14 +51,6 @@ elif SIM_TYPE == SimType.STATIC_OBSTACLE:
 # measurement and process noise
 USE_NOISY_STATE_TO_PLAN = True
 
-# Q_VAR = 0
-# V_VAR = 0
-# V_CMD_VAR = 0
-
-# Q_STDEV = np.sqrt(Q_VAR)
-# V_STDEV = np.sqrt(V_VAR)
-# V_CMD_STDEV = np.sqrt(V_CMD_VAR)
-
 # divide by 1000 to convert from mm to meters
 # Q_STDEV = 10 / 1000
 # V_STDEV = 100 / 1000
@@ -66,6 +58,8 @@ USE_NOISY_STATE_TO_PLAN = True
 Q_STDEV = 0
 V_STDEV = 0
 V_CMD_STDEV = 0
+
+DATA_DIR_PATH = Path("/media/adam/Data/PhD/Data/object-balance/bounded")
 
 # video recording parameters
 RECORD_VIDEO = False
@@ -84,10 +78,6 @@ DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
 # robust bounding spheres
 USE_ROBUST_CONSTRAINTS = True
 NUM_BOUNDING_SPHERES = 1
-
-# pure rotation by 180 deg
-# POSITION_GOAL = np.array([0, 0, 0])
-# ORIENTATION_GOAL = np.array([0, 0, 1, 0])
 
 POSITION_GOAL = np.array([0, -2, -0.5])
 ORIENTATION_GOAL = np.array([0, 0, 1, 0])
@@ -503,8 +493,8 @@ def main():
             prefix = sys.argv[2]
         else:
             prefix = "data"
-        fname = prefix + "_" + TIMESTAMP
-        recorder.save(fname)
+        data_file_name = prefix + "_" + TIMESTAMP
+        recorder.save(DATA_DIR_PATH / data_file_name)
 
     last_sim_index = i
     recorder.plot_ee_position(last_sim_index)
