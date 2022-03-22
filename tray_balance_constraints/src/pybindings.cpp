@@ -42,21 +42,29 @@ PYBIND11_MODULE(bindings, m) {
         .def_static("bounding", &Ellipsoid<Scalar>::bounding, "points"_a,
                     "eps"_a);
 
-    // TODO need to expose a bunch of properties to compose these
     pybind11::class_<BoundedRigidBody<Scalar>>(m, "BoundedRigidBody")
         .def(pybind11::init<const Scalar&, const Scalar&, const Vec3<Scalar>&,
                             const Ellipsoid<Scalar>&>(),
              "mass_min"_a, "mass_max"_a, "radii_of_gyration"_a, "com_ellipsoid"_a)
         .def("sample", &BoundedRigidBody<Scalar>::sample, "boundary"_a = false)
         .def_static("combined_rank", &BoundedRigidBody<Scalar>::combined_rank,
-                    "bodies"_a);
+                    "bodies"_a)
+        .def_readonly("mass_min", &BoundedRigidBody<Scalar>::mass_min)
+        .def_readonly("mass_max", &BoundedRigidBody<Scalar>::mass_max)
+        .def_readonly("radii_of_gyration", &BoundedRigidBody<Scalar>::radii_of_gyration)
+        .def_readonly("com_ellipsoid", &BoundedRigidBody<Scalar>::com_ellipsoid);
 
     pybind11::class_<BoundedBalancedObject<Scalar>>(m, "BoundedBalancedObject")
         .def(
             pybind11::init<const BoundedRigidBody<Scalar>&, Scalar,
                            const PolygonSupportArea<Scalar>&, Scalar, Scalar>(),
             "body"_a, "com_height"_a, "support_area_min"_a, "r_tau_min"_a,
-            "mu_min"_a);
+            "mu_min"_a)
+        .def_readonly("body", &BoundedBalancedObject<Scalar>::body)
+        .def_readonly("com_height", &BoundedBalancedObject<Scalar>::com_height)
+        .def_readonly("support_area_min", &BoundedBalancedObject<Scalar>::support_area_min)
+        .def_readonly("r_tau_min", &BoundedBalancedObject<Scalar>::r_tau_min)
+        .def_readonly("mu_min", &BoundedBalancedObject<Scalar>::mu_min);
 
     pybind11::class_<BoundedTrayBalanceConfiguration<Scalar>>(
         m, "BoundedTrayBalanceConfiguration")

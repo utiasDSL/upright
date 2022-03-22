@@ -12,29 +12,29 @@ N = 100
 center = np.array([0, 0, 0])
 half_lengths = np.array([0.1, 0.1, 0.2])
 directions = np.eye(3)
-rank = 3
-ell1 = con.Ellipsoid.point(center)
-# ell3 = con.Ellipsoid(center, half_lengths, directions, rank)
+ell1 = con.Ellipsoid(center, half_lengths, directions, rank=3)
+# ell1 = con.Ellipsoid.point(center)
+radii1 = 0.1 * np.ones(3)
 
 center = np.array([1, 1, 0])
 half_lengths = np.array([0.1, 0.1, 0])
 directions = np.eye(3)
-# ell2 = con.Ellipsoid(center, half_lengths, directions, rank)
-ell2 = con.Ellipsoid.point(center)
+ell2 = con.Ellipsoid(center, half_lengths, directions, rank=2)
+# ell2 = con.Ellipsoid.point(center)
+radii2 = 0.1 * np.ones(3)
 
-body1 = con.RigidBodyBounds(0.25, 0.5, 0.1, ell1)
-body2 = con.RigidBodyBounds(0.25, 0.5, 0.1, ell2)
+body1 = con.BoundedRigidBody(
+    mass_min=0.25, mass_max=0.5, radii_of_gyration=radii1, com_ellipsoid=ell1
+)
+body2 = con.BoundedRigidBody(
+    mass_min=0.25, mass_max=0.5, radii_of_gyration=radii2, com_ellipsoid=ell2
+)
 
-P = np.zeros((N, 3))
-for i in range(N):
-    m1, r1 = body1.sample(boundary=True)
-    m2, r2 = body2.sample(boundary=True)
-    P[i, :] = (m1 * r1 + m2 * r2) / (m1 + m2)
+composite = con.BoundedRigidBody.compose([body1, body2])
 
-# IPython.embed()
-# sys.exit()
+IPython.embed()
 
-ell = con.Ellipsoid.bounding_ellipsoid(P, 0.01)
+# ell = con.Ellipsoid.bounding_ellipsoid(P, 0.01)
 # R = scipy.linalg.orth(P.T)
 #
 # # project points into R basis
@@ -49,4 +49,4 @@ ell = con.Ellipsoid.bounding_ellipsoid(P, 0.01)
 #
 # ell = con.Ellipsoid(center, half_lengths, directions, rank=R.shape[1])
 
-IPython.embed()
+# IPython.embed()

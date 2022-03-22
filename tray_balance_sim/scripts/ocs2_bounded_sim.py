@@ -169,6 +169,7 @@ def main():
             obj.r_tau,
             obj.mu,
         )
+        IPython.embed()
         settings_wrapper.settings.tray_balance_settings.bounded_config.objects = [bounded_obj]
 
     else:
