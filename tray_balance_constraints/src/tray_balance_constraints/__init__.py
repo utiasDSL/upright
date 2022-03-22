@@ -251,7 +251,7 @@ def compose_com_ellipsoid(bodies, N=100, eps=0.01):
     scale = np.sqrt(delta.T @ ell.E() @ delta)
     scaled_half_lengths = scale * ell.half_lengths()
 
-    return Ellipsoid(ell.center(), scaled_half_lengths, ell.directions(), ell.rank())
+    return Ellipsoid(ell.center(), scaled_half_lengths, ell.directions())
 
 
 def compose_radii_of_gyration(bodies):

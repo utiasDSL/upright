@@ -12,14 +12,14 @@ N = 100
 center = np.array([0, 0, 0])
 half_lengths = np.array([0.1, 0.1, 0.2])
 directions = np.eye(3)
-ell1 = con.Ellipsoid(center, half_lengths, directions, rank=3)
+ell1 = con.Ellipsoid(center, half_lengths, directions)
 # ell1 = con.Ellipsoid.point(center)
 radii1 = 0.1 * np.ones(3)
 
 center = np.array([1, 1, 0])
 half_lengths = np.array([0.1, 0.1, 0])
 directions = np.eye(3)
-ell2 = con.Ellipsoid(center, half_lengths, directions, rank=2)
+ell2 = con.Ellipsoid(center, half_lengths, directions)
 # ell2 = con.Ellipsoid.point(center)
 radii2 = 0.1 * np.array([1, 1, 2])
 

@@ -24,8 +24,8 @@ PYBIND11_MODULE(bindings, m) {
 
     pybind11::class_<Ellipsoid<Scalar>>(m, "Ellipsoid")
         .def(pybind11::init<const Vec3<Scalar>&, const std::vector<Scalar>&,
-                            const std::vector<Vec3<Scalar>>&, const size_t>(),
-             "center"_a, "half_lengths_vec"_a, "directions_vec"_a, "rank"_a)
+                            const std::vector<Vec3<Scalar>>&>(),
+             "center"_a, "half_lengths_vec"_a, "directions_vec"_a)
         .def("center", &Ellipsoid<Scalar>::center)
         .def("half_lengths", &Ellipsoid<Scalar>::half_lengths)
         .def("directions", &Ellipsoid<Scalar>::directions)

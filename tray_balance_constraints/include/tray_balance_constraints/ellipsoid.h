@@ -11,9 +11,8 @@ struct Ellipsoid {
 
     Ellipsoid(const Vec3<Scalar>& center,
               const std::vector<Scalar>& half_lengths_vec,
-              const std::vector<Vec3<Scalar>>& directions_vec,
-              const size_t rank)
-        : center_(center), rank_(rank) {
+              const std::vector<Vec3<Scalar>>& directions_vec)
+        : center_(center) {
         // Sort indices of half lengths such that half lengths are in
         // decreasing order.
         std::vector<int> indices(half_lengths_vec.size());
@@ -25,16 +24,24 @@ struct Ellipsoid {
         // Construct properly-ordered Eigen versions.
         half_lengths_ = Vec3<Scalar>::Zero();
         directions_ = Mat3<Scalar>::Zero();
-        for (int i = 0; i < rank; ++i) {
-            half_lengths_(i) = half_lengths_vec[indices[i]];
+        rank_ = 0;
+        for (int i = 0; i < std::min<size_t>(3, half_lengths_vec.size()); ++i) {
+            Scalar hl = half_lengths_vec[indices[i]];
+            if (near_zero(hl)) {
+                break;
+            } else if (hl < Scalar(0)) {
+                throw std::runtime_error("Ellipsoid half lengths must be non-negative.");
+            }
+            half_lengths_(i) = hl;
             directions_.col(i) = directions_vec[indices[i]];
+            rank_++;
         }
 
         // Fill remaining directions with the nullspace vectors
-        if (rank < 3) {
+        if (rank_ < 3) {
             Matrix<Scalar> kernel =
-                directions_.leftCols(rank).transpose().fullPivLu().kernel();
-            directions_.rightCols(3 - rank) = kernel;
+                directions_.leftCols(rank_).transpose().fullPivLu().kernel();
+            directions_.rightCols(3 - rank_) = kernel;
         }
 
         init();
@@ -75,7 +82,7 @@ struct Ellipsoid {
         Vec3<Scalar> center = 0.5 * (v1 + v2);
         Scalar half_length = (v2 - center).norm();
         Vec3<Scalar> direction = (v2 - center) / half_length;
-        return Ellipsoid<Scalar>(center, {half_length}, {direction}, 1);
+        return Ellipsoid<Scalar>(center, {half_length}, {direction});
     }
 
     // Returns true if the ellipsoid contains the point x

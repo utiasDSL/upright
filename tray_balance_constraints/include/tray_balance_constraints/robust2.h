@@ -20,10 +20,6 @@ struct BoundedRigidBody {
           radii_of_gyration(radii_of_gyration),
           com_ellipsoid(com_ellipsoid) {}
 
-    // Compose multiple rigid bodies into one.
-    // static BoundedRigidBody<Scalar> compose(
-    //     const std::vector<BoundedRigidBody<Scalar>>& bodies);
-
     // Sample a random mass and center of mass within the bounds. If boundary =
     // true, then the CoM is generate on the boundary of the bounding
     // ellipsoid.
@@ -176,12 +172,6 @@ struct BoundedBalancedObject {
         Vector<Scalar> p = get_parameters();
         return BoundedBalancedObject<T>::from_parameters(p.template cast<T>());
     }
-
-    // Compose multiple balanced objects. The first one is assumed to be the
-    // bottom-most.
-    // TODO
-    // static BalancedObject<Scalar> compose(
-    //     const std::vector<BalancedObject<Scalar>>& objects);
 
     // Dynamic parameters
     BoundedRigidBody<Scalar> body;

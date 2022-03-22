@@ -37,3 +37,10 @@ Scalar random_scalar() {
     Scalar x = Eigen::Matrix<Scalar, 1, 1>::Random()(0);
     return 0.5 * (x + 1.0);
 }
+
+// Test if a scalar is near zero. For a vector or matrix, use Eigen's
+// Matrix::isZero method.
+template <typename Scalar>
+bool near_zero(Scalar x) {
+    return abs(x) < Scalar(1e-6);
+}

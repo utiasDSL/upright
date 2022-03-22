@@ -89,5 +89,5 @@ Ellipsoid<Scalar> Ellipsoid<Scalar>::bounding(
         directions_vec.push_back(R * v);
     }
 
-    return Ellipsoid<Scalar>(center, half_lengths_vec, directions_vec, rank);
+    return Ellipsoid<Scalar>(center, half_lengths_vec, directions_vec);
 }
