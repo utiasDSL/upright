@@ -37,18 +37,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
-template <typename SCALAR>
+template <typename Scalar>
 class MobileManipulatorPinocchioMapping final
-    : public PinocchioStateInputMapping<SCALAR> {
+    : public PinocchioStateInputMapping<Scalar> {
    public:
-    using Base = PinocchioStateInputMapping<SCALAR>;
+    using Base = PinocchioStateInputMapping<Scalar>;
     using typename Base::matrix_t;
     using typename Base::vector_t;
 
     MobileManipulatorPinocchioMapping() = default;
     ~MobileManipulatorPinocchioMapping() override = default;
-    MobileManipulatorPinocchioMapping<SCALAR>* clone() const override {
-        return new MobileManipulatorPinocchioMapping<SCALAR>(*this);
+    MobileManipulatorPinocchioMapping<Scalar>* clone() const override {
+        return new MobileManipulatorPinocchioMapping<Scalar>(*this);
     }
 
     vector_t getPinocchioJointPosition(const vector_t& state) const override {
@@ -57,14 +57,25 @@ class MobileManipulatorPinocchioMapping final
 
     vector_t getPinocchioJointVelocity(const vector_t& state,
                                        const vector_t& input) const override {
-        return state.template tail<NV>();
+        // clang-format off
+        const auto theta = state(2);
+        Eigen::Matrix<Scalar, 2, 2> C_wb;
+        C_wb << cos(theta), -sin(theta),
+                sin(theta),  cos(theta);
+        // clang-format on
+
+        vector_t v_body = state.template tail<NV>();
+        vector_t v_world(NV);
+        v_world << C_wb * v_body.template head<2>(),
+            v_body.template tail<NV - 2>();
+        return v_world;
     }
 
     vector_t getPinocchioJointAcceleration(
         const vector_t& state, const vector_t& input) const override {
         // clang-format off
          const auto theta = state(2);
-         Eigen::Matrix<SCALAR, 2, 2> C_wb;
+         Eigen::Matrix<Scalar, 2, 2> C_wb;
          C_wb << cos(theta), -sin(theta),
                  sin(theta),  cos(theta);
         // clang-format on

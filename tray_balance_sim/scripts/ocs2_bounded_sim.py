@@ -154,7 +154,7 @@ def main():
 
         # com_ellipsoid = con.Ellipsoid.point(obj.com)
         com_half_lengths = 0.05 * np.array([1, 1, 1])
-        com_ellipsoid = con.Ellipsoid(obj.com, com_half_lengths, np.eye(3), 3)
+        com_ellipsoid = con.Ellipsoid(obj.com, com_half_lengths, np.eye(3))
 
         # convert the object to the bounded one in bindings
         # TODO it would be nice if there was less duplication between the C++

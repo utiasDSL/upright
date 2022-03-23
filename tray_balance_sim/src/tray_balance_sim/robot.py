@@ -112,9 +112,6 @@ class SimulatedRobot:
         """
         state = pyb.getJointState(self.uid, self.robot_joint_indices[2])
         yaw = state[0]
-        # C_wb = np.array(
-        #     [[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]]
-        # )
         C_wb = liegroups.SO3.rotz(yaw).as_matrix()
         return C_wb
 
@@ -122,8 +119,7 @@ class SimulatedRobot:
         """Command the velocity of the robot's joints."""
         if bodyframe:
             C_wb = self._base_rotation_matrix()
-            ub = u[:3]
-            u[:3] = C_wb @ ub
+            u[:3] = C_wb @ u[:3]
 
         # add process noise
         u_noisy = u + np.random.normal(scale=self.v_cmd_stdev, size=u.shape)
@@ -140,16 +136,16 @@ class SimulatedRobot:
         # TODO for some reason feeding back v doesn't work
         # _, v = self.joint_states()
         # self.cmd_vel = v
-        C_wb = self._base_rotation_matrix()
-        base_acc = C_wb.dot(cmd_acc[:3])
-        self.cmd_acc = np.concatenate((base_acc, cmd_acc[3:]))
+        # C_wb = self._base_rotation_matrix()
+        # base_acc = C_wb.dot(cmd_acc[:3])
+        # self.cmd_acc = np.concatenate((base_acc, cmd_acc[3:]))
+        self.cmd_acc = cmd_acc
 
     def step(self):
         """One step of the physics engine."""
+        # input (acceleration) and velocity are both in the body frame
         self.cmd_vel += self.dt * self.cmd_acc
-        # acceleration is already in the world frame, so no need to rotate the
-        # velocity
-        self.command_velocity(self.cmd_vel, bodyframe=False)
+        self.command_velocity(self.cmd_vel, bodyframe=True)
 
     def joint_states(self):
         """Get the current state of the joints.
