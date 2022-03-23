@@ -317,32 +317,9 @@ MobileManipulatorInterface::getQuadraticStateInputCost(
                  "================"
               << std::endl;
 
-    // Q.setZero();
-
     return std::unique_ptr<StateInputCost>(
         new QuadraticJointStateInputCost(std::move(Q), std::move(R)));
-    // return std::unique_ptr<StateInputCost>(
-    //     new QuadraticInputCost(std::move(R)));
 }
-
-std::unique_ptr<StateCost> MobileManipulatorInterface::getQuadraticStateCost(
-    const std::string& taskFile) {
-    matrix_t Q(STATE_DIM, STATE_DIM);
-
-    std::cerr << "\n #### State Cost Settings: ";
-    std::cerr << "\n #### "
-                 "============================================================="
-                 "================\n";
-    loadData::loadEigenMatrix(taskFile, "stateCost.Q", Q);
-    std::cerr << "stateCost.Q:  \n" << Q << '\n';
-    std::cerr << " #### "
-                 "============================================================="
-                 "================"
-              << std::endl;
-
-    return std::unique_ptr<StateCost>(new QuadraticStateCost(std::move(Q)));
-}
-
 
 std::unique_ptr<StateCost>
 MobileManipulatorInterface::getDynamicObstacleConstraint(
