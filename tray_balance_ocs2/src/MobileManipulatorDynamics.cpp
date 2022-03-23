@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include <tray_balance_ocs2/MobileManipulatorDynamics.h>
+#include <tray_balance_ocs2/util.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -45,12 +46,7 @@ ad_vector_t MobileManipulatorDynamics::systemFlowMap(
     ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
     const ad_vector_t& parameters) const {
 
-    // clang-format off
-    const auto theta = state(2);
-    Eigen::Matrix<ad_scalar_t, 2, 2> C_wb;
-    C_wb << cos(theta), -sin(theta),
-            sin(theta),  cos(theta);
-    // clang-format on
+    Eigen::Matrix<ad_scalar_t, 2, 2> C_wb = base_rotation_matrix(state);
 
     // convert base velocity from body frame to world frame
     ad_vector_t v_body = state.template tail<NV>();

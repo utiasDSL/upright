@@ -117,6 +117,7 @@ class SimulatedRobot:
 
     def command_velocity(self, u, bodyframe=True):
         """Command the velocity of the robot's joints."""
+        u = np.copy(u)
         if bodyframe:
             C_wb = self._base_rotation_matrix()
             u[:3] = C_wb @ u[:3]
@@ -133,12 +134,6 @@ class SimulatedRobot:
 
     def command_acceleration(self, cmd_acc):
         """Command acceleration of the robot's joints."""
-        # TODO for some reason feeding back v doesn't work
-        # _, v = self.joint_states()
-        # self.cmd_vel = v
-        # C_wb = self._base_rotation_matrix()
-        # base_acc = C_wb.dot(cmd_acc[:3])
-        # self.cmd_acc = np.concatenate((base_acc, cmd_acc[3:]))
         self.cmd_acc = cmd_acc
 
     def step(self):

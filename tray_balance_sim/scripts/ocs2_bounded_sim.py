@@ -169,7 +169,6 @@ def main():
             obj.r_tau,
             obj.mu,
         )
-        IPython.embed()
         settings_wrapper.settings.tray_balance_settings.bounded_config.objects = [bounded_obj]
 
     else:
@@ -401,6 +400,7 @@ def main():
         # u = np.zeros(robot.ni)
         mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
         robot.command_acceleration(u)
+        # robot.command_velocity(x_opt[9:])
 
         if recorder.now_is_the_time(i):
             idx = recorder.record_index(i)

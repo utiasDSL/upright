@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
+#include <tray_balance_ocs2/util.h>
 #include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
@@ -57,13 +58,9 @@ class MobileManipulatorPinocchioMapping final
 
     vector_t getPinocchioJointVelocity(const vector_t& state,
                                        const vector_t& input) const override {
-        // clang-format off
-        const auto theta = state(2);
-        Eigen::Matrix<Scalar, 2, 2> C_wb;
-        C_wb << cos(theta), -sin(theta),
-                sin(theta),  cos(theta);
-        // clang-format on
+        Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
 
+        // convert velocity from body frame to world frame
         vector_t v_body = state.template tail<NV>();
         vector_t v_world(NV);
         v_world << C_wb * v_body.template head<2>(),
@@ -73,12 +70,7 @@ class MobileManipulatorPinocchioMapping final
 
     vector_t getPinocchioJointAcceleration(
         const vector_t& state, const vector_t& input) const override {
-        // clang-format off
-         const auto theta = state(2);
-         Eigen::Matrix<Scalar, 2, 2> C_wb;
-         C_wb << cos(theta), -sin(theta),
-                 sin(theta),  cos(theta);
-        // clang-format on
+        Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
 
         // convert acceleration input from body frame to world frame
         vector_t acceleration(INPUT_DIM);
@@ -94,12 +86,19 @@ class MobileManipulatorPinocchioMapping final
     std::pair<matrix_t, matrix_t> getOcs2Jacobian(
         const vector_t& state, const matrix_t& Jq,
         const matrix_t& Jv) const override {
+
+        // Jacobian of Pinocchio joint velocities v_pin w.r.t. actual state
+        // velocities v
+        Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
+        matrix_t dv_pin_dv = matrix_t::Identity(NV, NV);
+        dv_pin_dv.template topLeftCorner<2, 2>() = C_wb;
+
         const auto output_dim = Jq.rows();
         matrix_t dfdx(output_dim, Jq.cols() + Jv.cols());
-        dfdx << Jq, Jv;
+        dfdx << Jq, Jv * dv_pin_dv;
 
-        // NOTE: not correct but this isn't used for collision avoidance (which
-        // is the only place this method is called)
+        // NOTE: this isn't used for collision avoidance (which is the only
+        // place this method is called)
         matrix_t dfdu(output_dim, INPUT_DIM);
         dfdu.setZero();
 

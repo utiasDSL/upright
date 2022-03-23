@@ -2,14 +2,18 @@
 
 #include <string>
 
+#include <Eigen/Eigen>
 #include <ros/package.h>
 
 #include <ocs2_core/misc/LoadData.h>
 
+#include <tray_balance_ocs2/definitions.h>
+
 namespace ocs2 {
 namespace mobile_manipulator {
 
-std::tuple<std::string, std::string> load_urdf_paths(const std::string& taskFile) {
+inline std::tuple<std::string, std::string> load_urdf_paths(
+    const std::string& taskFile) {
     boost::property_tree::ptree pt;
     boost::property_tree::read_info(taskFile, pt);
 
@@ -31,7 +35,20 @@ std::tuple<std::string, std::string> load_urdf_paths(const std::string& taskFile
     const std::string obstacle_urdf_path =
         urdf_ros_package_path + obstacle_urdf_rel_path;
 
-    return std::tuple<std::string, std::string>(robot_urdf_path, obstacle_urdf_path);
+    return std::tuple<std::string, std::string>(robot_urdf_path,
+                                                obstacle_urdf_path);
+}
+
+template <typename Scalar>
+Eigen::Matrix<Scalar, 2, 2> base_rotation_matrix(
+    const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& state) {
+    // clang-format off
+    const auto theta = state(2);
+    Eigen::Matrix<Scalar, 2, 2> C_wb;
+    C_wb << cos(theta), -sin(theta),
+            sin(theta),  cos(theta);
+    // clang-format on
+    return C_wb;
 }
 
 }  // namespace mobile_manipulator
