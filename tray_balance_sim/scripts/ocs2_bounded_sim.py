@@ -122,7 +122,7 @@ def main():
     x = np.concatenate((q, v))
     u = np.zeros(robot.ni)
 
-    settings_wrapper = ocs2_util.TaskSettingsWrapper(composites, x)
+    settings_wrapper = ocs2_util.TaskSettingsWrapper(x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
     settings_wrapper.settings.tray_balance_settings.robust = USE_ROBUST_CONSTRAINTS
 
@@ -148,28 +148,28 @@ def main():
 
     ghosts = []  # ghost (i.e., pure visual) objects
     if settings_wrapper.settings.tray_balance_settings.robust:
-        obj = objects[STACK_CONFIG[0]]
-        Δm = 0
-        r_gyr = 0.15 * np.array([1, 1, 1])  # radius of the cylinder
-
-        # com_ellipsoid = con.Ellipsoid.point(obj.com)
-        com_half_lengths = 0.05 * np.array([1, 1, 1])
-        com_ellipsoid = con.Ellipsoid(obj.com, com_half_lengths, np.eye(3))
-
-        # convert the object to the bounded one in bindings
-        # TODO it would be nice if there was less duplication between the C++
-        # side and the Python side
-        bounded_body = con.BoundedRigidBody(
-            obj.mass - Δm, obj.mass + Δm, r_gyr, com_ellipsoid
-        )
-        bounded_obj = con.BoundedBalancedObject(
-            bounded_body,
-            obj.com_height,
-            obj.support_area,
-            obj.r_tau,
-            obj.mu,
-        )
-        settings_wrapper.settings.tray_balance_settings.bounded_config.objects = [bounded_obj]
+        # obj = objects[STACK_CONFIG[0]]
+        # Δm = 0
+        # r_gyr = 0.15 * np.array([1, 1, 1])  # radius of the cylinder
+        #
+        # # com_ellipsoid = con.Ellipsoid.point(obj.com)
+        # com_half_lengths = 0.05 * np.array([1, 1, 1])
+        # com_ellipsoid = con.Ellipsoid(obj.com, com_half_lengths, np.eye(3))
+        #
+        # # convert the object to the bounded one in bindings
+        # # TODO it would be nice if there was less duplication between the C++
+        # # side and the Python side
+        # bounded_body = con.BoundedRigidBody(
+        #     obj.mass - Δm, obj.mass + Δm, r_gyr, com_ellipsoid
+        # )
+        # bounded_obj = con.BoundedBalancedObject(
+        #     bounded_body,
+        #     obj.com_height,
+        #     obj.support_area,
+        #     obj.r_tau,
+        #     obj.mu,
+        # )
+        settings_wrapper.settings.tray_balance_settings.bounded_config.objects = composites
 
     else:
         # if not using robust approach, use a default collision sphere
@@ -348,8 +348,6 @@ def main():
         settings_wrapper.settings, target_times, target_states, target_inputs
     )
 
-    # IPython.embed()
-
     target_idx = 0
 
     x_opt = np.copy(x)
@@ -374,10 +372,9 @@ def main():
         else:
             mpc.setObservation(t, x_opt, u)
 
-        # TODO this should be set to reflect the MPC time step
+        # this should be set to reflect the MPC time step
         # we can increase it if the MPC rate is faster
         if i % CTRL_PERIOD == 0:
-            # robot.cmd_vel = v  # NOTE
             try:
                 t0 = time.time()
                 mpc.advanceMpc()
@@ -442,7 +439,7 @@ def main():
             recorder.ω_ew_ws[idx, :] = ω_ew_w
 
             for j, obj in enumerate(objects.values()):
-                r, Q = obj.bullet.get_pose()
+                r, Q = obj.sim_obj.get_pose()
                 recorder.r_ow_ws[j, idx, :] = r
                 recorder.Q_wos[j, idx, :] = Q
 

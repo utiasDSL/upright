@@ -24,7 +24,7 @@ def cuboid_inertia_matrix(mass, side_lengths):
 
 class BulletBody:
     def __init__(
-        self, mass, mu, r_tau, collision_uid, visual_uid, position, orientation
+        self, mass, mu, collision_uid, visual_uid, position, orientation
     ):
         self.uid = pyb.createMultiBody(
             baseMass=mass,
@@ -44,7 +44,7 @@ class BulletBody:
         pos, orn = pyb.getBasePositionAndOrientation(self.uid)
         return np.array(pos), np.array(orn)
 
-    def get_pose_planar(self):
+    def get_pose_xz(self):
         """Pose in the vertical x-z plane."""
         pos, orn = self.get_pose()
         pitch = pyb.getEulerFromQuaternion(orn)[1]
@@ -57,6 +57,32 @@ class BulletBody:
         if orientation is None:
             orientation = current_orn
         pyb.resetBasePositionAndOrientation(self.uid, list(position), list(orientation))
+
+    @staticmethod
+    def cylinder(mass, mu, position, radius, height, orientation=(0, 0, 0, 1), color=(0, 0, 1, 1)):
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_CYLINDER,
+            radius=radius,
+            height=height,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_CYLINDER,
+            radius=radius,
+            length=height,
+            rgbaColor=color,
+        )
+        return BulletBody(
+            mass=mass,
+            mu=mu,
+            collision_uid=collision_uid,
+            visual_uid=visual_uid,
+            position=position,
+            orientation=orientation,
+        )
+
+    @staticmethod
+    def cuboid(mass, mu, r_tau, position, orientation, color):
+        pass
 
 
 class BalancedBody:

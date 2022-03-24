@@ -100,6 +100,7 @@ class BoundingEllipsoidProblem(BoundingOptProblem):
 
 class BoundingRadiiOfGyrationProblem(BoundingOptProblem):
     """Bounding radii of gyration based on diagonal approximation."""
+
     def __init__(self, bodies):
         super().__init__(bodies)
 
@@ -163,6 +164,7 @@ class BoundingRadiiOfGyrationProblem(BoundingOptProblem):
 
 class BoundingRadiiOfGyrationProblem2(BoundingOptProblem):
     """Alternative bounding radii implementation based on max eigenvalue."""
+
     def __init__(self, bodies):
         super().__init__(bodies)
 
@@ -276,18 +278,37 @@ def compose_bounded_bodies(bodies):
 
 def compose_bounded_objects(objects):
     """Compose a single bounded object out of multiple."""
+    assert len(objects) > 0, "List of objects is empty."
+
+    # if there is only a single object, then we needn't do anything
+    if len(objects) == 1:
+        return objects[0]
+
     body = compose_bounded_bodies([obj.body for obj in objects])
 
     base = objects[0]
-    com_height = base.com_height + body.ellipsoid.center - base.body.ellipsoid.center
+    com_height = (
+        base.com_height + body.com_ellipsoid.center()[2] - base.body.com_ellipsoid.center()[2]
+    )
 
     # support area, mu, r_tau directly inherited from the base object
     sa_min = base.support_area_min
     mu_min = base.mu_min
     r_tau_min = base.r_tau_min
 
-    return BoundedBalancedObject(body, com_height, sa_min, r_tau_min, mu_min)
+    return BoundedBalancedObject(
+        body=body,
+        com_height=com_height,
+        support_area_min=sa_min,
+        r_tau_min=r_tau_min,
+        mu_min=mu_min,
+    )
 
 
 BoundedRigidBody.compose = staticmethod(compose_bounded_bodies)
 BoundedBalancedObject.compose = staticmethod(compose_bounded_objects)
+
+
+# TODO: compose a tree of objects
+def compose_tree(objects):
+    pass

@@ -1,0 +1,43 @@
+control_period: 25
+
+balancing:
+  use_robust_constraints: false
+  nominal:
+    enable_normal_constraint: true
+    enable_friction_constraint: true
+    enable_zmp_constraint: true
+    config: todo
+  robust:
+    num_spheres: 1
+
+static_obstacles: todo
+
+dynamic_obstacles: todo
+
+# configs reference the objects below
+# TODO offset optional
+# TODO make (x, y) and (r, θ) all specifiable at once (then they can add)
+configs:
+  short:
+    -
+      name: "tray"
+      parent: "ee"
+      offset:
+        x: 0
+        y: 0
+    -
+      name: "cuboid_short"
+      parent: "tray"
+      offset:
+        r: 0
+        θ: 0
+  tall:
+    -
+      name: "tray"
+      parent: "ee"
+    -
+      name: "cuboid_tall"
+      parent: "tray"
+
+
+objects: todo

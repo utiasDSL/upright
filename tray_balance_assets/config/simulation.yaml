@@ -1,33 +1,13 @@
-# useful to split out controller such that sim and control can have different
-# configs
-controller:
-  control_period: 25
+timestep: 0.001
+duration: 6.0
+record_period: 10
+config: "name"
 
-  balancing:
-    use_robust_constraints: false
-    nominal:
-      enable_normal_constraint: true
-      enable_friction_constraint: true
-      enable_zmp_constraint: true
-      config: todo
-    robust:
-      num_spheres: 1
-
-  static_obstacles: todo
-
-  dynamic_obstacles: todo
-
-simulation:
-  timestep: 0.001
-  duration: 6.0
-  record_period: 10
-  config: "name"
-
-  noise:
-    use_noisy_state_to_plan: true
-    q_std_dev: 0
-    v_std_dev: 0
-    v_cmd_std_dev: 0
+noise:
+  use_noisy_state_to_plan: true
+  q_std_dev: 0
+  v_std_dev: 0
+  v_cmd_std_dev: 0
 
 photos: todo
 

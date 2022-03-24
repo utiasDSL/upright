@@ -13,7 +13,7 @@ LIBRARY_PATH = "/tmp/ocs2"
 
 
 class TaskSettingsWrapper:
-    def __init__(self, composites, x0):
+    def __init__(self, x0):
         settings = ocs2.TaskSettings()
 
         settings.method = ocs2.TaskSettings.Method.DDP
@@ -25,7 +25,7 @@ class TaskSettingsWrapper:
         settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
         settings.tray_balance_settings.mu = 1e-2
         settings.tray_balance_settings.delta = 5e-4
-        settings.tray_balance_settings.config.objects = composites
+        # settings.tray_balance_settings.config.objects = composites
 
         # robust settings
         robust_params = ocs2.RobustParameterSet()
