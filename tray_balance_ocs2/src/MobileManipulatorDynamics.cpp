@@ -54,6 +54,7 @@ ad_vector_t MobileManipulatorDynamics::systemFlowMap(
     dqdt << C_wb * v_body.template head<2>(), v_body.template tail<NV - 2>();
 
     ad_vector_t dvdt = input;
+    // dvdt(1) = 0;  // nonholonomic
 
     ad_vector_t dxdt(STATE_DIM);
     dxdt << dqdt, dvdt;

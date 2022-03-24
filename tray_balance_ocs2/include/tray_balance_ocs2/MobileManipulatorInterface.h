@@ -140,6 +140,8 @@ class MobileManipulatorInterface final : public RobotInterface {
         const std::string& prefix, bool usePreComputation,
         const std::string& libraryFolder, bool recompileLibraries);
 
+    std::unique_ptr<StateConstraint> getNonHolonomicConstraint();
+
     void loadSettings(const std::string& taskFile,
                       const std::string& libraryFolder);
 

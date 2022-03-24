@@ -119,6 +119,7 @@ class SimulatedRobot:
         """Command the velocity of the robot's joints."""
         u = np.copy(u)
         if bodyframe:
+            # u[1] = 0  # nonholonomic
             C_wb = self._base_rotation_matrix()
             u[:3] = C_wb @ u[:3]
 

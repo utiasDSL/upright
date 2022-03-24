@@ -38,6 +38,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_core/misc/LoadData.h>
 #include <ocs2_core/soft_constraint/StateInputSoftConstraint.h>
 #include <ocs2_core/soft_constraint/StateSoftConstraint.h>
+#include <ocs2_core/constraint/LinearStateInputConstraint.h>
+#include <ocs2_core/constraint/LinearStateConstraint.h>
 #include <ocs2_core/soft_constraint/penalties/DoubleSidedPenalty.h>
 #include <ocs2_core/soft_constraint/penalties/QuadraticPenalty.h>
 #include <ocs2_core/soft_constraint/penalties/RelaxedBarrierPenalty.h>
@@ -258,11 +260,9 @@ void MobileManipulatorInterface::loadSettings(
         "endEffector", getEndEffectorCost(*pinocchioInterfacePtr_, taskFile,
                                           "endEffector", usePreComputation,
                                           libraryFolder, recompileLibraries));
-    // problem_.finalCostPtr->add(
-    //     "finalEndEffector",
-    //     getEndEffectorCost(*pinocchioInterfacePtr_, taskFile,
-    //                        "finalEndEffector", usePreComputation,
-    //                        libraryFolder, recompileLibraries));
+
+    // problem_.stateEqualityConstraintPtr->add("nonholonomicBase", getNonHolonomicConstraint());
+
 
     /*
      * Use pre-computation
@@ -279,6 +279,13 @@ void MobileManipulatorInterface::loadSettings(
 
     loadData::loadEigenMatrix(taskFile, "initialState", initialState_);
     std::cerr << "Initial State:   " << initialState_.transpose() << std::endl;
+}
+
+std::unique_ptr<StateConstraint> MobileManipulatorInterface::getNonHolonomicConstraint() {
+    vector_t e = vector_t::Zero(1);
+    matrix_t C = matrix_t::Zero(1, STATE_DIM);
+    C(0, NQ + 1) = 1;
+    return std::unique_ptr<StateConstraint>(new LinearStateConstraint(e, C));
 }
 
 /******************************************************************************************************/

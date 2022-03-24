@@ -72,10 +72,12 @@ class MobileManipulatorPinocchioMapping final
         const vector_t& state, const vector_t& input) const override {
         Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
 
+        vector_t ub = input.template head<2>();
+        // ub(1) = 0;  // nonholonomic
+
         // convert acceleration input from body frame to world frame
         vector_t acceleration(INPUT_DIM);
-        acceleration << C_wb * input.template head<2>(),
-            input.template tail<INPUT_DIM - 2>();
+        acceleration << C_wb * ub, input.template tail<INPUT_DIM - 2>();
         return acceleration;
     }
 
