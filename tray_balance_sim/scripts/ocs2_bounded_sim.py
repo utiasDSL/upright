@@ -112,7 +112,7 @@ def main():
     # simulation, objects, and model
     sim = MobileManipulatorSimulation(dt=SIM_DT)
     robot, objects, composites = sim.setup(
-        STACK_CONFIG[:1],
+        STACK_CONFIG[:2],
         load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 

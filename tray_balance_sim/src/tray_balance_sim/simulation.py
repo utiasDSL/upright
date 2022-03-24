@@ -128,6 +128,7 @@ CUBOID1_STACK_TRAY_MU = 0.25
 CUBOID1_STACK_COM_HEIGHT = 0.075
 CUBOID1_STACK_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID1_STACK_COM_HEIGHT)
 CUBOID1_STACK_COLOR = PLT_COLOR2
+CUBOID1_STACK_MU_BULLET = CUBOID1_STACK_TRAY_MU / CYLINDER_BASE_STACK_MU_BULLET
 
 # CUBOID1_STACK_CONTROL_MASS = CUBOID1_STACK_MASS
 CUBOID1_STACK_CONTROL_MASS = 1.0 if USE_STACK_ERROR else CUBOID1_STACK_MASS
@@ -412,21 +413,6 @@ class Simulation:
 
         name = "cylinder_base_stack"
         if name in obj_names:
-            # objects[name] = bodies.Cylinder(
-            #     r_tau=geometry.equilateral_triangle_r_tau(EE_SIDE_LENGTH),
-            #     support_area=ocs2.PolygonSupportArea.equilateral_triangle(
-            #         EE_SIDE_LENGTH
-            #     ),
-            #     mass=CYLINDER_BASE_STACK_MASS,
-            #     radius=CYLINDER_BASE_STACK_RADIUS,
-            #     height=2 * CYLINDER_BASE_STACK_COM_HEIGHT,
-            #     mu=CYLINDER_BASE_STACK_MU,
-            # )
-            # objects[name].mass_error = CYLINDER_BASE_STACK_MASS_ERROR
-            # objects[name].add_to_sim(
-            #     bullet_mu=CYLINDER_BASE_STACK_MU_BULLET, color=CYLINDER_BASE_STACK_COLOR
-            # )
-
             # TODO these will have to specified elsewhere
             # com_ellipsoid = con.Ellipsoid.point(obj.com)
             com_center = np.array([0, 0, CYLINDER_BASE_STACK_COM_HEIGHT + 0.02])
@@ -458,9 +444,6 @@ class Simulation:
                 radius=CYLINDER_BASE_STACK_RADIUS,
                 height=2*CYLINDER_BASE_STACK_COM_HEIGHT,
             )
-
-            # r_ow_w = r_ew_w + [0, 0, CYLINDER_BASE_STACK_COM_HEIGHT + 0.05]
-            # bullet_obj.reset_pose(position=com_center)
 
             # it is convenient to wrap the control and sim objects
             objects[name] = BalancedObject(ctrl_obj, sim_obj, parent=None)
@@ -554,23 +537,54 @@ class Simulation:
                 CUBOID1_STACK_SIDE_LENGTHS[1],
                 margin=OBJ_ZMP_MARGIN,
             )
-            objects[name] = bodies.Cuboid(
-                r_tau=geometry.rectangle_r_tau(*CUBOID1_STACK_SIDE_LENGTHS[:2]),
-                support_area=support_area,
+            # objects[name] = bodies.Cuboid(
+            #     r_tau=geometry.rectangle_r_tau(*CUBOID1_STACK_SIDE_LENGTHS[:2]),
+            #     support_area=support_area,
+            #     mass=CUBOID1_STACK_MASS,
+            #     side_lengths=CUBOID1_STACK_SIDE_LENGTHS,
+            #     mu=CUBOID1_STACK_TRAY_MU,
+            # )
+            # objects[name].mass_error = CUBOID1_STACK_MASS_ERROR
+            # # objects[name].mu_error = -0.05
+            # objects[name].mu_error = 0
+            # add_obj_to_sim(
+            #     obj=objects[name],
+            #     name=name,
+            #     color=CUBOID1_STACK_COLOR,
+            #     # parent=objects["cuboid_base_stack"],
+            #     parent=objects["cylinder_base_stack"],
+            # )
+
+            # TODO avoid manually specifying
+            com_center = np.array([0, 0, CUBOID1_STACK_COM_HEIGHT + 2 * CYLINDER_BASE_STACK_COM_HEIGHT + 0.02])
+            com_half_lengths = 0.05 * np.array([1, 1, 1])
+            com_ellipsoid = con.Ellipsoid(com_center, com_half_lengths, np.eye(3))
+            r_gyr = 0.5 * np.array(CUBOID1_STACK_SIDE_LENGTHS)
+
+            ctrl_body = con.BoundedRigidBody(
+                mass_min=CUBOID1_STACK_MASS,
+                mass_max=CUBOID1_STACK_MASS,
+                radii_of_gyration=r_gyr,
+                com_ellipsoid=com_ellipsoid,
+            )
+            ctrl_obj = con.BoundedBalancedObject(
+                ctrl_body,
+                com_height=CUBOID1_STACK_COM_HEIGHT,
+                support_area_min=support_area,
+                r_tau_min=geometry.rectangle_r_tau(*CUBOID1_STACK_SIDE_LENGTHS[:2]),
+                mu_min=CUBOID1_STACK_TRAY_MU,
+            )
+
+            # add the object to the bullet sim
+            sim_obj = bodies.BulletBody.cuboid(
                 mass=CUBOID1_STACK_MASS,
-                side_lengths=CUBOID1_STACK_SIDE_LENGTHS,
-                mu=CUBOID1_STACK_TRAY_MU,
+                mu=CUBOID1_STACK_MU_BULLET,  # TODO avoid manually computation
+                position=r_ew_w + com_center,
+                side_lengths=np.array(CUBOID1_STACK_SIDE_LENGTHS),
             )
-            objects[name].mass_error = CUBOID1_STACK_MASS_ERROR
-            # objects[name].mu_error = -0.05
-            objects[name].mu_error = 0
-            add_obj_to_sim(
-                obj=objects[name],
-                name=name,
-                color=CUBOID1_STACK_COLOR,
-                # parent=objects["cuboid_base_stack"],
-                parent=objects["cylinder_base_stack"],
-            )
+
+            # it is convenient to wrap the control and sim objects
+            objects[name] = BalancedObject(ctrl_obj, sim_obj, parent="cylinder_base_stack")
 
         name = "cuboid2_stack"
         if name in obj_names:

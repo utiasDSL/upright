@@ -81,8 +81,25 @@ class BulletBody:
         )
 
     @staticmethod
-    def cuboid(mass, mu, r_tau, position, orientation, color):
-        pass
+    def cuboid(mass, mu, position, side_lengths, orientation=(0, 0, 0, 1), color=(0, 0, 1, 1)):
+        half_extents = tuple(0.5 * side_lengths)
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_BOX,
+            halfExtents=half_extents,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_BOX,
+            halfExtents=half_extents,
+            rgbaColor=color,
+        )
+        return BulletBody(
+            mass=mass,
+            mu=mu,
+            collision_uid=collision_uid,
+            visual_uid=visual_uid,
+            position=position,
+            orientation=orientation,
+        )
 
 
 class BalancedBody:

@@ -79,7 +79,8 @@ class BoundingEllipsoidProblem(BoundingOptProblem):
         delta = com - self.ell.center()
 
         # our goal is maximization so make negative
-        return -delta.T @ self.ell.E() @ delta
+        # sqrt is required for numerical stability
+        return -np.sqrt(delta.T @ self.ell.E() @ delta)
 
     def solve(self, masses0, coms0, method="SLSQP"):
         """Solve the optimization problem given the initial guess."""
@@ -93,7 +94,12 @@ class BoundingEllipsoidProblem(BoundingOptProblem):
             method=method,
             constraints=constraints,
         )
-        assert res.success, "Optimization problem failed to solve."
+        try:
+            assert res.success, "Optimization problem failed to solve."
+        except AssertionError as e:
+            print(e)
+            IPython.embed()
+            raise e
         masses_opt, coms_opt = self._parse_args(res.x)
         return masses_opt, coms_opt
 
@@ -246,7 +252,11 @@ def compose_com_ellipsoid(bodies, N=100, eps=0.01):
     problem = BoundingEllipsoidProblem(ell, bodies)
     masses_guess = np.array([0.5 * (body.mass_min + body.mass_max) for body in bodies])
     coms_guess = np.array([body.com_ellipsoid.center() for body in bodies])
-    masses_opt, coms_opt = problem.solve(masses_guess, coms_guess)
+    try:
+        masses_opt, coms_opt = problem.solve(masses_guess, coms_guess)
+    except AssertionError as e:
+        IPython.embed()
+        raise e
 
     com = compute_com(masses_opt, coms_opt)
     delta = com - ell.center()
