@@ -1,7 +1,7 @@
 timestep: 0.001
 duration: 6.0
 record_period: 10
-config: "name"
+object_config_name: "two"
 
 noise:
   use_noisy_state_to_plan: true
@@ -20,34 +20,72 @@ video:
       camera: "foo"
       filename: "view1"
 
+static_obstacles:
+  enabled: false
+
+dynamic_obstacles:
+  enabled: false
+
+urdf:
+  robot:
+    package: "tray_balance_assets"
+    path: "urdf/mm_pyb.urdf"
+  robot_obstacles:
+    package: "tray_balance_assets"
+    path: "urdf/mm_pyb_static_obs.urdf"
+  obstacles:
+    package: "tray_balance_assets"
+    path: "urdf/obstacles.urdf"
+
 # configs reference the objects below
 # TODO offset optional
 # TODO make (x, y) and (r, θ) all specifiable at once (then they can add)
-configs:
-  short:
+object_configs:
+  two:
     -
-      name: "tray"
-      parent: "ee"
+      name: "cylinder_stack_base"
+    -
+      name: "cuboid1_stack"
+      parent: "cylinder_stack_base"
       offset:
         x: 0
         y: 0
-    -
-      name: "cuboid_short"
-      parent: "tray"
-      offset:
-        r: 0
-        θ: 0
-  tall:
-    -
-      name: "tray"
-      parent: "ee"
-    -
-      name: "cuboid_tall"
-      parent: "tray"
+  # short:
+  #   -
+  #     name: "tray"
+  #     parent: "ee"
+  #     offset:
+  #       x: 0
+  #       y: 0
+  #   -
+  #     name: "cuboid_short"
+  #     parent: "tray"
+  #     offset:
+  #       r: 0
+  #       θ: 0
+  # tall:
+  #   -
+  #     name: "tray"
+  #     parent: "ee"
+  #   -
+  #     name: "cuboid_tall"
+  #     parent: "tray"
 
 
-objects: todo
-
+objects:
+  cylinder_stack_base:
+    shape: "cylinder"
+    mass: 0.75
+    mu: 0.5
+    height: 0.1
+    radius: 0.15
+    color: [0, 0, 1, 1]
+  cuboid1_stack:
+    shape: "cuboid"
+    mass: 0.75
+    mu: 0.25
+    side_lengths: [0.15, 0.15, 0.15]
+    color: [1, 0, 0, 1]
 
 cameras:
   -

@@ -2,23 +2,16 @@ import os
 
 import numpy as np
 import pybullet as pyb
-import rospkg
 import pinocchio
 import liegroups
+
+from tray_balance_sim import config_utils
 
 import IPython
 
 
-rospack = rospkg.RosPack()
-ROBOT_URDF_PATH = os.path.join(
-    rospack.get_path("tray_balance_assets"), "urdf", "mm_pyb.urdf"
-)
-ROBOT_WITH_STATIC_OBS_URDF_PATH = os.path.join(
-    rospack.get_path("tray_balance_assets"), "urdf", "mm_pyb_static_obs.urdf"
-)
-
+# TODO hardcode less things!
 BASE_JOINT_NAMES = ["x_to_world_joint", "y_to_x_joint", "base_to_y_joint"]
-
 UR10_JOINT_NAMES = [
     "ur10_arm_shoulder_pan_joint",
     "ur10_arm_shoulder_lift_joint",
@@ -27,7 +20,6 @@ UR10_JOINT_NAMES = [
     "ur10_arm_wrist_2_joint",
     "ur10_arm_wrist_3_joint",
 ]
-
 ROBOT_JOINT_NAMES = BASE_JOINT_NAMES + UR10_JOINT_NAMES
 
 TOOL_JOINT_NAME = "tool0_tcp_fixed_joint"
@@ -35,25 +27,19 @@ TOOL_LINK_NAME = "thing_tool"
 
 
 class SimulatedRobot:
-    def __init__(
-        self,
-        dt,
-        load_static_collision_objects=False,
-        position=(0, 0, 0),
-        orientation=(0, 0, 0, 1),
-    ):
+    def __init__(self, config, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
         # NOTE: passing the flag URDF_MERGE_FIXED_LINKS is good for performance
         # but messes up the origins of the merged links, so this is not
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
-        if load_static_collision_objects:
-            self.uid = pyb.loadURDF(
-                ROBOT_WITH_STATIC_OBS_URDF_PATH, position, orientation
-            )
+        if config["static_obstacles"]["enabled"]:
+            urdf_path = config_utils.urdf_path(config["urdf"]["robot_obstacles"])
         else:
-            self.uid = pyb.loadURDF(ROBOT_URDF_PATH, position, orientation)
+            urdf_path = config_utils.urdf_path(config["urdf"]["robot"])
 
-        self.dt = dt
+        self.uid = pyb.loadURDF(urdf_path, position, orientation)
+
+        self.dt = config["timestep"]
         self.ns = 18  # num state
         self.ni = 9  # num inputs
 
@@ -61,6 +47,7 @@ class SimulatedRobot:
         self.cmd_acc = np.zeros_like(self.cmd_vel)
 
         # standard deviation of zero-mean Gaussian noise added to velocity inputs
+        # TODO handle other noise here
         self.v_cmd_stdev = 0.0
 
         # build a dict of all joints, keyed by name
@@ -82,14 +69,6 @@ class SimulatedRobot:
         # Link index (of the tool, in this case) is the same as the joint
         self.tool_idx = self.joints[TOOL_JOINT_NAME][0]
 
-        # pyb.changeDynamics(self.uid, -1, mass=0)
-        # NOTE: this just makes the robot unable to move apparently
-        # for i in range(pyb.getNumJoints(self.uid)):
-        #     pyb.changeDynamics(self.uid, i, mass=0)
-        # for i in range(pyb.getNumJoints(self.uid)):
-        #     pyb.changeDynamics(self.uid, i, linearDamping=0, angularDamping=0)
-
-        # TODO may need to also set spinningFriction
         pyb.changeDynamics(self.uid, self.tool_idx, lateralFriction=1.0)
 
     def reset_arm_joints(self, qa):

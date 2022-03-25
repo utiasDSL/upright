@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as pyb
 import rospkg
+import yaml
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
@@ -33,12 +34,6 @@ class SimType(enum.Enum):
 
 SIM_TYPE = SimType.POSE_TO_POSE
 
-
-# simulation parameters
-SIM_DT = 0.001
-RECORD_PERIOD = 10
-DURATION = 12.0  # duration of trajectory (s)
-#DURATION = 6.0  # duration of trajectory (s)
 
 # generate new control signal every CTRL_PERIOD timesteps
 if SIM_TYPE == SimType.POSE_TO_POSE:
@@ -107,13 +102,27 @@ CUPS_CONFIG = ["tray", "cylinder3_cup", "cylinder1_cup", "cylinder2_cup"]
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    N = int(DURATION / SIM_DT)
+    # load configuration
+    rospack = rospkg.RosPack()
+    config_path = Path(rospack.get_path("tray_balance_assets")) / "config"
+    with open(config_path / "controller.yaml") as f:
+        controller_config = yaml.safe_load(f)
+    with open(config_path / "simulation.yaml") as f:
+        simulation_config = yaml.safe_load(f)
+    config = {
+        "controller": controller_config,
+        "simulation": simulation_config,
+    }
+
+    sim_dt = config["simulation"]["timestep"]
+    N = int(config["simulation"]["duration"] / sim_dt)
 
     # simulation, objects, and model
-    sim = MobileManipulatorSimulation(dt=SIM_DT)
+    sim = MobileManipulatorSimulation(dt=sim_dt)
     robot, objects, composites = sim.setup(
-        STACK_CONFIG[:2],
-        load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
+            config["simulation"],
+        # STACK_CONFIG[:2],
+        # load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
     )
 
     # initial time, state, input
@@ -148,29 +157,9 @@ def main():
 
     ghosts = []  # ghost (i.e., pure visual) objects
     if settings_wrapper.settings.tray_balance_settings.robust:
-        # obj = objects[STACK_CONFIG[0]]
-        # Δm = 0
-        # r_gyr = 0.15 * np.array([1, 1, 1])  # radius of the cylinder
-        #
-        # # com_ellipsoid = con.Ellipsoid.point(obj.com)
-        # com_half_lengths = 0.05 * np.array([1, 1, 1])
-        # com_ellipsoid = con.Ellipsoid(obj.com, com_half_lengths, np.eye(3))
-        #
-        # # convert the object to the bounded one in bindings
-        # # TODO it would be nice if there was less duplication between the C++
-        # # side and the Python side
-        # bounded_body = con.BoundedRigidBody(
-        #     obj.mass - Δm, obj.mass + Δm, r_gyr, com_ellipsoid
-        # )
-        # bounded_obj = con.BoundedBalancedObject(
-        #     bounded_body,
-        #     obj.com_height,
-        #     obj.support_area,
-        #     obj.r_tau,
-        #     obj.mu,
-        # )
-        settings_wrapper.settings.tray_balance_settings.bounded_config.objects = composites
-
+        settings_wrapper.settings.tray_balance_settings.bounded_config.objects = (
+            composites
+        )
     else:
         # if not using robust approach, use a default collision sphere
         balanced_object_collision_sphere = ocs2.CollisionSphere(
@@ -205,9 +194,9 @@ def main():
 
     # data recorder and plotter
     recorder = Recorder(
-        sim.dt,
-        DURATION,
-        RECORD_PERIOD,
+        config["simulation"]["timestep"],
+        config["simulation"]["duration"],
+        config["simulation"]["record_period"],
         ns=robot.ns,
         ni=robot.ni,
         n_objects=len(objects),
@@ -414,7 +403,9 @@ def main():
                         "trayBalance", t, x, u
                     )
                 else:
-                    recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint("trayBalance", t, x, u)
+                    recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
+                        "trayBalance", t, x, u
+                    )
             if settings_wrapper.settings.dynamic_obstacle_settings.enabled:
                 recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
                     "dynamicObstacleAvoidance", t, x

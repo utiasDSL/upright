@@ -112,17 +112,6 @@ CYLINDER_BASE_STACK_MASS_ERROR = (
     CYLINDER_BASE_STACK_CONTROL_MASS - CYLINDER_BASE_STACK_MASS
 )
 
-# CUBOID_BASE_STACK_MASS = 0.75
-# CUBOID_BASE_STACK_MU = 0.5
-# CUBOID_BASE_STACK_MU_BULLET = CUBOID_BASE_STACK_MU / EE_MU
-# CUBOID_BASE_STACK_COM_HEIGHT = 0.05
-# CUBOID_BASE_STACK_SIDE_LENGTHS = (0.3, 0.3, 2 * CUBOID_BASE_STACK_COM_HEIGHT)
-# CUBOID_BASE_STACK_COLOR = PLT_COLOR1
-#
-# CUBOID_BASE_STACK_CONTROL_MASS = CUBOID_BASE_STACK_MASS
-# # CUBOID_BASE_STACK_CONTROL_MASS = 1.0
-# CUBOID_BASE_STACK_MASS_ERROR = CUBOID_BASE_STACK_CONTROL_MASS - CUBOID_BASE_STACK_MASS
-
 CUBOID1_STACK_MASS = 0.75
 CUBOID1_STACK_TRAY_MU = 0.25
 CUBOID1_STACK_COM_HEIGHT = 0.075
@@ -264,81 +253,13 @@ class Simulation:
             self.robot.step()
         pyb.stepSimulation()
 
-    def record_video(self, file_name):
-        """Record a video of the simulation to the given file."""
-        self.video_file_name = str(file_name)
-
-    def basic_setup(self, load_static_obstacles):
-        # pyb.connect(pyb.GUI)
+    def basic_setup(self, config):
+        load_static_obstacles = False  # TODO
         pyb.connect(pyb.GUI, options="--width=1280 --height=720")
 
         pyb.setGravity(0, 0, -GRAVITY_MAG)
         pyb.setTimeStep(self.dt)
 
-        # default
-        # pyb.resetDebugVisualizerCamera(
-        #     cameraDistance=4.6,
-        #     cameraYaw=5.2,
-        #     cameraPitch=-27,
-        #     cameraTargetPosition=[1.18, 0.11, 0.05],
-        # )
-
-        # for close-ups shots of the EE / objects
-        # pyb.resetDebugVisualizerCamera(
-        #     cameraDistance=1.8,
-        #     cameraYaw=14,
-        #     cameraPitch=-39,
-        #     cameraTargetPosition=(1.028, 0.075, 0.666),
-        # )
-
-        # for taking pictures of the dynamic obstacle avoidance task
-        # also dynamic obstacle POV #1
-        # pyb.resetDebugVisualizerCamera(
-        #     cameraDistance=1.8,
-        #     cameraYaw=147.6,
-        #     cameraPitch=-29,
-        #     cameraTargetPosition=[1.28, 0.045, 0.647],
-        # )
-
-        # dynamic obstacle POV #2
-        # pyb.resetDebugVisualizerCamera(
-        #     cameraDistance=2.6,
-        #     cameraYaw=-3.2,
-        #     cameraPitch=-20.6,
-        #     cameraTargetPosition=[1.28, 0.045, 0.647],
-        # )
-
-        # static obstacle course POV #1
-        # pyb.resetDebugVisualizerCamera(
-        #     cameraDistance=3.6,
-        #     cameraYaw=-39.6,
-        #     cameraPitch=-38.2,
-        #     cameraTargetPosition=[1.66, -0.31, 0.03],
-        # )
-
-        # static obstacle course POV #2
-        # pyb.resetDebugVisualizerCamera(
-        #     cameraDistance=3.4,
-        #     cameraYaw=10.0,
-        #     cameraPitch=-23.4,
-        #     cameraTargetPosition=[2.77, 0.043, 0.142],
-        # )
-
-        # static obstacle course POV #3
-        # pyb.resetDebugVisualizerCamera(
-        #     cameraDistance=4.8,
-        #     cameraYaw=87.6,
-        #     cameraPitch=-13.4,
-        #     cameraTargetPosition=[2.77, 0.043, 0.142],
-        # )
-
-        # single- and multi-object POV
-        # pyb.resetDebugVisualizerCamera(
-        #     cameraDistance=3,
-        #     cameraYaw=26,
-        #     cameraPitch=-30.6,
-        #     cameraTargetPosition=[1.28, 0.045, 0.647],
-        # )
         pyb.resetDebugVisualizerCamera(
             cameraDistance=4,
             cameraYaw=42,
@@ -348,22 +269,17 @@ class Simulation:
 
         # get rid of extra parts of the GUI
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
-        # pyb.configureDebugVisualizer(pyb.COV_ENABLE_SINGLE_STEP_RENDERING, 1)
-
-        # record video
-        if self.video_file_name is not None:
-            pyb.startStateLogging(pyb.STATE_LOGGING_VIDEO_MP4, self.video_file_name)
 
         # setup ground plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
         pyb.loadURDF("plane.urdf", [0, 0, 0])
 
         # setup obstacles
-        if load_static_obstacles:
-            obstacles_uid = pyb.loadURDF(OBSTACLES_URDF_PATH)
+        if config["static_obstacles"]["enabled"]:
+            obstacles_uid = pyb.loadURDF(config_utils.urdf_path(config["urdf"]["obstacles"]))
             pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
-            # pyb.setCollisionFilterGroupMask(obstacles_uid, -1, 0, 0)
 
+    # TODO this should go elsewhere probably
     def compute_cylinder_xy_positions(self, L=0.08):
         """L is distance along vector toward each vertex."""
         s = 0.2
@@ -384,9 +300,49 @@ class Simulation:
 
         return (c0, c1, c2)
 
-    def object_setup(self, r_ew_w, obj_names, controller_obj_names=None):
+    def object_setup(self, r_ew_w, config):
         # controller objects are the ones the controller thinks are there
         objects = {}
+
+        def compute_offset(d):
+            x = d["x"] if "x" in d else 0
+            y = d["y"] if "y" in d else 0
+            if "r" in d and "θ" in d:
+                r = d["r"]
+                θ = d["θ"]
+                x += r * np.cos(θ)
+                y += r * np.sin(θ)
+            return np.array([x, y])
+
+        object_data = config["object_configs"][config["object_config_name"]]
+        for d in object_data:
+            name = d["name"]
+            properties = config["objects"][name]
+            obj = bodies.BulletBody.fromdict(properties)
+
+            if "parent" in d:
+                parent = objects[d["parent"]]
+                parent_position, _ = parent.get_pose()
+                position = parent_position
+                position[2] += 0.5 * parent.height + 0.5 * obj.height
+
+                # PyBullet calculates coefficient of friction between two
+                # bodies by multiplying them. Thus, to achieve our actual
+                # desired friction at the support we need to divide the desired
+                # value by the parent value to get the simulated value.
+                obj.mu = obj.mu / parent.mu
+            else:
+                position = r_ew_w + [0, 0, 0.02 + 0.5 * obj.height]
+                obj.mu = obj.mu / EE_MU
+
+            if "offset" in d:
+                position[:2] += compute_offset(d["offset"])
+
+            obj.add_to_sim(position)
+            objects[name] = obj
+
+        return objects
+
 
         # tray
 
@@ -447,25 +403,6 @@ class Simulation:
 
             # it is convenient to wrap the control and sim objects
             objects[name] = BalancedObject(ctrl_obj, sim_obj, parent=None)
-
-        # name = "cuboid_base_stack"
-        # if name in obj_names:
-        #     objects[name] = bodies.Cuboid(
-        #         r_tau=EE_SIDE_LENGTH,
-        #         support_area=ocs2.PolygonSupportArea.equilateral_triangle(
-        #             EE_SIDE_LENGTH
-        #         ),
-        #         mass=CUBOID_BASE_STACK_MASS,
-        #         side_lengths=CUBOID_BASE_STACK_SIDE_LENGTHS,
-        #         mu=CUBOID_BASE_STACK_MU,
-        #     )
-        #     objects[name].mass_error = CUBOID_BASE_STACK_MASS_ERROR
-        #
-        #     objects[name].add_to_sim(
-        #         bullet_mu=CUBOID_BASE_STACK_MU_BULLET, color=CUBOID_BASE_STACK_COLOR
-        #     )
-        #     r_tw_w = r_ew_w + [0, 0, 0.5 * CUBOID_BASE_STACK_SIDE_LENGTHS[2] + 0.05]
-        #     objects[name].bullet.reset_pose(position=r_tw_w)
 
         def add_obj_to_sim(obj, name, color, parent, offset_xy=(0, 0)):
             bullet_mu = obj.mu / parent.bullet.mu
@@ -537,23 +474,6 @@ class Simulation:
                 CUBOID1_STACK_SIDE_LENGTHS[1],
                 margin=OBJ_ZMP_MARGIN,
             )
-            # objects[name] = bodies.Cuboid(
-            #     r_tau=geometry.rectangle_r_tau(*CUBOID1_STACK_SIDE_LENGTHS[:2]),
-            #     support_area=support_area,
-            #     mass=CUBOID1_STACK_MASS,
-            #     side_lengths=CUBOID1_STACK_SIDE_LENGTHS,
-            #     mu=CUBOID1_STACK_TRAY_MU,
-            # )
-            # objects[name].mass_error = CUBOID1_STACK_MASS_ERROR
-            # # objects[name].mu_error = -0.05
-            # objects[name].mu_error = 0
-            # add_obj_to_sim(
-            #     obj=objects[name],
-            #     name=name,
-            #     color=CUBOID1_STACK_COLOR,
-            #     # parent=objects["cuboid_base_stack"],
-            #     parent=objects["cylinder_base_stack"],
-            # )
 
             # TODO avoid manually specifying
             com_center = np.array([0, 0, CUBOID1_STACK_COM_HEIGHT + 2 * CYLINDER_BASE_STACK_COM_HEIGHT + 0.02])
@@ -687,27 +607,23 @@ class MobileManipulatorSimulation(Simulation):
     def __init__(self, dt=0.001):
         super().__init__(dt)
 
-    def setup(self, tray_balance_settings, load_static_obstacles=False):
+    def setup(self, config):
         """Setup pybullet simulation."""
-        super().basic_setup(load_static_obstacles)
+        super().basic_setup(config)
 
-        robot = SimulatedRobot(
-            self.dt, load_static_collision_objects=load_static_obstacles
-        )
-        self.robot = robot
-        robot.reset_joint_configuration(ROBOT_HOME)
+        self.robot = SimulatedRobot(config)
+        self.robot.reset_joint_configuration(ROBOT_HOME)
 
         # simulate briefly to let the robot settle down after being positioned
         self.settle(1.0)
 
         # arm gets bumped by the above settling, so we reset it again
-        robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
-        # robot.reset_joint_configuration(ROBOT_HOME)
+        self.robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
 
-        # self.settle(1.0)
+        r_ew_w, _ = self.robot.link_pose()
+        objects = super().object_setup(r_ew_w, config)
 
-        r_ew_w, _ = robot.link_pose()
-        objects = super().object_setup(r_ew_w, tray_balance_settings)
+        IPython.embed()
 
         self.settle(1.0)
 
@@ -720,5 +636,4 @@ class MobileManipulatorSimulation(Simulation):
         #     obj.ctrl_obj.body.com_ellipsoid.center = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
 
         composites = super().composite_setup(objects)
-
-        return robot, objects, composites
+        return self.robot, objects, composites

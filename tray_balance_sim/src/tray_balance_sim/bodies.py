@@ -23,13 +23,19 @@ def cuboid_inertia_matrix(mass, side_lengths):
 
 
 class BulletBody:
-    def __init__(
-        self, mass, mu, collision_uid, visual_uid, position, orientation
-    ):
+    def __init__(self, mass, mu, height, collision_uid, visual_uid):
+        self.mass = mass
+        self.mu = mu
+        self.height = height
+        self.collision_uid = collision_uid
+        self.visual_uid = visual_uid
+
+    def add_to_sim(self, position, orientation=(0, 0, 0, 1)):
+        """Actually add the object to the simulation."""
         self.uid = pyb.createMultiBody(
-            baseMass=mass,
-            baseCollisionShapeIndex=collision_uid,
-            baseVisualShapeIndex=visual_uid,
+            baseMass=self.mass,
+            baseCollisionShapeIndex=self.collision_uid,
+            baseVisualShapeIndex=self.visual_uid,
             basePosition=position,
             baseOrientation=orientation,
         )
@@ -37,20 +43,15 @@ class BulletBody:
         # set friction
         # I do not set a spinning friction coefficient here directly, but let
         # Bullet handle this internally
-        self.mu = mu
-        pyb.changeDynamics(self.uid, -1, lateralFriction=mu)
+        pyb.changeDynamics(self.uid, -1, lateralFriction=self.mu)
 
     def get_pose(self):
+        """Get the pose of the object in the simulation."""
         pos, orn = pyb.getBasePositionAndOrientation(self.uid)
         return np.array(pos), np.array(orn)
 
-    def get_pose_xz(self):
-        """Pose in the vertical x-z plane."""
-        pos, orn = self.get_pose()
-        pitch = pyb.getEulerFromQuaternion(orn)[1]
-        return np.array([pos[0], pos[2], pitch])  # x, z, pitch
-
     def reset_pose(self, position=None, orientation=None):
+        """Reset the pose of the object in the simulation."""
         current_pos, current_orn = self.get_pose()
         if position is None:
             position = current_pos
@@ -59,7 +60,8 @@ class BulletBody:
         pyb.resetBasePositionAndOrientation(self.uid, list(position), list(orientation))
 
     @staticmethod
-    def cylinder(mass, mu, position, radius, height, orientation=(0, 0, 0, 1), color=(0, 0, 1, 1)):
+    def cylinder(mass, mu, radius, height, color=(0, 0, 1, 1)):
+        """Construct a cylinder object."""
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_CYLINDER,
             radius=radius,
@@ -74,15 +76,15 @@ class BulletBody:
         return BulletBody(
             mass=mass,
             mu=mu,
+            height=height,
             collision_uid=collision_uid,
             visual_uid=visual_uid,
-            position=position,
-            orientation=orientation,
         )
 
     @staticmethod
-    def cuboid(mass, mu, position, side_lengths, orientation=(0, 0, 0, 1), color=(0, 0, 1, 1)):
-        half_extents = tuple(0.5 * side_lengths)
+    def cuboid(mass, mu, side_lengths, color=(0, 0, 1, 1)):
+        """Construct a cuboid object."""
+        half_extents = tuple(0.5 * np.array(side_lengths))
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_BOX,
             halfExtents=half_extents,
@@ -95,11 +97,31 @@ class BulletBody:
         return BulletBody(
             mass=mass,
             mu=mu,
+            height=side_lengths[2],
             collision_uid=collision_uid,
             visual_uid=visual_uid,
-            position=position,
-            orientation=orientation,
         )
+
+    @staticmethod
+    def fromdict(d):
+        """Construct the object from a dictionary."""
+        if d["shape"] == "cylinder":
+            return BulletBody.cylinder(
+                mass=d["mass"],
+                mu=d["mu"],
+                radius=d["radius"],
+                height=d["height"],
+                color=d["color"],
+            )
+        elif d["shape"] == "cuboid":
+            return BulletBody.cuboid(
+                mass=d["mass"],
+                mu=d["mu"],
+                side_lengths=d["side_lengths"],
+                color=d["color"],
+            )
+        else:
+            raise ValueError(f"Unrecognized object shape {d['shape']}")
 
 
 class BalancedBody:
