@@ -127,7 +127,7 @@ inputCost
   ; control weight matrix
   R
   {
-    scaling 2e-1
+    scaling 1e-1
 
     (0,0)  1.0  ; x velocity
     (1,1)  1.0  ; y velocity

@@ -39,6 +39,7 @@ OBSTACLES_URDF_PATH = os.path.join(
 )
 
 EE_SIDE_LENGTH = 0.2
+EE_HEIGHT = 0.04
 EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 
 GRAVITY_MAG = 9.81
@@ -181,12 +182,12 @@ UR10_HOME_TRAY_BALANCE = [
 ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
 
 
-class BalancedObject:
-    def __init__(self, ctrl_obj, sim_obj, parent):
-        self.ctrl_obj = ctrl_obj
-        self.sim_obj = sim_obj
-        self.parent = parent
-        self.children = []
+# class BalancedObject:
+#     def __init__(self, ctrl_obj, sim_obj, parent):
+#         self.ctrl_obj = ctrl_obj
+#         self.sim_obj = sim_obj
+#         self.parent = parent
+#         self.children = []
 
 
 class DynamicObstacle:
@@ -232,10 +233,20 @@ class DynamicObstacle:
         pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
 
 
+def compute_offset(d):
+    x = d["x"] if "x" in d else 0
+    y = d["y"] if "y" in d else 0
+    if "r" in d and "θ" in d:
+        r = d["r"]
+        θ = d["θ"]
+        x += r * np.cos(θ)
+        y += r * np.sin(θ)
+    return np.array([x, y])
+
+
 class Simulation:
     def __init__(self, dt):
         self.dt = dt  # simulation timestep (s)
-        self.video_file_name = None
 
     def settle(self, duration):
         """Run simulation while doing nothing.
@@ -254,7 +265,6 @@ class Simulation:
         pyb.stepSimulation()
 
     def basic_setup(self, config):
-        load_static_obstacles = False  # TODO
         pyb.connect(pyb.GUI, options="--width=1280 --height=720")
 
         pyb.setGravity(0, 0, -GRAVITY_MAG)
@@ -276,331 +286,131 @@ class Simulation:
 
         # setup obstacles
         if config["static_obstacles"]["enabled"]:
-            obstacles_uid = pyb.loadURDF(config_utils.urdf_path(config["urdf"]["obstacles"]))
+            obstacles_uid = pyb.loadURDF(
+                config_utils.urdf_path(config["urdf"]["obstacles"])
+            )
             pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
 
-    # TODO this should go elsewhere probably
-    def compute_cylinder_xy_positions(self, L=0.08):
-        """L is distance along vector toward each vertex."""
-        s = 0.2
-        h = s / (2 * np.sqrt(3))
-        r = 2 * h
 
-        # triangle support area vertices
-        vertices = np.array([[r, 0], [-h, 0.5 * s], [-h, -0.5 * s]])
+def sim_object_setup(self, r_ew_w, config):
+    # controller objects are the ones the controller thinks are there
+    objects = {}
 
-        # unit normals to each of the vertices
-        n0 = vertices[0, :] / np.linalg.norm(vertices[0, :])
-        n1 = vertices[1, :] / np.linalg.norm(vertices[1, :])
-        n2 = vertices[2, :] / np.linalg.norm(vertices[2, :])
+    arrangement_name = config["arrangement"]
+    arrangement = config["arrangements"][arrangement_name]
+    for d in arrangement:
+        name = d["name"]
+        obj_config = config["objects"][name]
+        obj = bodies.BulletBody.fromdict(obj_config)
 
-        c0 = L * n0
-        c1 = L * n1
-        c2 = L * n2
+        if "parent" in d:
+            parent = objects[d["parent"]]
+            parent_position, _ = parent.get_pose()
+            position = parent_position
+            position[2] += 0.5 * parent.height + 0.5 * obj.height
 
-        return (c0, c1, c2)
+            # PyBullet calculates coefficient of friction between two
+            # bodies by multiplying them. Thus, to achieve our actual
+            # desired friction at the support we need to divide the desired
+            # value by the parent value to get the simulated value.
+            obj.mu = obj.mu / parent.mu
+        else:
+            position = r_ew_w + [0, 0, 0.02 + 0.5 * obj.height]
+            obj.mu = obj.mu / EE_MU
 
-    def object_setup(self, r_ew_w, config):
-        # controller objects are the ones the controller thinks are there
-        objects = {}
+        if "offset" in d:
+            position[:2] += compute_offset(d["offset"])
 
-        def compute_offset(d):
-            x = d["x"] if "x" in d else 0
-            y = d["y"] if "y" in d else 0
-            if "r" in d and "θ" in d:
-                r = d["r"]
-                θ = d["θ"]
-                x += r * np.cos(θ)
-                y += r * np.sin(θ)
-            return np.array([x, y])
+        obj.add_to_sim(position)
+        objects[name] = obj
 
-        object_data = config["object_configs"][config["object_config_name"]]
-        for d in object_data:
-            name = d["name"]
-            properties = config["objects"][name]
-            obj = bodies.BulletBody.fromdict(properties)
-
-            if "parent" in d:
-                parent = objects[d["parent"]]
-                parent_position, _ = parent.get_pose()
-                position = parent_position
-                position[2] += 0.5 * parent.height + 0.5 * obj.height
-
-                # PyBullet calculates coefficient of friction between two
-                # bodies by multiplying them. Thus, to achieve our actual
-                # desired friction at the support we need to divide the desired
-                # value by the parent value to get the simulated value.
-                obj.mu = obj.mu / parent.mu
-            else:
-                position = r_ew_w + [0, 0, 0.02 + 0.5 * obj.height]
-                obj.mu = obj.mu / EE_MU
-
-            if "offset" in d:
-                position[:2] += compute_offset(d["offset"])
-
-            obj.add_to_sim(position)
-            objects[name] = obj
-
-        return objects
+    return objects
 
 
-        # tray
+class ControlObjectConfigWrapper:
+    def __init__(self, d):
+        self.d = d
+        self.children = []
+        self.position = None
 
-        name = "tray"
-        if name in obj_names:
-            tray = bodies.Cylinder(
-                r_tau=geometry.equilateral_triangle_r_tau(EE_SIDE_LENGTH),
-                support_area=ocs2.PolygonSupportArea.equilateral_triangle(
-                    EE_SIDE_LENGTH
-                ),
-                mass=TRAY_MASS,
-                radius=TRAY_RADIUS,
-                height=2 * TRAY_COM_HEIGHT,
-                mu=TRAY_MU,
-            )
-            tray.add_to_sim(bullet_mu=TRAY_MU_BULLET, color=TRAY_COLOR)
+    @property
+    def height(self):
+        return self.d["height"]
 
-            # add 0.05 to account for EE height; this is fixed when the sim is
-            # settled later
-            r_tw_w = r_ew_w + [0, 0, TRAY_COM_HEIGHT + 0.05]
-            tray.bullet.reset_pose(position=r_tw_w)
+    @property
+    def parent_name(self):
+        # No parent means the object is directly supported by the EE
+        return self.d["parent"] if "parent" in d else None
 
-            objects[name] = tray
+    @property
+    def offset(self):
+        if "offset" in self.d:
+            return np.array(self.d["offset"])
+        return np.zeros(2)
 
-        name = "cylinder_base_stack"
-        if name in obj_names:
-            # TODO these will have to specified elsewhere
-            # com_ellipsoid = con.Ellipsoid.point(obj.com)
-            com_center = np.array([0, 0, CYLINDER_BASE_STACK_COM_HEIGHT + 0.02])
-            com_half_lengths = 0.05 * np.array([1, 1, 1])
-            com_ellipsoid = con.Ellipsoid(com_center, com_half_lengths, np.eye(3))
-            r_gyr = CYLINDER_BASE_STACK_RADIUS * np.array([1, 1, 1])
+    def bounded_balanced_object(self):
+        """Generate a BoundedBalancedObject for this object."""
+        # TODO parse SA
+        # TODO parse r_tau
+        # TODO make body
+        # TODO make balanced object
+        return con.BoundedBalancedObject()
 
-            ctrl_body = con.BoundedRigidBody(
-                mass_min=CYLINDER_BASE_STACK_MASS,
-                mass_max=CYLINDER_BASE_STACK_MASS,
-                radii_of_gyration=r_gyr,
-                com_ellipsoid=com_ellipsoid,
-            )
-            ctrl_obj = con.BoundedBalancedObject(
-                ctrl_body,
-                com_height=CYLINDER_BASE_STACK_COM_HEIGHT,
-                support_area_min=ocs2.PolygonSupportArea.equilateral_triangle(
-                    EE_SIDE_LENGTH
-                ),
-                r_tau_min=geometry.equilateral_triangle_r_tau(EE_SIDE_LENGTH),
-                mu_min=CYLINDER_BASE_STACK_MU,
-            )
 
-            # add the object to the bullet sim
-            sim_obj = bodies.BulletBody.cylinder(
-                mass=CYLINDER_BASE_STACK_MASS,
-                mu=CYLINDER_BASE_STACK_MU_BULLET,
-                position=r_ew_w + com_center,
-                radius=CYLINDER_BASE_STACK_RADIUS,
-                height=2*CYLINDER_BASE_STACK_COM_HEIGHT,
-            )
+# TODO need some naming reforms here:
+# - config = configuration for *something*, but can currently be either the
+#   raw dict or a special object, and is also used to refer to the specific
+#   arrangement of objects being balanced
+# Proposal:
+# - config = raw dict
+# - config_wrapper = object somehow containing the raw config
+# - arrangement = the particular set of objects in use
 
-            # it is convenient to wrap the control and sim objects
-            objects[name] = BalancedObject(ctrl_obj, sim_obj, parent=None)
+def control_object_setup(config):
+    # TODO need to pass in the control config here
+    wrappers = {}
+    arrangement_name = config["arrangement"]
+    arrangement = config["arrangements"][arrangement_name]
+    for conf in arrangement:
+        name = conf["name"]
+        wrapper = ControlObjectConfigWrapper(config["objects"][name])
 
-        def add_obj_to_sim(obj, name, color, parent, offset_xy=(0, 0)):
-            bullet_mu = obj.mu / parent.bullet.mu
-            obj.add_to_sim(bullet_mu=bullet_mu, color=color)
+        # compute position of the object
+        if wrapper.parent_name is not None:
+            parent = object_configs[wrapper.parent_name]
+            dz = 0.5 * parent.height + 0.5 * wrapper.height
+            wrapper.position = parent.position + [0, 0, dz]
+        else:
+            dz = 0.5 * EE_HEIGHT + 0.5 * wrapper.height
+            wrapper.position = r_ew_w + [0, 0, dz]
 
-            r_ow_w = parent.bullet.get_pose()[0] + [
-                offset_xy[0],
-                offset_xy[1],
-                parent.com_height + obj.com_height,
-            ]
-            obj.bullet.reset_pose(position=r_ow_w)
-            objects[name] = obj
-            parent.children.append(name)
+        # add offset in the x-y (support) plane
+        wrapper.position[:2] += wrapper.offset
 
-        # flat and tall cuboids
+        wrappers[name] = wrapper
 
-        name = "cuboid_short"
-        if name in obj_names:
-            support_area = ocs2.PolygonSupportArea.axis_aligned_rectangle(
-                CUBOID_SHORT_SIDE_LENGTHS[0],
-                CUBOID_SHORT_SIDE_LENGTHS[1],
-                margin=OBJ_ZMP_MARGIN,
-            )
-            objects[name] = bodies.Cuboid(
-                r_tau=CUBOID_SHORT_R_TAU,
-                support_area=support_area,
-                mass=CUBOID_SHORT_MASS,
-                side_lengths=CUBOID_SHORT_SIDE_LENGTHS,
-                mu=CUBOID_SHORT_TRAY_MU,
-            )
-            objects[name].mu_error = CUBOID_SHORT_MU_ERROR
-            objects[name].r_tau_error = CUBOID_SHORT_R_TAU_ERROR
-            add_obj_to_sim(
-                obj=objects[name],
-                name=name,
-                color=CUBOID_SHORT_COLOR,
-                parent=objects["tray"],
-            )
+    # find the direct children of each object
+    for name, wrapper in wrappers.items():
+        if wrapper.parent_name is not None:
+            wrappers[wrapper.parent_name].children.append(name)
 
-        name = "cuboid_tall"
-        if name in obj_names:
-            support_area = ocs2.PolygonSupportArea.axis_aligned_rectangle(
-                CUBOID_TALL_SIDE_LENGTHS[0],
-                CUBOID_TALL_SIDE_LENGTHS[1],
-                margin=OBJ_ZMP_MARGIN,
-            )
-            objects[name] = bodies.Cuboid(
-                r_tau=CUBOID_TALL_R_TAU,
-                support_area=support_area,
-                mass=CUBOID_TALL_MASS,
-                side_lengths=CUBOID_TALL_SIDE_LENGTHS,
-                mu=CUBOID_TALL_TRAY_MU,
-            )
-            objects[name].mu_error = CUBOID_TALL_MU_ERROR
-            objects[name].r_tau_error = CUBOID_TALL_R_TAU_ERROR
-            add_obj_to_sim(
-                obj=objects[name],
-                name=name,
-                color=CUBOID_TALL_COLOR,
-                parent=objects["tray"],
-            )
+    # convert wrappers to BoundedBalancedObjects as required by the controller
+    # and compose them as needed
+    composites = []
+    for wrapper in wrappers.values():
+        # all descendants compose the new object
+        descendants = []
+        queue = deque([wrapper])
+        while len(queue) > 0:
+            wrapper = queue.popleft()
+            descendants.append(wrapper.bounded_balanced_object())
+            for name in wrapper.children:
+                queue.append(wrappers[name])
 
-        # stack of boxes
+        # descendants have already been converted to C++ objects
+        composites.append(con.BoundedBalancedObject.compose(descendants))
 
-        name = "cuboid1_stack"
-        if name in obj_names:
-            support_area = ocs2.PolygonSupportArea.axis_aligned_rectangle(
-                CUBOID1_STACK_SIDE_LENGTHS[0],
-                CUBOID1_STACK_SIDE_LENGTHS[1],
-                margin=OBJ_ZMP_MARGIN,
-            )
-
-            # TODO avoid manually specifying
-            com_center = np.array([0, 0, CUBOID1_STACK_COM_HEIGHT + 2 * CYLINDER_BASE_STACK_COM_HEIGHT + 0.02])
-            com_half_lengths = 0.05 * np.array([1, 1, 1])
-            com_ellipsoid = con.Ellipsoid(com_center, com_half_lengths, np.eye(3))
-            r_gyr = 0.5 * np.array(CUBOID1_STACK_SIDE_LENGTHS)
-
-            ctrl_body = con.BoundedRigidBody(
-                mass_min=CUBOID1_STACK_MASS,
-                mass_max=CUBOID1_STACK_MASS,
-                radii_of_gyration=r_gyr,
-                com_ellipsoid=com_ellipsoid,
-            )
-            ctrl_obj = con.BoundedBalancedObject(
-                ctrl_body,
-                com_height=CUBOID1_STACK_COM_HEIGHT,
-                support_area_min=support_area,
-                r_tau_min=geometry.rectangle_r_tau(*CUBOID1_STACK_SIDE_LENGTHS[:2]),
-                mu_min=CUBOID1_STACK_TRAY_MU,
-            )
-
-            # add the object to the bullet sim
-            sim_obj = bodies.BulletBody.cuboid(
-                mass=CUBOID1_STACK_MASS,
-                mu=CUBOID1_STACK_MU_BULLET,  # TODO avoid manually computation
-                position=r_ew_w + com_center,
-                side_lengths=np.array(CUBOID1_STACK_SIDE_LENGTHS),
-            )
-
-            # it is convenient to wrap the control and sim objects
-            objects[name] = BalancedObject(ctrl_obj, sim_obj, parent="cylinder_base_stack")
-
-        name = "cuboid2_stack"
-        if name in obj_names:
-            support_area = ocs2.PolygonSupportArea.axis_aligned_rectangle(
-                CUBOID2_STACK_SIDE_LENGTHS[0],
-                CUBOID2_STACK_SIDE_LENGTHS[1],
-                margin=OBJ_ZMP_MARGIN,
-            )
-            objects[name] = bodies.Cuboid(
-                r_tau=geometry.rectangle_r_tau(*CUBOID2_STACK_SIDE_LENGTHS[:2]),
-                support_area=support_area,
-                mass=CUBOID2_STACK_MASS,
-                side_lengths=CUBOID2_STACK_SIDE_LENGTHS,
-                mu=CUBOID2_STACK_TRAY_MU,
-            )
-            objects[name].mass_error = CUBOID2_STACK_MASS_ERROR
-            # objects[name].mu_error = -0.05
-            objects[name].mu_error = 0
-            add_obj_to_sim(
-                obj=objects[name],
-                name=name,
-                color=CUBOID2_STACK_COLOR,
-                parent=objects["cuboid1_stack"],
-                offset_xy=CUBOID2_STACK_OFFSET,
-            )
-
-        name = "cylinder3_stack"
-        if name in obj_names:
-            objects[name] = bodies.Cylinder(
-                r_tau=geometry.circle_r_tau(CYLINDER3_STACK_RADIUS),
-                support_area=ocs2.PolygonSupportArea.circle(
-                    CYLINDER3_STACK_RADIUS, margin=OBJ_ZMP_MARGIN
-                ),
-                mass=CYLINDER3_STACK_MASS,
-                radius=CYLINDER3_STACK_RADIUS,
-                height=2 * CYLINDER3_STACK_COM_HEIGHT,
-                mu=CYLINDER3_STACK_SUPPORT_MU,
-            )
-            objects[name].mass_error = CYLINDER3_STACK_MASS_ERROR
-            # objects[name].mu_error = -0.05
-            objects[name].mu_error = 0
-            add_obj_to_sim(
-                obj=objects[name],
-                name=name,
-                color=CYLINDER3_STACK_COLOR,
-                parent=objects["cuboid2_stack"],
-                offset_xy=CYLINDER3_STACK_OFFSET,
-            )
-
-        # set of cups
-
-        cup_positions = self.compute_cylinder_xy_positions(L=0.08)
-        for i, name in enumerate(["cylinder1_cup", "cylinder2_cup", "cylinder3_cup"]):
-            if name in obj_names:
-                objects[name] = bodies.Cylinder(
-                    r_tau=geometry.circle_r_tau(CYLINDER_CUP_RADIUS),
-                    support_area=ocs2.PolygonSupportArea.circle(
-                        CYLINDER_CUP_RADIUS, margin=OBJ_ZMP_MARGIN
-                    ),
-                    mass=CYLINDER_CUP_MASS,
-                    radius=CYLINDER_CUP_RADIUS,
-                    height=2 * CYLINDER_CUP_COM_HEIGHT,
-                    mu=CYLINDER_CUP_SUPPORT_MU,
-                )
-                objects[name].com_error = CUPS_OFFSET_CONTROL
-
-                add_obj_to_sim(
-                    obj=objects[name],
-                    name=name,
-                    color=CYLINDER_CUP_COLORS[i],
-                    parent=objects["tray"],
-                    offset_xy=cup_positions[i] + CUPS_OFFSET_SIM[:2],
-                )
-
-        return objects
-
-    def composite_setup(self, objects):
-        # find the direct children of each object
-        for name, obj in objects.items():
-            if obj.parent is not None:
-                objects[obj.parent].children.append(name)
-
-        composites = []
-        for obj in objects.values():
-            # all descendants compose the new object
-            descendants = []
-            queue = deque([obj])
-            while len(queue) > 0:
-                desc = queue.popleft()
-                descendants.append(desc.ctrl_obj)
-                for name in desc.children:
-                    queue.append(objects[name])
-
-            # descendants have already been converted to C++ objects
-            composites.append(con.BoundedBalancedObject.compose(descendants))
-        return composites
+    return composites
 
 
 class MobileManipulatorSimulation(Simulation):
@@ -621,9 +431,10 @@ class MobileManipulatorSimulation(Simulation):
         self.robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
 
         r_ew_w, _ = self.robot.link_pose()
-        objects = super().object_setup(r_ew_w, config)
+        sim_objects = sim_object_setup(r_ew_w, config)
 
-        IPython.embed()
+        # TODO this should be done elsewhere
+        ctrl_objects = control_object_setup(config)
 
         self.settle(1.0)
 
@@ -635,5 +446,4 @@ class MobileManipulatorSimulation(Simulation):
         #     # TODO none of these are write access!
         #     obj.ctrl_obj.body.com_ellipsoid.center = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
 
-        composites = super().composite_setup(objects)
-        return self.robot, objects, composites
+        return self.robot, sim_objects, ctrl_objects

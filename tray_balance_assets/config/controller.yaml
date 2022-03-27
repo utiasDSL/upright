@@ -1,43 +1,48 @@
 control_period: 25
 
 balancing:
-  use_robust_constraints: false
-  nominal:
-    enable_normal_constraint: true
-    enable_friction_constraint: true
-    enable_zmp_constraint: true
-    config: todo
-  robust:
-    num_spheres: 1
+  arrangement: two
+
+  use_bounded_constraints: false  # not sure if I need this
+  enable_normal_constraint: true
+  enable_friction_constraint: true
+  enable_zmp_constraint: true
 
 static_obstacles: todo
 
 dynamic_obstacles: todo
 
 # configs reference the objects below
-# TODO offset optional
-# TODO make (x, y) and (r, θ) all specifiable at once (then they can add)
-configs:
-  short:
+arrangements:
+  two:
     -
-      name: "tray"
-      parent: "ee"
+      name: "cylinder_stack_base"
+    -
+      name: "cuboid1_stack"
+      parent: "cylinder_stack_base"
       offset:
         x: 0
         y: 0
-    -
-      name: "cuboid_short"
-      parent: "tray"
-      offset:
-        r: 0
-        θ: 0
-  tall:
-    -
-      name: "tray"
-      parent: "ee"
-    -
-      name: "cuboid_tall"
-      parent: "tray"
 
 
-objects: todo
+objects:
+  cylinder_stack_base:
+    mass:
+      min: 0.75
+      max: 0.75
+    com:
+      height: 0.05
+      half_lengths: [0.05, 0.05, 0.05]
+    radii_of_gyration: [0.15, 0.15, 0.15]
+    mu_min: 0.5
+    support_area:
+      shape: "eq_tri"  # rectangle is also fine
+      side_length: 0.2
+      offset: [0, 0]
+    height: 0.1  # this is only used to compute relative heights
+  cuboid1_stack:
+    shape: "cuboid"
+    mass: 0.75
+    mu: 0.25
+    side_lengths: [0.15, 0.15, 0.15]
+    color: [1, 0, 0, 1]

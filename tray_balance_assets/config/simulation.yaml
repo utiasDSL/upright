@@ -1,7 +1,9 @@
+# TODO it is probably desirable to just make everything integer values of
+# milliseconds
 timestep: 0.001
 duration: 6.0
 record_period: 10
-object_config_name: "two"
+arrangement: "two"
 
 noise:
   use_noisy_state_to_plan: true
@@ -37,10 +39,8 @@ urdf:
     package: "tray_balance_assets"
     path: "urdf/obstacles.urdf"
 
-# configs reference the objects below
-# TODO offset optional
-# TODO make (x, y) and (r, θ) all specifiable at once (then they can add)
-object_configs:
+# arrangements reference the objects below
+arrangements:
   two:
     -
       name: "cylinder_stack_base"
