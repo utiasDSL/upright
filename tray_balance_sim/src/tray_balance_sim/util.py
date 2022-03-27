@@ -65,16 +65,6 @@ def quat_multiply(q0, q1, normalize=True):
     return C0.dot(C1).to_quaternion(ordering="xyzw")
 
 
-def skew1(x):
-    """2D skew-symmetric operator."""
-    return np.array([[0, -x], [x, 0]])
-
-
-def skew3(x):
-    """3D skew-symmetric operator."""
-    return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
-
-
 def dhtf(q, a, d, α):
     """Constuct a transformation matrix from D-H parameters."""
     cα = np.cos(α)

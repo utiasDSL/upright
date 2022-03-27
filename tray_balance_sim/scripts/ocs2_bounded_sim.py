@@ -15,11 +15,10 @@ import yaml
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
-from tray_balance_sim import util, ocs2_util, robustness, cameras
-from tray_balance_sim.simulation import MobileManipulatorSimulation, DynamicObstacle
+from tray_balance_sim import util, ocs2_util, robustness, cameras, simulation
 from tray_balance_sim.recording import Recorder, VideoRecorder
 
-import tray_balance_constraints as con
+import tray_balance_constraints as core
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 
 import IPython
@@ -110,19 +109,19 @@ def main():
     with open(config_path / "simulation.yaml") as f:
         sim_config = yaml.safe_load(f)
 
-    sim_dt = sim_config["timestep"]
-    N = int(config["simulation"]["duration"] / sim_dt)
+    # timing
+    duration = sim_config["duration"]
+    timestep = sim_config["timestep"]
+    num_timesteps = int(duration / timestep)
 
     # start the simulation
-    sim = MobileManipulatorSimulation(sim_config)
+    sim = simulation.MobileManipulatorSimulation(sim_config)
     robot = sim.robot
-    sim_objects = sim.objects
 
-    # TODO this is totally independent of the simulation
-    r_ew_w, _ = robot.get_pose()
-    ctrl_objects = control_object_setup(r_ew_w, ctrl_config)
-
-    IPython.embed()
+    # setup objects for sim and controller
+    r_ew_w, Q_we = robot.link_pose()
+    sim_objects = simulation.sim_object_setup(r_ew_w, sim_config)
+    ctrl_objects = core.parsing.parse_control_objects(r_ew_w, ctrl_config)
 
     # initial time, state, input
     t = 0.0
@@ -143,8 +142,6 @@ def main():
     settings_wrapper.settings.tray_balance_settings.config.enabled.normal = True
     settings_wrapper.settings.tray_balance_settings.config.enabled.friction = True
     settings_wrapper.settings.tray_balance_settings.config.enabled.zmp = True
-
-    r_ew_w, Q_we = robot.link_pose()
 
     # set up video recordings
     # need to set it up here to pass into robust sphere generation
@@ -193,9 +190,9 @@ def main():
 
     # data recorder and plotter
     recorder = Recorder(
-        config["simulation"]["timestep"],
-        config["simulation"]["duration"],
-        config["simulation"]["record_period"],
+        sim_config["timestep"],
+        sim_config["duration"],
+        sim_config["record_period"],
         ns=robot.ns,
         ni=robot.ni,
         n_objects=len(sim_objects),
@@ -341,7 +338,7 @@ def main():
     x_opt = np.copy(x)
 
     # simulation loop
-    for i in range(N):
+    for i in range(num_timesteps):
         q, v = robot.joint_states()
         x = np.concatenate((q, v))
 
@@ -440,8 +437,7 @@ def main():
             obstacle.step()
         for ghost in ghosts:
             ghost.update()
-        t += sim.dt
-        # time.sleep(sim.dt)
+        t += timestep
 
         # set the target trajectories to make controller aware of dynamic
         # obstacles

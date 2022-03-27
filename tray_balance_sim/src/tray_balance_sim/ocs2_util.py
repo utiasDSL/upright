@@ -3,7 +3,6 @@ import os
 import numpy as np
 import rospkg
 
-from tray_balance_sim import geometry
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 
 import IPython
@@ -31,7 +30,7 @@ class TaskSettingsWrapper:
         robust_params = ocs2.RobustParameterSet()
         robust_params.min_support_dist = 0.04
         robust_params.min_mu = 0.2
-        robust_params.min_r_tau = geometry.circle_r_tau(robust_params.min_support_dist)
+        # robust_params.min_r_tau = geometry.circle_r_tau(robust_params.min_support_dist)
         settings.tray_balance_settings.robust_params = robust_params
 
         # collision avoidance settings

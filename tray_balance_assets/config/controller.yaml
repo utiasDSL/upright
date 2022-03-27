@@ -37,6 +37,10 @@ arrangements:
         y: 0
 
 objects:
+  ee:
+    height: 0.04
+    mu: 1.0
+
   cylinder_stack_base:
     mass:
       min: 0.75
@@ -51,6 +55,7 @@ objects:
       side_length: 0.2
       offset: [0, 0]
     height: 0.1  # this is only used to compute relative heights
+
   cuboid1_stack:
     mass:
       min: 0.75

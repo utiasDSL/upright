@@ -1,9 +1,29 @@
+from collections import deque
 import numpy as np
 
-from tray_balance_constraints import Ellipsoid, BoundedRigidBody, BoundedBalancedObject
+from tray_balance_constraints.bindings import (
+    Ellipsoid,
+    BoundedRigidBody,
+    BoundedBalancedObject,
+    PolygonSupportArea,
+)
+from tray_balance_constraints import math
+from tray_balance_constraints.composition import compose_bounded_objects
 
 
-class ControlObjectConfigWrapper:
+def parse_support_offset(d):
+    x = d["x"] if "x" in d else 0
+    y = d["y"] if "y" in d else 0
+    if "r" in d and "θ" in d:
+        r = d["r"]
+        θ = d["θ"]
+        x += r * np.cos(θ)
+        y += r * np.sin(θ)
+    return np.array([x, y])
+
+
+class BalancedObjectConfigWrapper:
+    """Wrapper around the config dict for a balanced object."""
     def __init__(self, config, parent_name):
         self.d = config
         self.parent_name = parent_name
@@ -16,6 +36,7 @@ class ControlObjectConfigWrapper:
 
     @property
     def offset(self):
+        # TODO this needs to be dealt with
         if "offset" in self.d:
             return np.array(self.d["offset"])
         return np.zeros(2)
@@ -25,13 +46,13 @@ class ControlObjectConfigWrapper:
         shape = config["shape"]
         if shape == "eq_tri":
             side_length = config["side_length"]
-            support_area = ocs2.PolygonSupportArea.equilateral_triangle(side_length)
-            r_tau = geometry.equilateral_triangle_r_tau(side_length)
+            support_area = PolygonSupportArea.equilateral_triangle(side_length)
+            r_tau = math.equilateral_triangle_r_tau(side_length)
         elif shape == "rect":
             lx = config["lx"]
             ly = config["lx"]
-            support_area = ocs2.PolygonSupportArea.axis_aligned_rectangle(lx, ly)
-            r_tau = geometry.rectangle_r_tau(lx, ly)
+            support_area = PolygonSupportArea.axis_aligned_rectangle(lx, ly)
+            r_tau = math.rectangle_r_tau(lx, ly)
         else:
             raise ValueError(f"Unsupported support area shape: {shape}")
         return support_area, r_tau
@@ -44,8 +65,8 @@ class ControlObjectConfigWrapper:
         com_center = self.position
         com_half_lengths = np.array(self.d["com"]["half_lengths"])
         radii_of_gyration = np.array(self.d["radii_of_gyration"])
-        com_ellipsoid = con.Ellipsoid(com_center, com_half_lengths, np.eye(3))
-        body = con.BoundedRigidBody(
+        com_ellipsoid = Ellipsoid(com_center, com_half_lengths, np.eye(3))
+        body = BoundedRigidBody(
             mass_min=mass_min,
             mass_max=mass_max,
             radii_of_gyration=radii_of_gyration,
@@ -57,7 +78,7 @@ class ControlObjectConfigWrapper:
         com_height = self.d["com"]["height"]
         mu_min = self.d["mu_min"]
 
-        return con.BoundedBalancedObject(
+        return BoundedBalancedObject(
             body,
             com_height=com_height,
             support_area_min=support_area,
@@ -70,13 +91,14 @@ def parse_control_objects(r_ew_w, ctrl_config):
     arrangement_name = ctrl_config["balancing"]["arrangement"]
     arrangement = ctrl_config["arrangements"][arrangement_name]
     object_configs = ctrl_config["objects"]
+    ee = object_configs["ee"]
 
     wrappers = {}
     for conf in arrangement:
         name = conf["name"]
         parent_name = conf["parent"] if "parent" in conf else None
         object_config = object_configs[name]
-        wrapper = ControlObjectConfigWrapper(object_config, parent_name)
+        wrapper = BalancedObjectConfigWrapper(object_config, parent_name)
 
         # compute position of the object
         if wrapper.parent_name is not None:
@@ -84,7 +106,7 @@ def parse_control_objects(r_ew_w, ctrl_config):
             dz = 0.5 * parent.height + 0.5 * wrapper.height
             wrapper.position = parent.position + [0, 0, dz]
         else:
-            dz = 0.5 * EE_HEIGHT + 0.5 * wrapper.height
+            dz = 0.5 * ee["height"] + 0.5 * wrapper.height
             wrapper.position = r_ew_w + [0, 0, dz]
 
         # add offset in the x-y (support) plane
@@ -111,6 +133,6 @@ def parse_control_objects(r_ew_w, ctrl_config):
                 queue.append(wrappers[name])
 
         # descendants have already been converted to C++ objects
-        composites.append(con.BoundedBalancedObject.compose(descendants))
+        composites.append(compose_bounded_objects(descendants))
 
     return composites

@@ -7,11 +7,10 @@ import rospkg
 
 from tray_balance_sim.robot import SimulatedRobot
 import tray_balance_sim.util as util
-import tray_balance_sim.geometry as geometry
 import tray_balance_sim.bodies as bodies
 
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
-import tray_balance_constraints as con
+from tray_balance_constraints import parsing, math
 
 import IPython
 
@@ -45,10 +44,7 @@ OBSTACLES_URDF_PATH = os.path.join(
 
 EE_SIDE_LENGTH = 0.2
 EE_HEIGHT = 0.04
-EE_INSCRIBED_RADIUS = geometry.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
-
-GRAVITY_MAG = 9.81
-GRAVITY_VECTOR = np.array([0, 0, -GRAVITY_MAG])
+EE_INSCRIBED_RADIUS = math.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
 
 # coefficient of friction for the EE
 EE_MU = 1.0
@@ -77,7 +73,7 @@ CUBOID_SHORT_MASS = 0.5
 CUBOID_SHORT_TRAY_MU = 0.5
 CUBOID_SHORT_COM_HEIGHT = 0.075
 CUBOID_SHORT_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID_SHORT_COM_HEIGHT)
-CUBOID_SHORT_R_TAU = geometry.rectangle_r_tau(*CUBOID_SHORT_SIDE_LENGTHS[:2])
+CUBOID_SHORT_R_TAU = math.rectangle_r_tau(*CUBOID_SHORT_SIDE_LENGTHS[:2])
 CUBOID_SHORT_COLOR = PLT_COLOR2
 
 # controller things μ is CUBOID_SHORT_TRAY_MU + CUBOID_SHORT_MU_ERROR, when it
@@ -94,7 +90,7 @@ CUBOID_TALL_MASS = 0.5
 CUBOID_TALL_TRAY_MU = 0.5
 CUBOID_TALL_COM_HEIGHT = 0.25
 CUBOID_TALL_SIDE_LENGTHS = (0.1, 0.1, 2 * CUBOID_TALL_COM_HEIGHT)
-CUBOID_TALL_R_TAU = geometry.rectangle_r_tau(*CUBOID_TALL_SIDE_LENGTHS[:2])
+CUBOID_TALL_R_TAU = math.rectangle_r_tau(*CUBOID_TALL_SIDE_LENGTHS[:2])
 CUBOID_TALL_COLOR = PLT_COLOR2
 
 CUBOID_TALL_MU_CONTROL = CUBOID_TALL_TRAY_MU
@@ -167,6 +163,7 @@ CYLINDER_CUP_COLORS = [PLT_COLOR2, PLT_COLOR3, PLT_COLOR4]
 
 ### robot starting configurations ###
 
+# TODO want to move the home stuff into config as well
 BASE_HOME = [0, 0, 0]
 UR10_HOME_STANDARD = [
     0.0,
@@ -230,23 +227,11 @@ class DynamicObstacle:
         pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
 
 
-def compute_offset(d):
-    x = d["x"] if "x" in d else 0
-    y = d["y"] if "y" in d else 0
-    if "r" in d and "θ" in d:
-        r = d["r"]
-        θ = d["θ"]
-        x += r * np.cos(θ)
-        y += r * np.sin(θ)
-    return np.array([x, y])
-
-
 class PyBulletSimulation:
     def __init__(self, sim_config):
-        self.sim_config = sim_config
+        self.dt = sim_config["timestep"]
 
         pyb.connect(pyb.GUI, options="--width=1280 --height=720")
-
         pyb.setGravity(*sim_config["gravity"])
         pyb.setTimeStep(sim_config["timestep"])
 
@@ -290,10 +275,12 @@ class PyBulletSimulation:
 
 def sim_object_setup(r_ew_w, config):
     # controller objects are the ones the controller thinks are there
-    objects = {}
-
     arrangement_name = config["arrangement"]
     arrangement = config["arrangements"][arrangement_name]
+    object_configs = config["objects"]
+    ee = object_configs["ee"]
+
+    objects = {}
     for d in arrangement:
         name = d["name"]
         obj_config = config["objects"][name]
@@ -311,11 +298,11 @@ def sim_object_setup(r_ew_w, config):
             # value by the parent value to get the simulated value.
             obj.mu = obj.mu / parent.mu
         else:
-            position = r_ew_w + [0, 0, 0.02 + 0.5 * obj.height]
-            obj.mu = obj.mu / EE_MU
+            position = r_ew_w + [0, 0, 0.5 * ee["height"] + 0.5 * obj.height]
+            obj.mu = obj.mu / ee["mu"]
 
         if "offset" in d:
-            position[:2] += compute_offset(d["offset"])
+            position[:2] += parsing.parse_support_offset(d["offset"])
 
         obj.add_to_sim(position)
         objects[name] = obj
@@ -335,7 +322,5 @@ class MobileManipulatorSimulation(PyBulletSimulation):
 
         # arm gets bumped by the above settling, so we reset it again
         self.robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
-        r_ew_w, _ = self.robot.link_pose()
-        self.sim_objects = sim_object_setup(r_ew_w, sim_config)
 
         self.settle(1.0)

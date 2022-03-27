@@ -61,34 +61,6 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("inertia", &RigidBody<scalar_t>::inertia)
         .def_readwrite("com", &RigidBody<scalar_t>::com);
 
-    pybind11::class_<SupportAreaBase<scalar_t>>(m, "SupportAreaBase");
-
-    pybind11::class_<CircleSupportArea<scalar_t>, SupportAreaBase<scalar_t>>(
-        m, "CircleSupportArea")
-        .def(pybind11::init<const scalar_t, const Vec2<scalar_t>&,
-                            const scalar_t>(),
-             "radius"_a, "offset"_a, "margin"_a)
-        .def_readwrite("radius", &CircleSupportArea<scalar_t>::radius)
-        .def_readwrite("offset", &CircleSupportArea<scalar_t>::offset)
-        .def_readwrite("margin", &CircleSupportArea<scalar_t>::margin);
-
-    pybind11::class_<PolygonSupportArea<scalar_t>, SupportAreaBase<scalar_t>>(
-        m, "PolygonSupportArea")
-        .def(pybind11::init<const std::vector<Vec2<scalar_t>>&,
-                            const Vec2<scalar_t>&, const scalar_t>(),
-             "vertices"_a, "offset"_a, "margin"_a = 0)
-        .def_readwrite("vertices", &PolygonSupportArea<scalar_t>::vertices)
-        .def_readwrite("offset", &PolygonSupportArea<scalar_t>::offset)
-        .def_readwrite("margin", &PolygonSupportArea<scalar_t>::margin)
-        .def_static("circle", &PolygonSupportArea<scalar_t>::circle, "radius"_a,
-                    "margin"_a = 0)
-        .def_static("equilateral_triangle",
-                    &PolygonSupportArea<scalar_t>::equilateral_triangle,
-                    "side_length"_a, "margin"_a = 0)
-        .def_static("axis_aligned_rectangle",
-                    &PolygonSupportArea<scalar_t>::axis_aligned_rectangle,
-                    "sx"_a, "sy"_a, "margin"_a = 0);
-
     pybind11::class_<BalancedObject<scalar_t>>(m, "BalancedObject")
         .def(pybind11::init<const RigidBody<scalar_t>&, scalar_t,
                             const SupportAreaBase<scalar_t>&, scalar_t,
