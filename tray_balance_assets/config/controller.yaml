@@ -1,4 +1,5 @@
 control_period: 25
+use_noisy_state_to_plan: true
 
 balancing:
   arrangement: two
@@ -8,7 +9,6 @@ balancing:
   enable_friction_constraint: true
   enable_zmp_constraint: true
 
-  use_noisy_state_to_plan: true
 
 input_cost:
   scale: 1
@@ -25,7 +25,7 @@ pose_cost:
 initial_state: [0, 0, 0]  # TODO
 
 # desired setpoint is set relative to the initial EE pose
-setpoint:
+goal:
   position: [0.0, -2.0, -0.5]
   orientation: [0.0, 0.0, 0.0, 1.0]
 

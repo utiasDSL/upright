@@ -35,11 +35,10 @@ class SimulatedRobot:
         self.cmd_vel = np.zeros(9)
         self.cmd_acc = np.zeros_like(self.cmd_vel)
 
-        # standard deviation of zero-mean Gaussian noise added to velocity inputs
-        # TODO handle other noise here
-        self.q_meas_stdev = 0.0
-        self.v_meas_stdev= 0.0
-        self.v_cmd_stdev = 0.0
+        # noise
+        self.q_meas_std_dev = config["robot"]["noise"]["measurement"]["q_std_dev"]
+        self.v_meas_std_dev= config["robot"]["noise"]["measurement"]["v_std_dev"]
+        self.v_cmd_std_dev = config["robot"]["noise"]["process"]["v_std_dev"]
 
         # build a dict of all joints, keyed by name
         self.joints = {}
@@ -94,7 +93,7 @@ class SimulatedRobot:
             u[:3] = C_wb @ u[:3]
 
         # add process noise
-        u_noisy = u + np.random.normal(scale=self.v_cmd_stdev, size=u.shape)
+        u_noisy = u + np.random.normal(scale=self.v_cmd_std_dev, size=u.shape)
 
         pyb.setJointMotorControlArray(
             self.uid,
@@ -113,7 +112,7 @@ class SimulatedRobot:
         self.cmd_vel += self.dt * self.cmd_acc
         self.command_velocity(self.cmd_vel, bodyframe=True)
 
-    def joint_states(self):
+    def joint_states(self, add_noise=False):
         """Get the current state of the joints.
 
         Return a tuple (q, v), where q is the n-dim array of positions and v is
@@ -122,6 +121,9 @@ class SimulatedRobot:
         states = pyb.getJointStates(self.uid, self.robot_joint_indices)
         q = np.array([state[0] for state in states])
         v = np.array([state[1] for state in states])
+        if add_noise:
+            q += np.random.normal(scale=self.q_meas_std_dev, size=q.shape)
+            v += np.random.normal(scale=self.v_meas_std_dev, size=v.shape)
         return q, v
 
     def link_pose(self, link_idx=None):

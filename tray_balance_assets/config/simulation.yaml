@@ -111,10 +111,22 @@ objects:
     color: [1, 0, 0, 1]
 
 cameras:
-  -
-    name: pose_to_pose_video_recorder2
+  pose_to_pose_video_recorder2:
     distance: 1.4
     roll: 0
     pitch: -32.2
     yaw: 91.6
     target: [1.375, -1.097, 1.039]
+  balance_objects:
+    relative_target: [0, 0, 0.1]
+    relative_position: [0.4, -1, 0.6]
+  robot:
+    relative_target: [-0.4, 0, -0.3]
+    relative_position: [0.5, -2, 0.5]
+  dynamic_obstacles_photos:
+    target: [1.28, 0.045, 0.647]
+    distance: 1.8
+    roll: 0
+    pitch: -29
+    yaw: 147.6
+

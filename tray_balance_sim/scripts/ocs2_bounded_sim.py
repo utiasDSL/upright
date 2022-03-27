@@ -15,7 +15,7 @@ import yaml
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
-from tray_balance_sim import util, ocs2_util, robustness, cameras, simulation
+from tray_balance_sim import util, ocs2_util, robustness, camera, cameras, simulation
 from tray_balance_sim.recording import Recorder, VideoRecorder
 
 import tray_balance_constraints as core
@@ -33,25 +33,6 @@ class SimType(enum.Enum):
 
 SIM_TYPE = SimType.POSE_TO_POSE
 
-
-# generate new control signal every CTRL_PERIOD timesteps
-if SIM_TYPE == SimType.POSE_TO_POSE:
-    CTRL_PERIOD = 25
-elif SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
-    CTRL_PERIOD = 40
-elif SIM_TYPE == SimType.STATIC_OBSTACLE:
-    CTRL_PERIOD = 100
-
-# measurement and process noise
-USE_NOISY_STATE_TO_PLAN = True
-
-# divide by 1000 to convert from mm to meters
-# Q_STDEV = 10 / 1000
-# V_STDEV = 100 / 1000
-# V_CMD_STDEV = 10 / 1000
-Q_STDEV = 0
-V_STDEV = 0
-V_CMD_STDEV = 0
 
 DATA_DIR_PATH = Path("/media/adam/Data/PhD/Data/object-balance/bounded")
 
@@ -71,31 +52,6 @@ DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
 
 # robust bounding spheres
 USE_ROBUST_CONSTRAINTS = True
-NUM_BOUNDING_SPHERES = 1
-
-POSITION_GOAL = np.array([0, -2, -0.5])
-ORIENTATION_GOAL = np.array([0, 0, 1, 0])
-
-# stack alernative
-# POSITION_GOAL = np.array([1, 1, 0])
-# ORIENTATION_GOAL = np.array([0, 0, 0, 1])
-
-# cups alternative
-# POSITION_GOAL = np.array([1.5, 0, 0.5])
-# ORIENTATION_GOAL = np.array([0, 0, 0, 1])
-
-# object configurations
-SHORT_CONFIG = ["tray", "cuboid_short"]
-TALL_CONFIG = ["tray", "cuboid_tall"]
-STACK_CONFIG = [
-    "cylinder_base_stack",
-    "cuboid1_stack",
-    "cuboid2_stack",
-    "cylinder3_stack",
-]
-
-# note rearrangement to remove the most challenging cup first
-CUPS_CONFIG = ["tray", "cylinder3_cup", "cylinder1_cup", "cylinder2_cup"]
 
 
 def main():
@@ -113,6 +69,7 @@ def main():
     duration = sim_config["duration"]
     timestep = sim_config["timestep"]
     num_timesteps = int(duration / timestep)
+    ctrl_period = ctrl_config["control_period"]
 
     # start the simulation
     sim = simulation.MobileManipulatorSimulation(sim_config)
@@ -129,19 +86,19 @@ def main():
     x = np.concatenate((q, v))
     u = np.zeros(robot.ni)
 
+    # goal pose
+    position_goal = np.array(ctrl_config["goal"]["position"])
+    orientation_goal = np.array(ctrl_config["goal"]["orientation"])
+
+    # TODO want a function to populate this from the config dict
+    # better yet, we may not even need the object
     settings_wrapper = ocs2_util.TaskSettingsWrapper(x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
     settings_wrapper.settings.tray_balance_settings.robust = USE_ROBUST_CONSTRAINTS
 
-    if SIM_TYPE == SimType.STATIC_OBSTACLE:
-        settings_wrapper.settings.collision_avoidance_settings.enabled = True
-
-    if SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
-        settings_wrapper.settings.dynamic_obstacle_settings.enabled = True
-
-    settings_wrapper.settings.tray_balance_settings.config.enabled.normal = True
-    settings_wrapper.settings.tray_balance_settings.config.enabled.friction = True
-    settings_wrapper.settings.tray_balance_settings.config.enabled.zmp = True
+    # settings_wrapper.settings.tray_balance_settings.config.enabled.normal = True
+    # settings_wrapper.settings.tray_balance_settings.config.enabled.friction = True
+    # settings_wrapper.settings.tray_balance_settings.config.enabled.zmp = True
 
     # set up video recordings
     # need to set it up here to pass into robust sphere generation
@@ -185,9 +142,6 @@ def main():
     x = np.concatenate((q, v))
     settings_wrapper.settings.initial_state = x
 
-    # set process noise after initial routine to get robust spheres
-    robot.v_cmd_stdev = V_CMD_STDEV
-
     # data recorder and plotter
     recorder = Recorder(
         sim_config["timestep"],
@@ -196,24 +150,25 @@ def main():
         ns=robot.ns,
         ni=robot.ni,
         n_objects=len(sim_objects),
-        control_period=CTRL_PERIOD,
+        control_period=ctrl_period,
         n_balance_con=settings_wrapper.get_num_balance_constraints(),
         n_collision_pair=settings_wrapper.get_num_collision_avoidance_constraints(),
         n_dynamic_obs=settings_wrapper.get_num_dynamic_obstacle_constraints() + 1,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
-    cameras.BalancedObjectCamera(robot).save_frame()
-    cameras.RobotCamera(robot).save_frame()
-    dynamic_cam = cameras.DynamicObstacleCamera()
+    # example of taking a picture
+    # camera.camera_from_dict(sim_config["cameras"]["robot"], r_ew_w=r_ew_w).save_frame(
+    #     "robot.png"
+    # )
 
     if SIM_TYPE == SimType.POSE_TO_POSE:
         target_times = [0]
         target_inputs = [u]
 
         # goal pose
-        r_ew_w_d = r_ew_w + POSITION_GOAL
-        Qd = util.quat_multiply(Q_we, ORIENTATION_GOAL)
+        r_ew_w_d = r_ew_w + position_goal
+        Qd = util.quat_multiply(Q_we, orientation_goal)
         r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
         target_states = [np.concatenate((r_ew_w_d, Qd, r_obs0))]
@@ -298,25 +253,6 @@ def main():
         )
 
     elif SIM_TYPE == SimType.STATIC_OBSTACLE:
-        # target_duration = 8
-        # num_waypoints = 6
-        # target_dt = target_duration / (num_waypoints - 1)
-        # # target_times = np.array([0, 2, 4, 6, 8, 10])
-        # target_times = np.array([i * target_dt for i in range(num_waypoints)])
-        # target_inputs = [u for _ in target_times]
-        #
-        # Qd = Q_we
-        # r_obs0 = np.array(r_ew_w) + [0, -10, 0]
-        #
-        # target_states = [
-        #     np.concatenate((r_ew_w + [0, 0, 0], Qd, r_obs0)),
-        #     np.concatenate((r_ew_w + [1, 0, 0], Qd, r_obs0)),
-        #     np.concatenate((r_ew_w + [2, 0, 0], Qd, r_obs0)),
-        #     np.concatenate((r_ew_w + [3, 0, 0], Qd, r_obs0)),
-        #     np.concatenate((r_ew_w + [4, 0, 0], Qd, r_obs0)),
-        #     np.concatenate((r_ew_w + [5, 0, 0], Qd, r_obs0)),
-        # ]
-
         target_times = [0]
         target_inputs = [u]
 
@@ -343,8 +279,7 @@ def main():
         x = np.concatenate((q, v))
 
         # add noise to state variables
-        q_noisy = q + np.random.normal(scale=Q_STDEV, size=q.shape)
-        v_noisy = v + np.random.normal(scale=V_STDEV, size=v.shape)
+        q_noisy, v_noisy = robot.joint_states(add_noise=True)
         x_noisy = np.concatenate((q_noisy, v_noisy))
 
         # by using x_opt, we're basically just doing pure open-loop planning,
@@ -352,14 +287,14 @@ def main():
         # due to noise)
         # this does have the benefit of smoothing out the state used for
         # computation, which is important for constraint handling
-        if USE_NOISY_STATE_TO_PLAN:
+        if ctrl_config["use_noisy_state_to_plan"]:
             mpc.setObservation(t, x_noisy, u)
         else:
             mpc.setObservation(t, x_opt, u)
 
         # this should be set to reflect the MPC time step
         # we can increase it if the MPC rate is faster
-        if i % CTRL_PERIOD == 0:
+        if i % ctrl_period == 0:
             try:
                 t0 = time.time()
                 mpc.advanceMpc()
@@ -370,7 +305,7 @@ def main():
                 IPython.embed()
                 i -= 1  # for the recorder
                 break
-            recorder.control_durations[i // CTRL_PERIOD] = t1 - t0
+            recorder.control_durations[i // ctrl_period] = t1 - t0
 
         # As far as I can tell, evaluateMpcSolution actually computes the input
         # for the particular time and state (the input is often at least
@@ -378,11 +313,8 @@ def main():
         # getMpcSolution just gives the current MPC policy trajectory over the
         # entire time horizon, without accounting for the given state. So it is
         # like doing feedforward input only, which is bad.
-        # x_opt_new = np.zeros(robot.ns)
-        # u = np.zeros(robot.ni)
         mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
         robot.command_acceleration(u)
-        # robot.command_velocity(x_opt[9:])
 
         if recorder.now_is_the_time(i):
             idx = recorder.record_index(i)
@@ -461,8 +393,8 @@ def main():
                 video.save_frame()
 
         # every 0.5 seconds
-        if DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT and i % 500 == 0:
-            dynamic_cam.save_frame(f"t{i}.png")
+        # if DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT and i % 500 == 0:
+        #     dynamic_cam.save_frame(f"t{i}.png")
 
         # for taking pictures manually during a trajectory
         # if i > 1000 and i % 200 == 0:
