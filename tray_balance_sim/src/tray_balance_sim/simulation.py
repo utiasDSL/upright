@@ -3,185 +3,12 @@ from collections import deque
 import numpy as np
 import pybullet as pyb
 import pybullet_data
-import rospkg
 
+from tray_balance_constraints import parsing, math
 from tray_balance_sim.robot import SimulatedRobot
-import tray_balance_sim.util as util
 import tray_balance_sim.bodies as bodies
 
-import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
-from tray_balance_constraints import parsing, math
-
 import IPython
-
-# Naming:
-# - config = raw dict
-# - config_wrapper = object somehow containing the raw config
-# - arrangement = the particular set of objects in use
-
-
-# set to true to add parameter error such that stack and cups configurations
-# fail with nominal constraints (only affects nominal constraints)
-USE_STACK_ERROR = False
-USE_CUPS_ERROR = False
-
-# use this with robust
-# CUPS_OFFSET_SIM = np.array([0, 0, 0])
-
-# use this with nominal
-CUPS_OFFSET_SIM = np.array([0, 0.07, 0])
-
-if USE_CUPS_ERROR:
-    CUPS_OFFSET_CONTROL = -CUPS_OFFSET_SIM
-else:
-    CUPS_OFFSET_CONTROL = np.zeros(3)
-
-
-rospack = rospkg.RosPack()
-OBSTACLES_URDF_PATH = os.path.join(
-    rospack.get_path("tray_balance_assets"), "urdf", "obstacles.urdf"
-)
-
-EE_SIDE_LENGTH = 0.2
-EE_HEIGHT = 0.04
-EE_INSCRIBED_RADIUS = math.equilateral_triangle_inscribed_radius(EE_SIDE_LENGTH)
-
-# coefficient of friction for the EE
-EE_MU = 1.0
-
-# need at least some margin here to avoid objects falling
-OBJ_ZMP_MARGIN = 0.01
-
-# colors used by matplotlib: nice to use for object colors as well
-PLT_COLOR1 = (0.122, 0.467, 0.706, 1)
-PLT_COLOR2 = (1, 0.498, 0.055, 1)
-PLT_COLOR3 = (0.173, 0.627, 0.173, 1)
-PLT_COLOR4 = (0.839, 0.153, 0.157, 1)
-
-### tray ###
-
-TRAY_RADIUS = 0.2
-TRAY_MASS = 0.5
-TRAY_MU = 0.5
-TRAY_COM_HEIGHT = 0.01
-TRAY_MU_BULLET = TRAY_MU / EE_MU
-TRAY_COLOR = PLT_COLOR1
-
-### short cuboid ###
-
-CUBOID_SHORT_MASS = 0.5
-CUBOID_SHORT_TRAY_MU = 0.5
-CUBOID_SHORT_COM_HEIGHT = 0.075
-CUBOID_SHORT_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID_SHORT_COM_HEIGHT)
-CUBOID_SHORT_R_TAU = math.rectangle_r_tau(*CUBOID_SHORT_SIDE_LENGTHS[:2])
-CUBOID_SHORT_COLOR = PLT_COLOR2
-
-# controller things μ is CUBOID_SHORT_TRAY_MU + CUBOID_SHORT_MU_ERROR, when it
-# is actually just CUBOID_SHORT_TRAY_MU
-CUBOID_SHORT_MU_CONTROL = CUBOID_SHORT_TRAY_MU
-CUBOID_SHORT_MU_ERROR = CUBOID_SHORT_MU_CONTROL - CUBOID_SHORT_TRAY_MU
-
-CUBOID_SHORT_R_TAU_CONTROL = CUBOID_SHORT_R_TAU
-CUBOID_SHORT_R_TAU_ERROR = CUBOID_SHORT_R_TAU_CONTROL - CUBOID_SHORT_R_TAU
-
-### tall cuboid ###
-
-CUBOID_TALL_MASS = 0.5
-CUBOID_TALL_TRAY_MU = 0.5
-CUBOID_TALL_COM_HEIGHT = 0.25
-CUBOID_TALL_SIDE_LENGTHS = (0.1, 0.1, 2 * CUBOID_TALL_COM_HEIGHT)
-CUBOID_TALL_R_TAU = math.rectangle_r_tau(*CUBOID_TALL_SIDE_LENGTHS[:2])
-CUBOID_TALL_COLOR = PLT_COLOR2
-
-CUBOID_TALL_MU_CONTROL = CUBOID_TALL_TRAY_MU
-CUBOID_TALL_MU_ERROR = CUBOID_TALL_MU_CONTROL - CUBOID_TALL_TRAY_MU
-
-CUBOID_TALL_R_TAU_CONTROL = CUBOID_TALL_R_TAU
-CUBOID_TALL_R_TAU_ERROR = CUBOID_TALL_R_TAU_CONTROL - CUBOID_TALL_R_TAU
-
-### stack of boxes ###
-
-CYLINDER_BASE_STACK_MASS = 0.75
-CYLINDER_BASE_STACK_MU = 0.5
-CYLINDER_BASE_STACK_MU_BULLET = CYLINDER_BASE_STACK_MU / EE_MU
-CYLINDER_BASE_STACK_COM_HEIGHT = 0.05
-CYLINDER_BASE_STACK_RADIUS = 0.15
-CYLINDER_BASE_STACK_COLOR = PLT_COLOR1
-
-# CYLINDER_BASE_STACK_CONTROL_MASS = CYLINDER_BASE_STACK_MASS
-CYLINDER_BASE_STACK_CONTROL_MASS = 1.0 if USE_STACK_ERROR else CYLINDER_BASE_STACK_MASS
-CYLINDER_BASE_STACK_MASS_ERROR = (
-    CYLINDER_BASE_STACK_CONTROL_MASS - CYLINDER_BASE_STACK_MASS
-)
-
-CUBOID1_STACK_MASS = 0.75
-CUBOID1_STACK_TRAY_MU = 0.25
-CUBOID1_STACK_COM_HEIGHT = 0.075
-CUBOID1_STACK_SIDE_LENGTHS = (0.15, 0.15, 2 * CUBOID1_STACK_COM_HEIGHT)
-CUBOID1_STACK_COLOR = PLT_COLOR2
-CUBOID1_STACK_MU_BULLET = CUBOID1_STACK_TRAY_MU / CYLINDER_BASE_STACK_MU_BULLET
-
-# CUBOID1_STACK_CONTROL_MASS = CUBOID1_STACK_MASS
-CUBOID1_STACK_CONTROL_MASS = 1.0 if USE_STACK_ERROR else CUBOID1_STACK_MASS
-CUBOID1_STACK_MASS_ERROR = CUBOID1_STACK_CONTROL_MASS - CUBOID1_STACK_MASS
-
-CUBOID2_STACK_MASS = 1.25
-CUBOID2_STACK_TRAY_MU = 0.25
-CUBOID2_STACK_COM_HEIGHT = 0.075
-CUBOID2_STACK_SIDE_LENGTHS = (0.1, 0.1, 2 * CUBOID2_STACK_COM_HEIGHT)
-CUBOID2_STACK_COLOR = PLT_COLOR3
-# horizontal offset of CoM relative to parent (CUBOID1_STACK)
-CUBOID2_STACK_OFFSET = 0.5 * (
-    np.array(CUBOID1_STACK_SIDE_LENGTHS[:2]) - CUBOID2_STACK_SIDE_LENGTHS[:2]
-)
-
-# CUBOID2_STACK_CONTROL_MASS = CUBOID2_STACK_MASS
-CUBOID2_STACK_CONTROL_MASS = 1.0 if USE_STACK_ERROR else CUBOID2_STACK_MASS
-CUBOID2_STACK_MASS_ERROR = CUBOID2_STACK_CONTROL_MASS - CUBOID2_STACK_MASS
-
-CYLINDER3_STACK_MASS = 1.25
-CYLINDER3_STACK_SUPPORT_MU = 0.25
-CYLINDER3_STACK_RADIUS = 0.04
-CYLINDER3_STACK_COM_HEIGHT = 0.05
-CYLINDER3_STACK_COLOR = PLT_COLOR4
-CYLINDER3_STACK_OFFSET = (
-    0.5 * np.array(CUBOID2_STACK_SIDE_LENGTHS[:2]) - CYLINDER3_STACK_RADIUS
-)
-
-# CYLINDER3_STACK_CONTROL_MASS = CYLINDER3_STACK_MASS
-CYLINDER3_STACK_CONTROL_MASS = 1.0 if USE_STACK_ERROR else CYLINDER3_STACK_MASS
-CYLINDER3_STACK_MASS_ERROR = CYLINDER3_STACK_CONTROL_MASS - CYLINDER3_STACK_MASS
-
-### set of cups ###
-
-CYLINDER_CUP_MASS = 0.5
-CYLINDER_CUP_SUPPORT_MU = 0.3
-CYLINDER_CUP_RADIUS = 0.04
-CYLINDER_CUP_COM_HEIGHT = 0.075
-CYLINDER_CUP_COLORS = [PLT_COLOR2, PLT_COLOR3, PLT_COLOR4]
-
-
-### robot starting configurations ###
-
-# TODO want to move the home stuff into config as well
-BASE_HOME = [0, 0, 0]
-UR10_HOME_STANDARD = [
-    0.0,
-    -0.75 * np.pi,
-    -0.5 * np.pi,
-    -0.75 * np.pi,
-    -0.5 * np.pi,
-    0.5 * np.pi,
-]
-UR10_HOME_TRAY_BALANCE = [
-    0.0,
-    -0.75 * np.pi,
-    -0.5 * np.pi,
-    -0.25 * np.pi,
-    -0.5 * np.pi,
-    0.5 * np.pi,
-]
-ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
 
 
 class DynamicObstacle:
@@ -252,7 +79,7 @@ class PyBulletSimulation:
         # setup obstacles
         if sim_config["static_obstacles"]["enabled"]:
             obstacles_uid = pyb.loadURDF(
-                config_utils.urdf_path(sim_config["urdf"]["obstacles"])
+                parsing.parse_urdf_path(sim_config["urdf"]["obstacles"])
             )
             pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
 
@@ -315,12 +142,12 @@ class MobileManipulatorSimulation(PyBulletSimulation):
         super().__init__(sim_config)
 
         self.robot = SimulatedRobot(sim_config)
-        self.robot.reset_joint_configuration(ROBOT_HOME)
+        self.robot.reset_joint_configuration(self.robot.home)
 
         # simulate briefly to let the robot settle down after being positioned
         self.settle(1.0)
 
         # arm gets bumped by the above settling, so we reset it again
-        self.robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
+        self.robot.reset_arm_joints(self.robot.arm_home)
 
         self.settle(1.0)

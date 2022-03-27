@@ -5,25 +5,9 @@ import pybullet as pyb
 import pinocchio
 import liegroups
 
-from tray_balance_sim import config_utils
+from tray_balance_constraints import parsing
 
 import IPython
-
-
-# TODO hardcode less things!
-BASE_JOINT_NAMES = ["x_to_world_joint", "y_to_x_joint", "base_to_y_joint"]
-UR10_JOINT_NAMES = [
-    "ur10_arm_shoulder_pan_joint",
-    "ur10_arm_shoulder_lift_joint",
-    "ur10_arm_elbow_joint",
-    "ur10_arm_wrist_1_joint",
-    "ur10_arm_wrist_2_joint",
-    "ur10_arm_wrist_3_joint",
-]
-ROBOT_JOINT_NAMES = BASE_JOINT_NAMES + UR10_JOINT_NAMES
-
-TOOL_JOINT_NAME = "tool0_tcp_fixed_joint"
-TOOL_LINK_NAME = "thing_tool"
 
 
 class SimulatedRobot:
@@ -33,11 +17,16 @@ class SimulatedRobot:
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
         if config["static_obstacles"]["enabled"]:
-            urdf_path = config_utils.urdf_path(config["urdf"]["robot_obstacles"])
+            urdf_path = parsing.parse_urdf_path(config["urdf"]["robot_obstacles"])
         else:
-            urdf_path = config_utils.urdf_path(config["urdf"]["robot"])
+            urdf_path = parsing.parse_urdf_path(config["urdf"]["robot"])
 
         self.uid = pyb.loadURDF(urdf_path, position, orientation)
+
+        # home position
+        self.base_home = parsing.parse_array(config["robot"]["home"]["base"])
+        self.arm_home = parsing.parse_array(config["robot"]["home"]["arm"])
+        self.home = np.concatenate((self.base_home, self.arm_home))
 
         self.dt = config["timestep"]
         self.ns = 18  # num state
@@ -48,6 +37,8 @@ class SimulatedRobot:
 
         # standard deviation of zero-mean Gaussian noise added to velocity inputs
         # TODO handle other noise here
+        self.q_meas_stdev = 0.0
+        self.v_meas_stdev= 0.0
         self.v_cmd_stdev = 0.0
 
         # build a dict of all joints, keyed by name
@@ -62,12 +53,12 @@ class SimulatedRobot:
 
         # get the indices for the UR10 joints
         self.robot_joint_indices = []
-        for name in ROBOT_JOINT_NAMES:
+        for name in config["robot"]["joint_names"]:
             idx = self.joints[name][0]
             self.robot_joint_indices.append(idx)
 
         # Link index (of the tool, in this case) is the same as the joint
-        self.tool_idx = self.joints[TOOL_JOINT_NAME][0]
+        self.tool_idx = self.joints[config["robot"]["tool_joint_name"]][0]
 
         pyb.changeDynamics(self.uid, self.tool_idx, lateralFriction=1.0)
 
@@ -191,7 +182,7 @@ class PinocchioRobot:
 
         self.data = self.model.createData()
 
-        self.tool_idx = self.model.getBodyId(TOOL_LINK_NAME)
+        self.tool_idx = self.model.getBodyId("thing_tool")
 
     def forward_qva(self, q, v=None, a=None):
         """Forward kinematics using (q, v, a) all in the world frame (i.e.,

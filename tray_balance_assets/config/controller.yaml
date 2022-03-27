@@ -8,6 +8,8 @@ balancing:
   enable_friction_constraint: true
   enable_zmp_constraint: true
 
+  use_noisy_state_to_plan: true
+
 input_cost:
   scale: 1
   diag: [1, 1, 1, 1, 1, 1, 1, 1, 1]
@@ -19,6 +21,13 @@ state_cost:
 pose_cost:
   scale: 1
   diag: [1, 1, 1, 0, 0, 1]
+
+initial_state: [0, 0, 0]  # TODO
+
+# desired setpoint is set relative to the initial EE pose
+setpoint:
+  position: [0.0, -2.0, -0.5]
+  orientation: [0.0, 0.0, 0.0, 1.0]
 
 static_obstacles: todo
 

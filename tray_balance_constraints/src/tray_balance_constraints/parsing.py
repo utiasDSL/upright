@@ -1,4 +1,8 @@
+"""Utilities for parsing general configuration dictionaries."""
 from collections import deque
+from pathlib import Path
+
+import rospkg
 import numpy as np
 
 from tray_balance_constraints.bindings import (
@@ -11,7 +15,50 @@ from tray_balance_constraints import math
 from tray_balance_constraints.composition import compose_bounded_objects
 
 
+# Naming:
+# - config = raw dict
+# - config_wrapper = object somehow containing the raw config
+# - arrangement = the particular set of objects in use
+
+
+def parse_number(x):
+    """Parse a number from the config.
+
+    If the number can be converted to a float, then it is and is returned.
+    Otherwise, check if it ends with "pi" and convert it to a float that is a
+    multiple of pi.
+    """
+    try:
+        return float(x)
+    except ValueError:
+        return float(x[:-2]) * np.pi
+
+
+def parse_array(a):
+    """Parse a one-dimensional iterable into a numpy array."""
+    values = []
+    for x in a:
+        values.append(parse_number(x))
+    return np.array(values)
+
+
+def parse_urdf_path(urdf_dict):
+    """Resolve full URDF path from a dict of containing ROS package and relative path."""
+    rospack = rospkg.RosPack()
+    path = Path(rospack.get_path(urdf_dict["package"])) / urdf_dict["path"]
+    return path.as_posix()
+
+
 def parse_support_offset(d):
+    """Parse the x-y offset of an object relative to its support plane.
+
+    The dict d defining the offset can consist of up to four optional
+    key-values: x and y define a Cartesian offset, and r and θ define a radial
+    offset. If both are included, then the Cartesian offset is applied first
+    and the radial offset is added to it.
+
+    Returns: the numpy array [x, y] defining the offset.
+    """
     x = d["x"] if "x" in d else 0
     y = d["y"] if "y" in d else 0
     if "r" in d and "θ" in d:
@@ -24,6 +71,7 @@ def parse_support_offset(d):
 
 class BalancedObjectConfigWrapper:
     """Wrapper around the config dict for a balanced object."""
+
     def __init__(self, config, parent_name):
         self.d = config
         self.parent_name = parent_name
