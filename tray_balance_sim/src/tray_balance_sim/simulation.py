@@ -15,6 +15,11 @@ import tray_balance_constraints as con
 
 import IPython
 
+# Naming:
+# - config = raw dict
+# - config_wrapper = object somehow containing the raw config
+# - arrangement = the particular set of objects in use
+
 
 # set to true to add parameter error such that stack and cups configurations
 # fail with nominal constraints (only affects nominal constraints)
@@ -182,14 +187,6 @@ UR10_HOME_TRAY_BALANCE = [
 ROBOT_HOME = BASE_HOME + UR10_HOME_TRAY_BALANCE
 
 
-# class BalancedObject:
-#     def __init__(self, ctrl_obj, sim_obj, parent):
-#         self.ctrl_obj = ctrl_obj
-#         self.sim_obj = sim_obj
-#         self.parent = parent
-#         self.children = []
-
-
 class DynamicObstacle:
     def __init__(self, initial_position, radius=0.1, velocity=None):
         collision_uid = pyb.createCollisionShape(
@@ -244,9 +241,35 @@ def compute_offset(d):
     return np.array([x, y])
 
 
-class Simulation:
-    def __init__(self, dt):
-        self.dt = dt  # simulation timestep (s)
+class PyBulletSimulation:
+    def __init__(self, sim_config):
+        self.sim_config = sim_config
+
+        pyb.connect(pyb.GUI, options="--width=1280 --height=720")
+
+        pyb.setGravity(*sim_config["gravity"])
+        pyb.setTimeStep(sim_config["timestep"])
+
+        pyb.resetDebugVisualizerCamera(
+            cameraDistance=4,
+            cameraYaw=42,
+            cameraPitch=-35.8,
+            cameraTargetPosition=[1.28, 0.045, 0.647],
+        )
+
+        # get rid of extra parts of the GUI
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
+
+        # setup ground plane
+        pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
+        pyb.loadURDF("plane.urdf", [0, 0, 0])
+
+        # setup obstacles
+        if sim_config["static_obstacles"]["enabled"]:
+            obstacles_uid = pyb.loadURDF(
+                config_utils.urdf_path(sim_config["urdf"]["obstacles"])
+            )
+            pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
 
     def settle(self, duration):
         """Run simulation while doing nothing.
@@ -264,35 +287,8 @@ class Simulation:
             self.robot.step()
         pyb.stepSimulation()
 
-    def basic_setup(self, config):
-        pyb.connect(pyb.GUI, options="--width=1280 --height=720")
 
-        pyb.setGravity(0, 0, -GRAVITY_MAG)
-        pyb.setTimeStep(self.dt)
-
-        pyb.resetDebugVisualizerCamera(
-            cameraDistance=4,
-            cameraYaw=42,
-            cameraPitch=-35.8,
-            cameraTargetPosition=[1.28, 0.045, 0.647],
-        )
-
-        # get rid of extra parts of the GUI
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
-
-        # setup ground plane
-        pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
-        pyb.loadURDF("plane.urdf", [0, 0, 0])
-
-        # setup obstacles
-        if config["static_obstacles"]["enabled"]:
-            obstacles_uid = pyb.loadURDF(
-                config_utils.urdf_path(config["urdf"]["obstacles"])
-            )
-            pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
-
-
-def sim_object_setup(self, r_ew_w, config):
+def sim_object_setup(r_ew_w, config):
     # controller objects are the ones the controller thinks are there
     objects = {}
 
@@ -327,101 +323,11 @@ def sim_object_setup(self, r_ew_w, config):
     return objects
 
 
-class ControlObjectConfigWrapper:
-    def __init__(self, d):
-        self.d = d
-        self.children = []
-        self.position = None
+class MobileManipulatorSimulation(PyBulletSimulation):
+    def __init__(self, sim_config):
+        super().__init__(sim_config)
 
-    @property
-    def height(self):
-        return self.d["height"]
-
-    @property
-    def parent_name(self):
-        # No parent means the object is directly supported by the EE
-        return self.d["parent"] if "parent" in d else None
-
-    @property
-    def offset(self):
-        if "offset" in self.d:
-            return np.array(self.d["offset"])
-        return np.zeros(2)
-
-    def bounded_balanced_object(self):
-        """Generate a BoundedBalancedObject for this object."""
-        # TODO parse SA
-        # TODO parse r_tau
-        # TODO make body
-        # TODO make balanced object
-        return con.BoundedBalancedObject()
-
-
-# TODO need some naming reforms here:
-# - config = configuration for *something*, but can currently be either the
-#   raw dict or a special object, and is also used to refer to the specific
-#   arrangement of objects being balanced
-# Proposal:
-# - config = raw dict
-# - config_wrapper = object somehow containing the raw config
-# - arrangement = the particular set of objects in use
-
-def control_object_setup(config):
-    # TODO need to pass in the control config here
-    wrappers = {}
-    arrangement_name = config["arrangement"]
-    arrangement = config["arrangements"][arrangement_name]
-    for conf in arrangement:
-        name = conf["name"]
-        wrapper = ControlObjectConfigWrapper(config["objects"][name])
-
-        # compute position of the object
-        if wrapper.parent_name is not None:
-            parent = object_configs[wrapper.parent_name]
-            dz = 0.5 * parent.height + 0.5 * wrapper.height
-            wrapper.position = parent.position + [0, 0, dz]
-        else:
-            dz = 0.5 * EE_HEIGHT + 0.5 * wrapper.height
-            wrapper.position = r_ew_w + [0, 0, dz]
-
-        # add offset in the x-y (support) plane
-        wrapper.position[:2] += wrapper.offset
-
-        wrappers[name] = wrapper
-
-    # find the direct children of each object
-    for name, wrapper in wrappers.items():
-        if wrapper.parent_name is not None:
-            wrappers[wrapper.parent_name].children.append(name)
-
-    # convert wrappers to BoundedBalancedObjects as required by the controller
-    # and compose them as needed
-    composites = []
-    for wrapper in wrappers.values():
-        # all descendants compose the new object
-        descendants = []
-        queue = deque([wrapper])
-        while len(queue) > 0:
-            wrapper = queue.popleft()
-            descendants.append(wrapper.bounded_balanced_object())
-            for name in wrapper.children:
-                queue.append(wrappers[name])
-
-        # descendants have already been converted to C++ objects
-        composites.append(con.BoundedBalancedObject.compose(descendants))
-
-    return composites
-
-
-class MobileManipulatorSimulation(Simulation):
-    def __init__(self, dt=0.001):
-        super().__init__(dt)
-
-    def setup(self, config):
-        """Setup pybullet simulation."""
-        super().basic_setup(config)
-
-        self.robot = SimulatedRobot(config)
+        self.robot = SimulatedRobot(sim_config)
         self.robot.reset_joint_configuration(ROBOT_HOME)
 
         # simulate briefly to let the robot settle down after being positioned
@@ -429,21 +335,7 @@ class MobileManipulatorSimulation(Simulation):
 
         # arm gets bumped by the above settling, so we reset it again
         self.robot.reset_arm_joints(UR10_HOME_TRAY_BALANCE)
-
         r_ew_w, _ = self.robot.link_pose()
-        sim_objects = sim_object_setup(r_ew_w, config)
-
-        # TODO this should be done elsewhere
-        ctrl_objects = control_object_setup(config)
+        self.sim_objects = sim_object_setup(r_ew_w, sim_config)
 
         self.settle(1.0)
-
-        # need to set the CoM after the sim has been settled, so objects are in
-        # their proper positions
-        # r_ew_w, Q_we = robot.link_pose()
-        # for obj in objects.values():
-        #     r_ow_w, _ = obj.sim_obj.get_pose()
-        #     # TODO none of these are write access!
-        #     obj.ctrl_obj.body.com_ellipsoid.center = util.calc_r_te_e(r_ew_w, Q_we, r_ow_w)
-
-        return self.robot, sim_objects, ctrl_objects

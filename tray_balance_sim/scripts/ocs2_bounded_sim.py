@@ -106,24 +106,23 @@ def main():
     rospack = rospkg.RosPack()
     config_path = Path(rospack.get_path("tray_balance_assets")) / "config"
     with open(config_path / "controller.yaml") as f:
-        controller_config = yaml.safe_load(f)
+        ctrl_config = yaml.safe_load(f)
     with open(config_path / "simulation.yaml") as f:
-        simulation_config = yaml.safe_load(f)
-    config = {
-        "controller": controller_config,
-        "simulation": simulation_config,
-    }
+        sim_config = yaml.safe_load(f)
 
-    sim_dt = config["simulation"]["timestep"]
+    sim_dt = sim_config["timestep"]
     N = int(config["simulation"]["duration"] / sim_dt)
 
-    # simulation, objects, and model
-    sim = MobileManipulatorSimulation(dt=sim_dt)
-    robot, objects, composites = sim.setup(
-            config["simulation"],
-        # STACK_CONFIG[:2],
-        # load_static_obstacles=(SIM_TYPE == SimType.STATIC_OBSTACLE),
-    )
+    # start the simulation
+    sim = MobileManipulatorSimulation(sim_config)
+    robot = sim.robot
+    sim_objects = sim.objects
+
+    # TODO this is totally independent of the simulation
+    r_ew_w, _ = robot.get_pose()
+    ctrl_objects = control_object_setup(r_ew_w, ctrl_config)
+
+    IPython.embed()
 
     # initial time, state, input
     t = 0.0
@@ -158,7 +157,7 @@ def main():
     ghosts = []  # ghost (i.e., pure visual) objects
     if settings_wrapper.settings.tray_balance_settings.robust:
         settings_wrapper.settings.tray_balance_settings.bounded_config.objects = (
-            composites
+            ctrl_objects
         )
     else:
         # if not using robust approach, use a default collision sphere
@@ -199,7 +198,7 @@ def main():
         config["simulation"]["record_period"],
         ns=robot.ns,
         ni=robot.ni,
-        n_objects=len(objects),
+        n_objects=len(sim_objects),
         control_period=CTRL_PERIOD,
         n_balance_con=settings_wrapper.get_num_balance_constraints(),
         n_collision_pair=settings_wrapper.get_num_collision_avoidance_constraints(),
@@ -429,8 +428,8 @@ def main():
             recorder.v_ew_ws[idx, :] = v_ew_w
             recorder.ω_ew_ws[idx, :] = ω_ew_w
 
-            for j, obj in enumerate(objects.values()):
-                r, Q = obj.sim_obj.get_pose()
+            for j, obj in enumerate(sim_objects.values()):
+                r, Q = obj.get_pose()
                 recorder.r_ow_ws[j, idx, :] = r
                 recorder.Q_wos[j, idx, :] = Q
 
@@ -489,7 +488,7 @@ def main():
     recorder.plot_ee_position(last_sim_index)
     recorder.plot_ee_orientation(last_sim_index)
     recorder.plot_ee_velocity(last_sim_index)
-    for j in range(len(objects)):
+    for j in range(len(sim_objects)):
         recorder.plot_object_error(last_sim_index, j)
     recorder.plot_balancing_constraints(last_sim_index)
     recorder.plot_commands(last_sim_index)

@@ -3,10 +3,22 @@ control_period: 25
 balancing:
   arrangement: two
 
-  use_bounded_constraints: false  # not sure if I need this
+  use_bounded_constraints: true  # not sure if I need this
   enable_normal_constraint: true
   enable_friction_constraint: true
   enable_zmp_constraint: true
+
+input_cost:
+  scale: 1
+  diag: [1, 1, 1, 1, 1, 1, 1, 1, 1]
+
+state_cost:
+  scale: 1
+  diag: todo
+
+pose_cost:
+  scale: 1
+  diag: [1, 1, 1, 0, 0, 1]
 
 static_obstacles: todo
 
@@ -24,7 +36,6 @@ arrangements:
         x: 0
         y: 0
 
-
 objects:
   cylinder_stack_base:
     mass:
@@ -36,13 +47,21 @@ objects:
     radii_of_gyration: [0.15, 0.15, 0.15]
     mu_min: 0.5
     support_area:
-      shape: "eq_tri"  # rectangle is also fine
+      shape: "eq_tri"
       side_length: 0.2
       offset: [0, 0]
     height: 0.1  # this is only used to compute relative heights
   cuboid1_stack:
-    shape: "cuboid"
-    mass: 0.75
-    mu: 0.25
-    side_lengths: [0.15, 0.15, 0.15]
-    color: [1, 0, 0, 1]
+    mass:
+      min: 0.75
+      max: 0.75
+    com:
+      height: 0.075
+      half_lengths: [0.05, 0.05, 0.05]
+    radii_of_gyration: [0.075, 0.075, 0.075]
+    mu_min: 0.25
+    support_area:
+      shape: "rect"
+      lx: 0.15
+      ly: 0.15
+    height: 0.15

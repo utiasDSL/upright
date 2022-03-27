@@ -1,8 +1,9 @@
 # TODO it is probably desirable to just make everything integer values of
 # milliseconds
 timestep: 0.001
-duration: 6.0
+duration: 20.0
 record_period: 10
+gravity: [0, 0, -9.81]
 arrangement: "two"
 
 noise:
