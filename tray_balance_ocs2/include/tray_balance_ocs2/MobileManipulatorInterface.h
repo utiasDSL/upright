@@ -46,7 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/TaskSettings.h>
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
-#include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h>
+#include <tray_balance_ocs2/constraint/balancing/BalancingSettings.h>
 #include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {

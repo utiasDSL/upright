@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Testing of the robust balancing constraints"""
+"""PyBullet simulation using the bounded balancing constraints"""
 import time
 import datetime
 import sys
@@ -14,10 +14,12 @@ import yaml
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
-from tray_balance_sim import util, ocs2_util, robustness, camera, simulation
+from tray_balance_sim import util, ocs2_util, camera, simulation
 from tray_balance_sim.recording import Recorder
 
 import tray_balance_constraints as core
+
+# TODO set this up like the tray_balance_constraints package
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 
 import IPython
@@ -63,9 +65,9 @@ def main():
 
     # TODO want a function to populate this from the config dict
     # better yet, we may not even need the object
-    settings_wrapper = ocs2_util.TaskSettingsWrapper(x)
+    settings_wrapper = ocs2_util.TaskSettingsWrapper()
     settings_wrapper.settings.tray_balance_settings.enabled = True
-    settings_wrapper.settings.tray_balance_settings.robust = True
+    settings_wrapper.settings.tray_balance_settings.bounded = True
     settings_wrapper.settings.initial_state = x
 
     ghosts = []  # ghost (i.e., pure visual) objects

@@ -3,8 +3,7 @@
 #include <pybind11/stl.h>
 
 #include "tray_balance_constraints/ellipsoid.h"
-#include "tray_balance_constraints/robust.h"
-#include "tray_balance_constraints/robust2.h"
+#include "tray_balance_constraints/bounded.h"
 #include "tray_balance_constraints/support_area.h"
 #include "tray_balance_constraints/types.h"
 
@@ -17,13 +16,7 @@ using namespace pybind11::literals;
 PYBIND11_MODULE(bindings, m) {
     using Scalar = double;
 
-    // TODO get rid of this eventually
-    pybind11::class_<Ball<Scalar>>(m, "Ball")
-        .def(pybind11::init<const Vec3<Scalar>&, const Scalar>(), "center"_a,
-             "radius"_a)
-        .def_readwrite("center", &Ball<Scalar>::center)
-        .def_readwrite("radius", &Ball<Scalar>::radius);
-
+    // TODO no need to export other support areas besides polygon
     pybind11::class_<SupportAreaBase<Scalar>>(m, "SupportAreaBase");
 
     pybind11::class_<CircleSupportArea<Scalar>, SupportAreaBase<Scalar>>(

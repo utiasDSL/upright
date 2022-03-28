@@ -66,10 +66,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/definitions.h>
 #include <tray_balance_ocs2/util.h>
 
-#include <tray_balance_ocs2/constraint/tray_balance/RobustTrayBalanceConstraints.h>
-#include <tray_balance_ocs2/constraint/tray_balance/BoundedTrayBalanceConstraints.h>
-#include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceConstraints.h>
-#include <tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h>
+#include <tray_balance_ocs2/constraint/balancing/BoundedBalancingConstraints.h>
+#include <tray_balance_ocs2/constraint/balancing/NominalBalancingConstraints.h>
+#include <tray_balance_ocs2/constraint/balancing/BalancingSettings.h>
 
 #include <ros/package.h>
 
@@ -442,19 +441,14 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
         pinocchioInterface, pinocchioMappingCppAd, {name}, STATE_DIM, INPUT_DIM,
         "tray_balance_ee_kinematics", libraryFolder, recompileLibraries, false);
 
-    if (settings.robust) {
-        // TODO for now just re-using the robust flag
-        // return std::unique_ptr<StateInputConstraint>(
-        //     new RobustTrayBalanceConstraints(pinocchioEEKinematics,
-        //                                      settings.robust_params,
-        //                                      recompileLibraries));
+    if (settings.bounded) {
         return std::unique_ptr<StateInputConstraint>(
             new BoundedTrayBalanceConstraints(pinocchioEEKinematics,
                                              settings.bounded_config,
                                              recompileLibraries));
     } else {
         return std::unique_ptr<StateInputConstraint>(new TrayBalanceConstraints(
-            pinocchioEEKinematics, settings.config, recompileLibraries));
+            pinocchioEEKinematics, settings.nominal_config, recompileLibraries));
     }
 }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h"
+#include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
 

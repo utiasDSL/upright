@@ -2,8 +2,7 @@
 
 #include <ocs2_core/misc/LoadData.h>
 #include <tray_balance_constraints/nominal.h>
-#include <tray_balance_constraints/robust.h>
-#include <tray_balance_constraints/robust2.h>
+#include <tray_balance_constraints/bounded.h>
 #include <tray_balance_ocs2/constraint/ConstraintType.h>
 #include <tray_balance_ocs2/definitions.h>
 
@@ -12,10 +11,9 @@ namespace mobile_manipulator {
 
 struct TrayBalanceSettings {
     bool enabled = false;
-    bool robust = false;
+    bool bounded = false;
 
-    TrayBalanceConfiguration<scalar_t> config;
-    RobustParameterSet<scalar_t> robust_params;
+    TrayBalanceConfiguration<scalar_t> nominal_config;
     BoundedTrayBalanceConfiguration<scalar_t> bounded_config;
 
     ConstraintType constraint_type = ConstraintType::Soft;

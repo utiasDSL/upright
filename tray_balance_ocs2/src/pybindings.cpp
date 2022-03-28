@@ -6,7 +6,6 @@
 #include <ocs2_python_interface/PybindMacros.h>
 #include <tray_balance_constraints/dynamics.h>
 #include <tray_balance_constraints/nominal.h>
-#include <tray_balance_constraints/robust.h>
 #include <tray_balance_constraints/types.h>
 
 #include "tray_balance_ocs2/MobileManipulatorPythonInterface.h"
@@ -14,7 +13,7 @@
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ConstraintType.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
-#include "tray_balance_ocs2/constraint/tray_balance/TrayBalanceSettings.h"
+#include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
 
 using namespace ocs2;
 using namespace mobile_manipulator;
@@ -41,16 +40,7 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
 
     /* bind settings */
-    /// Robust balancing
     // TODO move this stuff to the tray_balance_constraints package
-    pybind11::class_<RobustParameterSet<scalar_t>>(m, "RobustParameterSet")
-        .def(pybind11::init<>())
-        .def_readwrite("balls", &RobustParameterSet<scalar_t>::balls)
-        .def_readwrite("min_support_dist",
-                       &RobustParameterSet<scalar_t>::min_support_dist)
-        .def_readwrite("min_mu", &RobustParameterSet<scalar_t>::min_mu)
-        .def_readwrite("min_r_tau", &RobustParameterSet<scalar_t>::min_r_tau)
-        .def_readwrite("max_radius", &RobustParameterSet<scalar_t>::max_radius);
 
     /// Normal balancing
     pybind11::class_<RigidBody<scalar_t>>(m, "RigidBody")
@@ -83,12 +73,11 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
     pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
         .def(pybind11::init<>())
         .def_readwrite("enabled", &TrayBalanceSettings::enabled)
-        .def_readwrite("robust", &TrayBalanceSettings::robust)
+        .def_readwrite("bounded", &TrayBalanceSettings::bounded)
         .def_readwrite("constraint_type", &TrayBalanceSettings::constraint_type)
         .def_readwrite("mu", &TrayBalanceSettings::mu)
         .def_readwrite("delta", &TrayBalanceSettings::delta)
-        .def_readwrite("config", &TrayBalanceSettings::config)
-        .def_readwrite("robust_params", &TrayBalanceSettings::robust_params)
+        .def_readwrite("nominal_config", &TrayBalanceSettings::nominal_config)
         .def_readwrite("bounded_config", &TrayBalanceSettings::bounded_config);
 
     /// Other stuff

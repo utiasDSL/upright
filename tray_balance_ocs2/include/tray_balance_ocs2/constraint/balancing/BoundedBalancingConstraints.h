@@ -10,12 +10,12 @@
 #include <ocs2_core/constraint/StateInputConstraintCppAd.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 
-#include <tray_balance_constraints/robust.h>
+#include <tray_balance_constraints/bounded.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
+class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
    public:
     using ad_quaternion_t =
         PinocchioEndEffectorKinematicsCppAd::ad_quaternion_t;
@@ -25,33 +25,43 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
     using ad_vec3_t = Eigen::Matrix<ad_scalar_t, 3, 1>;
     using ad_mat3_t = Eigen::Matrix<ad_scalar_t, 3, 3>;
 
-    RobustTrayBalanceConstraints(
+    BoundedTrayBalanceConstraints(
         const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-        const RobustParameterSet<scalar_t>& params, bool recompileLibraries)
+        const BoundedTrayBalanceConfiguration<scalar_t>& config,
+        bool recompileLibraries)
         : StateInputConstraintCppAd(ConstraintOrder::Linear),
           pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
-          params_(params) {
+          config_(config) {
         if (pinocchioEEKinematics.getIds().size() != 1) {
             throw std::runtime_error(
-                "[EndEffectorConstraint] endEffectorKinematics has wrong "
+                "[TrayBalanaceConstraint] endEffectorKinematics has wrong "
                 "number of end effector IDs.");
         }
-        // initialize everything, mostly the CppAD interface
-        // TODO may wish to use parameters here too
-        initialize(STATE_DIM, INPUT_DIM, 0, "robust_tray_balance_constraints",
+
+        // compile the CppAD library
+        initialize(STATE_DIM, INPUT_DIM, 0, "bounded_tray_balance_constraints",
                    "/tmp/ocs2", recompileLibraries, true);
     }
 
-    RobustTrayBalanceConstraints* clone() const override {
-        return new RobustTrayBalanceConstraints(*pinocchioEEKinPtr_, params_,
-                                                false);
+    BoundedTrayBalanceConstraints* clone() const override {
+        // Always pass recompileLibraries = false to avoid recompiling the same
+        // library just because this object is cloned.
+        return new BoundedTrayBalanceConstraints(*pinocchioEEKinPtr_, config_,
+                                                 false);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        return params_.balls.size() * 3;
+        // return config_.num_constraints();
+        return 1;
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
+
+    vector_t getParameters(scalar_t time) const override {
+        // Parameters are constant for now
+        // return params_;
+        return vector_t(0);
+    }
 
    protected:
     ad_vector_t constraintFunction(
@@ -65,20 +75,19 @@ class RobustTrayBalanceConstraints final : public StateInputConstraintCppAd {
         ad_vector_t linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        std::cerr << "Using robust constraints" << std::endl;
-
-        RobustParameterSet<ad_scalar_t> params = params_.cast<ad_scalar_t>();
-        ad_vector_t constraints = robust_balancing_constraints<ad_scalar_t>(
-            C_we, angular_vel, linear_acc, angular_acc, params);
-        return constraints;
+        // auto config = config_.cast_with_parameters<ad_scalar_t>(parameters);
+        auto config = config_.cast<ad_scalar_t>();
+        return config.balancing_constraints(C_we, angular_vel, linear_acc,
+                                            angular_acc);
     }
 
    private:
-    RobustTrayBalanceConstraints(const RobustTrayBalanceConstraints& other) =
+    BoundedTrayBalanceConstraints(const BoundedTrayBalanceConstraints& other) =
         default;
 
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
-    RobustParameterSet<scalar_t> params_;
+    BoundedTrayBalanceConfiguration<scalar_t> config_;
+    // vector_t params_;  // TODO unused
 };
 
 }  // namespace mobile_manipulator

@@ -12,26 +12,17 @@ LIBRARY_PATH = "/tmp/ocs2"
 
 
 class TaskSettingsWrapper:
-    def __init__(self, x0):
+    def __init__(self):
         settings = ocs2.TaskSettings()
 
         settings.method = ocs2.TaskSettings.Method.DDP
-        settings.initial_state = x0
 
         # tray balance settings
         settings.tray_balance_settings.enabled = True
-        settings.tray_balance_settings.robust = False
+        settings.tray_balance_settings.bounded = True
         settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
         settings.tray_balance_settings.mu = 1e-2
         settings.tray_balance_settings.delta = 5e-4
-        # settings.tray_balance_settings.config.objects = composites
-
-        # robust settings
-        robust_params = ocs2.RobustParameterSet()
-        robust_params.min_support_dist = 0.04
-        robust_params.min_mu = 0.2
-        # robust_params.min_r_tau = geometry.circle_r_tau(robust_params.min_support_dist)
-        settings.tray_balance_settings.robust_params = robust_params
 
         # collision avoidance settings
         settings.collision_avoidance_settings.enabled = False
@@ -110,20 +101,13 @@ class TaskSettingsWrapper:
                 offset=np.zeros(3),
                 radius=0.15,
             ),
-            # ocs2.CollisionSphere(
-            #     name="wrist_collision_link2",
-            #     parent_frame_name="ur10_arm_wrist_3_link",
-            #     offset=np.array([0, 0.25, 0]),
-            #     radius=0.03,
-            # ),
         ]:
             settings.dynamic_obstacle_settings.collision_spheres.push_back(sphere)
 
         self.settings = settings
 
     def get_num_balance_constraints(self):
-        if self.settings.tray_balance_settings.robust:
-            # return len(self.settings.tray_balance_settings.robust_params.balls) * 3
+        if self.settings.tray_balance_settings.bounded:
             return self.settings.tray_balance_settings.bounded_config.num_constraints()
         return self.settings.tray_balance_settings.config.num_constraints()
 
