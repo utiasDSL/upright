@@ -30,7 +30,7 @@ PYBIND11_MAKE_OPAQUE(CollisionSphereVector)
 PYBIND11_MAKE_OPAQUE(StringPairVector)
 
 /* create a python module */
-PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
+PYBIND11_MODULE(bindings, m) {
     /* bind vector types so they can be used natively in python */
     VECTOR_TYPE_BINDING(ocs2::scalar_array_t, "scalar_array")
     VECTOR_TYPE_BINDING(ocs2::vector_array_t, "vector_array")
@@ -185,7 +185,7 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
                             ocs2::vector_array_t>());
 
     /* bind the actual mpc interface */
-    pybind11::class_<MobileManipulatorPythonInterface>(m, "mpc_interface")
+    pybind11::class_<MobileManipulatorPythonInterface>(m, "ControllerInterface")
         .def(pybind11::init<const std::string&, const std::string&,
                             const ControllerSettings&>(),
              "taskFile"_a, "libFolder"_a, "settings"_a)

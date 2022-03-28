@@ -3,21 +3,24 @@ import os
 import numpy as np
 import rospkg
 
-import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
+from tray_balance_ocs2 import bindings
 from tray_balance_constraints import parsing
-
-import IPython
-
 
 LIBRARY_PATH = "/tmp/ocs2"
 
 
-# TODO rename
-class TaskSettingsWrapper:
-    def __init__(self, ctrl_config):
-        settings = ocs2.ControllerSettings()
+def get_task_info_path():
+    rospack = rospkg.RosPack()
+    return os.path.join(
+        rospack.get_path("tray_balance_ocs2"), "config", "mpc", "task.info"
+    )
 
-        settings.method = ocs2.ControllerSettings.Method.DDP
+
+class ControllerSettingsWrapper:
+    def __init__(self, ctrl_config):
+        settings = bindings.ControllerSettings()
+
+        settings.method = bindings.ControllerSettings.Method.DDP
 
         # TODO hard-coding
         settings.input_weight = 0.1 * np.eye(9)
@@ -42,10 +45,12 @@ class TaskSettingsWrapper:
             ctrl_config["urdf"]["obstacles"]
         )
 
+        settings.ocs2_config_path = get_task_info_path()
+
         # tray balance settings
         settings.tray_balance_settings.enabled = True
         settings.tray_balance_settings.bounded = True
-        settings.tray_balance_settings.constraint_type = ocs2.ConstraintType.Soft
+        settings.tray_balance_settings.constraint_type = bindings.ConstraintType.Soft
         settings.tray_balance_settings.mu = 1e-2
         settings.tray_balance_settings.delta = 5e-4
 
@@ -102,25 +107,25 @@ class TaskSettingsWrapper:
         settings.dynamic_obstacle_settings.delta = 1e-3
 
         for sphere in [
-            ocs2.CollisionSphere(
+            bindings.CollisionSphere(
                 name="elbow_collision_link",
                 parent_frame_name="ur10_arm_forearm_link",
                 offset=np.zeros(3),
                 radius=0.15,
             ),
-            ocs2.CollisionSphere(
+            bindings.CollisionSphere(
                 name="forearm_collision_sphere_link1",
                 parent_frame_name="ur10_arm_forearm_link",
                 offset=np.array([0, 0, 0.2]),
                 radius=0.15,
             ),
-            ocs2.CollisionSphere(
+            bindings.CollisionSphere(
                 name="forearm_collision_sphere_link2",
                 parent_frame_name="ur10_arm_forearm_link",
                 offset=np.array([0, 0, 0.4]),
                 radius=0.15,
             ),
-            ocs2.CollisionSphere(
+            bindings.CollisionSphere(
                 name="wrist_collision_link",
                 parent_frame_name="ur10_arm_wrist_3_link",
                 offset=np.zeros(3),
@@ -147,38 +152,34 @@ class TaskSettingsWrapper:
         return 0
 
 
-def get_task_info_path():
-    rospack = rospkg.RosPack()
-    return os.path.join(
-        rospack.get_path("tray_balance_ocs2"), "config", "mpc", "task.info"
-    )
-
-
 def make_target_trajectories(target_times, target_states, target_inputs):
     assert len(target_times) == len(target_states)
     assert len(target_times) == len(target_inputs)
 
-    target_times_ocs2 = ocs2.scalar_array()
+    target_times_ocs2 = bindings.scalar_array()
     for target_time in target_times:
         target_times_ocs2.push_back(target_time)
 
-    target_states_ocs2 = ocs2.vector_array()
+    target_states_ocs2 = bindings.vector_array()
     for target_state in target_states:
         target_states_ocs2.push_back(target_state)
 
-    target_inputs_ocs2 = ocs2.vector_array()
+    target_inputs_ocs2 = bindings.vector_array()
     for target_input in target_inputs:
         target_inputs_ocs2.push_back(target_input)
 
-    return ocs2.TargetTrajectories(
+    return bindings.TargetTrajectories(
         target_times_ocs2, target_states_ocs2, target_inputs_ocs2
     )
 
 
-def setup_ocs2_mpc_interface(settings, target_times, target_states, target_inputs):
-    mpc = ocs2.mpc_interface(get_task_info_path(), LIBRARY_PATH, settings)
+def setup_ctrl_interface(settings, target_times, target_states, target_inputs):
+    # TODO get rid of dependency on task info file here
+    controller = bindings.ControllerInterface(
+        get_task_info_path(), LIBRARY_PATH, settings
+    )
     target_trajectories = make_target_trajectories(
         target_times, target_states, target_inputs
     )
-    mpc.reset(target_trajectories)
-    return mpc
+    controller.reset(target_trajectories)
+    return controller

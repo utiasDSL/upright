@@ -1,9 +1,6 @@
 import numpy as np
 import pybullet as pyb
 
-import tray_balance_constraints as con
-import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
-
 
 def cylinder_inertia_matrix(mass, radius, height):
     """Inertia matrix for cylinder aligned along z-axis."""

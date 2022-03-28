@@ -93,18 +93,18 @@ target_link_libraries(${PROJECT_NAME}
 target_compile_options(${PROJECT_NAME} PUBLIC ${FLAGS})
 
 # python bindings
-pybind11_add_module(MobileManipulatorPythonInterface SHARED
+pybind11_add_module(bindings SHARED
   src/pybindings.cpp
 )
-add_dependencies(MobileManipulatorPythonInterface
+add_dependencies(bindings
   ${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
 )
-target_link_libraries(MobileManipulatorPythonInterface PRIVATE
+target_link_libraries(bindings PRIVATE
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
-set_target_properties(MobileManipulatorPythonInterface
+set_target_properties(bindings
     PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
 )
 
@@ -126,7 +126,7 @@ install(DIRECTORY config launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
-install(TARGETS MobileManipulatorPythonInterface
+install(TARGETS bindings
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
 )
