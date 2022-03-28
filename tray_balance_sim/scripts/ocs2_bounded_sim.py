@@ -15,8 +15,8 @@ import yaml
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
-from tray_balance_sim import util, ocs2_util, robustness, camera, cameras, simulation
-from tray_balance_sim.recording import Recorder, VideoRecorder
+from tray_balance_sim import util, ocs2_util, robustness, camera, simulation
+from tray_balance_sim.recording import Recorder
 
 import tray_balance_constraints as core
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
@@ -32,26 +32,7 @@ class SimType(enum.Enum):
 
 
 SIM_TYPE = SimType.POSE_TO_POSE
-
-
 DATA_DIR_PATH = Path("/media/adam/Data/PhD/Data/object-balance/bounded")
-
-# video recording parameters
-RECORD_VIDEO = False
-VIDEO_NAME = "single_object_r5"
-TIMESTAMP = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-VIDEO_DIR = Path("/media/adam/Data/PhD/Videos/tray-balance/bounded")
-VIDEO_PERIOD = 40  # 25 frames per second with 1000 steps per second
-# select appropriate video recorders here
-VIDEO_RECORDER_TYPES = [
-    (cameras.PoseToPoseVideoRecorder1, "view1"),
-    # (cameras.PoseToPoseVideoRecorder2, "view2"),
-]
-
-DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT = False
-
-# robust bounding spheres
-USE_ROBUST_CONSTRAINTS = True
 
 
 def main():
@@ -90,23 +71,22 @@ def main():
     position_goal = np.array(ctrl_config["goal"]["position"])
     orientation_goal = np.array(ctrl_config["goal"]["orientation"])
 
+    # video recordings
+    now = datetime.datetime.now()
+    video_manager = camera.VideoManager.from_config_dict(
+        config=sim_config, timestamp=now, r_ew_w=r_ew_w
+    )
+
     # TODO want a function to populate this from the config dict
     # better yet, we may not even need the object
     settings_wrapper = ocs2_util.TaskSettingsWrapper(x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
-    settings_wrapper.settings.tray_balance_settings.robust = USE_ROBUST_CONSTRAINTS
+    settings_wrapper.settings.tray_balance_settings.robust = True
 
     # settings_wrapper.settings.tray_balance_settings.config.enabled.normal = True
     # settings_wrapper.settings.tray_balance_settings.config.enabled.friction = True
     # settings_wrapper.settings.tray_balance_settings.config.enabled.zmp = True
 
-    # set up video recordings
-    # need to set it up here to pass into robust sphere generation
-    videos = []
-    if RECORD_VIDEO:
-        for video_type, postfix in VIDEO_RECORDER_TYPES:
-            name = "_".join([VIDEO_NAME, postfix, TIMESTAMP])
-            videos.append(video_type(VIDEO_DIR, name))
 
     ghosts = []  # ghost (i.e., pure visual) objects
     if settings_wrapper.settings.tray_balance_settings.robust:
@@ -156,11 +136,6 @@ def main():
         n_dynamic_obs=settings_wrapper.get_num_dynamic_obstacle_constraints() + 1,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
-
-    # example of taking a picture
-    # camera.camera_from_dict(sim_config["cameras"]["robot"], r_ew_w=r_ew_w).save_frame(
-    #     "robot.png"
-    # )
 
     if SIM_TYPE == SimType.POSE_TO_POSE:
         target_times = [0]
@@ -386,19 +361,7 @@ def main():
             if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
                 target_idx += 1
 
-        # if RECORD_VIDEO and i % VIDEO_PERIOD == 0:
-        #     VIDEO_RECORDER.save_frame()
-        if i % VIDEO_PERIOD == 0:
-            for video in videos:
-                video.save_frame()
-
-        # every 0.5 seconds
-        # if DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT and i % 500 == 0:
-        #     dynamic_cam.save_frame(f"t{i}.png")
-
-        # for taking pictures manually during a trajectory
-        # if i > 1000 and i % 200 == 0:
-        #     IPython.embed()
+        video_manager.record(i)
 
     if recorder.ineq_cons.shape[1] > 0:
         print(f"Min constraint value = {np.min(recorder.ineq_cons)}")

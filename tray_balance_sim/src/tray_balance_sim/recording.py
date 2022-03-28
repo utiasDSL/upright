@@ -9,49 +9,8 @@ from liegroups import SO3
 from PIL import Image
 
 import tray_balance_sim.util as util
-from tray_balance_sim.camera import Camera
 
 import IPython
-
-
-class VideoRecorder(Camera):
-    def __init__(
-        self,
-        directory,
-        name,
-        distance,
-        roll,
-        pitch,
-        yaw,
-        target_position,
-        fov=60.0,
-        width=1280,
-        height=720,
-    ):
-        super().__init__(
-            target_position,
-            distance=distance,
-            roll=roll,
-            pitch=pitch,
-            yaw=yaw,
-            fov=fov,
-            width=width,
-            height=height,
-        )
-
-        self.path = directory / name
-        os.makedirs(self.path)
-
-        # copy in the frame -> video conversion script
-        shutil.copy(directory / "ffmpeg_png2mp4.sh", self.path)
-
-        self.frame_count = 0
-
-    def save_frame(self):
-        w, h, rgb, dep, seg = self.get_frame()
-        img = Image.fromarray(np.reshape(rgb, (h, w, 4)), "RGBA")
-        img.save(self.path / ("frame_" + str(self.frame_count) + ".png"))
-        self.frame_count += 1
 
 
 class Recorder:

@@ -1,7 +1,7 @@
 # TODO it is probably desirable to just make everything integer values of
 # milliseconds
 timestep: 0.001
-duration: 20.0
+duration: 4.0
 record_period: 10
 gravity: [0, 0, -9.81]
 arrangement: "two"
@@ -30,16 +30,17 @@ robot:
   tool_joint_name: "tool0_tcp_fixed_joint"
   # tool_link_name: "thing_tool"  # TODO only actually needed on the control side
 
-photos: todo
+photos: todo  # this is actually a special case of video with save_frames=True
 
 video:
-  record: false
-  dir: "/media/adam/Data/PhD/Videos/heins-ral22/"
+  save_video: true
+  save_frames: true
+  dir: "/media/adam/Data/PhD/Videos/tray-balance/"
   frame_period: 40
-  cameras:
+  views:
     -
-      camera: "foo"
-      filename: "view1"
+      camera: "pose_to_pose_video_recorder2"
+      name: "view1"
 
 static_obstacles:
   enabled: false
