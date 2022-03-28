@@ -30,11 +30,9 @@ robot:
   tool_joint_name: "tool0_tcp_fixed_joint"
   # tool_link_name: "thing_tool"  # TODO only actually needed on the control side
 
-photos: todo  # this is actually a special case of video with save_frames=True
-
 video:
-  save_video: true
-  save_frames: true
+  save_video: false
+  save_frames: false
   dir: "/media/adam/Data/PhD/Videos/tray-balance/"
   frame_period: 40
   views:

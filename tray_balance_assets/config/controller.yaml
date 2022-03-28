@@ -9,7 +9,6 @@ balancing:
   enable_friction_constraint: true
   enable_zmp_constraint: true
 
-
 input_cost:
   scale: 1
   diag: [1, 1, 1, 1, 1, 1, 1, 1, 1]
@@ -33,7 +32,10 @@ static_obstacles: todo
 
 dynamic_obstacles: todo
 
-# configs reference the objects below
+logging:
+  log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
+
+# arrangements reference the objects below
 arrangements:
   two:
     -

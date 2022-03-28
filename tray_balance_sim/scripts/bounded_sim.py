@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Testing of the robust balancing constraints"""
-import enum
 import time
 import datetime
 import sys
@@ -22,17 +21,6 @@ import tray_balance_constraints as core
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 
 import IPython
-
-
-@enum.unique
-class SimType(enum.Enum):
-    POSE_TO_POSE = 1
-    DYNAMIC_OBSTACLE = 2
-    STATIC_OBSTACLE = 3
-
-
-SIM_TYPE = SimType.POSE_TO_POSE
-DATA_DIR_PATH = Path("/media/adam/Data/PhD/Data/object-balance/bounded")
 
 
 def main():
@@ -67,11 +55,7 @@ def main():
     x = np.concatenate((q, v))
     u = np.zeros(robot.ni)
 
-    # goal pose
-    position_goal = np.array(ctrl_config["goal"]["position"])
-    orientation_goal = np.array(ctrl_config["goal"]["orientation"])
-
-    # video recordings
+    # video recording
     now = datetime.datetime.now()
     video_manager = camera.VideoManager.from_config_dict(
         config=sim_config, timestamp=now, r_ew_w=r_ew_w
@@ -82,47 +66,15 @@ def main():
     settings_wrapper = ocs2_util.TaskSettingsWrapper(x)
     settings_wrapper.settings.tray_balance_settings.enabled = True
     settings_wrapper.settings.tray_balance_settings.robust = True
-
-    # settings_wrapper.settings.tray_balance_settings.config.enabled.normal = True
-    # settings_wrapper.settings.tray_balance_settings.config.enabled.friction = True
-    # settings_wrapper.settings.tray_balance_settings.config.enabled.zmp = True
-
-
-    ghosts = []  # ghost (i.e., pure visual) objects
-    if settings_wrapper.settings.tray_balance_settings.robust:
-        settings_wrapper.settings.tray_balance_settings.bounded_config.objects = (
-            ctrl_objects
-        )
-    else:
-        # if not using robust approach, use a default collision sphere
-        balanced_object_collision_sphere = ocs2.CollisionSphere(
-            name="thing_tool_collision_link",
-            parent_frame_name="thing_tool",
-            offset=np.array([0, 0, 0]),
-            radius=0.25,
-        )
-        settings_wrapper.settings.dynamic_obstacle_settings.collision_spheres.push_back(
-            balanced_object_collision_sphere
-        )
-
-        settings_wrapper.settings.collision_avoidance_settings.extra_spheres.push_back(
-            balanced_object_collision_sphere
-        )
-        # fmt: off
-        for pair in [
-            ("thing_tool_collision_link", "chair3_1_link_0"),
-            ("thing_tool_collision_link", "chair4_2_link_0"),
-            ("thing_tool_collision_link", "chair2_1_link_0"),
-            ("thing_tool_collision_link", "forearm_collision_link_0"),
-        ]:
-            settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.push_back(pair)
-        # fmt: on
-
-    q, v = robot.joint_states()
-    x = np.concatenate((q, v))
     settings_wrapper.settings.initial_state = x
 
+    ghosts = []  # ghost (i.e., pure visual) objects
+    settings_wrapper.settings.tray_balance_settings.bounded_config.objects = (
+        ctrl_objects
+    )
+
     # data recorder and plotter
+    log_dir = Path(ctrl_config["logging"]["log_dir"])
     recorder = Recorder(
         sim_config["timestep"],
         sim_config["duration"],
@@ -137,114 +89,25 @@ def main():
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
-    if SIM_TYPE == SimType.POSE_TO_POSE:
-        target_times = [0]
-        target_inputs = [u]
+    target_times = [0]
+    target_inputs = [u]
+    target_idx = 0
 
-        # goal pose
-        r_ew_w_d = r_ew_w + position_goal
-        Qd = util.quat_multiply(Q_we, orientation_goal)
-        r_obs0 = np.array(r_ew_w) + [0, -10, 0]
+    # goal pose
+    r_ew_w_d = r_ew_w + ctrl_config["goal"]["position"]
+    Qd = util.quat_multiply(Q_we, ctrl_config["goal"]["orientation"])
+    r_obs0 = np.array(r_ew_w) + [0, -10, 0]
 
-        target_states = [np.concatenate((r_ew_w_d, Qd, r_obs0))]
-
-        # visual indicator for target
-        # NOTE: debug frame doesn't show up in the recording
-        debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
-        ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
-
-    elif SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
-        target_times = [0, 5]  # TODO
-        target_inputs = [u for _ in target_times]
-
-        # create the dynamic obstacle
-        r_obs0 = np.array(r_ew_w) + [0, -1, 0]
-        v_obs = np.array([0, 1.0, 0])
-        obstacle = DynamicObstacle(r_obs0, radius=0.1, velocity=v_obs)
-
-        # stationary pose
-        r_ew_w_d = r_ew_w
-        Qd = Q_we
-
-        # start with the obstacle out of the way
-        r_obs_out_of_the_way = r_ew_w + [0, -10, 0]
-
-        target_states = [
-            np.concatenate((r_ew_w_d, Qd, r_obs_out_of_the_way)),
-            np.concatenate((r_ew_w_d, Qd, r_obs_out_of_the_way)),
-        ]
-
-        # trajectories are modified to introduce dynamic obstacles
-        target_times_obs1 = [0, 5]
-        target_times_obs2 = [2, 7]
-
-        r_obsf = obstacle.sample_position(target_times_obs1[-1])
-        target_states_obs = [
-            np.concatenate((r_ew_w_d, Qd, r_obs0)),
-            np.concatenate((r_ew_w_d, Qd, r_obsf)),
-        ]
-
-        # obstacle appears at t = 0
-        target_trajectories_obs1 = ocs2_util.make_target_trajectories(
-            target_times_obs1, target_states_obs, target_inputs
-        )
-
-        # obstacle appears again at t = 2
-        target_trajectories_obs2 = ocs2_util.make_target_trajectories(
-            target_times_obs2, target_states_obs, target_inputs
-        )
-
-        if DO_DYNAMIC_OBSTACLE_PHOTO_SHOOT:
-            # add visualizations for EE desired pose and obstacle trajectory
-            ghosts.append(
-                GhostSphere(radius=0.025, position=r_ew_w_d, color=(0, 0, 0, 1))
-            )
-            dots = np.linspace(r_obs0, r_obs0 + 2 * v_obs, 40)
-            for i in range(dots.shape[0]):
-                ghosts.append(
-                    GhostSphere(radius=0.01, position=dots[i, :], color=(1, 0, 0, 0.8))
-                )
-
-        for (
-            sphere
-        ) in settings_wrapper.settings.dynamic_obstacle_settings.collision_spheres:
-            # robust spheres already have ghost spheres
-            if sphere.name.startswith("robust"):
-                continue
-            link_idx = robot.links[sphere.parent_frame_name][0]
-            ghosts.append(
-                GhostSphere(
-                    sphere.radius,
-                    position=sphere.offset,
-                    parent_body_uid=robot.uid,
-                    parent_link_index=link_idx,
-                    color=(0, 1, 0, 0.3),
-                )
-            )
-
-        settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.clear()
-        settings_wrapper.settings.collision_avoidance_settings.collision_link_pairs.push_back(
-            ("robust_collision_sphere_0", "forearm_collision_sphere_link1_0"),
-        )
-
-    elif SIM_TYPE == SimType.STATIC_OBSTACLE:
-        target_times = [0]
-        target_inputs = [u]
-
-        # goal pose
-        r_ew_w_d = r_ew_w + [5, 0, 0]
-        Qd = Q_we
-        r_obs0 = np.array(r_ew_w) + [0, -10, 0]
-
-        target_states = [np.concatenate((r_ew_w_d, Qd, r_obs0))]
-
-        # ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
+    target_states = [np.concatenate((r_ew_w_d, Qd, r_obs0))]
 
     mpc = ocs2_util.setup_ocs2_mpc_interface(
         settings_wrapper.settings, target_times, target_states, target_inputs
     )
 
-    target_idx = 0
+    # visual indicator for target
+    # NOTE: debug frame doesn't show up in the recording
+    debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
+    ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
 
     x_opt = np.copy(x)
 
@@ -346,20 +209,9 @@ def main():
             ghost.update()
         t += timestep
 
-        # set the target trajectories to make controller aware of dynamic
-        # obstacles
-        if SIM_TYPE == SimType.DYNAMIC_OBSTACLE:
-            if i == 0:
-                mpc.setTargetTrajectories(target_trajectories_obs1)
-            elif i == 2000:
-                # reset the obstacle to use again
-                obstacle.reset_pose(r_obs0, (0, 0, 0, 1))
-                obstacle.reset_velocity(obstacle.velocity)
-                mpc.setTargetTrajectories(target_trajectories_obs2)
-
-        if SIM_TYPE == SimType.STATIC_OBSTACLE:
-            if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
-                target_idx += 1
+        # if we have multiple targets, step through them
+        if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
+            target_idx += 1
 
         video_manager.record(i)
 
@@ -373,7 +225,7 @@ def main():
         else:
             prefix = "data"
         data_file_name = prefix + "_" + TIMESTAMP
-        recorder.save(DATA_DIR_PATH / data_file_name)
+        recorder.save(log_dir / data_file_name)
 
     last_sim_index = i
     recorder.plot_ee_position(last_sim_index)
