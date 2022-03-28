@@ -119,20 +119,30 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
         .def_readwrite("collision_spheres",
                        &DynamicObstacleSettings::collision_spheres);
 
-    pybind11::class_<TaskSettings> task_settings(m, "TaskSettings");
-    task_settings.def(pybind11::init<>())
-        .def_readwrite("method", &TaskSettings::method)
+    pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
+    ctrl_settings.def(pybind11::init<>())
+        .def_readwrite("method", &ControllerSettings::method)
         .def_readwrite("dynamic_obstacle_settings",
-                       &TaskSettings::dynamic_obstacle_settings)
+                       &ControllerSettings::dynamic_obstacle_settings)
         .def_readwrite("collision_avoidance_settings",
-                       &TaskSettings::collision_avoidance_settings)
+                       &ControllerSettings::collision_avoidance_settings)
         .def_readwrite("tray_balance_settings",
-                       &TaskSettings::tray_balance_settings)
-        .def_readwrite("initial_state", &TaskSettings::initial_state);
+                       &ControllerSettings::tray_balance_settings)
+        .def_readwrite("initial_state", &ControllerSettings::initial_state)
+        .def_readwrite("input_weight", &ControllerSettings::input_weight)
+        .def_readwrite("state_weight", &ControllerSettings::state_weight)
+        .def_readwrite("end_effector_weight", &ControllerSettings::end_effector_weight)
+        .def_readwrite("input_limit_lower", &ControllerSettings::input_limit_lower)
+        .def_readwrite("input_limit_upper", &ControllerSettings::input_limit_upper)
+        .def_readwrite("state_limit_lower", &ControllerSettings::state_limit_lower)
+        .def_readwrite("state_limit_upper", &ControllerSettings::state_limit_upper)
+        .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
+        .def_readwrite("obstacle_urdf_path", &ControllerSettings::obstacle_urdf_path)
+        .def_readwrite("ocs2_config_path", &ControllerSettings::ocs2_config_path);
 
-    pybind11::enum_<TaskSettings::Method>(task_settings, "Method")
-        .value("DDP", TaskSettings::Method::DDP)
-        .value("SQP", TaskSettings::Method::SQP);
+    pybind11::enum_<ControllerSettings::Method>(ctrl_settings, "Method")
+        .value("DDP", ControllerSettings::Method::DDP)
+        .value("SQP", ControllerSettings::Method::SQP);
 
     /* bind approximation classes */
     pybind11::class_<ocs2::VectorFunctionLinearApproximation>(
@@ -177,7 +187,7 @@ PYBIND11_MODULE(MobileManipulatorPythonInterface, m) {
     /* bind the actual mpc interface */
     pybind11::class_<MobileManipulatorPythonInterface>(m, "mpc_interface")
         .def(pybind11::init<const std::string&, const std::string&,
-                            const TaskSettings&>(),
+                            const ControllerSettings&>(),
              "taskFile"_a, "libFolder"_a, "settings"_a)
         .def("getStateDim", &MobileManipulatorPythonInterface::getStateDim)
         .def("getInputDim", &MobileManipulatorPythonInterface::getInputDim)

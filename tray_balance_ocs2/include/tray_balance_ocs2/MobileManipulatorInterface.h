@@ -59,12 +59,10 @@ class MobileManipulatorInterface final : public RobotInterface {
    public:
     /**
      * Constructor
-     * @param [in] taskFileFolderName: The name of the folder containing task
-     * file
      */
     explicit MobileManipulatorInterface(const std::string& taskFile,
                                         const std::string& libraryFolder,
-                                        const TaskSettings& settings);
+                                        const ControllerSettings& settings);
 
     const vector_t& getInitialState() { return initialState_; }
 
@@ -149,7 +147,7 @@ class MobileManipulatorInterface final : public RobotInterface {
     mpc::Settings mpcSettings_;
     multiple_shooting::Settings sqpSettings_;
 
-    TaskSettings settings_;
+    ControllerSettings settings_;
 
     OptimalControlProblem problem_;
     std::unique_ptr<RolloutBase> rolloutPtr_;

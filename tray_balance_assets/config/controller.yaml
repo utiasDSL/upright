@@ -32,8 +32,17 @@ static_obstacles: todo
 
 dynamic_obstacles: todo
 
+# TODO: doesn't necessarily make sense to have this here
 logging:
   log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
+
+urdf:
+  robot:
+    package: "tray_balance_assets"
+    path: "urdf/mm_ocs2.urdf"
+  obstacles:
+    package: "tray_balance_assets"
+    path: "urdf/obstacles.urdf"
 
 # arrangements reference the objects below
 arrangements:

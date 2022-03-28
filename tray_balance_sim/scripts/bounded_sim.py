@@ -65,7 +65,7 @@ def main():
 
     # TODO want a function to populate this from the config dict
     # better yet, we may not even need the object
-    settings_wrapper = ocs2_util.TaskSettingsWrapper()
+    settings_wrapper = ocs2_util.TaskSettingsWrapper(ctrl_config)
     settings_wrapper.settings.tray_balance_settings.enabled = True
     settings_wrapper.settings.tray_balance_settings.bounded = True
     settings_wrapper.settings.initial_state = x

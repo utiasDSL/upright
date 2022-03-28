@@ -12,7 +12,7 @@ class MobileManipulatorPythonInterface final : public PythonInterface {
    public:
     explicit MobileManipulatorPythonInterface(const std::string& taskFile,
                                               const std::string& libraryFolder,
-                                              const TaskSettings& settings) {
+                                              const ControllerSettings& settings) {
         MobileManipulatorInterface robot(taskFile, libraryFolder, settings);
 
         // Set the reference manager -- otherwise there are problems with the

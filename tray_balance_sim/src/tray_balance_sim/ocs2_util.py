@@ -4,6 +4,7 @@ import numpy as np
 import rospkg
 
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
+from tray_balance_constraints import parsing
 
 import IPython
 
@@ -11,11 +12,35 @@ import IPython
 LIBRARY_PATH = "/tmp/ocs2"
 
 
+# TODO rename
 class TaskSettingsWrapper:
-    def __init__(self):
-        settings = ocs2.TaskSettings()
+    def __init__(self, ctrl_config):
+        settings = ocs2.ControllerSettings()
 
-        settings.method = ocs2.TaskSettings.Method.DDP
+        settings.method = ocs2.ControllerSettings.Method.DDP
+
+        # TODO hard-coding
+        settings.input_weight = 0.1 * np.eye(9)
+        settings.state_weight = np.diag(np.concatenate((np.zeros(9), 0.1 * np.ones(9))))
+        settings.end_effector_weight = np.diag([1, 1, 1, 0, 0, 1])
+
+        # input limits
+        settings.input_limit_lower = np.array([-2, -2, -2, -4, -4, -4, -4, -4, -4])
+        settings.input_limit_upper = -settings.input_limit_lower
+
+        # state limits
+        q_limits_lower = np.concatenate((-10 * np.ones(3), -2 * np.pi * np.ones(6)))
+        q_limits_upper = -q_limits_lower
+        v_limits_lower = np.concatenate((-1 * np.ones(3), -2 * np.ones(6)))
+        v_limits_upper = -v_limits_lower
+        settings.state_limit_lower = np.concatenate((q_limits_lower, v_limits_lower))
+        settings.state_limit_upper = np.concatenate((q_limits_upper, v_limits_upper))
+
+        # URDFs
+        settings.robot_urdf_path = parsing.parse_urdf_path(ctrl_config["urdf"]["robot"])
+        settings.obstacle_urdf_path = parsing.parse_urdf_path(
+            ctrl_config["urdf"]["obstacles"]
+        )
 
         # tray balance settings
         settings.tray_balance_settings.enabled = True
