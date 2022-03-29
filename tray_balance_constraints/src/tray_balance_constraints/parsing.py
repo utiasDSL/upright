@@ -14,6 +14,8 @@ from tray_balance_constraints.bindings import (
 from tray_balance_constraints import math
 from tray_balance_constraints.composition import compose_bounded_objects
 
+import IPython
+
 
 # Naming:
 # - config = raw dict

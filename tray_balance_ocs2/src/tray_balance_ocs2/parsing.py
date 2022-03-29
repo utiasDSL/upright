@@ -24,7 +24,7 @@ class ControllerSettingsWrapper:
 
         # TODO hard-coding
         settings.input_weight = 0.1 * np.eye(9)
-        settings.state_weight = np.diag(np.concatenate((np.zeros(9), 0.1 * np.ones(9))))
+        settings.state_weight = np.diag(np.concatenate((np.zeros(9), 0.2 * np.ones(9))))
         settings.end_effector_weight = np.diag([1, 1, 1, 0, 0, 1])
 
         # input limits

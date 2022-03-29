@@ -51,8 +51,7 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        // return config_.num_constraints();
-        return 1;
+        return config_.num_constraints();
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }

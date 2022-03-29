@@ -9,7 +9,7 @@
 #include <tray_balance_constraints/types.h>
 
 #include "tray_balance_ocs2/MobileManipulatorPythonInterface.h"
-#include "tray_balance_ocs2/TaskSettings.h"
+#include "tray_balance_ocs2/ControllerSettings.h"
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ConstraintType.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"

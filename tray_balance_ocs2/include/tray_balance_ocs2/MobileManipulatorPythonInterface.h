@@ -3,7 +3,7 @@
 #include <ocs2_python_interface/PythonInterface.h>
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <tray_balance_ocs2/definitions.h>
-#include <tray_balance_ocs2/TaskSettings.h>
+#include <tray_balance_ocs2/ControllerSettings.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {

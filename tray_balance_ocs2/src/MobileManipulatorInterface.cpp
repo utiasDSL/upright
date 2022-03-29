@@ -279,6 +279,10 @@ MobileManipulatorInterface::getQuadraticStateInputCost(
     const std::string& taskFile) {
     matrix_t Q = settings_.state_weight;
     matrix_t R = settings_.input_weight;
+
+    std::cout << "Q: " << Q << std::endl;
+    std::cout << "R: " << R << std::endl;
+
     return std::unique_ptr<StateInputCost>(
         new QuadraticJointStateInputCost(std::move(Q), std::move(R)));
 }
@@ -336,7 +340,9 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
     const std::string& prefix, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
     std::string name = "thing_tool";  // TODO add to config
+
     matrix_t W = settings_.end_effector_weight;
+    std::cout << "W: " << W << std::endl;
 
     MobileManipulatorPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
     PinocchioEndEffectorKinematicsCppAd eeKinematics(

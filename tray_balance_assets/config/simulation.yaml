@@ -1,7 +1,7 @@
 # TODO it is probably desirable to just make everything integer values of
 # milliseconds
 timestep: 0.001
-duration: 4.0
+duration: 20.0
 record_period: 10
 gravity: [0, 0, -9.81]
 arrangement: "two"
@@ -62,12 +62,12 @@ arrangements:
   two:
     -
       name: "cylinder_stack_base"
-    -
-      name: "cuboid1_stack"
-      parent: "cylinder_stack_base"
-      offset:
-        x: 0
-        y: 0
+    # -
+    #   name: "cuboid1_stack"
+    #   parent: "cylinder_stack_base"
+    #   offset:
+    #     x: 0
+    #     y: 0
   # short:
   #   -
   #     name: "tray"
@@ -98,7 +98,7 @@ objects:
   cylinder_stack_base:
     shape: "cylinder"
     mass: 0.75
-    mu: 0.5
+    mu: 0.25
     height: 0.1
     radius: 0.15
     color: [0, 0, 1, 1]

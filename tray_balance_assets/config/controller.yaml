@@ -49,12 +49,12 @@ arrangements:
   two:
     -
       name: "cylinder_stack_base"
-    -
-      name: "cuboid1_stack"
-      parent: "cylinder_stack_base"
-      offset:
-        x: 0
-        y: 0
+    # -
+    #   name: "cuboid1_stack"
+    #   parent: "cylinder_stack_base"
+    #   offset:
+    #     x: 0
+    #     y: 0
 
 objects:
   ee:
@@ -67,9 +67,9 @@ objects:
       max: 0.75
     com:
       height: 0.05
-      half_lengths: [0.05, 0.05, 0.05]
+      half_lengths: [0.0, 0.0, 0.0]
     radii_of_gyration: [0.15, 0.15, 0.15]
-    mu_min: 0.5
+    mu_min: 0.25
     support_area:
       shape: "eq_tri"
       side_length: 0.2
@@ -82,7 +82,7 @@ objects:
       max: 0.75
     com:
       height: 0.075
-      half_lengths: [0.05, 0.05, 0.05]
+      half_lengths: [0.0, 0.0, 0.0]
     radii_of_gyration: [0.075, 0.075, 0.075]
     mu_min: 0.25
     support_area:

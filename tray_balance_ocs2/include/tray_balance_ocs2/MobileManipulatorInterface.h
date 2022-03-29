@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <pinocchio/parsers/urdf.hpp>
 
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
-#include <tray_balance_ocs2/TaskSettings.h>
+#include <tray_balance_ocs2/ControllerSettings.h>
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
 #include <tray_balance_ocs2/constraint/balancing/BalancingSettings.h>

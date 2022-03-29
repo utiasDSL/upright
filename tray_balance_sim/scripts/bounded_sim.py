@@ -47,6 +47,8 @@ def main():
     # setup objects for sim and controller
     r_ew_w, Q_we = robot.link_pose()
     sim_objects = simulation.sim_object_setup(r_ew_w, sim_config)
+
+    # TODO this can be moved into the ctrl.parsing module
     ctrl_objects = core.parsing.parse_control_objects(r_ew_w, ctrl_config)
 
     # initial time, state, input
@@ -72,6 +74,8 @@ def main():
     settings_wrapper.settings.tray_balance_settings.bounded_config.objects = (
         ctrl_objects
     )
+
+    # IPython.embed()
 
     # data recorder and plotter
     log_dir = Path(ctrl_config["logging"]["log_dir"])

@@ -101,7 +101,6 @@ class PyBulletSimulation:
 
 
 def sim_object_setup(r_ew_w, config):
-    # controller objects are the ones the controller thinks are there
     arrangement_name = config["arrangement"]
     arrangement = config["arrangements"][arrangement_name]
     object_configs = config["objects"]
