@@ -28,7 +28,6 @@ class SimulatedRobot:
         self.arm_home = parsing.parse_array(config["robot"]["home"]["arm"])
         self.home = np.concatenate((self.base_home, self.arm_home))
 
-        self.dt = config["timestep"]
         self.ns = 18  # num state
         self.ni = 9  # num inputs
 
@@ -106,10 +105,10 @@ class SimulatedRobot:
         """Command acceleration of the robot's joints."""
         self.cmd_acc = cmd_acc
 
-    def step(self):
-        """One step of the physics engine."""
+    def step(self, secs):
+        """Step the robot kinematics forward by `secs` seconds."""
         # input (acceleration) and velocity are both in the body frame
-        self.cmd_vel += self.dt * self.cmd_acc
+        self.cmd_vel += secs * self.cmd_acc
         self.command_velocity(self.cmd_vel, bodyframe=True)
 
     def joint_states(self, add_noise=False):

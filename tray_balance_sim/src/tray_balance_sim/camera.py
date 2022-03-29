@@ -88,7 +88,7 @@ class VideoManager:
         root_dir = Path(config["video"]["dir"])
         save_video = config["video"]["save_video"]
         save_frames = config["video"]["save_frames"]
-        timestep = config["video"]["frame_period"]  # ms
+        timestep = config["video"]["timestep"]  # ms
 
         views = []
         for view in config["video"]["views"]:

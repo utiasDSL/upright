@@ -26,7 +26,7 @@ initial_state: [0, 0, 0]  # TODO
 # desired setpoint is set relative to the initial EE pose
 goal:
   position: [0.0, -2.0, -0.5]
-  orientation: [0.0, 0.0, 0.0, 1.0]
+  orientation: [0.0, 0.0, 1.0, 0.0]  # (x, y, z, w) quaternion
 
 static_obstacles: todo
 
@@ -34,6 +34,7 @@ dynamic_obstacles: todo
 
 # TODO: doesn't necessarily make sense to have this here
 logging:
+  timestep: 10
   log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
 
 urdf:
@@ -49,12 +50,12 @@ arrangements:
   two:
     -
       name: "cylinder_stack_base"
-    # -
-    #   name: "cuboid1_stack"
-    #   parent: "cylinder_stack_base"
-    #   offset:
-    #     x: 0
-    #     y: 0
+    -
+      name: "cuboid1_stack"
+      parent: "cylinder_stack_base"
+      offset:
+        x: 0
+        y: 0
 
 objects:
   ee:
@@ -67,7 +68,7 @@ objects:
       max: 0.75
     com:
       height: 0.05
-      half_lengths: [0.0, 0.0, 0.0]
+      half_lengths: [0.05, 0.05, 0.05]
     radii_of_gyration: [0.15, 0.15, 0.15]
     mu_min: 0.25
     support_area:
@@ -82,7 +83,7 @@ objects:
       max: 0.75
     com:
       height: 0.075
-      half_lengths: [0.0, 0.0, 0.0]
+      half_lengths: [0.03, 0.03, 0.03]
     radii_of_gyration: [0.075, 0.075, 0.075]
     mu_min: 0.25
     support_area:

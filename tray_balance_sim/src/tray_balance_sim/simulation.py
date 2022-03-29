@@ -56,11 +56,12 @@ class DynamicObstacle:
 
 class PyBulletSimulation:
     def __init__(self, sim_config):
-        self.dt = sim_config["timestep"]
+        # convert milliseconds to seconds
+        self.dt = 0.001 * sim_config["timestep"]
 
         pyb.connect(pyb.GUI, options="--width=1280 --height=720")
         pyb.setGravity(*sim_config["gravity"])
-        pyb.setTimeStep(sim_config["timestep"])
+        pyb.setTimeStep(self.dt)
 
         pyb.resetDebugVisualizerCamera(
             cameraDistance=4,
@@ -96,7 +97,7 @@ class PyBulletSimulation:
     def step(self, step_robot=True):
         """Step the simulation forward one timestep."""
         if step_robot:
-            self.robot.step()
+            self.robot.step(secs=self.dt)
         pyb.stepSimulation()
 
 

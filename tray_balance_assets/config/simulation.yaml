@@ -1,8 +1,6 @@
-# TODO it is probably desirable to just make everything integer values of
-# milliseconds
-timestep: 0.001
-duration: 20.0
-record_period: 10
+# all times are in (an integer value of) milliseconds
+timestep: 1
+duration: 10000
 gravity: [0, 0, -9.81]
 arrangement: "two"
 
@@ -34,7 +32,7 @@ video:
   save_video: false
   save_frames: false
   dir: "/media/adam/Data/PhD/Videos/tray-balance/"
-  frame_period: 40
+  timestep: 40
   views:
     -
       camera: pose_to_pose1
@@ -62,12 +60,12 @@ arrangements:
   two:
     -
       name: "cylinder_stack_base"
-    # -
-    #   name: "cuboid1_stack"
-    #   parent: "cylinder_stack_base"
-    #   offset:
-    #     x: 0
-    #     y: 0
+    -
+      name: "cuboid1_stack"
+      parent: "cylinder_stack_base"
+      offset:
+        x: 0
+        y: 0
   # short:
   #   -
   #     name: "tray"

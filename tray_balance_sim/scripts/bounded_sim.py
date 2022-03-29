@@ -35,9 +35,11 @@ def main():
         sim_config = yaml.safe_load(f)
 
     # timing
-    duration = sim_config["duration"]
-    timestep = sim_config["timestep"]
-    num_timesteps = int(duration / timestep)
+    duration_millis = sim_config["duration"]
+    timestep_millis = sim_config["timestep"]
+    timestep_secs = 0.001 * timestep_millis
+    duration_secs = 0.001 * duration_millis
+    num_timesteps = int(duration_millis / timestep_millis)
     ctrl_period = ctrl_config["control_period"]
 
     # start the simulation
@@ -65,6 +67,7 @@ def main():
 
     # TODO want a function to populate this from the config dict
     # better yet, we may not even need the object
+    # TODO this should be the ControlConfigWrapper
     settings_wrapper = ctrl.parsing.ControllerSettingsWrapper(ctrl_config)
     settings_wrapper.settings.tray_balance_settings.enabled = True
     settings_wrapper.settings.tray_balance_settings.bounded = True
@@ -78,9 +81,9 @@ def main():
     # data recorder and plotter
     log_dir = Path(ctrl_config["logging"]["log_dir"])
     recorder = Recorder(
-        sim_config["timestep"],
-        sim_config["duration"],
-        sim_config["record_period"],
+        timestep_secs,
+        duration_secs,
+        ctrl_config["logging"]["timestep"],
         ns=robot.ns,
         ni=robot.ni,
         n_objects=len(sim_objects),
@@ -209,7 +212,7 @@ def main():
             obstacle.step()
         for ghost in ghosts:
             ghost.update()
-        t += timestep
+        t += timestep_secs
 
         # if we have multiple targets, step through them
         if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
@@ -226,7 +229,7 @@ def main():
             prefix = sys.argv[2]
         else:
             prefix = "data"
-        data_file_name = prefix + "_" + TIMESTAMP
+        data_file_name = prefix + "_" + now.strftime("%Y-%m-%d_%H-%M-%S")
         recorder.save(log_dir / data_file_name)
 
     last_sim_index = i
