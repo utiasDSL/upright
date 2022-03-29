@@ -80,7 +80,7 @@ class PyBulletSimulation:
         # setup obstacles
         if sim_config["static_obstacles"]["enabled"]:
             obstacles_uid = pyb.loadURDF(
-                parsing.parse_urdf_path(sim_config["urdf"]["obstacles"])
+                parsing.parse_ros_path(sim_config["urdf"]["obstacles"])
             )
             pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
 

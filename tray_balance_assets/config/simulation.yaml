@@ -1,6 +1,6 @@
 # all times are in (an integer value of) milliseconds
 timestep: 1
-duration: 10000
+duration: 4000
 gravity: [0, 0, -9.81]
 arrangement: "two"
 
@@ -26,7 +26,6 @@ robot:
     - "ur10_arm_wrist_2_joint"
     - "ur10_arm_wrist_3_joint"
   tool_joint_name: "tool0_tcp_fixed_joint"
-  # tool_link_name: "thing_tool"  # TODO only actually needed on the control side
 
 video:
   save_video: false

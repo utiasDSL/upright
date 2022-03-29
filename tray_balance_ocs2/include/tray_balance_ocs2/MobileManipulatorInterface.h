@@ -60,9 +60,7 @@ class MobileManipulatorInterface final : public RobotInterface {
     /**
      * Constructor
      */
-    explicit MobileManipulatorInterface(const std::string& taskFile,
-                                        const std::string& libraryFolder,
-                                        const ControllerSettings& settings);
+    explicit MobileManipulatorInterface(const ControllerSettings& settings);
 
     const vector_t& getInitialState() { return initialState_; }
 
@@ -140,8 +138,7 @@ class MobileManipulatorInterface final : public RobotInterface {
 
     std::unique_ptr<StateConstraint> getNonHolonomicConstraint();
 
-    void loadSettings(const std::string& taskFile,
-                      const std::string& libraryFolder);
+    void loadSettings();
 
     ddp::Settings ddpSettings_;
     mpc::Settings mpcSettings_;

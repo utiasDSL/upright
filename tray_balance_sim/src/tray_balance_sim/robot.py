@@ -16,9 +16,9 @@ class SimulatedRobot:
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
         if config["static_obstacles"]["enabled"]:
-            urdf_path = parsing.parse_urdf_path(config["urdf"]["robot_obstacles"])
+            urdf_path = parsing.parse_ros_path(config["urdf"]["robot_obstacles"])
         else:
-            urdf_path = parsing.parse_urdf_path(config["urdf"]["robot"])
+            urdf_path = parsing.parse_ros_path(config["urdf"]["robot"])
 
         self.uid = pyb.loadURDF(urdf_path, position, orientation)
 

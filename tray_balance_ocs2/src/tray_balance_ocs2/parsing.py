@@ -8,15 +8,6 @@ from tray_balance_ocs2 import bindings
 
 import IPython
 
-LIBRARY_PATH = "/tmp/ocs2"
-
-
-def get_task_info_path():
-    rospack = rospkg.RosPack()
-    return os.path.join(
-        rospack.get_path("tray_balance_ocs2"), "config", "mpc", "task.info"
-    )
-
 
 class ReferenceTrajectory:
     """Reference trajectory of a sequence of waypoints.
@@ -139,15 +130,16 @@ class ControllerConfigWrapper:
         assert settings.state_limit_upper.shape == (self.x_dim,)
 
         # URDFs
-        settings.robot_urdf_path = core.parsing.parse_urdf_path(
+        settings.robot_urdf_path = core.parsing.parse_ros_path(
             ctrl_config["robot"]["urdf"]
         )
-        settings.obstacle_urdf_path = core.parsing.parse_urdf_path(
+        settings.obstacle_urdf_path = core.parsing.parse_ros_path(
             ctrl_config["static_obstacles"]["urdf"]
         )
 
         # task info file (Boost property tree format)
-        settings.ocs2_config_path = get_task_info_path()
+        settings.ocs2_config_path = core.parsing.parse_ros_path(ctrl_config["infofile"])
+        settings.lib_folder = "/tmp/ocs2"
 
         # tray balance settings
         settings.tray_balance_settings.enabled = ctrl_config["balancing"]["enabled"]
@@ -275,9 +267,6 @@ class ControllerConfigWrapper:
             r_ew_w, Q_we
         ).target_trajectories()
 
-        # TODO get rid of dependency on task info file here
-        controller = bindings.ControllerInterface(
-            get_task_info_path(), LIBRARY_PATH, self.settings
-        )
+        controller = bindings.ControllerInterface(self.settings)
         controller.reset(target_trajectories)
         return controller

@@ -10,17 +10,15 @@ namespace mobile_manipulator {
 
 class MobileManipulatorPythonInterface final : public PythonInterface {
    public:
-    explicit MobileManipulatorPythonInterface(const std::string& taskFile,
-                                              const std::string& libraryFolder,
-                                              const ControllerSettings& settings) {
-        MobileManipulatorInterface robot(taskFile, libraryFolder, settings);
+    explicit MobileManipulatorPythonInterface(const ControllerSettings& settings) {
+        MobileManipulatorInterface control_interface(settings);
 
         // Set the reference manager -- otherwise there are problems with the
         // EndEffectorCost
-        std::unique_ptr<MPC_BASE> mpcPtr = robot.getMpc();
+        std::unique_ptr<MPC_BASE> mpcPtr = control_interface.getMpc();
         mpcPtr->getSolverPtr()->setReferenceManager(
-            robot.getReferenceManagerPtr());
-        PythonInterface::init(robot, std::move(mpcPtr));
+            control_interface.getReferenceManagerPtr());
+        PythonInterface::init(control_interface, std::move(mpcPtr));
     }
 };
 

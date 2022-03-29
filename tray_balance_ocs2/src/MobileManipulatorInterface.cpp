@@ -76,13 +76,11 @@ namespace ocs2 {
 namespace mobile_manipulator {
 
 MobileManipulatorInterface::MobileManipulatorInterface(
-    const std::string& taskFile, const std::string& libraryFolder,
     const ControllerSettings& settings)
     : settings_(settings) {
-    std::cerr << "Loading task file: " << taskFile << std::endl;
 
     // load setting from config file
-    loadSettings(taskFile, libraryFolder);
+    loadSettings();
 }
 
 PinocchioInterface MobileManipulatorInterface::buildPinocchioInterface(
@@ -106,10 +104,12 @@ pinocchio::GeometryModel MobileManipulatorInterface::build_geometry_model(
     return geom_model;
 }
 
-void MobileManipulatorInterface::loadSettings(
-    const std::string& taskFile, const std::string& libraryFolder) {
-    // TODO
+void MobileManipulatorInterface::loadSettings() {
+    std::string taskFile = settings_.ocs2_config_path;
+    std::string libraryFolder = settings_.lib_folder;
+
     std::cerr << "taskFile = " << taskFile << std::endl;
+    std::cerr << "libraryFolder = " << libraryFolder << std::endl;
 
     boost::property_tree::ptree pt;
     boost::property_tree::read_info(taskFile, pt);

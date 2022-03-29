@@ -138,7 +138,8 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("state_limit_upper", &ControllerSettings::state_limit_upper)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
         .def_readwrite("obstacle_urdf_path", &ControllerSettings::obstacle_urdf_path)
-        .def_readwrite("ocs2_config_path", &ControllerSettings::ocs2_config_path);
+        .def_readwrite("ocs2_config_path", &ControllerSettings::ocs2_config_path)
+        .def_readwrite("lib_folder", &ControllerSettings::lib_folder);
 
     pybind11::enum_<ControllerSettings::Method>(ctrl_settings, "Method")
         .value("DDP", ControllerSettings::Method::DDP)
@@ -186,9 +187,7 @@ PYBIND11_MODULE(bindings, m) {
 
     /* bind the actual mpc interface */
     pybind11::class_<MobileManipulatorPythonInterface>(m, "ControllerInterface")
-        .def(pybind11::init<const std::string&, const std::string&,
-                            const ControllerSettings&>(),
-             "taskFile"_a, "libFolder"_a, "settings"_a)
+        .def(pybind11::init<const ControllerSettings&>(), "settings"_a)
         .def("getStateDim", &MobileManipulatorPythonInterface::getStateDim)
         .def("getInputDim", &MobileManipulatorPythonInterface::getInputDim)
         .def("setObservation",

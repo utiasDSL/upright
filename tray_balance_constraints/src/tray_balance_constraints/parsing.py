@@ -64,11 +64,10 @@ def millis_to_secs(ms):
     return 0.001 * ms
 
 
-# TODO more general: parse_ros_path
-def parse_urdf_path(urdf_dict):
-    """Resolve full URDF path from a dict of containing ROS package and relative path."""
+def parse_ros_path(d):
+    """Resolve full path from a dict of containing ROS package and relative path."""
     rospack = rospkg.RosPack()
-    path = Path(rospack.get_path(urdf_dict["package"])) / urdf_dict["path"]
+    path = Path(rospack.get_path(d["package"])) / d["path"]
     return path.as_posix()
 
 

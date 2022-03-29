@@ -38,6 +38,7 @@ struct ControllerSettings {
 
     // OCS2 settings
     std::string ocs2_config_path;
+    std::string lib_folder;
 
     // Additional settings for constraints
     TrayBalanceSettings tray_balance_settings;

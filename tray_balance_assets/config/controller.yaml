@@ -65,6 +65,10 @@ logging:
   timestep: 10
   log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
 
+infofile:
+  package: "tray_balance_ocs2"
+  path: "config/mpc/task.info"
+
 # arrangements reference the objects below
 arrangements:
   two:
