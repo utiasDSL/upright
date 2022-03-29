@@ -6,22 +6,6 @@ from scipy.linalg import expm
 import IPython
 
 
-# TODO these quaternion etc. transforms can be handled from elegantly (i.e.,
-# extracted away better)
-
-# def SO3_from_quaternion(Q):
-#     pass
-#
-# def SO3_to_quaternion(S):
-#     pass
-#
-# def SO3_from_matrix(C):
-#     pass
-#
-# def SO3_to_matrix(S):
-#     pass
-
-
 def quaternion_to_matrix(Q, normalize=True):
     """Convert quaternion to rotation matrix."""
     if normalize:
@@ -41,28 +25,9 @@ def transform_point(r_ba_a, Q_ab, r_cb_b):
     return r_ba_a + C_ab @ r_cb_b
 
 
-def rot2d(angle):
-    """2D rotation matrix: rotates points counter-clockwise."""
-    c = np.cos(angle)
-    s = np.sin(angle)
-    return np.array([[c, -s], [s, c]])
-
-
-def quat_error(q):
-    xyz = q[:3]
-    w = q[3]
-    # this is just the angle part of an axis-angle
-    return 2 * np.arctan2(np.linalg.norm(xyz), w)
-
-
-def quat_multiply(q0, q1, normalize=True):
-    """Hamilton product of two quaternions."""
-    if normalize:
-        q0 = q0 / np.linalg.norm(q0)
-        q1 = q1 / np.linalg.norm(q1)
-    C0 = liegroups.SO3.from_quaternion(q0, ordering="xyzw")
-    C1 = liegroups.SO3.from_quaternion(q1, ordering="xyzw")
-    return C0.dot(C1).to_quaternion(ordering="xyzw")
+def rotate_point(q, r):
+    """Rotate a point r using quaternion q."""
+    return transform_point(np.zeros(3), q, r)
 
 
 def dhtf(q, a, d, α):
@@ -115,10 +80,6 @@ def calc_Q_et(Q_we, Q_wt):
     # SO3_we = SO3.from_quaternion_xyzw(Q_we)
     # SO3_wt = SO3.from_quaternion_xyzw(Q_wt)
     return SO3_we.inv().dot(SO3_wt).to_quaternion(ordering="xyzw")
-
-
-def quat_inverse(Q):
-    return np.append(-Q[:3], Q[3])
 
 
 def draw_curve(waypoints, rgb=(1, 0, 0), dist=0.05, linewidth=1, dashed=False):

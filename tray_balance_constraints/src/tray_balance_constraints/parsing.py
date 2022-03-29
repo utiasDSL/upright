@@ -31,6 +31,7 @@ def parse_number(x):
     multiple of pi.
     """
     try:
+        # this also handles strings like '1e-2'
         return float(x)
     except ValueError:
         return float(x[:-2]) * np.pi
@@ -44,6 +45,26 @@ def parse_array(a):
     return np.array(values)
 
 
+def parse_diag_matrix_dict(d):
+    """Parse a dict containing a diagonal matrix.
+
+    Key-values are:
+      scale: float
+      diag:  iterable
+
+    Returns a diagonal numpy array.
+    """
+    scale = d["scale"]
+    base = np.diag(d["diag"])
+    return scale * base
+
+
+def millis_to_secs(ms):
+    """Convert milliseconds to seconds."""
+    return 0.001 * ms
+
+
+# TODO more general: parse_ros_path
 def parse_urdf_path(urdf_dict):
     """Resolve full URDF path from a dict of containing ROS package and relative path."""
     rospack = rospkg.RosPack()

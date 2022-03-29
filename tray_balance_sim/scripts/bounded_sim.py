@@ -46,12 +46,9 @@ def main():
     sim = simulation.MobileManipulatorSimulation(sim_config)
     robot = sim.robot
 
-    # setup objects for sim and controller
+    # setup sim objects
     r_ew_w, Q_we = robot.link_pose()
     sim_objects = simulation.sim_object_setup(r_ew_w, sim_config)
-
-    # TODO this can be moved into the ctrl.parsing module
-    ctrl_objects = core.parsing.parse_control_objects(ctrl_config)
 
     # initial time, state, input
     t = 0.0
@@ -65,18 +62,7 @@ def main():
         config=sim_config, timestamp=now, r_ew_w=r_ew_w
     )
 
-    # TODO want a function to populate this from the config dict
-    # better yet, we may not even need the object
-    # TODO this should be the ControlConfigWrapper
-    settings_wrapper = ctrl.parsing.ControllerSettingsWrapper(ctrl_config)
-    settings_wrapper.settings.tray_balance_settings.enabled = True
-    settings_wrapper.settings.tray_balance_settings.bounded = True
-    settings_wrapper.settings.initial_state = x
-
-    ghosts = []  # ghost (i.e., pure visual) objects
-    settings_wrapper.settings.tray_balance_settings.bounded_config.objects = (
-        ctrl_objects
-    )
+    ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config, x0=x)
 
     # data recorder and plotter
     log_dir = Path(ctrl_config["logging"]["log_dir"])
@@ -88,32 +74,23 @@ def main():
         ni=robot.ni,
         n_objects=len(sim_objects),
         control_period=ctrl_period,
-        n_balance_con=settings_wrapper.get_num_balance_constraints(),
-        n_collision_pair=settings_wrapper.get_num_collision_avoidance_constraints(),
-        n_dynamic_obs=settings_wrapper.get_num_dynamic_obstacle_constraints() + 1,
+        n_balance_con=ctrl_wrapper.get_num_balance_constraints(),
+        n_collision_pair=ctrl_wrapper.get_num_collision_avoidance_constraints(),
+        n_dynamic_obs=ctrl_wrapper.get_num_dynamic_obstacle_constraints() + 1,
     )
     recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
 
-    target_times = [0]
-    target_inputs = [u]
+    ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
+    mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
+
+    # visual indicator for target - note debug frame doesn't show up in video
+    r_ew_w_d, Q_we_d = ref.pose(ref.states[0])
+    debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
+
+    # ghost (i.e., pure visual) objects
+    ghosts = [GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))]
+
     target_idx = 0
-
-    # goal pose
-    r_ew_w_d = r_ew_w + ctrl_config["goal"]["position"]
-    Qd = util.quat_multiply(Q_we, ctrl_config["goal"]["orientation"])
-    r_obs0 = np.array(r_ew_w) + [0, -10, 0]
-
-    target_states = [np.concatenate((r_ew_w_d, Qd, r_obs0))]
-
-    mpc = ctrl.parsing.setup_ctrl_interface(
-        settings_wrapper.settings, target_times, target_states, target_inputs
-    )
-
-    # visual indicator for target
-    # NOTE: debug frame doesn't show up in the recording
-    debug_frame_world(0.2, list(r_ew_w_d), orientation=Qd, line_width=3)
-    ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
-
     x_opt = np.copy(x)
 
     # simulation loop
@@ -165,9 +142,9 @@ def main():
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
 
-            if settings_wrapper.settings.tray_balance_settings.enabled:
+            if ctrl_wrapper.settings.tray_balance_settings.enabled:
                 if (
-                    settings_wrapper.settings.tray_balance_settings.constraint_type
+                    ctrl_wrapper.settings.tray_balance_settings.constraint_type
                     == ctrl.bindings.ConstraintType.Hard
                 ):
                     recorder.ineq_cons[idx, :] = mpc.stateInputInequalityConstraint(
@@ -177,17 +154,16 @@ def main():
                     recorder.ineq_cons[idx, :] = mpc.softStateInputInequalityConstraint(
                         "trayBalance", t, x, u
                     )
-            if settings_wrapper.settings.dynamic_obstacle_settings.enabled:
+            if ctrl_wrapper.settings.dynamic_obstacle_settings.enabled:
                 recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
                     "dynamicObstacleAvoidance", t, x
                 )
-            if settings_wrapper.settings.collision_avoidance_settings.enabled:
+            if ctrl_wrapper.settings.collision_avoidance_settings.enabled:
                 recorder.collision_pair_distance[
                     idx, :
                 ] = mpc.stateInequalityConstraint("collisionAvoidance", t, x)
 
-            r_ew_w_d = target_states[target_idx][:3]
-            Q_we_d = target_states[target_idx][3:7]
+            r_ew_w_d, Q_we_d = ref.pose(ref.states[target_idx])
 
             # record
             recorder.us[idx, :] = u
@@ -208,14 +184,14 @@ def main():
             recorder.cmd_vels[idx, :] = robot.cmd_vel
 
         sim.step(step_robot=True)
-        if settings_wrapper.settings.dynamic_obstacle_settings.enabled:
+        if ctrl_wrapper.settings.dynamic_obstacle_settings.enabled:
             obstacle.step()
         for ghost in ghosts:
             ghost.update()
         t += timestep_secs
 
         # if we have multiple targets, step through them
-        if t >= target_times[target_idx] and target_idx < len(target_times) - 1:
+        if t >= ref.times[target_idx] and target_idx < len(ref.times) - 1:
             target_idx += 1
 
         video_manager.record(i)
@@ -244,7 +220,7 @@ def main():
     recorder.plot_cmd_vs_real_vel(last_sim_index)
     recorder.plot_joint_config(last_sim_index)
 
-    if settings_wrapper.settings.dynamic_obstacle_settings.enabled:
+    if ctrl_wrapper.settings.dynamic_obstacle_settings.enabled:
         print(
             f"Min dynamic obstacle distance = {np.min(recorder.dynamic_obs_distance, axis=0)}"
         )

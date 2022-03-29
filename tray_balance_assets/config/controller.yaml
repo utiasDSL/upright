@@ -4,46 +4,66 @@ use_noisy_state_to_plan: true
 balancing:
   arrangement: two
 
-  use_bounded_constraints: true  # not sure if I need this
+  enabled: true
+  use_bounded_constraints: true
   enable_normal_constraint: true
   enable_friction_constraint: true
   enable_zmp_constraint: true
 
-input_cost:
-  scale: 1
-  diag: [1, 1, 1, 1, 1, 1, 1, 1, 1]
+  mu: 1e-2
+  delta: 1e-3
 
-state_cost:
-  scale: 1
-  diag: todo
+weights:
+  input:
+    scale: 0.1
+    diag: [1, 1, 1, 1, 1, 1, 1, 1, 1]
+  state:
+    scale: 0.1
+    diag: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+  end_effector:
+    scale: 1
+    diag: [1, 1, 1, 0, 0, 1]
 
-pose_cost:
-  scale: 1
-  diag: [1, 1, 1, 0, 0, 1]
+limits:
+  input:
+    lower: [-2, -2, -2, -4, -4, -4, -4, -4, -4]
+    upper: [2, 2, 2, 4, 4, 4, 4, 4, 4]
+  state:
+    lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi, -1, -1, -1, -2, -2, -2, -2, -2, -2]
+    upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi, 1, 1, 1, 2, 2, 2, 2, 2, 2]
 
-initial_state: [0, 0, 0]  # TODO
+robot:
+  dims:
+    q: 9  # generalized position
+    v: 9  # generalized velocity
+    a: 9  # generalized acceleration
+  dynamics: "todo"
+  x0: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]
+  urdf:
+    package: "tray_balance_assets"
+    path: "urdf/mm_ocs2.urdf"
+  tool_link_name: "thing_tool"
 
-# desired setpoint is set relative to the initial EE pose
-goal:
-  position: [0.0, -2.0, -0.5]
-  orientation: [0.0, 0.0, 1.0, 0.0]  # (x, y, z, w) quaternion
+# desired waypoints are set relative to the initial EE pose
+waypoints:
+  -
+    millis: 0
+    position: [0.0, -2.0, -0.5]
+    orientation: [0.0, 0.0, 1.0, 0.0]  # (x, y, z, w) quaternion
 
-static_obstacles: todo
+static_obstacles:
+  enabled: false
+  urdf:
+    package: "tray_balance_assets"
+    path: "urdf/obstacles.urdf"
 
-dynamic_obstacles: todo
+dynamic_obstacles:
+  enabled: false
 
 # TODO: doesn't necessarily make sense to have this here
 logging:
   timestep: 10
   log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
-
-urdf:
-  robot:
-    package: "tray_balance_assets"
-    path: "urdf/mm_ocs2.urdf"
-  obstacles:
-    package: "tray_balance_assets"
-    path: "urdf/obstacles.urdf"
 
 # arrangements reference the objects below
 arrangements:

@@ -8,7 +8,7 @@ from pathlib import Path
 from liegroups import SO3
 from PIL import Image
 
-import tray_balance_sim.util as util
+import tray_balance_constraints as core
 
 import IPython
 
@@ -173,18 +173,23 @@ class Recorder:
         # the rotation between EE and tray should be constant throughout the
         # tracjectory, so there error is the deviation from the starting
         # orientation
-        Q_oe0 = util.quat_multiply(util.quat_inverse(Q_wos[0, :]), self.Q_wes[0, :])
+        Q_ow0 = core.math.quat_inverse(Q_wos[0, :])
+        Q_oe0 = core.math.quat_multiply(Q_ow0, self.Q_wes[0, :])
         Q_eo_err = np.zeros_like(Q_wos)
+        angles = np.zeros(Q_wos.shape[0])
         for i in range(Q_eo_err.shape[0]):
             try:
-                Q_eo = util.quat_multiply(util.quat_inverse(self.Q_wes[i, :]), Q_wos[i, :])
-                Q_eo_err[i, :] = util.quat_multiply(Q_oe0, Q_eo)
+                Q_ew = core.math.quat_inverse(self.Q_wes[i, :])
+                Q_eo = core.math.quat_multiply(Q_ew, Q_wos[i, :])
+                Q_eo_err[i, :] = core.math.quat_multiply(Q_oe0, Q_eo)
+                angles[i] = core.math.quat_error(Q_eo_err[i, :])
             except ValueError as e:
                 IPython.embed()
 
         plt.plot(ts, Q_eo_err[:, 0], label="$Q_x$")
         plt.plot(ts, Q_eo_err[:, 1], label="$Q_y$")
         plt.plot(ts, Q_eo_err[:, 2], label="$Q_z$")
+        plt.plot(ts, angles, label=r"$\theta$")
         plt.grid()
         plt.legend()
         plt.xlabel("Time (s)")
@@ -276,7 +281,9 @@ class Recorder:
         for j in range(9):
             plt.plot(ts, self.xs[s, 9 + j], label=f"$v_{{{j+1}}}$")
         for j in range(9):
-            plt.plot(ts, self.cmd_vels[s, j], label=f"$v_{{cmd_{j+1}}}$", linestyle="--")
+            plt.plot(
+                ts, self.cmd_vels[s, j], label=f"$v_{{cmd_{j+1}}}$", linestyle="--"
+            )
         plt.grid()
         plt.legend()
         plt.xlabel("Time (s)")
