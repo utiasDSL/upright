@@ -49,7 +49,7 @@ def main():
     sim_objects = simulation.sim_object_setup(r_ew_w, sim_config)
 
     # TODO this can be moved into the ctrl.parsing module
-    ctrl_objects = core.parsing.parse_control_objects(r_ew_w, ctrl_config)
+    ctrl_objects = core.parsing.parse_control_objects(ctrl_config)
 
     # initial time, state, input
     t = 0.0
@@ -74,8 +74,6 @@ def main():
     settings_wrapper.settings.tray_balance_settings.bounded_config.objects = (
         ctrl_objects
     )
-
-    # IPython.embed()
 
     # data recorder and plotter
     log_dir = Path(ctrl_config["logging"]["log_dir"])

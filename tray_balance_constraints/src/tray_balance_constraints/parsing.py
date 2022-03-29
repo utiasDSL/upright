@@ -137,7 +137,7 @@ class BalancedObjectConfigWrapper:
         )
 
 
-def parse_control_objects(r_ew_w, ctrl_config):
+def parse_control_objects(ctrl_config):
     arrangement_name = ctrl_config["balancing"]["arrangement"]
     arrangement = ctrl_config["arrangements"][arrangement_name]
     object_configs = ctrl_config["objects"]
@@ -157,7 +157,7 @@ def parse_control_objects(r_ew_w, ctrl_config):
             wrapper.position = parent.position + [0, 0, dz]
         else:
             dz = 0.5 * ee["height"] + 0.5 * wrapper.height
-            wrapper.position = r_ew_w + [0, 0, dz]
+            wrapper.position = np.array([0, 0, dz])
 
         # add offset in the x-y (support) plane
         wrapper.position[:2] += wrapper.offset
