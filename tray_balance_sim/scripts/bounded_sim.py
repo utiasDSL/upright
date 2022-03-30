@@ -35,11 +35,10 @@ def main():
         sim_config = yaml.safe_load(f)
 
     # timing
-    # TODO
     duration_millis = sim_config["duration"]
     timestep_millis = sim_config["timestep"]
-    timestep_secs = 0.001 * timestep_millis
-    duration_secs = 0.001 * duration_millis
+    timestep_secs = core.parsing.millis_to_secs(timestep_millis)
+    duration_secs = core.parsing.millis_to_secs(duration_millis)
     num_timesteps = int(duration_millis / timestep_millis)
     ctrl_period = ctrl_config["control_period"]
 
@@ -66,30 +65,17 @@ def main():
 
     ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config, x0=x)
 
-    # data recorder and plotter
+    # data logging
     log_dir = Path(ctrl_config["logging"]["log_dir"])
     log_dt = ctrl_config["logging"]["timestep"]
-
-    # recorder = Recorder(
-    #     timestep_secs,
-    #     duration_secs,
-    #     ctrl_config["logging"]["timestep"],
-    #     ns=robot.ns,
-    #     ni=robot.ni,
-    #     n_objects=len(sim_objects),
-    #     control_period=ctrl_period,
-    #     n_balance_con=ctrl_wrapper.get_num_balance_constraints(),
-    #     n_collision_pair=ctrl_wrapper.get_num_collision_avoidance_constraints(),
-    #     n_dynamic_obs=ctrl_wrapper.get_num_dynamic_obstacle_constraints() + 1,
-    # )
-    # recorder.cmd_vels = np.zeros((recorder.ts.shape[0], robot.ni))
-
     logger = DataLogger(ctrl_config, sim_config)
+
     logger.add("sim_timestep", timestep_secs)
     logger.add("duration", duration_secs)
     logger.add("control_period", ctrl_period)
     logger.add("object_names", [str(name) for name in sim_objects.keys()])
 
+    # create reference trajectory and controller
     ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
     mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
 
