@@ -15,7 +15,7 @@ from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
 from tray_balance_sim import util, camera, simulation
-from tray_balance_sim.recording import Recorder, DataLogger, DataPlotter
+from tray_balance_sim.recording import DataLogger, DataPlotter
 
 import tray_balance_constraints as core
 import tray_balance_ocs2 as ctrl
