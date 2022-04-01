@@ -17,32 +17,28 @@ PYBIND11_MODULE(bindings, m) {
     using Scalar = double;
 
     // TODO no need to export other support areas besides polygon
-    pybind11::class_<SupportAreaBase<Scalar>>(m, "SupportAreaBase");
+    // pybind11::class_<SupportAreaBase<Scalar>>(m, "SupportAreaBase");
+    //
+    // pybind11::class_<CircleSupportArea<Scalar>, SupportAreaBase<Scalar>>(
+    //     m, "CircleSupportArea")
+    //     .def(pybind11::init<const Scalar, const Vec2<Scalar>&, const Scalar>(),
+    //          "radius"_a, "offset"_a, "margin"_a)
+    //     .def_readwrite("radius", &CircleSupportArea<Scalar>::radius)
+    //     .def_readwrite("offset", &CircleSupportArea<Scalar>::offset)
+    //     .def_readwrite("margin", &CircleSupportArea<Scalar>::margin);
 
-    pybind11::class_<CircleSupportArea<Scalar>, SupportAreaBase<Scalar>>(
-        m, "CircleSupportArea")
-        .def(pybind11::init<const Scalar, const Vec2<Scalar>&, const Scalar>(),
-             "radius"_a, "offset"_a, "margin"_a)
-        .def_readwrite("radius", &CircleSupportArea<Scalar>::radius)
-        .def_readwrite("offset", &CircleSupportArea<Scalar>::offset)
-        .def_readwrite("margin", &CircleSupportArea<Scalar>::margin);
-
-    pybind11::class_<PolygonSupportArea<Scalar>, SupportAreaBase<Scalar>>(
-        m, "PolygonSupportArea")
-        .def(pybind11::init<const std::vector<Vec2<Scalar>>&,
-                            const Vec2<Scalar>&, const Scalar>(),
-             "vertices"_a, "offset"_a, "margin"_a = 0)
-        .def_readwrite("vertices", &PolygonSupportArea<Scalar>::vertices)
-        .def_readwrite("offset", &PolygonSupportArea<Scalar>::offset)
-        .def_readwrite("margin", &PolygonSupportArea<Scalar>::margin)
-        .def_static("circle", &PolygonSupportArea<Scalar>::circle, "radius"_a,
-                    "margin"_a = 0)
+    pybind11::class_<PolygonSupportArea<Scalar>>(m, "PolygonSupportArea")
+        .def(pybind11::init<const std::vector<Vec2<Scalar>>&>(),
+             "vertices"_a)
+        .def_readonly("vertices", &PolygonSupportArea<Scalar>::vertices)
+        .def("offset", &PolygonSupportArea<Scalar>::offset, "offset"_a)
+        .def_static("circle", &PolygonSupportArea<Scalar>::circle, "radius"_a)
         .def_static("equilateral_triangle",
                     &PolygonSupportArea<Scalar>::equilateral_triangle,
-                    "side_length"_a, "margin"_a = 0)
+                    "side_length"_a)
         .def_static("axis_aligned_rectangle",
                     &PolygonSupportArea<Scalar>::axis_aligned_rectangle, "sx"_a,
-                    "sy"_a, "margin"_a = 0);
+                    "sy"_a);
 
     pybind11::class_<Ellipsoid<Scalar>>(m, "Ellipsoid")
         .def(pybind11::init<const Vec3<Scalar>&, const std::vector<Scalar>&,

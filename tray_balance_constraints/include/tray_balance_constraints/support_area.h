@@ -99,22 +99,21 @@ struct PolygonEdge {
 };
 
 template <typename Scalar>
-struct PolygonSupportArea : public SupportAreaBase<Scalar> {
+struct PolygonSupportArea {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
    public:
-    PolygonSupportArea(const std::vector<Vec2<Scalar>>& vertices,
-                       const Vec2<Scalar>& offset, Scalar margin = 0)
-        : SupportAreaBase<Scalar>(offset, margin), vertices(vertices) {}
+    PolygonSupportArea(const std::vector<Vec2<Scalar>>& vertices)
+        : vertices(vertices) {}
 
-    size_t num_constraints() const override { return vertices.size(); }
+    size_t num_constraints() const { return vertices.size(); }
 
-    PolygonSupportArea* clone() const override {
-        return new PolygonSupportArea(vertices, this->offset, this->margin);
+    PolygonSupportArea* clone() const {
+        return new PolygonSupportArea(vertices);
     }
 
-    size_t num_parameters() const override {
-        return 2 + 1 + vertices.size() * 2;
+    size_t num_parameters() const {
+        return vertices.size() * 2;
     }
 
     // Get the edges of the polygon composing the support area
@@ -127,36 +126,38 @@ struct PolygonSupportArea : public SupportAreaBase<Scalar> {
         return es;
     }
 
-    Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp) const override;
+    Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp, const Scalar& margin = 0) const;
 
-    Vector<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
-                                          Scalar& az) const override;
+    // Vector<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
+    //                                       Scalar& az) const;
 
-    Vector<Scalar> get_parameters() const override;
+    Vector<Scalar> get_parameters() const;
+
+    // Create a new support polygon with vertices offset by specified amount:
+    // new_vertices = old_vertices + offset
+    PolygonSupportArea<Scalar> offset(const Vec2<Scalar>& offset) const;
 
     static PolygonSupportArea<Scalar> from_parameters(const Vector<Scalar>& p,
                                                       const size_t index = 0);
 
     // Square support area approximation to a circle
-    static PolygonSupportArea<Scalar> circle(Scalar radius, Scalar margin = 0);
+    static PolygonSupportArea<Scalar> circle(Scalar radius);
 
     // Equilateral triangle support area
-    static PolygonSupportArea<Scalar> equilateral_triangle(Scalar side_length,
-                                                           Scalar margin = 0);
+    static PolygonSupportArea<Scalar> equilateral_triangle(Scalar side_length);
 
     static PolygonSupportArea<Scalar> axis_aligned_rectangle(Scalar sx,
-                                                             Scalar sy,
-                                                             Scalar margin = 0);
+                                                             Scalar sy);
 
     std::vector<Vec2<Scalar>> vertices;
 
    private:
     Scalar edge_zmp_constraint(const Vec2<Scalar>& zmp, const Vec2<Scalar>& v1,
-                               const Vec2<Scalar>& v2) const;
+                               const Vec2<Scalar>& v2, const Scalar& margin) const;
 
-    Scalar edge_zmp_constraint_scaled(const Vec2<Scalar>& az_zmp,
-                                      const Vec2<Scalar>& v1,
-                                      const Vec2<Scalar>& v2, Scalar& az) const;
+    // Scalar edge_zmp_constraint_scaled(const Vec2<Scalar>& az_zmp,
+    //                                   const Vec2<Scalar>& v1,
+    //                                   const Vec2<Scalar>& v2, Scalar& az) const;
 };
 
 #include "impl/support_area.tpp"
