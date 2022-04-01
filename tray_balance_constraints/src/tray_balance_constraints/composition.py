@@ -128,7 +128,7 @@ class BoundingRadiiOfGyrationProblem(BoundingOptProblem):
         Ajj = 0
         for i in range(self.n_bodies):
             p_i = com - coms[i, :]
-            r_gyr = self.bodies[i].radii_of_gyration[j]
+            r_gyr = self.bodies[i].radii_of_gyration_max[j]
             Ajj += masses[i, 0] * (r_gyr ** 2 + p_i @ p_i)
         Ajj /= np.sum(masses)
 
@@ -192,7 +192,7 @@ class BoundingRadiiOfGyrationProblem2(BoundingOptProblem):
         A = np.zeros((3, 3))
         for i in range(self.n_bodies):
             P_i = skew3(com - coms[i, :])
-            R_i = np.diag(self.bodies[i].radii_of_gyration)
+            R_i = np.diag(self.bodies[i].radii_of_gyration_max)
             A += masses[i, 0] * (R_i @ R_i + P_i.T @ P_i)
         A /= np.sum(masses)
 
@@ -280,8 +280,15 @@ def compose_bounded_bodies(bodies):
     mass_min = np.sum([body.mass_min for body in bodies])
     mass_max = np.sum([body.mass_max for body in bodies])
     com_ellipsoid = compose_com_ellipsoid(bodies)
-    radii_of_gyration = compose_radii_of_gyration(bodies)
-    return BoundedRigidBody(mass_min, mass_max, radii_of_gyration, com_ellipsoid)
+    radii_of_gyration_max = compose_radii_of_gyration(bodies)
+    radii_of_gyration_min = np.zeros(3)  # TODO?
+    return BoundedRigidBody(
+        mass_min=mass_min,
+        mass_max=mass_max,
+        radii_of_gyration_min=radii_of_gyration_min,
+        radii_of_gyration_max=radii_of_gyration_max,
+        com_ellipsoid=com_ellipsoid,
+    )
 
 
 def compose_bounded_objects(objects):
@@ -296,7 +303,9 @@ def compose_bounded_objects(objects):
 
     base = objects[0]
     com_height = (
-        base.com_height + body.com_ellipsoid.center()[2] - base.body.com_ellipsoid.center()[2]
+        base.com_height
+        + body.com_ellipsoid.center()[2]
+        - base.body.com_ellipsoid.center()[2]
     )
 
     # support area, mu, r_tau directly inherited from the base object

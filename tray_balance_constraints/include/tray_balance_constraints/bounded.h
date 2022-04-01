@@ -13,12 +13,31 @@ struct BoundedRigidBody {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     BoundedRigidBody(const Scalar& mass_min, const Scalar& mass_max,
-                     const Vec3<Scalar>& radii_of_gyration,
+                     const Vec3<Scalar>& radii_of_gyration_min,
+                     const Vec3<Scalar>& radii_of_gyration_max,
                      const Ellipsoid<Scalar>& com_ellipsoid)
         : mass_min(mass_min),
           mass_max(mass_max),
-          radii_of_gyration(radii_of_gyration),
-          com_ellipsoid(com_ellipsoid) {}
+          radii_of_gyration_min(radii_of_gyration_min),
+          radii_of_gyration_max(radii_of_gyration_max),
+          com_ellipsoid(com_ellipsoid) {
+        if ((mass_min < 0) || (mass_max < mass_min)) {
+            throw std::runtime_error(
+                "Masses must be positive and max mass must be >= min mass.");
+        }
+        if ((radii_of_gyration_min.array() < Scalar(0)).any() ||
+            ((radii_of_gyration_max - radii_of_gyration_min).array() < Scalar(0))
+                .any()) {
+            throw std::runtime_error(
+                "Radii of gyration must be positive and max radii must be >= "
+                "min radii.");
+        }
+        if (near_zero(mass_max - mass_min) &&
+            (radii_of_gyration_max - radii_of_gyration_min).isZero() &&
+            com_ellipsoid.rank() == 0) {
+            exact = true;
+        }
+    }
 
     // Sample a random mass and center of mass within the bounds. If boundary =
     // true, then the CoM is generate on the boundary of the bounding
@@ -51,41 +70,52 @@ struct BoundedRigidBody {
     }
 
     size_t num_parameters() const {
-        return 2 + 3 + Ellipsoid<Scalar>::num_parameters();
+        return 2 + 6 + Ellipsoid<Scalar>::num_parameters();
     }
 
     Vector<Scalar> get_parameters() const {
         Vector<Scalar> p(num_parameters());
-        p << mass_min, mass_max, radii_of_gyration,
+        p << mass_min, mass_max, radii_of_gyration_min, radii_of_gyration_max,
             com_ellipsoid.get_parameters();
         return p;
     }
 
     // Note that this is the squared matrix; i.e., the diagonal contains the
     // squared radii of gyration.
+    // TODO add squared to name
     Mat3<Scalar> radii_of_gyration_matrix() const {
         Mat3<Scalar> R = Mat3<Scalar>::Zero();
-        R.diagonal() << radii_of_gyration;
+        R.diagonal() << radii_of_gyration_max;
         return R * R;
     }
+
+    bool is_exact() const { return exact; }
 
     // Create a RigidBody from a parameter vector
     static BoundedRigidBody<Scalar> from_parameters(
         const Vector<Scalar>& parameters, const size_t index = 0) {
         Scalar mass_min = parameters(index);
         Scalar mass_max = parameters(index + 1);
-        Vec3<Scalar> radii_of_gyration = parameters.segment(index + 2, 3);
+
+        Vec3<Scalar> radii_of_gyration_min = parameters.segment(index + 2, 3);
+        Vec3<Scalar> radii_of_gyration_max = parameters.segment(index + 5, 3);
+
         const size_t num_ell_params = Ellipsoid<Scalar>::num_parameters();
         Ellipsoid<Scalar> com_ellipsoid = Ellipsoid<Scalar>::from_parameters(
-            parameters.segment(index + 2 + 3, num_ell_params));
-        return BoundedRigidBody(mass_min, mass_max, radii_of_gyration,
-                                com_ellipsoid);
+            parameters.segment(index + 8, num_ell_params));
+        return BoundedRigidBody(mass_min, mass_max, radii_of_gyration_min,
+                                radii_of_gyration_max, com_ellipsoid);
     }
 
     Scalar mass_min;
     Scalar mass_max;
-    Vec3<Scalar> radii_of_gyration;
+    Vec3<Scalar> radii_of_gyration_min;
+    Vec3<Scalar> radii_of_gyration_max;
     Ellipsoid<Scalar> com_ellipsoid;
+
+   private:
+    // True if all parameters are certain, false otherwise.
+    bool exact = false;
 };
 
 template <typename Scalar>

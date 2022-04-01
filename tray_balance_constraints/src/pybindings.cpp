@@ -2,8 +2,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "tray_balance_constraints/ellipsoid.h"
 #include "tray_balance_constraints/bounded.h"
+#include "tray_balance_constraints/ellipsoid.h"
 #include "tray_balance_constraints/support_area.h"
 #include "tray_balance_constraints/types.h"
 
@@ -66,16 +66,19 @@ PYBIND11_MODULE(bindings, m) {
 
     pybind11::class_<BoundedRigidBody<Scalar>>(m, "BoundedRigidBody")
         .def(pybind11::init<const Scalar&, const Scalar&, const Vec3<Scalar>&,
-                            const Ellipsoid<Scalar>&>(),
-             "mass_min"_a, "mass_max"_a, "radii_of_gyration"_a,
-             "com_ellipsoid"_a)
+                            const Vec3<Scalar>&, const Ellipsoid<Scalar>&>(),
+             "mass_min"_a, "mass_max"_a, "radii_of_gyration_min"_a,
+             "radii_of_gyration_max"_a, "com_ellipsoid"_a)
         .def("sample", &BoundedRigidBody<Scalar>::sample, "boundary"_a = false)
+        .def("is_exact", &BoundedRigidBody<Scalar>::is_exact)
         .def_static("combined_rank", &BoundedRigidBody<Scalar>::combined_rank,
                     "bodies"_a)
         .def_readonly("mass_min", &BoundedRigidBody<Scalar>::mass_min)
         .def_readonly("mass_max", &BoundedRigidBody<Scalar>::mass_max)
-        .def_readonly("radii_of_gyration",
-                      &BoundedRigidBody<Scalar>::radii_of_gyration)
+        .def_readonly("radii_of_gyration_min",
+                      &BoundedRigidBody<Scalar>::radii_of_gyration_min)
+        .def_readonly("radii_of_gyration_max",
+                      &BoundedRigidBody<Scalar>::radii_of_gyration_max)
         .def_readonly("com_ellipsoid",
                       &BoundedRigidBody<Scalar>::com_ellipsoid);
 

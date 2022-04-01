@@ -93,7 +93,9 @@ objects:
     com:
       height: 0.05
       half_lengths: [0.05, 0.05, 0.05]
-    radii_of_gyration: [0.15, 0.15, 0.15]
+    radii_of_gyration:
+      min: [0, 0, 0]
+      max: [0.15, 0.15, 0.15]
     mu_min: 0.25
     support_area:
       shape: "eq_tri"
@@ -107,8 +109,10 @@ objects:
       max: 0.75
     com:
       height: 0.075
-      half_lengths: [0.03, 0.03, 0.03]
-    radii_of_gyration: [0.075, 0.075, 0.075]
+      half_lengths: [0.0, 0.0, 0.0]
+    radii_of_gyration:
+      min: [0.075, 0.075, 0.075]
+      max: [0.075, 0.075, 0.075]
     mu_min: 0.25
     support_area:
       shape: "rect"

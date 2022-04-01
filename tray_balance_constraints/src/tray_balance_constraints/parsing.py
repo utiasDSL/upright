@@ -134,12 +134,14 @@ class BalancedObjectConfigWrapper:
         mass_max = self.d["mass"]["max"]
         com_center = self.position
         com_half_lengths = np.array(self.d["com"]["half_lengths"])
-        radii_of_gyration = np.array(self.d["radii_of_gyration"])
+        radii_of_gyration_min = np.array(self.d["radii_of_gyration"]["min"])
+        radii_of_gyration_max = np.array(self.d["radii_of_gyration"]["max"])
         com_ellipsoid = Ellipsoid(com_center, com_half_lengths, np.eye(3))
         body = BoundedRigidBody(
             mass_min=mass_min,
             mass_max=mass_max,
-            radii_of_gyration=radii_of_gyration,
+            radii_of_gyration_min=radii_of_gyration_min,
+            radii_of_gyration_max=radii_of_gyration_max,
             com_ellipsoid=com_ellipsoid,
         )
 
