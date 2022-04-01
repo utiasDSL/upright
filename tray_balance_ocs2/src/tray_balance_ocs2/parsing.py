@@ -155,7 +155,6 @@ class ControllerConfigWrapper:
         )
 
         ctrl_objects = core.parsing.parse_control_objects(ctrl_config)
-        IPython.embed()
         settings.tray_balance_settings.bounded_config.objects = ctrl_objects
 
         # collision avoidance settings

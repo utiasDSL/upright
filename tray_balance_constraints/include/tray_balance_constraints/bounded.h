@@ -9,7 +9,8 @@
 #include "tray_balance_constraints/util.h"
 
 template <typename Scalar>
-struct BoundedRigidBody {
+class BoundedRigidBody {
+   public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     BoundedRigidBody(const Scalar& mass_min, const Scalar& mass_max,
@@ -26,16 +27,18 @@ struct BoundedRigidBody {
                 "Masses must be positive and max mass must be >= min mass.");
         }
         if ((radii_of_gyration_min.array() < Scalar(0)).any() ||
-            ((radii_of_gyration_max - radii_of_gyration_min).array() < Scalar(0))
+            ((radii_of_gyration_max - radii_of_gyration_min).array() <
+             Scalar(0))
                 .any()) {
             throw std::runtime_error(
                 "Radii of gyration must be positive and max radii must be >= "
                 "min radii.");
         }
-        if (near_zero(mass_max - mass_min) &&
-            (radii_of_gyration_max - radii_of_gyration_min).isZero() &&
-            com_ellipsoid.rank() == 0) {
-            exact = true;
+        if (near_zero(mass_max - mass_min)) {
+            exact_mass = true;
+        }
+        if ((radii_of_gyration_max - radii_of_gyration_min).isZero()) {
+            exact_radii = true;
         }
     }
 
@@ -89,7 +92,12 @@ struct BoundedRigidBody {
         return R * R;
     }
 
-    bool is_exact() const { return exact; }
+    bool is_exact() const {
+        return has_exact_mass() && has_exact_radii() && has_exact_com();
+    }
+    bool has_exact_mass() const { return exact_mass; }
+    bool has_exact_radii() const { return exact_radii; }
+    bool has_exact_com() const { return com_ellipsoid.rank() == 0; }
 
     // Create a RigidBody from a parameter vector
     static BoundedRigidBody<Scalar> from_parameters(
@@ -114,8 +122,9 @@ struct BoundedRigidBody {
     Ellipsoid<Scalar> com_ellipsoid;
 
    private:
-    // True if all parameters are certain, false otherwise.
-    bool exact = false;
+    // True if parameters are certain, false otherwise.
+    bool exact_mass = false;
+    bool exact_radii = false;
 };
 
 template <typename Scalar>
@@ -216,14 +225,25 @@ struct BoundedBalancedObject {
 };
 
 template <typename Scalar>
-Scalar max_beta_projection(const Vec3<Scalar>& p, const Mat3<Scalar>& R2,
-                           const Mat3<Scalar>& C_ew,
-                           const Vec3<Scalar>& angular_vel,
-                           const Vec3<Scalar>& angular_acc, const Scalar& eps) {
+Scalar max_beta_projection_approx(const Vec3<Scalar>& p, const Mat3<Scalar>& R2,
+                                  const Mat3<Scalar>& C_ew,
+                                  const Vec3<Scalar>& angular_vel,
+                                  const Vec3<Scalar>& angular_acc,
+                                  const Scalar& eps) {
     return epsilon_norm<Scalar>(p.cross(angular_vel), eps) *
                epsilon_norm<Scalar>(R2 * C_ew * angular_vel, eps) +
            epsilon_norm<Scalar>(p, eps) *
                epsilon_norm<Scalar>(R2 * C_ew * angular_acc, eps);
+}
+
+// This should only be called if the radii of gyration of the body are exact
+template <typename Scalar>
+Scalar max_beta_projection_exact(const Vec3<Scalar>& p, const Mat3<Scalar>& R2,
+                                 const Mat3<Scalar>& C_ew,
+                                 const Vec3<Scalar>& angular_vel,
+                                 const Vec3<Scalar>& angular_acc) {
+    return p.cross(C_ew * angular_vel).dot(R2 * C_ew * angular_vel) +
+           p.dot(R2 * C_ew * angular_acc);
 }
 
 enum class OptType { Min, Max };
@@ -284,8 +304,12 @@ Vector<Scalar> bounded_friction_constraint(
     // Max torque about z-axis
     Vec3<Scalar> z = Vec3<Scalar>::UnitZ();
     Mat3<Scalar> R2 = object.body.radii_of_gyration_matrix();
-    Scalar beta_z_max =
-        max_beta_projection(z, R2, C_ew, angular_vel, angular_acc, eps);
+    Scalar beta_z_max;
+    if (object.body.has_exact_radii()) {
+        beta_z_max = max_beta_projection_exact(z, R2, C_ew, angular_vel, angular_acc);
+    } else {
+        beta_z_max = max_beta_projection_approx(z, R2, C_ew, angular_vel, angular_acc, eps);
+    }
 
     // clang-format off
     Vec3<Scalar> c1, c2, c3, c4;
@@ -343,8 +367,12 @@ Vector<Scalar> bounded_zmp_constraint(
             object.body.com_ellipsoid, Scalar(1e-6), OptType::Max);
 
         Vec3<Scalar> p = S.transpose() * edges[i].normal;
-        Scalar beta_xy_max = max_beta_projection(p, R2, C_ew, angular_vel,
-                                                 angular_acc, Scalar(1e-6));
+        Scalar beta_xy_max;
+        if (object.body.has_exact_radii()) {
+            beta_xy_max = max_beta_projection_exact(p, R2, C_ew, angular_vel, angular_acc);
+        } else {
+            beta_xy_max = max_beta_projection_approx(p, R2, C_ew, angular_vel, angular_acc, Scalar(1e-6));
+        }
 
         Scalar alpha_z_min = opt_alpha_projection(z, ddC_we, C_ew, linear_acc,
                                                   g, object, eps, OptType::Min);
