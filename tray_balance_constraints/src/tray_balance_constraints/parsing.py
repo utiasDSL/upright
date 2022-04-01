@@ -132,11 +132,33 @@ class BalancedObjectConfigWrapper:
         # parse the bounded rigid body
         mass_min = self.d["mass"]["min"]
         mass_max = self.d["mass"]["max"]
+
         com_center = self.position
         com_half_lengths = np.array(self.d["com"]["half_lengths"])
-        radii_of_gyration_min = np.array(self.d["radii_of_gyration"]["min"])
-        radii_of_gyration_max = np.array(self.d["radii_of_gyration"]["max"])
         com_ellipsoid = Ellipsoid(com_center, com_half_lengths, np.eye(3))
+
+        # parse the radii of gyration
+        # this can be specified to be based on the exact inertia matrix for a
+        # particular shape
+        if "use_exact" in self.d["radii_of_gyration"]:
+            shape = self.d["radii_of_gyration"]["use_exact"]["shape"]
+            if shape == "cylinder":
+                radius = self.d["radii_of_gyration"]["use_exact"]["radius"]
+                height = self.d["radii_of_gyration"]["use_exact"]["height"]
+                inertia = math.cylinder_inertia_matrix(mass=1, radius=radius, height=height)
+            elif shape == "cuboid":
+                side_lengths = np.array(self.d["radii_of_gyration"]["use_exact"]["side_lengths"])
+                inertia = math.cuboid_inertia_matrix(mass=1, side_lengths=side_lengths)
+            else:
+                raise ValueError(f"Unrecognized shape {shape}.")
+            # no need to divide out mass, since we used mass=1 above
+            radii_of_gyration = np.sqrt(np.diag(inertia))
+            radii_of_gyration_min = radii_of_gyration
+            radii_of_gyration_max = radii_of_gyration
+        else:
+            radii_of_gyration_min = np.array(self.d["radii_of_gyration"]["min"])
+            radii_of_gyration_max = np.array(self.d["radii_of_gyration"]["max"])
+
         body = BoundedRigidBody(
             mass_min=mass_min,
             mass_max=mass_max,

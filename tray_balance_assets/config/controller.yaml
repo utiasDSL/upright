@@ -2,7 +2,7 @@ control_period: 25
 use_noisy_state_to_plan: true
 
 balancing:
-  arrangement: two
+  arrangement: one
 
   enabled: true
   use_bounded_constraints: true
@@ -56,7 +56,7 @@ waypoints:
   -
     millis: 0
     position: [0.0, -2.0, -0.5]
-    orientation: [0.0, 0.0, 0.0, 1.0]
+    orientation: [0.0, 0.0, 1.0, 0.0]
 
 static_obstacles:
   enabled: false
@@ -78,6 +78,9 @@ infofile:
 
 # arrangements reference the objects below
 arrangements:
+  one:
+    -
+      name: "cylinder_stack_base"
   two:
     -
       name: "cylinder_stack_base"
@@ -101,13 +104,16 @@ objects:
       height: 0.05
       half_lengths: [0.0, 0.0, 0.0]
     radii_of_gyration:
+      use_exact:  # TODO still not sure about this format
+        shape: cylinder
+        height: 0.1
+        radius: 0.15
       min: [0, 0, 0]
       max: [0.15, 0.15, 0.15]
     mu_min: 0.25
     support_area:
       shape: "eq_tri"
       side_length: 0.2
-      offset: [0, 0]
     height: 0.1  # this is only used to compute relative heights
 
   cuboid1_stack:
@@ -118,6 +124,9 @@ objects:
       height: 0.075
       half_lengths: [0.0, 0.0, 0.0]
     radii_of_gyration:
+      use_exact:
+        shape: cuboid
+        side_lengths: [0.15, 0.15, 0.15]
       min: [0, 0, 0]
       max: [0.075, 0.075, 0.075]
     mu_min: 0.25

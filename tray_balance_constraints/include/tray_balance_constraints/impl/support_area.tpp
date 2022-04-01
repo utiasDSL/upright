@@ -43,55 +43,6 @@ std::vector<Vec2<Scalar>> equilateral_triangle_support_vertices(
 }
 
 template <typename Scalar>
-Vector<Scalar> CircleSupportArea<Scalar>::zmp_constraints(
-    const Vec2<Scalar>& zmp) const {
-    Vec2<Scalar> e = zmp - this->offset;
-    Vector<Scalar> constraints(num_constraints());
-    // In the squared case here, the constraint is easily violated. In the
-    // non-squared case below, the controller does not generate a stable
-    // rollout.
-    constraints << squared(radius - this->margin) - e.dot(e);
-    // Scalar eps(0.01);
-    // constraints << radius - this->margin - sqrt(e.dot(e) + eps);
-    return constraints;
-}
-
-template <typename Scalar>
-Vector<Scalar> CircleSupportArea<Scalar>::zmp_constraints_scaled(
-    const Vec2<Scalar>& az_zmp, Scalar& az) const {
-    // e is scaled by az
-    Vec2<Scalar> e = az_zmp - az * this->offset;
-
-    Vector<Scalar> constraints(num_constraints());
-    constraints << squared(az * (radius - this->margin)) - e.dot(e);
-    return constraints;
-}
-
-template <typename Scalar>
-Vector<Scalar> CircleSupportArea<Scalar>::get_parameters() const {
-    Vector<Scalar> p(num_parameters());
-    p << this->offset, this->margin, radius;
-    return p;
-}
-
-template <typename Scalar>
-CircleSupportArea<Scalar> CircleSupportArea<Scalar>::from_parameters(
-    const Vector<Scalar>& p, const size_t index) {
-    size_t n = p.size() - index;
-    if (n < 4) {
-        throw std::runtime_error(
-            "[CircleSupportArea] Parameter vector is wrong size.");
-    }
-
-    Vec2<Scalar> offset = p.template segment<2>(index);
-    Scalar margin = p(index + 2);
-    Scalar radius = p(index + 3);
-    return CircleSupportArea<Scalar>(radius, offset, margin);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-template <typename Scalar>
 Vector<Scalar> PolygonSupportArea<Scalar>::zmp_constraints(
     const Vec2<Scalar>& zmp, const Scalar& margin) const {
     const size_t n = num_constraints();

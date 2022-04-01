@@ -2,7 +2,7 @@
 timestep: 1
 duration: 6000
 gravity: [0, 0, -9.81]
-arrangement: "two"
+arrangement: one
 
 robot:
   home:
@@ -56,6 +56,9 @@ urdf:
 
 # arrangements reference the objects below
 arrangements:
+  one:
+    -
+      name: "cylinder_stack_base"
   two:
     -
       name: "cylinder_stack_base"

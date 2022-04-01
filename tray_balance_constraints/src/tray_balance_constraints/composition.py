@@ -275,13 +275,45 @@ def compose_radii_of_gyration(bodies):
     return np.sqrt(radii_squared_opt)
 
 
+def compose_bodies_exact(bodies):
+    """Compose bodies when their parameters are exact."""
+    masses = np.array([body.mass_min for body in bodies])
+    coms = np.array([body.com_ellipsoid.center() for body in bodies])
+
+    mass = np.sum(masses)
+    com = compute_com(masses[:, np.newaxis], coms)
+
+    inertia = np.zeros((3, 3))
+    for i in range(len(bodies)):
+        P_i = skew3(com - coms[i, :])
+        R_i = np.diag(bodies[i].radii_of_gyration_max)
+        inertia += masses[i] * (R_i @ R_i + P_i.T @ P_i)
+    R2 = inertia / mass
+    R = np.sqrt(R2)
+    radii_of_gyration = np.diag(R)
+
+    return BoundedRigidBody(
+        mass_min=mass,
+        mass_max=mass,
+        radii_of_gyration_min=radii_of_gyration,
+        radii_of_gyration_max=radii_of_gyration,
+        com_ellipsoid=Ellipsoid.point(com),
+    )
+
+
 def compose_bounded_bodies(bodies):
     """Compose a single bounded body out of multiple."""
+    exact = np.array([body.is_exact() for body in bodies]).all()
+    if exact:
+        return compose_bodies_exact(bodies)
+
     mass_min = np.sum([body.mass_min for body in bodies])
     mass_max = np.sum([body.mass_max for body in bodies])
     com_ellipsoid = compose_com_ellipsoid(bodies)
-    radii_of_gyration_max = compose_radii_of_gyration(bodies)
+
     radii_of_gyration_min = np.zeros(3)  # TODO?
+    radii_of_gyration_max = compose_radii_of_gyration(bodies)
+
     return BoundedRigidBody(
         mass_min=mass_min,
         mass_max=mass_max,

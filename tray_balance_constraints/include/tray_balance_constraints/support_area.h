@@ -21,66 +21,6 @@ template <typename Scalar>
 std::vector<Vec2<Scalar>> equilateral_triangle_support_vertices(
     Scalar side_length);
 
-template <typename Scalar>
-struct SupportAreaBase {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    SupportAreaBase(const Vec2<Scalar>& offset, Scalar margin)
-        : offset(offset), margin(margin) {}
-
-    virtual size_t num_constraints() const = 0;
-
-    virtual Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp) const = 0;
-
-    // Scaled version of the ZMP constraints that avoids division by az to
-    // calculate the ZMP explicitly.
-    virtual Vector<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
-                                                  Scalar& az) const = 0;
-
-    virtual SupportAreaBase* clone() const = 0;
-
-    virtual size_t num_parameters() const = 0;
-    virtual Vector<Scalar> get_parameters() const = 0;
-
-    /**
-     * Offset is the vector pointing from the CoM of the object to the centroid
-     * of the support area. ZMP is computed relative to the CoM but to test for
-     * inclusion in the support area, we need it relative to the centroid. Thus
-     * we have: r^{zmp, centroid} = r^{zmp, CoM} - r^{centroid, CoM}
-     */
-    Vec2<Scalar> offset;
-
-    Scalar margin;
-};
-
-// Circular support area.
-template <typename Scalar>
-struct CircleSupportArea : public SupportAreaBase<Scalar> {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    CircleSupportArea(Scalar radius, const Vec2<Scalar>& offset, Scalar margin)
-        : SupportAreaBase<Scalar>(offset, margin), radius(radius) {}
-
-    CircleSupportArea* clone() const override {
-        return new CircleSupportArea(radius, this->offset, this->margin);
-    }
-
-    size_t num_parameters() const override { return 2 + 1 + 1; }
-
-    size_t num_constraints() const override { return 1; }
-
-    Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp) const override;
-
-    Vector<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
-                                          Scalar& az) const override;
-
-    Vector<Scalar> get_parameters() const override;
-
-    static CircleSupportArea<Scalar> from_parameters(const Vector<Scalar>& p,
-                                                     const size_t index = 0);
-
-    Scalar radius;
-};
 
 template <typename Scalar>
 struct PolygonEdge {

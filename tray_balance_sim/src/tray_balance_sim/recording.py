@@ -14,26 +14,32 @@ import IPython
 
 
 class DataLogger:
+    """Log data for later saving and viewing."""
     def __init__(self, ctrl_config, sim_config):
         self.ctrl_config = ctrl_config
         self.sim_config = sim_config
         self.data = {}
 
     def add(self, key, value):
+        """Add a single value named `key`."""
         if key in self.data:
             raise ValueError(f"Key {key} already in the data log.")
         self.data[key] = value
 
     def append(self, key, value):
+        """Append one of a list of values to the list named `key`."""
+        # copy to an array (also copies if value is already an array, which is
+        # what we want)
+        a = np.array(value)
         if key in self.data:
-            # TODO this check isn't very elegant
-            if np.array(value).shape != np.array(self.data[key][-1]).shape:
+            if a.shape != self.data[key][-1].shape:
                 raise ValueError("Data must all be the same shape.")
-            self.data[key].append(value)
+            self.data[key].append(a)
         else:
-            self.data[key] = [value]
+            self.data[key] = [a]
 
     def save(self, log_dir, timestamp, name=None):
+        """Save the data and configuration to a timestamped directory."""
         dir_name = timestamp.strftime("%Y-%m-%d_%H-%M-%S")
         if name is not None:
             dir_name = name + "_" + dir_name

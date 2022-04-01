@@ -2,23 +2,6 @@ import numpy as np
 import pybullet as pyb
 
 
-def cylinder_inertia_matrix(mass, radius, height):
-    """Inertia matrix for cylinder aligned along z-axis."""
-    xx = yy = mass * (3 * radius ** 2 + height ** 2) / 12
-    zz = 0.5 * mass * radius ** 2
-    return np.diag([xx, yy, zz])
-
-
-def cuboid_inertia_matrix(mass, side_lengths):
-    """Inertia matrix for a rectangular cuboid with side_lengths in (x, y, z)
-    dimensions."""
-    lx, ly, lz = side_lengths
-    xx = ly ** 2 + lz ** 2
-    yy = lx ** 2 + lz ** 2
-    zz = lx ** 2 + ly ** 2
-    return mass * np.diag([xx, yy, zz]) / 12.0
-
-
 class BulletBody:
     def __init__(self, mass, mu, height, collision_uid, visual_uid):
         self.mass = mass

@@ -230,7 +230,7 @@ Scalar max_beta_projection_approx(const Vec3<Scalar>& p, const Mat3<Scalar>& R2,
                                   const Vec3<Scalar>& angular_vel,
                                   const Vec3<Scalar>& angular_acc,
                                   const Scalar& eps) {
-    return epsilon_norm<Scalar>(p.cross(angular_vel), eps) *
+    return epsilon_norm<Scalar>(p.cross(C_ew * angular_vel), eps) *  // TODO note I added C_ew here
                epsilon_norm<Scalar>(R2 * C_ew * angular_vel, eps) +
            epsilon_norm<Scalar>(p, eps) *
                epsilon_norm<Scalar>(R2 * C_ew * angular_acc, eps);
@@ -329,10 +329,24 @@ Vector<Scalar> bounded_friction_constraint(
                                        eps, OptType::Min);
 
     Vector<Scalar> friction_constraint = Vector<Scalar>::Ones(4);
-    friction_constraint(0) = min1 - beta_z_max / object.r_tau_min;
-    friction_constraint(1) = min2 - beta_z_max / object.r_tau_min;
-    friction_constraint(2) = min3 - beta_z_max / object.r_tau_min;
-    friction_constraint(3) = min4 - beta_z_max / object.r_tau_min;
+
+    // TODO hopefully come up with a more elegant way to handle the exact case
+    if (object.body.has_exact_radii()) {
+        // For the exact beta, we need to handle the sign but can get away with
+        // sqrt(x**2 + eps), since the max and min values cannot be different
+        Scalar beta_positive = sqrt(squared(beta_z_max) + eps);
+        friction_constraint(0) = min1 - beta_positive / object.r_tau_min;
+        friction_constraint(1) = min2 - beta_positive / object.r_tau_min;
+        friction_constraint(2) = min3 - beta_positive / object.r_tau_min;
+        friction_constraint(3) = min4 - beta_positive / object.r_tau_min;
+    } else {
+        // Approximate beta_z_max is always non-negative, so we don't need to
+        // handle different signs here.
+        friction_constraint(0) = min1 - beta_z_max / object.r_tau_min;
+        friction_constraint(1) = min2 - beta_z_max / object.r_tau_min;
+        friction_constraint(2) = min3 - beta_z_max / object.r_tau_min;
+        friction_constraint(3) = min4 - beta_z_max / object.r_tau_min;
+    }
 
     return friction_constraint;
 }
@@ -379,18 +393,38 @@ Vector<Scalar> bounded_zmp_constraint(
         Scalar alpha_z_max = opt_alpha_projection(z, ddC_we, C_ew, linear_acc,
                                                   g, object, eps, OptType::Max);
 
-        zmp_constraints(i * 4) = -beta_xy_max -
-                                 object.max_com_height() * alpha_xy_max -
-                                 alpha_z_max * r_xy_max;
-        zmp_constraints(i * 4 + 1) = -beta_xy_max -
-                                     object.min_com_height() * alpha_xy_max -
-                                     alpha_z_max * r_xy_max;
-        zmp_constraints(i * 4 + 2) = -beta_xy_max -
+        if (object.body.has_exact_radii()) {
+            // When radii of gyration are exact, we remove the negative sign
+            // because we want to use the exact value of beta, rather than an
+            // upper bound. TODO as with the friction case, this can be handled
+            // better
+            zmp_constraints(i * 4) = beta_xy_max -
                                      object.max_com_height() * alpha_xy_max -
-                                     alpha_z_min * r_xy_max;
-        zmp_constraints(i * 4 + 3) = -beta_xy_max -
-                                     object.min_com_height() * alpha_xy_max -
-                                     alpha_z_min * r_xy_max;
+                                     alpha_z_max * r_xy_max;
+            zmp_constraints(i * 4 + 1) = beta_xy_max -
+                                         object.min_com_height() * alpha_xy_max -
+                                         alpha_z_max * r_xy_max;
+            zmp_constraints(i * 4 + 2) = beta_xy_max -
+                                         object.max_com_height() * alpha_xy_max -
+                                         alpha_z_min * r_xy_max;
+            zmp_constraints(i * 4 + 3) = beta_xy_max -
+                                         object.min_com_height() * alpha_xy_max -
+                                         alpha_z_min * r_xy_max;
+        } else {
+            zmp_constraints(i * 4) = -beta_xy_max -
+                                     object.max_com_height() * alpha_xy_max -
+                                     alpha_z_max * r_xy_max;
+            zmp_constraints(i * 4 + 1) = -beta_xy_max -
+                                         object.min_com_height() * alpha_xy_max -
+                                         alpha_z_max * r_xy_max;
+            zmp_constraints(i * 4 + 2) = -beta_xy_max -
+                                         object.max_com_height() * alpha_xy_max -
+                                         alpha_z_min * r_xy_max;
+            zmp_constraints(i * 4 + 3) = -beta_xy_max -
+                                         object.min_com_height() * alpha_xy_max -
+                                         alpha_z_min * r_xy_max;
+
+        }
     }
 
     return zmp_constraints;

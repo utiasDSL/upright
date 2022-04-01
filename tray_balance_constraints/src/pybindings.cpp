@@ -16,17 +16,6 @@ using namespace pybind11::literals;
 PYBIND11_MODULE(bindings, m) {
     using Scalar = double;
 
-    // TODO no need to export other support areas besides polygon
-    // pybind11::class_<SupportAreaBase<Scalar>>(m, "SupportAreaBase");
-    //
-    // pybind11::class_<CircleSupportArea<Scalar>, SupportAreaBase<Scalar>>(
-    //     m, "CircleSupportArea")
-    //     .def(pybind11::init<const Scalar, const Vec2<Scalar>&, const Scalar>(),
-    //          "radius"_a, "offset"_a, "margin"_a)
-    //     .def_readwrite("radius", &CircleSupportArea<Scalar>::radius)
-    //     .def_readwrite("offset", &CircleSupportArea<Scalar>::offset)
-    //     .def_readwrite("margin", &CircleSupportArea<Scalar>::margin);
-
     pybind11::class_<PolygonSupportArea<Scalar>>(m, "PolygonSupportArea")
         .def(pybind11::init<const std::vector<Vec2<Scalar>>&>(),
              "vertices"_a)

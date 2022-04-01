@@ -68,3 +68,20 @@ def quat_inverse(q):
     Such that quat_multiply(q, quat_inverse(q)) = [0, 0, 0, 1].
     """
     return np.append(-q[:3], q[3])
+
+
+def cylinder_inertia_matrix(mass, radius, height):
+    """Inertia matrix for cylinder aligned along z-axis."""
+    xx = yy = mass * (3 * radius ** 2 + height ** 2) / 12
+    zz = 0.5 * mass * radius ** 2
+    return np.diag([xx, yy, zz])
+
+
+def cuboid_inertia_matrix(mass, side_lengths):
+    """Inertia matrix for a rectangular cuboid with side_lengths in (x, y, z)
+    dimensions."""
+    lx, ly, lz = side_lengths
+    xx = ly ** 2 + lz ** 2
+    yy = lx ** 2 + lz ** 2
+    zz = lx ** 2 + ly ** 2
+    return mass * np.diag([xx, yy, zz]) / 12.0
