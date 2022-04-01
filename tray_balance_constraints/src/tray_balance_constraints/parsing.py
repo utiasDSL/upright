@@ -85,7 +85,7 @@ def parse_support_offset(d):
     y = d["y"] if "y" in d else 0
     if "r" in d and "θ" in d:
         r = d["r"]
-        θ = d["θ"]
+        θ = parse_number(d["θ"])
         x += r * np.cos(θ)
         y += r * np.sin(θ)
     return np.array([x, y])
@@ -123,6 +123,10 @@ class BalancedObjectConfigWrapper:
             ly = config["lx"]
             support_area = PolygonSupportArea.axis_aligned_rectangle(lx, ly)
             r_tau = math.rectangle_r_tau(lx, ly)
+        elif shape == "circle":
+            radius = config["radius"]
+            support_area = PolygonSupportArea.circle(radius)
+            r_tau = math.circle_r_tau(radius)
         else:
             raise ValueError(f"Unsupported support area shape: {shape}")
         return support_area, r_tau
@@ -189,9 +193,9 @@ def parse_control_objects(ctrl_config):
 
     wrappers = {}
     for conf in arrangement:
-        name = conf["name"]
+        obj_type = conf["type"]
         parent_name = conf["parent"] if "parent" in conf else None
-        object_config = object_configs[name]
+        object_config = object_configs[obj_type]
         wrapper = BalancedObjectConfigWrapper(object_config, parent_name)
 
         # compute position of the object
@@ -206,7 +210,8 @@ def parse_control_objects(ctrl_config):
         # add offset in the x-y (support) plane
         wrapper.position[:2] += wrapper.offset
 
-        wrappers[name] = wrapper
+        obj_name = conf["name"]
+        wrappers[obj_name] = wrapper
 
     # find the direct children of each object
     for name, wrapper in wrappers.items():

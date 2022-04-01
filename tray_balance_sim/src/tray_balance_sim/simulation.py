@@ -109,8 +109,8 @@ def sim_object_setup(r_ew_w, config):
 
     objects = {}
     for d in arrangement:
-        name = d["name"]
-        obj_config = config["objects"][name]
+        obj_type = d["type"]
+        obj_config = config["objects"][obj_type]
         obj = bodies.BulletBody.fromdict(obj_config)
 
         if "parent" in d:
@@ -132,7 +132,8 @@ def sim_object_setup(r_ew_w, config):
             position[:2] += parsing.parse_support_offset(d["offset"])
 
         obj.add_to_sim(position)
-        objects[name] = obj
+        obj_name = d["name"]
+        objects[obj_name] = obj
 
     return objects
 
