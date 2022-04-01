@@ -3,7 +3,7 @@ control_period: 25
 use_noisy_state_to_plan: true
 
 balancing:
-  arrangement: cups_stack
+  arrangement: boxes_stack
 
   enabled: true
   use_bounded_constraints: true
@@ -56,7 +56,7 @@ robot:
 waypoints:
   -
     millis: 0
-    position: [0.0, -2.0, -0.5]
+    position: [0.0, -2.0, 0.0]
     orientation: [0.0, 0.0, 1.0, 0.0]
 
 static_obstacles:
@@ -132,6 +132,22 @@ arrangements:
       name: cup3
       type: cup
       parent: cup2
+  boxes_stack:
+    -
+      name: tray
+      type: tray
+    -
+      name: box1
+      type: box
+      parent: tray
+    -
+      name: box2
+      type: box
+      parent: box1
+    -
+      name: box3
+      type: box
+      parent: box2
 
 objects:
   ee:
@@ -161,18 +177,36 @@ objects:
       min: 0.5
       max: 0.5
     com:
-      height: 0.075
+      height: 0.1
       half_lengths: [0.0, 0.0, 0.0]
     radii_of_gyration:
       use_exact:
         shape: cylinder
-        height: 0.15
+        height: 0.2
         radius: 0.04
-    mu_min: 0.25
+    mu_min: 0.5
     support_area:
       shape: "circle"
       radius: 0.04
-    height: 0.15
+    height: 0.2
+
+  box:
+    mass:
+      min: 0.25
+      max: 1
+    com:
+      height: 0.1
+      half_lengths: [0.0, 0.0, 0.0]
+    radii_of_gyration:
+      use_exact:
+        shape: cuboid
+        side_lengths: [0.08, 0.08, 0.2]
+    mu_min: 0.5
+    support_area:
+      shape: "rect"
+      lx: 0.08
+      ly: 0.08
+    height: 0.2
 
   cylinder_stack_base:
     mass:

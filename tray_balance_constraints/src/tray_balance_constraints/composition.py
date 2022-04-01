@@ -99,6 +99,7 @@ class BoundingEllipsoidProblem(BoundingOptProblem):
             IPython.embed()
             raise e
         masses_opt, coms_opt = self._parse_args(res.x)
+        self.res = res  # for inspection later
         return masses_opt, coms_opt
 
 
@@ -248,8 +249,17 @@ def compose_com_ellipsoid(bodies, N=100, eps=0.01):
 
     # now we scale that ellipsoid to actually fit all possible CoMs
     problem = BoundingEllipsoidProblem(ell, bodies)
-    masses_guess = np.array([0.5 * (body.mass_min + body.mass_max) for body in bodies])
-    coms_guess = np.array([body.com_ellipsoid.center() for body in bodies])
+    # masses_guess = np.array([0.5 * (body.mass_min + body.mass_max) for body in bodies])
+    # coms_guess = np.array([body.com_ellipsoid.center() for body in bodies])
+
+    # randomly sample a starting guess
+    # TODO may want to do some random restarts
+    n_bodies = len(bodies)
+    masses_guess = np.zeros(n_bodies)
+    coms_guess = np.zeros((n_bodies, 3))
+    for i, body in enumerate(bodies):
+        masses_guess[i], coms_guess[i, :] = body.sample(boundary=False)
+
     try:
         masses_opt, coms_opt = problem.solve(masses_guess, coms_guess)
     except AssertionError as e:
@@ -260,6 +270,9 @@ def compose_com_ellipsoid(bodies, N=100, eps=0.01):
     delta = com - ell.center()
     scale = np.sqrt(delta.T @ ell.E() @ delta)
     scaled_half_lengths = scale * ell.half_lengths()
+
+    # print(f"compose CoM ellipsoid with {len(bodies)} bodies")
+    # IPython.embed()
 
     return Ellipsoid(ell.center(), scaled_half_lengths, ell.directions())
 

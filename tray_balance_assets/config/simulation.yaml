@@ -2,7 +2,7 @@
 timestep: 1
 duration: 6000
 gravity: [0, 0, -9.81]
-arrangement: cups_stack
+arrangement: boxes_stack
 
 robot:
   home:
@@ -107,8 +107,24 @@ arrangements:
       parent: cup1
     -
       name: cup3
-      type: cup
+      type: cup_heavy
       parent: cup2
+  boxes_stack:
+    -
+      name: tray
+      type: tray
+    -
+      name: box1
+      type: box
+      parent: tray
+    -
+      name: box2
+      type: box
+      parent: box1
+    -
+      name: box3
+      type: box_heavy
+      parent: box2
 
 objects:
   # EE is a special object
@@ -126,10 +142,32 @@ objects:
 
   cup:
     shape: cylinder
-    mass: 0.5
-    mu: 0.25
-    height: 0.15
+    mass: 0.25
+    mu: 0.5
+    height: 0.2
     radius: 0.04
+    color: [1, 0, 0, 1]
+
+  cup_heavy:
+    shape: cylinder
+    mass: 1
+    mu: 0.5
+    height: 0.2
+    radius: 0.04
+    color: [1, 0, 0, 1]
+
+  box:
+    shape: "cuboid"
+    mass: 0.25
+    mu: 0.5
+    side_lengths: [0.08, 0.08, 0.2]
+    color: [1, 0, 0, 1]
+
+  box_heavy:
+    shape: "cuboid"
+    mass: 1
+    mu: 0.5
+    side_lengths: [0.08, 0.08, 0.2]
     color: [1, 0, 0, 1]
 
   cylinder_stack_base:

@@ -221,15 +221,15 @@ def parse_control_objects(ctrl_config):
     # convert wrappers to BoundedBalancedObjects as required by the controller
     # and compose them as needed
     composites = []
-    for wrapper in wrappers.values():
+    for name, wrapper in wrappers.items():
         # all descendants compose the new object
         descendants = []
         queue = deque([wrapper])
         while len(queue) > 0:
-            wrapper = queue.popleft()
-            descendants.append(wrapper.bounded_balanced_object())
-            for name in wrapper.children:
-                queue.append(wrappers[name])
+            desc_wrapper = queue.popleft()
+            descendants.append(desc_wrapper.bounded_balanced_object())
+            for child_name in desc_wrapper.children:
+                queue.append(wrappers[child_name])
 
         # descendants have already been converted to C++ objects
         composites.append(compose_bounded_objects(descendants))
