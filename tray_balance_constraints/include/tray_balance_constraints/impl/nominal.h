@@ -12,20 +12,20 @@ size_t BalancedObject<Scalar>::num_constraints(
     const BalanceConstraintsEnabled& enabled) const {
     const size_t num_normal = 1 * enabled.normal;
     const size_t num_fric = 1 * enabled.friction;
-    const size_t num_zmp = support_area_ptr->num_constraints() * enabled.zmp;
+    const size_t num_zmp = support_area.num_constraints() * enabled.zmp;
     return num_normal + num_fric + num_zmp;
 }
 
 template <typename Scalar>
 size_t BalancedObject<Scalar>::num_parameters() const {
-    return 3 + body.num_parameters() + support_area_ptr->num_parameters();
+    return 3 + body.num_parameters() + support_area.num_parameters();
 }
 
 template <typename Scalar>
 Vector<Scalar> BalancedObject<Scalar>::get_parameters() const {
     Vector<Scalar> p(num_parameters());
     p << com_height, r_tau, mu, body.get_parameters(),
-        support_area_ptr->get_parameters();
+        support_area.get_parameters();
     return p;
 }
 
@@ -41,17 +41,19 @@ BalancedObject<Scalar> BalancedObject<Scalar>::from_parameters(
 
     start += body.num_parameters();
     size_t num_params_remaining = p.size() - start;
+    auto support_area = PolygonSupportArea<Scalar>::from_parameters(p, start);
+    return BalancedObject<Scalar>(body, com_height, support_area, r_tau, mu);
 
-    if (num_params_remaining == 4) {
-        auto support = CircleSupportArea<Scalar>::from_parameters(p, start);
-        return BalancedObject<Scalar>(body, com_height, support, r_tau, mu);
-    } else {
-        auto support = PolygonSupportArea<Scalar>::from_parameters(p, start);
-        return BalancedObject<Scalar>(body, com_height, support, r_tau, mu);
-    }
-
-    // return BalancedObject<Scalar>(body, com_height, *support_ptr,
-    //                               r_tau, mu);
+    // if (num_params_remaining == 4) {
+    //     auto support = CircleSupportArea<Scalar>::from_parameters(p, start);
+    //     return BalancedObject<Scalar>(body, com_height, support, r_tau, mu);
+    // } else {
+    //     auto support = PolygonSupportArea<Scalar>::from_parameters(p, start);
+    //     return BalancedObject<Scalar>(body, com_height, support, r_tau, mu);
+    // }
+    //
+    // // return BalancedObject<Scalar>(body, com_height, *support_ptr,
+    // //                               r_tau, mu);
 }
 
 template <typename Scalar>
@@ -77,11 +79,12 @@ BalancedObject<Scalar> BalancedObject<Scalar>::compose(
 
     // Using a smart pointer here ensures that the cloned object is cleaned
     // up after we pass in the reference (which is itself cloned)
-    std::unique_ptr<SupportAreaBase<Scalar>> support_area_ptr(
-        objects[0].support_area_ptr->clone());
-    support_area_ptr->offset = delta.head(2);
+    // std::unique_ptr<SupportAreaBase<Scalar>> support_area_ptr(
+    //     objects[0].support_area_ptr->clone());
+    // support_area_ptr->offset = delta.head(2);
+    PolygonSupportArea<Scalar> support_area = objects[0].support_area.offset(delta.head(2));
 
-    BalancedObject<Scalar> composite(body, com_height, *support_area_ptr,
+    BalancedObject<Scalar> composite(body, com_height, support_area,
                                      objects[0].r_tau, objects[0].mu);
     return composite;
 }
@@ -172,7 +175,7 @@ Vector<Scalar> zmp_constraint(const BalancedObject<Scalar>& object,
 
     Vec2<Scalar> zmp =
         (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
-    return object.support_area_ptr->zmp_constraints(zmp);
+    return object.support_area.zmp_constraints(zmp);
 
     // Vec2<Scalar> az_zmp = -object.com_height * alpha.head(2) - S *
     // beta.head(2); return

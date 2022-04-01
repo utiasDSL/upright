@@ -112,9 +112,7 @@ struct PolygonSupportArea {
         return new PolygonSupportArea(vertices);
     }
 
-    size_t num_parameters() const {
-        return vertices.size() * 2;
-    }
+    size_t num_parameters() const { return vertices.size() * 2; }
 
     // Get the edges of the polygon composing the support area
     std::vector<PolygonEdge<Scalar>> edges() const {
@@ -126,7 +124,8 @@ struct PolygonSupportArea {
         return es;
     }
 
-    Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp, const Scalar& margin = 0) const;
+    Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp,
+                                   const Scalar& margin = Scalar(0)) const;
 
     // Vector<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
     //                                       Scalar& az) const;
@@ -153,11 +152,13 @@ struct PolygonSupportArea {
 
    private:
     Scalar edge_zmp_constraint(const Vec2<Scalar>& zmp, const Vec2<Scalar>& v1,
-                               const Vec2<Scalar>& v2, const Scalar& margin) const;
+                               const Vec2<Scalar>& v2,
+                               const Scalar& margin) const;
 
     // Scalar edge_zmp_constraint_scaled(const Vec2<Scalar>& az_zmp,
     //                                   const Vec2<Scalar>& v1,
-    //                                   const Vec2<Scalar>& v2, Scalar& az) const;
+    //                                   const Vec2<Scalar>& v2, Scalar& az)
+    //                                   const;
 };
 
 #include "impl/support_area.tpp"

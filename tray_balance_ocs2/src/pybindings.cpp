@@ -53,7 +53,7 @@ PYBIND11_MODULE(bindings, m) {
 
     pybind11::class_<BalancedObject<scalar_t>>(m, "BalancedObject")
         .def(pybind11::init<const RigidBody<scalar_t>&, scalar_t,
-                            const SupportAreaBase<scalar_t>&, scalar_t,
+                            const PolygonSupportArea<scalar_t>&, scalar_t,
                             scalar_t>(),
              "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
         .def_static("compose", &BalancedObject<scalar_t>::compose, "objects"_a);

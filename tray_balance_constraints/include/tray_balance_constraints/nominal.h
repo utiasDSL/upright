@@ -19,27 +19,24 @@ struct BalancedObject {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     BalancedObject(const RigidBody<Scalar>& body, Scalar com_height,
-                   const SupportAreaBase<Scalar>& support_area, Scalar r_tau,
+                   const PolygonSupportArea<Scalar>& support_area, Scalar r_tau,
                    Scalar mu)
         : body(body),
           com_height(com_height),
-          support_area_ptr(support_area.clone()),
+          support_area(support_area),
           r_tau(r_tau),
           mu(mu) {}
 
     // Copy constructor
-    // NOTE: move constructor would instead use
-    // std::move(other.support_area_ptr)
     BalancedObject(const BalancedObject& other)
         : body(other.body),
           com_height(other.com_height),
-          support_area_ptr(other.support_area_ptr->clone()),
+          support_area(other.support_area),
           r_tau(other.r_tau),
           mu(other.mu) {}
 
     // Copy assignment operator
     BalancedObject<Scalar>& operator=(const BalancedObject& other) {
-        // TODO does this handle the unique_ptr properly?
         return *this;
     }
 
@@ -67,7 +64,7 @@ struct BalancedObject {
 
     // Geometry
     Scalar com_height;
-    std::unique_ptr<SupportAreaBase<Scalar>> support_area_ptr;
+    PolygonSupportArea<Scalar> support_area;
 
     // Friction
     Scalar r_tau;

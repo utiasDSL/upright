@@ -1,6 +1,6 @@
 # all times are in (an integer value of) milliseconds
 timestep: 1
-duration: 4000
+duration: 6000
 gravity: [0, 0, -9.81]
 arrangement: "two"
 

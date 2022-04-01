@@ -308,11 +308,12 @@ def compose_bounded_objects(objects):
         - base.body.com_ellipsoid.center()[2]
     )
 
-    # TODO need to add an offset to the support area vertices of
-    base.body.com_ellipsoid.center() - body.com_ellipsoid.center()
+    # support area vertices are offset to place them correctly in the composite
+    # object frame
+    r_bc_e = base.body.com_ellipsoid.center() - body.com_ellipsoid.center()
+    sa_min = base.support_area_min.offset(r_bc_e[:2])
 
-    # support area, mu, r_tau directly inherited from the base object
-    sa_min = base.support_area_min
+    # mu and r_tau inherited from the base object unchanged
     mu_min = base.mu_min
     r_tau_min = base.r_tau_min
 
