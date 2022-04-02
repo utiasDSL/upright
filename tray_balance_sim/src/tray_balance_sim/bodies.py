@@ -15,6 +15,7 @@ class BulletBody:
         """Actually add the object to the simulation."""
         # baseInertialFramePosition is an offset of the inertial frame origin
         # (i.e., center of mass) from the centroid of the object
+        # see <https://github.com/erwincoumans/bullet3/blob/d3b4c27db4f86e1853ff7d84185237c437dc8485/examples/pybullet/examples/shiftCenterOfMass.py>
         self.uid = pyb.createMultiBody(
             baseMass=self.mass,
             baseInertialFramePosition=tuple(self.com_offset),

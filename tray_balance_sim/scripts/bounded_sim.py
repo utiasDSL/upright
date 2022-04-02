@@ -29,7 +29,7 @@ def main():
     # load configuration
     rospack = rospkg.RosPack()
     config_path = Path(rospack.get_path("tray_balance_assets")) / "config"
-    config = util.load_config(config_path / "default.yaml")
+    config = util.load_config(config_path / "dec.yaml")
     sim_config = config["simulation"]
     ctrl_config = config["controller"]
     log_config = config["logging"]

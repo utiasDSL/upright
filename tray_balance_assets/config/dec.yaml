@@ -1,0 +1,7 @@
+include:
+  -
+    package: tray_balance_assets
+    path: config/default.yaml
+
+logging:
+  log_dir: /home/adam/phd/reports/dec4/presentation/data

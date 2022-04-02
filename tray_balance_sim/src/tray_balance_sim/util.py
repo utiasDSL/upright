@@ -9,6 +9,27 @@ import tray_balance_constraints as core
 import IPython
 
 
+def recursive_dict_update(parent, child, depth=0, max_depth=100):
+    """Recursively update the (nested) dict `parent` with values from `child`."""
+    assert type(parent) == dict and type(child) == dict, "Arguments must both be dicts."
+    if depth > max_depth:
+        raise Exception(f"Maximum recursion depth {max_depth} reached.")
+
+    for key in child:
+        # if the key is in the parent and both parent and child values are
+        # dicts, recurse. Otherwise, just do a normal assignment:
+        # 1. if key not in parent, it is added
+        # 2. if parent[key] is not a dict (but child[key] is), then "updating"
+        #    parent[key] is just reassigment
+        # 3. if child[key] is not a dict (but parent[key] is), "updating" is
+        #    again just reassignment
+        if key in parent and type(parent[key]) == dict and type(child[key]) == dict:
+            recursive_dict_update(parent[key], child[key], depth=depth+1)
+        else:
+            parent[key] = child[key]
+    return parent
+
+
 def load_config(path, depth=0, max_depth=5):
     """Load configuration file located at `path`.
 
@@ -32,8 +53,7 @@ def load_config(path, depth=0, max_depth=5):
             parent_dict = {include["key"]: parent_dict}
 
         # update the parent dict and reassign
-        parent_dict.update(d)
-        d = parent_dict
+        d = recursive_dict_update(parent_dict, d)
     return d
 
 

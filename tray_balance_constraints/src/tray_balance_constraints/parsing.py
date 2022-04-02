@@ -149,9 +149,13 @@ class BalancedObjectConfigWrapper:
             if shape == "cylinder":
                 radius = self.d["radii_of_gyration"]["use_exact"]["radius"]
                 height = self.d["radii_of_gyration"]["use_exact"]["height"]
-                inertia = math.cylinder_inertia_matrix(mass=1, radius=radius, height=height)
+                inertia = math.cylinder_inertia_matrix(
+                    mass=1, radius=radius, height=height
+                )
             elif shape == "cuboid":
-                side_lengths = np.array(self.d["radii_of_gyration"]["use_exact"]["side_lengths"])
+                side_lengths = np.array(
+                    self.d["radii_of_gyration"]["use_exact"]["side_lengths"]
+                )
                 inertia = math.cuboid_inertia_matrix(mass=1, side_lengths=side_lengths)
             else:
                 raise ValueError(f"Unrecognized shape {shape}.")
@@ -211,6 +215,8 @@ def parse_control_objects(ctrl_config):
         wrapper.position[:2] += wrapper.offset
 
         obj_name = conf["name"]
+        if obj_name in wrappers:
+            raise ValueError(f"Multiple control objects named {obj_name}.")
         wrappers[obj_name] = wrapper
 
     # find the direct children of each object
