@@ -61,7 +61,7 @@ class MobileManipulatorPinocchioMapping final
         Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
 
         // convert velocity from body frame to world frame
-        vector_t v_body = state.template tail<NV>();
+        vector_t v_body = state.template segment<NV>(NQ);
         vector_t v_world(NV);
         v_world << C_wb * v_body.template head<2>(),
             v_body.template tail<NV - 2>();
@@ -72,13 +72,12 @@ class MobileManipulatorPinocchioMapping final
         const vector_t& state, const vector_t& input) const override {
         Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
 
-        vector_t ub = input.template head<2>();
-        // ub(1) = 0;  // nonholonomic
-
         // convert acceleration input from body frame to world frame
-        vector_t acceleration(INPUT_DIM);
-        acceleration << C_wb * ub, input.template tail<INPUT_DIM - 2>();
-        return acceleration;
+        vector_t a_body = state.template tail<NV>();
+        vector_t a_world(NV);
+        a_world << C_wb * a_body.template head<2>(),
+            a_body.template tail<NV - 2>();
+        return a_world;
     }
 
     // NOTE: maps the Jacobians of an arbitrary function f w.r.t q and v
@@ -88,6 +87,8 @@ class MobileManipulatorPinocchioMapping final
     std::pair<matrix_t, matrix_t> getOcs2Jacobian(
         const vector_t& state, const matrix_t& Jq,
         const matrix_t& Jv) const override {
+
+        // TODO not correct now
 
         // Jacobian of Pinocchio joint velocities v_pin w.r.t. actual state
         // velocities v

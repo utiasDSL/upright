@@ -81,9 +81,8 @@ class ControllerConfigWrapper:
         self.q_dim = ctrl_config["robot"]["dims"]["q"]
         self.v_dim = ctrl_config["robot"]["dims"]["v"]
         self.a_dim = ctrl_config["robot"]["dims"]["a"]
-
-        self.x_dim = self.q_dim + self.v_dim
-        self.u_dim = self.a_dim
+        self.x_dim = ctrl_config["robot"]["dims"]["x"]
+        self.u_dim = ctrl_config["robot"]["dims"]["u"]
 
         # initial state can be passed in directly (for example to match exactly
         # a simulation) or parsed from the config

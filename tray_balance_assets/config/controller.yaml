@@ -21,7 +21,7 @@ weights:
     diag: [1, 1, 1, 1, 1, 1, 1, 1, 1]
   state:
     scale: 0.1
-    diag: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    diag: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   end_effector:
     scale: 1
     diag: [1, 1, 1, 0, 0, 1]
@@ -29,11 +29,11 @@ weights:
 # state and input limits
 limits:
   input:
-    lower: [-2, -2, -2, -4, -4, -4, -4, -4, -4]
-    upper: [2, 2, 2, 4, 4, 4, 4, 4, 4]
+    lower: [-20, -20, -20, -40, -40, -40, -40, -40, -40]
+    upper: [20, 20, 20, 40, 40, 40, 40, 40, 40]
   state:
-    lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi, -1, -1, -1, -2, -2, -2, -2, -2, -2]
-    upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi, 1, 1, 1, 2, 2, 2, 2, 2, 2]
+    lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -2, -2, -4, -4, -4, -4, -4, -4]
+    upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4]
 
 # robot parameters
 robot:
@@ -41,8 +41,10 @@ robot:
     q: 9  # generalized position
     v: 9  # generalized velocity
     a: 9  # generalized acceleration
+    x: 27 # state
+    u: 9  # input
   dynamics: "todo"
-  x0: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]
+  x0: [0, 0, 0, 0, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   urdf:
     package: "tray_balance_assets"
     path: "urdf/mm_ocs2.urdf"

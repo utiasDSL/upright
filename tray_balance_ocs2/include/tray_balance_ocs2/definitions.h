@@ -38,7 +38,7 @@ namespace mobile_manipulator {
 constexpr size_t NQ = 9;
 constexpr size_t NV = 9;
 constexpr size_t INPUT_DIM = 6 + 3;  // 6 DOF arm vel. + forward vel. + rotational vel.
-constexpr size_t STATE_DIM = NQ + NV;  // position + velocity
+constexpr size_t STATE_DIM = NQ + NV * 2;  // position + velocity + acc
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2

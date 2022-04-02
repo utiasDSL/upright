@@ -73,7 +73,8 @@ def main():
     # initial time, state, input
     t = 0.0
     q, v = robot.joint_states()
-    x = np.concatenate((q, v))
+    a = np.zeros(robot.ni)
+    x = np.concatenate((q, v, a))
     u = np.zeros(robot.ni)
 
     # video recording
@@ -111,11 +112,11 @@ def main():
     # simulation loop
     for i in range(num_timesteps):
         q, v = robot.joint_states()
-        x = np.concatenate((q, v))
+        x = np.concatenate((q, v, a))
 
         # add noise to state variables
         q_noisy, v_noisy = robot.joint_states(add_noise=True)
-        x_noisy = np.concatenate((q_noisy, v_noisy))
+        x_noisy = np.concatenate((q_noisy, v_noisy, a))
 
         # by using x_opt, we're basically just doing pure open-loop planning,
         # since the state never deviates from the optimal trajectory (at least
@@ -150,7 +151,10 @@ def main():
         # entire time horizon, without accounting for the given state. So it is
         # like doing feedforward input only, which is bad.
         mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
-        robot.command_acceleration(u)
+        a = np.copy(x_opt[-robot.ni:])
+        # IPython.embed()
+        # robot.command_acceleration(u)
+        robot.command_jerk(u)
 
         if i % log_dt == 0:
             if ctrl_wrapper.settings.tray_balance_settings.enabled:

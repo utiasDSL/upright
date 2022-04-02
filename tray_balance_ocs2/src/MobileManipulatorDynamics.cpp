@@ -49,15 +49,16 @@ ad_vector_t MobileManipulatorDynamics::systemFlowMap(
     Eigen::Matrix<ad_scalar_t, 2, 2> C_wb = base_rotation_matrix(state);
 
     // convert base velocity from body frame to world frame
-    ad_vector_t v_body = state.template tail<NV>();
+    ad_vector_t v_body = state.template segment<NV>(NQ);
     ad_vector_t dqdt(INPUT_DIM);
     dqdt << C_wb * v_body.template head<2>(), v_body.template tail<NV - 2>();
 
-    ad_vector_t dvdt = input;
+    ad_vector_t dvdt = state.template tail<NV>();
+    ad_vector_t dadt = input;
     // dvdt(1) = 0;  // nonholonomic
 
     ad_vector_t dxdt(STATE_DIM);
-    dxdt << dqdt, dvdt;
+    dxdt << dqdt, dvdt, dadt;
     return dxdt;
 }
 

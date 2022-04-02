@@ -27,11 +27,14 @@ class SimulatedRobot:
         self.arm_home = parsing.parse_array(config["robot"]["home"]["arm"])
         self.home = np.concatenate((self.base_home, self.arm_home))
 
+        self.nq = 9
+        self.nv = 9
         self.ns = 18  # num state
         self.ni = 9  # num inputs
 
-        self.cmd_vel = np.zeros(9)
+        self.cmd_vel = np.zeros(self.nv)
         self.cmd_acc = np.zeros_like(self.cmd_vel)
+        self.cmd_jerk = np.zeros_like(self.cmd_vel)
 
         # noise
         self.q_meas_std_dev = config["robot"]["noise"]["measurement"]["q_std_dev"]
@@ -104,9 +107,14 @@ class SimulatedRobot:
         """Command acceleration of the robot's joints."""
         self.cmd_acc = cmd_acc
 
+    def command_jerk(self, cmd_jerk):
+        """Command jerk of the robot's joints."""
+        self.cmd_jerk = cmd_jerk
+
     def step(self, secs):
         """Step the robot kinematics forward by `secs` seconds."""
         # input (acceleration) and velocity are both in the body frame
+        self.cmd_acc += secs * self.cmd_jerk
         self.cmd_vel += secs * self.cmd_acc
         self.command_velocity(self.cmd_vel, bodyframe=True)
 
