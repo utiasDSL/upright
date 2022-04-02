@@ -9,25 +9,19 @@ import tray_balance_constraints as core
 import IPython
 
 
-def recursive_dict_update(parent, child, depth=0, max_depth=100):
-    """Recursively update the (nested) dict `parent` with values from `child`."""
-    assert type(parent) == dict and type(child) == dict, "Arguments must both be dicts."
-    if depth > max_depth:
-        raise Exception(f"Maximum recursion depth {max_depth} reached.")
+# This is from <https://github.com/Maples7/dict-recursive-update/blob/07204cdab891ac4123b19fe3fa148c3dd1c93992/dict_recursive_update/__init__.py>
+def recursive_dict_update(default, custom):
+    """Return a dict merged from default and custom"""
+    if not isinstance(default, dict) or not isinstance(custom, dict):
+        raise TypeError("Params of recursive_update should be dicts")
 
-    for key in child:
-        # if the key is in the parent and both parent and child values are
-        # dicts, recurse. Otherwise, just do a normal assignment:
-        # 1. if key not in parent, it is added
-        # 2. if parent[key] is not a dict (but child[key] is), then "updating"
-        #    parent[key] is just reassigment
-        # 3. if child[key] is not a dict (but parent[key] is), "updating" is
-        #    again just reassignment
-        if key in parent and type(parent[key]) == dict and type(child[key]) == dict:
-            recursive_dict_update(parent[key], child[key], depth=depth+1)
+    for key in custom:
+        if isinstance(custom[key], dict) and isinstance(default.get(key), dict):
+            default[key] = recursive_dict_update(default[key], custom[key])
         else:
-            parent[key] = child[key]
-    return parent
+            default[key] = custom[key]
+
+    return default
 
 
 def load_config(path, depth=0, max_depth=5):
