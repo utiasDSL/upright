@@ -73,9 +73,9 @@ def main():
     # initial time, state, input
     t = 0.0
     q, v = robot.joint_states()
-    a = np.zeros(robot.ni)
+    a = np.zeros(robot.nv)
     x = np.concatenate((q, v, a))
-    u = np.zeros(robot.ni)
+    u = np.zeros(robot.nu)
 
     # video recording
     now = datetime.datetime.now()
@@ -94,6 +94,11 @@ def main():
     logger.add("duration", duration_secs)
     logger.add("control_period", ctrl_period)
     logger.add("object_names", [str(name) for name in sim_objects.keys()])
+
+    logger.add("nq", ctrl_config["robot"]["dims"]["q"])
+    logger.add("nv", ctrl_config["robot"]["dims"]["v"])
+    logger.add("nx", ctrl_config["robot"]["dims"]["x"])
+    logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
     # create reference trajectory and controller
     ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
@@ -151,8 +156,7 @@ def main():
         # entire time horizon, without accounting for the given state. So it is
         # like doing feedforward input only, which is bad.
         mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
-        a = np.copy(x_opt[-robot.ni:])
-        # IPython.embed()
+        a = np.copy(x_opt[-robot.nv:])
         # robot.command_acceleration(u)
         robot.command_jerk(u)
 
@@ -234,6 +238,7 @@ def main():
     plotter.plot_control_durations()
     plotter.plot_cmd_vs_real_vel()
     plotter.plot_joint_config()
+    plotter.plot_joint_acceleration()
 
     # last_sim_index = i
     # recorder.plot_ee_position(last_sim_index)

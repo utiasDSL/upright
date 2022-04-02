@@ -40,7 +40,6 @@ robot:
   dims:
     q: 9  # generalized position
     v: 9  # generalized velocity
-    a: 9  # generalized acceleration
     x: 27 # state
     u: 9  # input
   dynamics: "todo"
@@ -58,8 +57,8 @@ robot:
 waypoints:
   -
     millis: 0
-    position: [2.0, 0.0, 0.0]
-    orientation: [0.0, 0.0, 0.0, 1.0]
+    position: [0.0, -2.0, -0.5]
+    orientation: [0.0, 0.0, 1.0, 0.0]
 
 static_obstacles:
   enabled: false

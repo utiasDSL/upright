@@ -27,10 +27,10 @@ class SimulatedRobot:
         self.arm_home = parsing.parse_array(config["robot"]["home"]["arm"])
         self.home = np.concatenate((self.base_home, self.arm_home))
 
-        self.nq = 9
-        self.nv = 9
-        self.ns = 18  # num state
-        self.ni = 9  # num inputs
+        self.nq = 9  # num positions
+        self.nv = 9  # num velocities
+        self.nx = self.nq + 2 * self.nv  # num states
+        self.nu = self.nv  # num inputs
 
         self.cmd_vel = np.zeros(self.nv)
         self.cmd_acc = np.zeros_like(self.cmd_vel)

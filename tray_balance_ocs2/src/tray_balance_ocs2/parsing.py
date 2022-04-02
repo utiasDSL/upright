@@ -80,7 +80,6 @@ class ControllerConfigWrapper:
         # dimensions
         self.q_dim = ctrl_config["robot"]["dims"]["q"]
         self.v_dim = ctrl_config["robot"]["dims"]["v"]
-        self.a_dim = ctrl_config["robot"]["dims"]["a"]
         self.x_dim = ctrl_config["robot"]["dims"]["x"]
         self.u_dim = ctrl_config["robot"]["dims"]["u"]
 
