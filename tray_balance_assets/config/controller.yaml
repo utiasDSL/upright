@@ -56,8 +56,8 @@ robot:
 waypoints:
   -
     millis: 0
-    position: [0.0, -2.0, 0.0]
-    orientation: [0.0, 0.0, 1.0, 0.0]
+    position: [2.0, 0.0, 0.0]
+    orientation: [0.0, 0.0, 0.0, 1.0]
 
 static_obstacles:
   enabled: false
@@ -67,11 +67,6 @@ static_obstacles:
 
 dynamic_obstacles:
   enabled: false
-
-# TODO: doesn't necessarily make sense to have this here
-logging:
-  timestep: 10
-  log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
 
 infofile:
   package: "tray_balance_ocs2"
@@ -192,8 +187,8 @@ objects:
 
   box:
     mass:
-      min: 0.25
-      max: 1
+      min: 0.5
+      max: 0.5
     com:
       height: 0.1
       half_lengths: [0.0, 0.0, 0.0]

@@ -2,8 +2,39 @@ import pybullet as pyb
 import numpy as np
 import liegroups
 from scipy.linalg import expm
+import yaml
+
+import tray_balance_constraints as core
 
 import IPython
+
+
+def load_config(path, depth=0, max_depth=5):
+    """Load configuration file located at `path`.
+
+    `depth` and `max_depth` arguments are provided to protect against
+    unexpectedly deep or infinite recursion through included files.
+    """
+    if depth > max_depth:
+        raise Exception(f"Maximum inclusion depth {max_depth} exceeded.")
+
+    with open(path) as f:
+        d = yaml.safe_load(f)
+
+    # get the includes while also removing them from the dict
+    includes = d.pop("include", [])
+    for include in includes:
+        path = core.parsing.parse_ros_path(include)
+        parent_dict = load_config(path, depth=depth + 1)
+
+        # nest the include under `key` if specified
+        if "key" in include:
+            parent_dict = {include["key"]: parent_dict}
+
+        # update the parent dict and reassign
+        parent_dict.update(d)
+        d = parent_dict
+    return d
 
 
 def quaternion_to_matrix(Q, normalize=True):
@@ -20,14 +51,19 @@ def quaternion_to_matrix(Q, normalize=True):
 
 
 def transform_point(r_ba_a, Q_ab, r_cb_b):
-    """Transform point r_cb_b to r_ca_a."""
+    """Transform point r_cb_b to r_ca_a.
+
+    This is equivalent to r_ca_a = T_ab @ r_cb_b, where T_ab is the homogeneous
+    transformation matrix from A to B (and I've abused notation for homogeneous
+    vs. non-homogeneous points).
+    """
     C_ab = quaternion_to_matrix(Q_ab)
     return r_ba_a + C_ab @ r_cb_b
 
 
-def rotate_point(q, r):
-    """Rotate a point r using quaternion q."""
-    return transform_point(np.zeros(3), q, r)
+def rotate_point(Q, r):
+    """Rotate a point r using quaternion Q."""
+    return transform_point(np.zeros(3), Q, r)
 
 
 def dhtf(q, a, d, α):
@@ -83,6 +119,7 @@ def calc_Q_et(Q_we, Q_wt):
 
 
 def draw_curve(waypoints, rgb=(1, 0, 0), dist=0.05, linewidth=1, dashed=False):
+    """Draw debug lines along a curve represented by waypoints in PyBullet."""
     # process waypoints to space them (roughly) evenly
     visual_points = [waypoints[0, :]]
     for i in range(1, len(waypoints)):

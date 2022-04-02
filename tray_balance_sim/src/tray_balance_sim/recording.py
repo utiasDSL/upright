@@ -15,9 +15,8 @@ import IPython
 
 class DataLogger:
     """Log data for later saving and viewing."""
-    def __init__(self, ctrl_config, sim_config):
-        self.ctrl_config = ctrl_config
-        self.sim_config = sim_config
+    def __init__(self, config):
+        self.config = config
         self.data = {}
 
     def add(self, key, value):
@@ -27,10 +26,13 @@ class DataLogger:
         self.data[key] = value
 
     def append(self, key, value):
-        """Append one of a list of values to the list named `key`."""
+        """Append a values to the list named `key`."""
         # copy to an array (also copies if value is already an array, which is
         # what we want)
         a = np.array(value)
+
+        # append to list or start a new list if this is the first value under
+        # `key`
         if key in self.data:
             if a.shape != self.data[key][-1].shape:
                 raise ValueError("Data must all be the same shape.")
@@ -47,17 +49,14 @@ class DataLogger:
         dir_path.mkdir()
 
         data_path = dir_path / "data.npz"
-        ctrl_conf_path = dir_path / "ctrl.yaml"
-        sim_conf_path = dir_path / "sim.yaml"
+        config_path = dir_path / "config.yaml"
 
         # save the recorded data
         np.savez_compressed(data_path, **self.data)
 
         # save the configuration used for this run
-        with open(ctrl_conf_path, "w") as f:
-            yaml.dump(self.ctrl_config, stream=f, default_flow_style=False)
-        with open(sim_conf_path, "w") as f:
-            yaml.dump(self.sim_config, stream=f, default_flow_style=False)
+        with open(config_path, "w") as f:
+            yaml.dump(self.config, stream=f, default_flow_style=False)
 
         print(f"Saved data to {dir_path}.")
 

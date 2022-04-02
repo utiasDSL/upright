@@ -29,10 +29,10 @@ def main():
     # load configuration
     rospack = rospkg.RosPack()
     config_path = Path(rospack.get_path("tray_balance_assets")) / "config"
-    with open(config_path / "controller.yaml") as f:
-        ctrl_config = yaml.safe_load(f)
-    with open(config_path / "simulation.yaml") as f:
-        sim_config = yaml.safe_load(f)
+    config = util.load_config(config_path / "default.yaml")
+    sim_config = config["simulation"]
+    ctrl_config = config["controller"]
+    log_config = config["logging"]
 
     # timing
     duration_millis = sim_config["duration"]
@@ -66,9 +66,9 @@ def main():
     ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config, x0=x)
 
     # data logging
-    log_dir = Path(ctrl_config["logging"]["log_dir"])
-    log_dt = ctrl_config["logging"]["timestep"]
-    logger = DataLogger(ctrl_config, sim_config)
+    log_dir = Path(log_config["log_dir"])
+    log_dt = log_config["timestep"]
+    logger = DataLogger(config)
 
     logger.add("sim_timestep", timestep_secs)
     logger.add("duration", duration_secs)
