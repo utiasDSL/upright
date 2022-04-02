@@ -5,3 +5,9 @@ include:
 
 logging:
   log_dir: /home/adam/phd/reports/dec4/presentation/data
+
+simulation:
+  video:
+    save_video: false
+    save_frames: false
+    dir: /home/adam/phd/reports/dec4/presentation/videos

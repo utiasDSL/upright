@@ -6,9 +6,149 @@ import pybullet_data
 
 from tray_balance_constraints import parsing, math
 from tray_balance_sim.robot import SimulatedRobot
-import tray_balance_sim.bodies as bodies
 
 import IPython
+
+
+class BulletBody:
+    def __init__(self, mass, mu, height, collision_uid, visual_uid, com_offset=None):
+        self.mass = mass
+        self.mu = mu
+        self.height = height
+        self.collision_uid = collision_uid
+        self.visual_uid = visual_uid
+        self.com_offset = com_offset if com_offset is not None else np.zeros(3)
+
+    def add_to_sim(self, position, orientation=(0, 0, 0, 1)):
+        """Actually add the object to the simulation."""
+        # baseInertialFramePosition is an offset of the inertial frame origin
+        # (i.e., center of mass) from the centroid of the object
+        # see <https://github.com/erwincoumans/bullet3/blob/d3b4c27db4f86e1853ff7d84185237c437dc8485/examples/pybullet/examples/shiftCenterOfMass.py>
+        self.uid = pyb.createMultiBody(
+            baseMass=self.mass,
+            baseInertialFramePosition=tuple(self.com_offset),
+            baseCollisionShapeIndex=self.collision_uid,
+            baseVisualShapeIndex=self.visual_uid,
+            basePosition=position,
+            baseOrientation=orientation,
+        )
+
+        # set friction
+        # I do not set a spinning friction coefficient here directly, but let
+        # Bullet handle this internally
+        pyb.changeDynamics(self.uid, -1, lateralFriction=self.mu)
+
+    def get_pose(self):
+        """Get the pose of the object in the simulation."""
+        pos, orn = pyb.getBasePositionAndOrientation(self.uid)
+        return np.array(pos), np.array(orn)
+
+    def reset_pose(self, position=None, orientation=None):
+        """Reset the pose of the object in the simulation."""
+        current_pos, current_orn = self.get_pose()
+        if position is None:
+            position = current_pos
+        if orientation is None:
+            orientation = current_orn
+        pyb.resetBasePositionAndOrientation(self.uid, list(position), list(orientation))
+
+    @staticmethod
+    def cylinder(mass, mu, radius, height, com_offset=None, color=(0, 0, 1, 1)):
+        """Construct a cylinder object."""
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_CYLINDER,
+            radius=radius,
+            height=height,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_CYLINDER,
+            radius=radius,
+            length=height,
+            rgbaColor=color,
+        )
+        return BulletBody(
+            mass=mass,
+            mu=mu,
+            height=height,
+            collision_uid=collision_uid,
+            visual_uid=visual_uid,
+            com_offset=com_offset,
+        )
+
+    @staticmethod
+    def cuboid(mass, mu, side_lengths, com_offset=None, color=(0, 0, 1, 1)):
+        """Construct a cuboid object."""
+        half_extents = tuple(0.5 * np.array(side_lengths))
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_BOX,
+            halfExtents=half_extents,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_BOX,
+            halfExtents=half_extents,
+            rgbaColor=color,
+        )
+        return BulletBody(
+            mass=mass,
+            mu=mu,
+            height=side_lengths[2],
+            collision_uid=collision_uid,
+            visual_uid=visual_uid,
+            com_offset=com_offset,
+        )
+
+    @staticmethod
+    def fromdict(d):
+        """Construct the object from a dictionary."""
+        com_offset = np.array(d["com_offset"]) if "com_offset" in d else np.zeros(3)
+        if d["shape"] == "cylinder":
+            return BulletBody.cylinder(
+                mass=d["mass"],
+                mu=d["mu"],
+                radius=d["radius"],
+                height=d["height"],
+                color=d["color"],
+                com_offset=com_offset,
+            )
+        elif d["shape"] == "cuboid":
+            return BulletBody.cuboid(
+                mass=d["mass"],
+                mu=d["mu"],
+                side_lengths=d["side_lengths"],
+                color=d["color"],
+                com_offset=com_offset,
+            )
+        else:
+            raise ValueError(f"Unrecognized object shape {d['shape']}")
+
+
+# TODO replace below dynamic obstacle implementation with this one
+class BulletDynamicObstacle:
+    def __init__(self, initial_position, radius=0.1, velocity=None):
+        self.initial_position = initial_position
+        self.velocity = velocity if velocity is not None else np.zeros(3)
+
+        self.body = BulletBody.sphere(radius)
+        self.body.add_to_sim()
+
+        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.velocity))
+
+    def sample_position(self, t):
+        """Sample the position of the object at a given time."""
+        # assume constant velocity
+        return self.initial_position + t * self.velocity
+
+    def reset_pose(self, position=None, orientation=None):
+        self.body.reset_pose(position=position, orientation=orientation)
+
+    def reset_velocity(self, v):
+        self.velocity = v
+        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(v))
+
+    def step(self):
+        # velocity needs to be reset at each step of the simulation to negate
+        # the effects of gravity
+        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.velocity))
 
 
 class DynamicObstacle:
@@ -54,7 +194,7 @@ class DynamicObstacle:
         pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
 
 
-class PyBulletSimulation:
+class BulletSimulation:
     def __init__(self, sim_config):
         # convert milliseconds to seconds
         self.dt = 0.001 * sim_config["timestep"]
@@ -111,7 +251,7 @@ def sim_object_setup(r_ew_w, config):
     for d in arrangement:
         obj_type = d["type"]
         obj_config = config["objects"][obj_type]
-        obj = bodies.BulletBody.fromdict(obj_config)
+        obj = BulletBody.fromdict(obj_config)
 
         if "parent" in d:
             parent = objects[d["parent"]]
@@ -140,7 +280,7 @@ def sim_object_setup(r_ew_w, config):
     return objects
 
 
-class MobileManipulatorSimulation(PyBulletSimulation):
+class MobileManipulatorSimulation(BulletSimulation):
     def __init__(self, sim_config):
         super().__init__(sim_config)
 

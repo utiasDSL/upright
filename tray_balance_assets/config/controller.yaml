@@ -222,7 +222,7 @@ objects:
       max: 1.0
     com:
       height: 0.15
-      half_lengths: [0.0, 0.0, 0.0]
+      half_lengths: [0.02, 0.02, 0.02]
     radii_of_gyration:
       use_exact:
         shape: cuboid
