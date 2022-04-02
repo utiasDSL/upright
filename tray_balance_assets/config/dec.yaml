@@ -8,6 +8,5 @@ logging:
 
 simulation:
   video:
-    save_video: false
-    save_frames: false
+    save_frames: true
     dir: /home/adam/phd/reports/dec4/presentation/videos

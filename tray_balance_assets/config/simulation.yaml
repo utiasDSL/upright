@@ -28,8 +28,7 @@ robot:
   tool_joint_name: "tool0_tcp_fixed_joint"
 
 video:
-  save_video: false
-  save_frames: false
+  save_frames: true
   dir: "/media/adam/Data/PhD/Videos/tray-balance/"
   timestep: 40
   views:

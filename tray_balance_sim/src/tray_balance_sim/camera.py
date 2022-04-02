@@ -47,16 +47,17 @@ def camera_from_dict(d, r_ew_w=None):
 
 class VideoManager:
     def __init__(
-        self, root_dir, timestamp, save_video, save_frames, timestep, views, ext="avi"
+        self, root_dir, timestamp, video_name, save_frames, timestep, views, ext="avi"
     ):
-        self.save_video = save_video
-        self.save_frames = save_frames
+        self.save = video_name is not None
 
         # if not saving anything, no need to record
-        if not (save_video or save_frames):
+        if not self.save:
             return
 
-        self.path = root_dir / timestamp.strftime("%Y-%m-%d_%H-%M-%S")
+        self.save_frames = save_frames
+        dir_name = video_name + "_" + timestamp.strftime("%Y-%m-%d_%H-%M-%S")
+        self.path = root_dir / dir_name
         self.path.mkdir()
 
         # timestep is in milliseconds
@@ -80,13 +81,12 @@ class VideoManager:
                 frames_dir.mkdir()
 
     @classmethod
-    def from_config_dict(cls, config, timestamp, r_ew_w=None):
+    def from_config_dict(cls, video_name, config, timestamp, r_ew_w=None):
         """Parse the video recording settings from the config.
 
         Multiple viewpoints can be recorded at the same time.
         """
         root_dir = Path(config["video"]["dir"])
-        save_video = config["video"]["save_video"]
         save_frames = config["video"]["save_frames"]
         timestep = config["video"]["timestep"]  # ms
 
@@ -96,7 +96,14 @@ class VideoManager:
             camera = camera_from_dict(config["cameras"][camera_name], r_ew_w=r_ew_w)
             views.append((view["name"], camera))
 
-        return cls(root_dir, timestamp, save_video, save_frames, timestep, views)
+        return cls(
+            root_dir=root_dir,
+            timestamp=timestamp,
+            video_name=video_name,
+            save_frames=save_frames,
+            timestep=timestep,
+            views=views,
+        )
 
     def record(self, t):
         """Record frame at current timestep t.
@@ -105,7 +112,7 @@ class VideoManager:
         timestep.
         """
         # if not recording, do nothing
-        if not (self.save_video or self.save_frames):
+        if not self.save:
             return
 
         # TODO make more robust
@@ -114,9 +121,7 @@ class VideoManager:
 
         for frames_dir, recorder in zip(self.frames_dirs, self.recorders):
             rgba, _, _ = recorder.camera.get_frame()
-
-            if self.save_video:
-                recorder.capture_frame(rgba=rgba)
+            recorder.capture_frame(rgba=rgba)
 
             if self.save_frames:
                 path = frames_dir / f"frame_{t}.png"

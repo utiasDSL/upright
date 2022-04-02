@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """PyBullet simulation using the bounded balancing constraints"""
+import argparse
 import time
 import datetime
 import sys
@@ -9,8 +10,6 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as pyb
-import rospkg
-import yaml
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
@@ -23,13 +22,33 @@ import tray_balance_ocs2 as ctrl
 import IPython
 
 
+def parse_cli_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True, help="Path to configuration file.")
+    parser.add_argument(
+        "--log",
+        nargs="?",
+        default=None,
+        const="",
+        help="Log data. Optionally specify prefix for log directoy.",
+    )
+    parser.add_argument(
+        "--video",
+        nargs="?",
+        default=None,
+        const="",
+        help="Record video. Optionally specify prefix for video directoy.",
+    )
+    return parser.parse_args()
+
+
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
+    cli_args = parse_cli_args()
+
     # load configuration
-    rospack = rospkg.RosPack()
-    config_path = Path(rospack.get_path("tray_balance_assets")) / "config"
-    config = util.load_config(config_path / "dec.yaml")
+    config = util.load_config(cli_args.config)
     sim_config = config["simulation"]
     ctrl_config = config["controller"]
     log_config = config["logging"]
@@ -60,7 +79,7 @@ def main():
     # video recording
     now = datetime.datetime.now()
     video_manager = camera.VideoManager.from_config_dict(
-        config=sim_config, timestamp=now, r_ew_w=r_ew_w
+        video_name=cli_args.video, config=sim_config, timestamp=now, r_ew_w=r_ew_w
     )
 
     ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config, x0=x)
@@ -196,9 +215,8 @@ def main():
         print(f"Min constraint value = {np.min(logger.data['ineq_cons'])}")
 
     # save logged data
-    if len(sys.argv) > 1 and sys.argv[1] == "--save":
-        name = sys.argv[2] if len(sys.argv) > 2 else None
-        logger.save(log_dir, now, name=name)
+    if cli_args.log is not None:
+        logger.save(log_dir, now, name=cli_args.log)
 
     # visualize data
     plotter = DataPlotter(logger)
