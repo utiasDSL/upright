@@ -133,6 +133,8 @@ def sim_object_setup(r_ew_w, config):
 
         obj.add_to_sim(position)
         obj_name = d["name"]
+        if obj_name in objects:
+            raise ValueError(f"Multiple simulation objects named {obj_name}.")
         objects[obj_name] = obj
 
     return objects
