@@ -17,11 +17,11 @@ balancing:
 # weights on state, input, and end effector pose
 weights:
   input:
-    scale: 0.1
-    diag: [1, 1, 1, 1, 1, 1, 1, 1, 1]
+    scale: 0.001
+    diag: [1rep9]
   state:
-    scale: 0.1
-    diag: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    scale: 0.01
+    diag: [0rep9, 1rep9, 10rep9]
   end_effector:
     scale: 1
     diag: [1, 1, 1, 0, 0, 1]
@@ -57,8 +57,8 @@ robot:
 waypoints:
   -
     millis: 0
-    position: [0.0, -2.0, -0.5]
-    orientation: [0.0, 0.0, 1.0, 0.0]
+    position: [0.0, -2.0, 0.0]
+    orientation: [0.0, 0.0, 0.0, 1.0]
 
 static_obstacles:
   enabled: false
@@ -223,7 +223,7 @@ objects:
       max: 1.0
     com:
       height: 0.15
-      half_lengths: [0.02, 0.02, 0.02]
+      half_lengths: [0.025, 0.025, 0.025]
     radii_of_gyration:
       use_exact:
         shape: cuboid

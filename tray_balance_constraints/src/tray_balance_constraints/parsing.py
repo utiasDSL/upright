@@ -34,15 +34,28 @@ def parse_number(x):
         # this also handles strings like '1e-2'
         return float(x)
     except ValueError:
+        # TODO not robust
         return float(x[:-2]) * np.pi
+
+
+def parse_array_element(x):
+    try:
+        return [float(x)]
+    except ValueError:
+        if x.endswith("pi"):
+            return [float(x[:-2]) * np.pi]
+        if "rep" in x:
+            y, n = x.split("rep")
+            return float(y) * np.ones(int(n))
+        raise ValueError(f"Could not convert {x} to array element.")
 
 
 def parse_array(a):
     """Parse a one-dimensional iterable into a numpy array."""
-    values = []
+    subarrays = []
     for x in a:
-        values.append(parse_number(x))
-    return np.array(values)
+        subarrays.append(parse_array_element(x))
+    return np.concatenate(subarrays)
 
 
 def parse_diag_matrix_dict(d):
@@ -54,8 +67,9 @@ def parse_diag_matrix_dict(d):
 
     Returns a diagonal numpy array.
     """
-    scale = d["scale"]
-    base = np.diag(d["diag"])
+    scale = parse_number(d["scale"])
+    diag = parse_array(d["diag"])
+    base = np.diag(diag)
     return scale * base
 
 
