@@ -1,9 +1,10 @@
 # compute a new control policy even `control_period` milliseconds
 control_period: 25
 use_noisy_state_to_plan: true
+gravity: [0, 0, -9.81]
 
 balancing:
-  arrangement: tall
+  arrangement: one_box
 
   enabled: true
   use_bounded_constraints: true
@@ -34,6 +35,12 @@ limits:
   state:
     lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -2, -2, -4, -4, -4, -4, -4, -4]
     upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4]
+  # input:
+  #   lower: [-200rep3, -400rep6]
+  #   upper: [200rep3, 400rep6]
+  # state:
+  #   lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi, -10, -10, -10, -20, -20, -20, -20, -20, -20, -20, -20, -20, -40, -40, -40, -40, -40, -40]
+  #   upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi, 10, 10, 10, 20, 20, 20, 20, 20, 20, 20, 20, 20, 40, 40, 40, 40, 40, 40]
 
 # robot parameters
 robot:
@@ -128,6 +135,14 @@ arrangements:
       name: cup3
       type: cup
       parent: cup2
+  one_box:
+    -
+      name: tray
+      type: tray
+    -
+      name: box1
+      type: box
+      parent: tray
   boxes_stack:
     -
       name: tray

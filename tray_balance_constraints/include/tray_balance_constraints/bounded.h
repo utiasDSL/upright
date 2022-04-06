@@ -230,7 +230,8 @@ Scalar max_beta_projection_approx(const Vec3<Scalar>& p, const Mat3<Scalar>& R2,
                                   const Vec3<Scalar>& angular_vel,
                                   const Vec3<Scalar>& angular_acc,
                                   const Scalar& eps) {
-    return epsilon_norm<Scalar>(p.cross(C_ew * angular_vel), eps) *  // TODO note I added C_ew here
+    return epsilon_norm<Scalar>(p.cross(C_ew * angular_vel),
+                                eps) *  // TODO note I added C_ew here
                epsilon_norm<Scalar>(R2 * C_ew * angular_vel, eps) +
            epsilon_norm<Scalar>(p, eps) *
                epsilon_norm<Scalar>(R2 * C_ew * angular_acc, eps);
@@ -306,9 +307,11 @@ Vector<Scalar> bounded_friction_constraint(
     Mat3<Scalar> R2 = object.body.radii_of_gyration_matrix();
     Scalar beta_z_max;
     if (object.body.has_exact_radii()) {
-        beta_z_max = max_beta_projection_exact(z, R2, C_ew, angular_vel, angular_acc);
+        beta_z_max =
+            max_beta_projection_exact(z, R2, C_ew, angular_vel, angular_acc);
     } else {
-        beta_z_max = max_beta_projection_approx(z, R2, C_ew, angular_vel, angular_acc, eps);
+        beta_z_max = max_beta_projection_approx(z, R2, C_ew, angular_vel,
+                                                angular_acc, eps);
     }
 
     // clang-format off
@@ -383,9 +386,11 @@ Vector<Scalar> bounded_zmp_constraint(
         Vec3<Scalar> p = S.transpose() * edges[i].normal;
         Scalar beta_xy_max;
         if (object.body.has_exact_radii()) {
-            beta_xy_max = max_beta_projection_exact(p, R2, C_ew, angular_vel, angular_acc);
+            beta_xy_max = max_beta_projection_exact(p, R2, C_ew, angular_vel,
+                                                    angular_acc);
         } else {
-            beta_xy_max = max_beta_projection_approx(p, R2, C_ew, angular_vel, angular_acc, Scalar(1e-6));
+            beta_xy_max = max_beta_projection_approx(p, R2, C_ew, angular_vel,
+                                                     angular_acc, Scalar(1e-6));
         }
 
         Scalar alpha_z_min = opt_alpha_projection(z, ddC_we, C_ew, linear_acc,
@@ -401,29 +406,28 @@ Vector<Scalar> bounded_zmp_constraint(
             zmp_constraints(i * 4) = beta_xy_max -
                                      object.max_com_height() * alpha_xy_max -
                                      alpha_z_max * r_xy_max;
-            zmp_constraints(i * 4 + 1) = beta_xy_max -
-                                         object.min_com_height() * alpha_xy_max -
-                                         alpha_z_max * r_xy_max;
-            zmp_constraints(i * 4 + 2) = beta_xy_max -
-                                         object.max_com_height() * alpha_xy_max -
-                                         alpha_z_min * r_xy_max;
-            zmp_constraints(i * 4 + 3) = beta_xy_max -
-                                         object.min_com_height() * alpha_xy_max -
-                                         alpha_z_min * r_xy_max;
+            zmp_constraints(i * 4 + 1) =
+                beta_xy_max - object.min_com_height() * alpha_xy_max -
+                alpha_z_max * r_xy_max;
+            zmp_constraints(i * 4 + 2) =
+                beta_xy_max - object.max_com_height() * alpha_xy_max -
+                alpha_z_min * r_xy_max;
+            zmp_constraints(i * 4 + 3) =
+                beta_xy_max - object.min_com_height() * alpha_xy_max -
+                alpha_z_min * r_xy_max;
         } else {
             zmp_constraints(i * 4) = -beta_xy_max -
                                      object.max_com_height() * alpha_xy_max -
                                      alpha_z_max * r_xy_max;
-            zmp_constraints(i * 4 + 1) = -beta_xy_max -
-                                         object.min_com_height() * alpha_xy_max -
-                                         alpha_z_max * r_xy_max;
-            zmp_constraints(i * 4 + 2) = -beta_xy_max -
-                                         object.max_com_height() * alpha_xy_max -
-                                         alpha_z_min * r_xy_max;
-            zmp_constraints(i * 4 + 3) = -beta_xy_max -
-                                         object.min_com_height() * alpha_xy_max -
-                                         alpha_z_min * r_xy_max;
-
+            zmp_constraints(i * 4 + 1) =
+                -beta_xy_max - object.min_com_height() * alpha_xy_max -
+                alpha_z_max * r_xy_max;
+            zmp_constraints(i * 4 + 2) =
+                -beta_xy_max - object.max_com_height() * alpha_xy_max -
+                alpha_z_min * r_xy_max;
+            zmp_constraints(i * 4 + 3) =
+                -beta_xy_max - object.min_com_height() * alpha_xy_max -
+                alpha_z_min * r_xy_max;
         }
     }
 
@@ -434,14 +438,14 @@ template <typename Scalar>
 Vector<Scalar> bounded_balancing_constraints_single(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
-    const BoundedBalancedObject<Scalar>& object) {
+    const BoundedBalancedObject<Scalar>& object, const Vec3<Scalar>& gravity) {
     Mat3<Scalar> C_we = orientation;
     Mat3<Scalar> C_ew = C_we.transpose();
     Mat3<Scalar> ddC_we =
         rotation_matrix_second_derivative(C_we, angular_vel, angular_acc);
 
     // gravity
-    Vec3<Scalar> g = Scalar(-9.81) * Vec3<Scalar>::UnitZ();
+    // Vec3<Scalar> g = Scalar(-9.81) * Vec3<Scalar>::UnitZ();
 
     // NOTE: SLQ solver with soft constraints is sensitive to constraint
     // values, so having small values squared makes them too close to zero.
@@ -449,15 +453,15 @@ Vector<Scalar> bounded_balancing_constraints_single(
 
     // normal contact constraint
     Vector<Scalar> g_con =
-        bounded_contact_constraint(ddC_we, C_ew, linear_acc, g, object, eps);
+        bounded_contact_constraint(ddC_we, C_ew, linear_acc, gravity, object, eps);
 
     // friction constraint
     Vector<Scalar> g_fric = bounded_friction_constraint(
-        ddC_we, C_ew, angular_vel, linear_acc, angular_acc, g, object, eps);
+        ddC_we, C_ew, angular_vel, linear_acc, angular_acc, gravity, object, eps);
 
     // tipping constraint
     Vector<Scalar> g_zmp = bounded_zmp_constraint(
-        ddC_we, C_ew, angular_vel, linear_acc, angular_acc, g, object, eps);
+        ddC_we, C_ew, angular_vel, linear_acc, angular_acc, gravity, object, eps);
 
     Vector<Scalar> g_bal(object.num_constraints());
     g_bal << g_con, g_fric, g_zmp;
@@ -466,15 +470,20 @@ Vector<Scalar> bounded_balancing_constraints_single(
 
 template <typename Scalar>
 struct BoundedTrayBalanceConfiguration {
-    BoundedTrayBalanceConfiguration() {}
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    BoundedTrayBalanceConfiguration() {
+        gravity = Scalar(-9.81) * Vec3<Scalar>::UnitZ();
+    }
 
     BoundedTrayBalanceConfiguration(
-        const std::vector<BoundedBalancedObject<Scalar>>& objects)
-        : objects(objects) {}
+        const std::vector<BoundedBalancedObject<Scalar>>& objects,
+        const Vec3<Scalar>& gravity)
+        : objects(objects), gravity(gravity) {}
 
     BoundedTrayBalanceConfiguration(
         const BoundedTrayBalanceConfiguration& other)
-        : objects(other.objects) {}
+        : objects(other.objects), gravity(other.gravity) {}
 
     // Number of balancing constraints.
     size_t num_constraints() const {
@@ -521,7 +530,7 @@ struct BoundedTrayBalanceConfiguration {
             objectsT.push_back(objT);
             index += n;
         }
-        return BoundedTrayBalanceConfiguration<T>(objectsT);
+        return BoundedTrayBalanceConfiguration<T>(objectsT, gravity.template cast<T>());
     }
 
     template <typename T>
@@ -530,7 +539,7 @@ struct BoundedTrayBalanceConfiguration {
         for (const auto& obj : objects) {
             objectsT.push_back(obj.template cast<T>());
         }
-        return BoundedTrayBalanceConfiguration<T>(objectsT);
+        return BoundedTrayBalanceConfiguration<T>(objectsT, gravity.template cast<T>());
     }
 
     // Compute the nominal balancing constraints for this configuration.
@@ -542,12 +551,14 @@ struct BoundedTrayBalanceConfiguration {
         size_t index = 0;
         for (const auto& object : objects) {
             Vector<Scalar> v = bounded_balancing_constraints_single(
-                orientation, angular_vel, linear_acc, angular_acc, object);
+                orientation, angular_vel, linear_acc, angular_acc, object,
+                gravity);
             constraints.segment(index, v.rows()) = v;
             index += v.rows();
         }
         return constraints;
     }
 
+    Vec3<Scalar> gravity;
     std::vector<BoundedBalancedObject<Scalar>> objects;
 };

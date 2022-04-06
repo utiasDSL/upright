@@ -2,7 +2,7 @@
 timestep: 1
 duration: 6000
 gravity: [0, 0, -9.81]
-arrangement: tall
+arrangement: one_box
 
 robot:
   home:
@@ -108,6 +108,14 @@ arrangements:
       name: cup3
       type: cup_heavy
       parent: cup2
+  one_box:
+    -
+      name: tray
+      type: tray
+    -
+      name: box1
+      type: box1
+      parent: tray
   boxes_stack:
     -
       name: tray
@@ -169,7 +177,7 @@ objects:
 
   box1:
     shape: "cuboid"
-    mass: 0.5
+    mass: 1
     mu: 0.5
     side_lengths: [0.08, 0.08, 0.15]
     color: [1, 0, 0, 1]

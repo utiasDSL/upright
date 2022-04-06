@@ -85,6 +85,8 @@ PYBIND11_MODULE(bindings, m) {
         .def(pybind11::init<>())
         .def_readwrite("objects",
                        &BoundedTrayBalanceConfiguration<Scalar>::objects)
+        .def_readwrite("gravity",
+                       &BoundedTrayBalanceConfiguration<Scalar>::gravity)
         .def("num_constraints",
              &BoundedTrayBalanceConfiguration<Scalar>::num_constraints);
 }

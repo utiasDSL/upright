@@ -154,6 +154,7 @@ class ControllerConfigWrapper:
 
         ctrl_objects = core.parsing.parse_control_objects(ctrl_config)
         settings.tray_balance_settings.bounded_config.objects = ctrl_objects
+        settings.tray_balance_settings.bounded_config.gravity = ctrl_config["gravity"]
 
         # IPython.embed()
 
