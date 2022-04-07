@@ -84,6 +84,7 @@ def main():
     )
 
     ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config, x0=x)
+    ctrl_objects = ctrl_wrapper.objects()
 
     # data logging
     log_dir = Path(log_config["log_dir"])
@@ -198,6 +199,15 @@ def main():
             logger.append("v_ew_ws", v_ew_w)
             logger.append("ω_ew_ws", ω_ew_w)
             logger.append("cmd_vels", robot.cmd_vel.copy())
+
+            # TODO: ctrl object
+            # C_ew
+            C_ew = util.quaternion_to_matrix(Q_we).T
+            r_oe_e = ctrl_objects[1].body.com_ellipsoid.center()
+            r_oe_w = C_ew @ r_oe_e
+            if np.linalg.norm(r_oe_w[:2]) > 0.04:
+                print(r_oe_w)
+                IPython.embed()
 
             r_ow_ws = np.zeros((num_objects, 3))
             Q_wos = np.zeros((num_objects, 4))

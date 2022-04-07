@@ -4,7 +4,7 @@ use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
 
 balancing:
-  arrangement: one_box
+  arrangement: tall
 
   enabled: true
   use_bounded_constraints: true
@@ -64,8 +64,24 @@ robot:
 waypoints:
   -
     millis: 0
-    position: [0.0, -2.0, 0.0]
+    position: [2.0, 0.0, 0.0]
     orientation: [0.0, 0.0, 0.0, 1.0]
+  # -
+  #   millis: 1000
+  #   position: [0.0, -1.0, 0.0]
+  #   orientation: [0.0, 0.0, 0.0, 1.0]
+  # -
+  #   millis: 2000
+  #   position: [0.0, 1.0, 0.0]
+  #   orientation: [0.0, 0.0, 0.0, 1.0]
+  # -
+  #   millis: 3000
+  #   position: [0.0, -1.0, 0.0]
+  #   orientation: [0.0, 0.0, 0.0, 1.0]
+  # -
+  #   millis: 4000
+  #   position: [0.0, 1.0, 0.0]
+  #   orientation: [0.0, 0.0, 0.0, 1.0]
 
 static_obstacles:
   enabled: false
@@ -237,18 +253,18 @@ objects:
       min: 1.0
       max: 1.0
     com:
-      height: 0.15
-      half_lengths: [0.025, 0.025, 0.025]
+      height: 0.25
+      half_lengths: [0.0, 0.0, 0.0]
     radii_of_gyration:
       use_exact:
         shape: cuboid
-        side_lengths: [0.08, 0.08, 0.3]
+        side_lengths: [0.08, 0.08, 0.5]
     mu_min: 0.5
     support_area:
       shape: "rect"
       lx: 0.08
       ly: 0.08
-    height: 0.3
+    height: 0.5
 
   cylinder_stack_base:
     mass:

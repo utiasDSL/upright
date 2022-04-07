@@ -2,7 +2,7 @@
 timestep: 1
 duration: 6000
 gravity: [0, 0, -9.81]
-arrangement: one_box
+arrangement: tall
 
 robot:
   home:
@@ -207,8 +207,8 @@ objects:
     shape: "cuboid"
     mass: 1.0
     mu: 0.5
-    side_lengths: [0.08, 0.08, 0.3]
-    com_offset: [-0.02, 0, 0]  # offset of CoM from object centroid
+    side_lengths: [0.08, 0.08, 0.5]
+    com_offset: [0, 0, 0]  # offset of CoM from object centroid
     color: [1, 0, 0, 1]
 
   cylinder_stack_base:

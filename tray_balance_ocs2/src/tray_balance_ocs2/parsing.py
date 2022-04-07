@@ -255,6 +255,9 @@ class ControllerConfigWrapper:
             return len(self.settings.dynamic_obstacle_settings.collision_spheres)
         return 0
 
+    def objects(self):
+        return self.settings.tray_balance_settings.bounded_config.objects
+
     # TODO ideally I would compute r_ew_w and Q_we based on a Pinocchio model
     # of the robot included in this repo
     def reference_trajectory(self, r_ew_w, Q_we):
