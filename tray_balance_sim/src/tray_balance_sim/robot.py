@@ -15,22 +15,16 @@ class SimulatedRobot:
         # but messes up the origins of the merged links, so this is not
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
-        if config["static_obstacles"]["enabled"]:
-            urdf_path = parsing.parse_ros_path(config["urdf"]["robot_obstacles"])
-        else:
-            urdf_path = parsing.parse_ros_path(config["urdf"]["robot"])
-
+        urdf_path = parsing.parse_ros_path(config["urdf"]["robot"])
         self.uid = pyb.loadURDF(urdf_path, position, orientation)
 
         # home position
-        self.base_home = parsing.parse_array(config["robot"]["home"]["base"])
-        self.arm_home = parsing.parse_array(config["robot"]["home"]["arm"])
-        self.home = np.concatenate((self.base_home, self.arm_home))
+        self.home = parsing.parse_array(config["robot"]["home"])
 
-        self.nq = 9  # num positions
-        self.nv = 9  # num velocities
-        self.nx = self.nq + 2 * self.nv  # num states
-        self.nu = self.nv  # num inputs
+        self.nq = config["robot"]["dims"]["q"]  # num positions
+        self.nv = config["robot"]["dims"]["v"]  # num velocities
+        self.nx = config["robot"]["dims"]["x"]  # num states
+        self.nu = config["robot"]["dims"]["u"]  # num inputs
 
         self.cmd_vel = np.zeros(self.nv)
         self.cmd_acc = np.zeros_like(self.cmd_vel)
@@ -51,7 +45,7 @@ class SimulatedRobot:
             self.joints[joint_name] = info
             self.links[link_name] = info
 
-        # get the indices for the UR10 joints
+        # get the indices for the actuated joints
         self.robot_joint_indices = []
         for name in config["robot"]["joint_names"]:
             idx = self.joints[name][0]

@@ -291,6 +291,6 @@ class MobileManipulatorSimulation(BulletSimulation):
         self.settle(1.0)
 
         # arm gets bumped by the above settling, so we reset it again
-        self.robot.reset_arm_joints(self.robot.arm_home)
-
-        self.settle(1.0)
+        # self.robot.reset_arm_joints(self.robot.arm_home)
+        #
+        # self.settle(1.0)
