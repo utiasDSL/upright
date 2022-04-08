@@ -16,6 +16,8 @@ logging:
   log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
 
 simulation:
+  duration: 10000
+
   robot:
     # home: [0.0, -0.524, 0.0, -2.617, 0.0, 2.094, 0]
     home: [0, 0, 0, -0.5pi, -0.5pi, 0.5pi, 0.25pi]
@@ -61,6 +63,16 @@ controller:
       package: "tray_balance_assets"
       path: "franka_panda/panda.urdf"
     tool_link_name: "tray_link"
+
+  waypoints:
+    -
+      millis: 2000
+      position: [-0.5, -0.5, 0.0]
+      orientation: [0.0, 0.0, 0.0, 1.0]
+    -
+      millis: 4000
+      position: [-0.5, 0.75, 0.0]
+      orientation: [0.0, 0.0, 0.0, 1.0]
 
   weights:
     input:

@@ -346,13 +346,22 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
     matrix_t W = settings_.end_effector_weight;
     std::cout << "W: " << W << std::endl;
 
+    std::cout << "one" << std::endl;
+
     // TODO can I just build the pinocchio mapping once?
     PandaPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+    std::cout << "two" << std::endl;
     PinocchioEndEffectorKinematicsCppAd eeKinematics(
         pinocchioInterface, pinocchioMappingCppAd, {settings_.end_effector_link_name}, STATE_DIM, INPUT_DIM,
         "end_effector_kinematics", libraryFolder, recompileLibraries, false);
+
+    std::cout << "three" << std::endl;
+
     std::unique_ptr<StateCost> ee_cost(
         new EndEffectorCost(std::move(W), eeKinematics, *referenceManagerPtr_));
+
+    std::cout << "four" << std::endl;
+
     return ee_cost;
 }
 

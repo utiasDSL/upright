@@ -98,6 +98,7 @@ infofile:
 
 # arrangements reference the objects below
 arrangements:
+  nothing: []
   one:
     -
       name: "cylinder_stack_base"
