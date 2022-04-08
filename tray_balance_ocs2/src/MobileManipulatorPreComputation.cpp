@@ -41,59 +41,70 @@ namespace mobile_manipulator {
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-MobileManipulatorPreComputation::MobileManipulatorPreComputation(PinocchioInterface pinocchioInterface)
-    : pinocchioInterface_(std::move(pinocchioInterface)) {}
+MobileManipulatorPreComputation::MobileManipulatorPreComputation(
+    PinocchioInterface pinocchioInterface,
+    MobileManipulatorPinocchioMapping<scalar_t> pinocchioMapping)
+    : pinocchioInterface_(std::move(pinocchioInterface)),
+      pinocchioMapping_(pinocchioMapping) {}
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-MobileManipulatorPreComputation* MobileManipulatorPreComputation::clone() const {
-  return new MobileManipulatorPreComputation(pinocchioInterface_);
+MobileManipulatorPreComputation* MobileManipulatorPreComputation::clone()
+    const {
+    return new MobileManipulatorPreComputation(pinocchioInterface_,
+                                               pinocchioMapping_);
 }
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-void MobileManipulatorPreComputation::request(RequestSet request, scalar_t t, const vector_t& x, const vector_t& u) {
-  if (!request.containsAny(Request::Cost + Request::Constraint + Request::SoftConstraint)) {
-    return;
-  }
+void MobileManipulatorPreComputation::request(RequestSet request, scalar_t t,
+                                              const vector_t& x,
+                                              const vector_t& u) {
+    if (!request.containsAny(Request::Cost + Request::Constraint +
+                             Request::SoftConstraint)) {
+        return;
+    }
 
-  const auto& model = pinocchioInterface_.getModel();
-  auto& data = pinocchioInterface_.getData();
-  const auto q = pinocchioMapping_.getPinocchioJointPosition(x);
+    const auto& model = pinocchioInterface_.getModel();
+    auto& data = pinocchioInterface_.getData();
+    const auto q = pinocchioMapping_.getPinocchioJointPosition(x);
 
-  if (request.contains(Request::Approximation)) {
-    pinocchio::forwardKinematics(model, data, q);
-    pinocchio::updateFramePlacements(model, data);
-    pinocchio::computeJointJacobians(model, data);
-    pinocchio::updateGlobalPlacements(model, data);
-  } else {
-    pinocchio::forwardKinematics(model, data, q);
-    pinocchio::updateFramePlacements(model, data);
-  }
+    if (request.contains(Request::Approximation)) {
+        pinocchio::forwardKinematics(model, data, q);
+        pinocchio::updateFramePlacements(model, data);
+        pinocchio::computeJointJacobians(model, data);
+        pinocchio::updateGlobalPlacements(model, data);
+    } else {
+        pinocchio::forwardKinematics(model, data, q);
+        pinocchio::updateFramePlacements(model, data);
+    }
 }
 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-void MobileManipulatorPreComputation::requestFinal(RequestSet request, scalar_t t, const vector_t& x) {
-  if (!request.containsAny(Request::Cost + Request::Constraint + Request::SoftConstraint)) {
-    return;
-  }
+void MobileManipulatorPreComputation::requestFinal(RequestSet request,
+                                                   scalar_t t,
+                                                   const vector_t& x) {
+    if (!request.containsAny(Request::Cost + Request::Constraint +
+                             Request::SoftConstraint)) {
+        return;
+    }
 
-  const auto& model = pinocchioInterface_.getModel();
-  auto& data = pinocchioInterface_.getData();
-  const auto q = pinocchioMapping_.getPinocchioJointPosition(x);
+    const auto& model = pinocchioInterface_.getModel();
+    auto& data = pinocchioInterface_.getData();
+    const auto q = pinocchioMapping_.getPinocchioJointPosition(x);
 
-  if (request.contains(Request::Approximation)) {
-    pinocchio::forwardKinematics(model, data, q);
-    pinocchio::updateFramePlacements(model, data);
-    pinocchio::computeJointJacobians(model, data);
-  } else {
-    pinocchio::forwardKinematics(model, data, q);
-    pinocchio::updateFramePlacements(model, data);
-  }
+    if (request.contains(Request::Approximation)) {
+        pinocchio::forwardKinematics(model, data, q);
+        pinocchio::updateFramePlacements(model, data);
+        pinocchio::computeJointJacobians(model, data);
+    } else {
+        pinocchio::forwardKinematics(model, data, q);
+        pinocchio::updateFramePlacements(model, data);
+    }
 }
 
 }  // namespace mobile_manipulator

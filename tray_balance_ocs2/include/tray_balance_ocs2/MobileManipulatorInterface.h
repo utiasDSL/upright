@@ -157,7 +157,7 @@ class MobileManipulatorInterface final : public RobotInterface {
 
     std::unique_ptr<PinocchioInterface> pinocchioInterfacePtr_;
 
-    vector_t initialState_{STATE_DIM};
+    vector_t initialState_;
 };
 
 }  // namespace mobile_manipulator

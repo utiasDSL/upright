@@ -30,26 +30,28 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <ocs2_core/dynamics/SystemDynamicsBaseAD.h>
+#include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
 #include <tray_balance_ocs2/definitions.h>
-#include <ocs2_pinocchio_interface/PinocchioInterface.h>
+#include <tray_balance_ocs2/dynamics/Dimensions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-class PandaDynamics final : public SystemDynamicsBaseAD {
+class MobileManipulatorDynamics final : public SystemDynamicsBaseAD {
    public:
     using Base = SystemDynamicsBaseAD;
 
-    explicit PandaDynamics(
+    explicit MobileManipulatorDynamics(
         const std::string& modelName,
+        const RobotDimensions& dims,
         const std::string& modelFolder = "/tmp/ocs2",
         bool recompileLibraries = true, bool verbose = true);
 
-    ~PandaDynamics() override = default;
+    ~MobileManipulatorDynamics() override = default;
 
-    PandaDynamics* clone() const override {
-        return new PandaDynamics(*this);
+    MobileManipulatorDynamics* clone() const override {
+        return new MobileManipulatorDynamics(*this);
     }
 
     ad_vector_t systemFlowMap(ad_scalar_t time, const ad_vector_t& state,
@@ -57,7 +59,9 @@ class PandaDynamics final : public SystemDynamicsBaseAD {
                               const ad_vector_t& parameters) const override;
 
    private:
-    PandaDynamics(const PandaDynamics& rhs) = default;
+    MobileManipulatorDynamics(const MobileManipulatorDynamics& rhs) = default;
+
+    RobotDimensions dims_;
 };
 
 }  // namespace mobile_manipulator

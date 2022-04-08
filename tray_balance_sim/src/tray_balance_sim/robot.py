@@ -110,7 +110,7 @@ class SimulatedRobot:
         # input (acceleration) and velocity are both in the body frame
         self.cmd_acc += secs * self.cmd_jerk
         self.cmd_vel += secs * self.cmd_acc
-        self.command_velocity(self.cmd_vel, bodyframe=True)
+        self.command_velocity(self.cmd_vel, bodyframe=False)  # TODO need to handle b/t MM and Panda
 
     def joint_states(self, add_noise=False):
         """Get the current state of the joints.

@@ -35,29 +35,37 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_core/PreComputation.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
-#include <tray_balance_ocs2/MobileManipulatorPinocchioMapping.h>
+#include <tray_balance_ocs2/dynamics/MobileManipulatorPinocchioMapping.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
 /** Callback for caching and reference update */
 class MobileManipulatorPreComputation : public PreComputation {
- public:
-  MobileManipulatorPreComputation(PinocchioInterface pinocchioInterface);
-  ~MobileManipulatorPreComputation() override = default;
+   public:
+    MobileManipulatorPreComputation(
+        PinocchioInterface pinocchioInterface,
+        MobileManipulatorPinocchioMapping<scalar_t> pinocchioMapping);
 
-  MobileManipulatorPreComputation(const MobileManipulatorPreComputation& rhs) = delete;
-  MobileManipulatorPreComputation* clone() const override;
+    ~MobileManipulatorPreComputation() override = default;
 
-  void request(RequestSet request, scalar_t t, const vector_t& x, const vector_t& u) override;
-  void requestFinal(RequestSet request, scalar_t t, const vector_t& x) override;
+    MobileManipulatorPreComputation(
+        const MobileManipulatorPreComputation& rhs) = delete;
+    MobileManipulatorPreComputation* clone() const override;
 
-  PinocchioInterface& getPinocchioInterface() { return pinocchioInterface_; }
-  const PinocchioInterface& getPinocchioInterface() const { return pinocchioInterface_; }
+    void request(RequestSet request, scalar_t t, const vector_t& x,
+                 const vector_t& u) override;
+    void requestFinal(RequestSet request, scalar_t t,
+                      const vector_t& x) override;
 
- private:
-  PinocchioInterface pinocchioInterface_;
-  MobileManipulatorPinocchioMapping<scalar_t> pinocchioMapping_;
+    PinocchioInterface& getPinocchioInterface() { return pinocchioInterface_; }
+    const PinocchioInterface& getPinocchioInterface() const {
+        return pinocchioInterface_;
+    }
+
+   private:
+    PinocchioInterface pinocchioInterface_;
+    MobileManipulatorPinocchioMapping<scalar_t> pinocchioMapping_;
 };
 
 }  // namespace mobile_manipulator

@@ -25,24 +25,37 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+******************************************************************************/
 
-#pragma once
-
-#include <cstddef>
+#include <tray_balance_ocs2/dynamics/Dimensions.h>
+#include <tray_balance_ocs2/dynamics/FixedBaseDynamics.h>
+#include <tray_balance_ocs2/util.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-// constexpr size_t NQ = 9;
-// constexpr size_t NV = 9;
-// constexpr size_t INPUT_DIM = NV;
-// constexpr size_t STATE_DIM = NQ + NV * 2;  // position + velocity + acc
+FixedBaseDynamics::FixedBaseDynamics(
+    const std::string& modelName,
+    const RobotDimensions& dims,
+    const std::string& modelFolder /*= "/tmp/ocs2"*/,
+    bool recompileLibraries /*= true*/, bool verbose /*= true*/)
+    : dims_(dims), SystemDynamicsBaseAD() {
+    Base::initialize(dims.x, dims.u, modelName, modelFolder,
+                     recompileLibraries, verbose);
+}
 
-constexpr size_t NQ = 7;
-constexpr size_t NV = 7;
-constexpr size_t INPUT_DIM = 7;
-constexpr size_t STATE_DIM = NQ + NV * 2;  // position + velocity + acc
+ad_vector_t FixedBaseDynamics::systemFlowMap(
+    ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
+    const ad_vector_t& parameters) const {
+
+    ad_vector_t dqdt = state.segment(dims_.q, dims_.v);
+    ad_vector_t dvdt = state.tail(dims_.v);
+    ad_vector_t dadt = input;
+
+    ad_vector_t dxdt(dims_.x);
+    dxdt << dqdt, dvdt, dadt;
+    return dxdt;
+}
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2

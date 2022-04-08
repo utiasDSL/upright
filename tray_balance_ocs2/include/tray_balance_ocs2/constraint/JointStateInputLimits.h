@@ -31,23 +31,27 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 
-#include <tray_balance_ocs2/definitions.h>
-
 #include <ocs2_core/constraint/StateInputConstraint.h>
+
+#include <tray_balance_ocs2/dynamics/Dimensions.h>
+
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
 class JointStateInputLimits final : public StateInputConstraint {
    public:
-    JointStateInputLimits() : StateInputConstraint(ConstraintOrder::Linear) {}
+    JointStateInputLimits(const RobotDimensions& dims)
+        : StateInputConstraint(ConstraintOrder::Linear), dims_(dims) {}
+
     ~JointStateInputLimits() override = default;
+
     JointStateInputLimits* clone() const override {
         return new JointStateInputLimits(*this);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        return STATE_DIM + INPUT_DIM;
+        return dims_.x + dims_.u;
     }
 
     vector_t getValue(scalar_t time, const vector_t& state,
@@ -77,6 +81,8 @@ class JointStateInputLimits final : public StateInputConstraint {
 
    private:
     JointStateInputLimits(const JointStateInputLimits& other) = default;
+
+    RobotDimensions dims_;
 };
 
 }  // namespace mobile_manipulator

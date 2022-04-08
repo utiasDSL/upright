@@ -26,13 +26,15 @@ class ZMPCost final : public StateInputCostCppAd {
     using ad_mat2_t = Eigen::Matrix<ad_scalar_t, 2, 2>;
     using ad_mat3_t = Eigen::Matrix<ad_scalar_t, 3, 3>;
 
-    ZMPCost(const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics)
-        : pinocchioEEKinPtr_(pinocchioEEKinematics.clone()) {
-        initialize(STATE_DIM, INPUT_DIM, 0, "zmp_cost", "/tmp/ocs2", true,
-                   true);
+    ZMPCost(const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
+            const RobotDimensions& dims)
+        : pinocchioEEKinPtr_(pinocchioEEKinematics.clone()), dims_(dims) {
+        initialize(dims.x, dims.u, 0, "zmp_cost", "/tmp/ocs2", true, true);
     }
 
-    ZMPCost* clone() const override { return new ZMPCost(*pinocchioEEKinPtr_); }
+    ZMPCost* clone() const override {
+        return new ZMPCost(*pinocchioEEKinPtr_, dims_);
+    }
 
    protected:
     ad_scalar_t costFunction(ad_scalar_t time, const ad_vector_t& state,
@@ -75,6 +77,7 @@ class ZMPCost final : public StateInputCostCppAd {
     ZMPCost(const ZMPCost& other) = default;
 
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
+    RobotDimensions dims_;
 };
 
 }  // namespace mobile_manipulator

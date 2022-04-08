@@ -2,15 +2,15 @@
 
 #include <memory>
 
+#include <ocs2_core/constraint/StateInputConstraintCppAd.h>
+#include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_robotic_tools/common/SkewSymmetricMatrix.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
-#include <tray_balance_ocs2/definitions.h>
-
-#include <ocs2_core/constraint/StateInputConstraintCppAd.h>
-#include <ocs2_oc/synchronized_module/ReferenceManager.h>
 
 #include <tray_balance_constraints/bounded.h>
+
+#include <tray_balance_ocs2/dynamics/Dimensions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -28,10 +28,11 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
     BoundedTrayBalanceConstraints(
         const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const BoundedTrayBalanceConfiguration<scalar_t>& config,
-        bool recompileLibraries)
+        const RobotDimensions& dims, bool recompileLibraries)
         : StateInputConstraintCppAd(ConstraintOrder::Linear),
           pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
-          config_(config) {
+          config_(config),
+          dims_(dims) {
         if (pinocchioEEKinematics.getIds().size() != 1) {
             throw std::runtime_error(
                 "[TrayBalanaceConstraint] endEffectorKinematics has wrong "
@@ -39,7 +40,7 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
         }
 
         // compile the CppAD library
-        initialize(STATE_DIM, INPUT_DIM, 0, "bounded_tray_balance_constraints",
+        initialize(dims.x, dims.u, 0, "bounded_tray_balance_constraints",
                    "/tmp/ocs2", recompileLibraries, true);
     }
 
@@ -47,7 +48,7 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
         // Always pass recompileLibraries = false to avoid recompiling the same
         // library just because this object is cloned.
         return new BoundedTrayBalanceConstraints(*pinocchioEEKinPtr_, config_,
-                                                 false);
+                                                 dims_, false);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
@@ -86,6 +87,7 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
 
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
     BoundedTrayBalanceConfiguration<scalar_t> config_;
+    RobotDimensions dims_;
     // vector_t params_;  // TODO unused
 };
 

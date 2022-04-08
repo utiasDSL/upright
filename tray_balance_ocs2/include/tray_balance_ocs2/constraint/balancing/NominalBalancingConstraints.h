@@ -5,12 +5,12 @@
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_robotic_tools/common/SkewSymmetricMatrix.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
-#include <tray_balance_ocs2/definitions.h>
-
 #include <ocs2_core/constraint/StateInputConstraintCppAd.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 
 #include <tray_balance_constraints/nominal.h>
+
+#include <tray_balance_ocs2/dynamics/Dimensions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -28,10 +28,11 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
     TrayBalanceConstraints(
         const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const TrayBalanceConfiguration<scalar_t>& config,
+        const RobotDimensions& dims,
         bool recompileLibraries)
         : StateInputConstraintCppAd(ConstraintOrder::Linear),
           pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
-          config_(config),
+          config_(config), dims_(dims),
           params_(config.get_parameters()) {
         if (pinocchioEEKinematics.getIds().size() != 1) {
             throw std::runtime_error(
@@ -41,7 +42,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
 
         // initialize everything, mostly the CppAD interface (compile the
         // library)
-        initialize(STATE_DIM, INPUT_DIM, config_.num_parameters(),
+        initialize(dims.x, dims.u, config_.num_parameters(),
                    "tray_balance_constraints", "/tmp/ocs2", recompileLibraries,
                    true);
     }
@@ -49,7 +50,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
     TrayBalanceConstraints* clone() const override {
         // Always pass recompileLibraries = false to avoid recompiling the same
         // library just because this object is cloned.
-        return new TrayBalanceConstraints(*pinocchioEEKinPtr_, config_, false);
+        return new TrayBalanceConstraints(*pinocchioEEKinPtr_, config_, dims_, false);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
@@ -86,6 +87,7 @@ class TrayBalanceConstraints final : public StateInputConstraintCppAd {
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
     TrayBalanceConfiguration<scalar_t> config_;
     vector_t params_;
+    RobotDimensions dims_;
 };
 
 }  // namespace mobile_manipulator

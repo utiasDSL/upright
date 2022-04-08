@@ -32,38 +32,42 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
-#include <tray_balance_ocs2/util.h>
+
+#include <tray_balance_ocs2/dynamics/Dimensions.h>
 #include <tray_balance_ocs2/definitions.h>
+#include <tray_balance_ocs2/util.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
 template <typename Scalar>
-class PandaPinocchioMapping final
+class FixedBasePinocchioMapping final
     : public PinocchioStateInputMapping<Scalar> {
    public:
     using Base = PinocchioStateInputMapping<Scalar>;
     using typename Base::matrix_t;
     using typename Base::vector_t;
 
-    PandaPinocchioMapping() = default;
-    ~PandaPinocchioMapping() override = default;
-    PandaPinocchioMapping<Scalar>* clone() const override {
-        return new PandaPinocchioMapping<Scalar>(*this);
+    FixedBasePinocchioMapping(const RobotDimensions& dims) : dims_(dims) {}
+
+    ~FixedBasePinocchioMapping() override = default;
+
+    FixedBasePinocchioMapping<Scalar>* clone() const override {
+        return new FixedBasePinocchioMapping<Scalar>(*this);
     }
 
     vector_t getPinocchioJointPosition(const vector_t& state) const override {
-        return state.template head<NQ>();
+        return state.head(dims_.q);
     }
 
     vector_t getPinocchioJointVelocity(const vector_t& state,
                                        const vector_t& input) const override {
-        return state.template segment<NV>(NQ);
+        return state.segment(dims_.q, dims_.v);
     }
 
     vector_t getPinocchioJointAcceleration(
         const vector_t& state, const vector_t& input) const override {
-        return state.template tail<NV>();
+        return state.tail(dims_.v);
     }
 
     // NOTE: maps the Jacobians of an arbitrary function f w.r.t q and v
@@ -74,25 +78,20 @@ class PandaPinocchioMapping final
         const vector_t& state, const matrix_t& Jq,
         const matrix_t& Jv) const override {
 
-        // TODO not correct now
-
-        // Jacobian of Pinocchio joint velocities v_pin w.r.t. actual state
-        // velocities v
-        Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
-        matrix_t dv_pin_dv = matrix_t::Identity(NV, NV);
-        dv_pin_dv.template topLeftCorner<2, 2>() = C_wb;
-
         const auto output_dim = Jq.rows();
-        matrix_t dfdx(output_dim, Jq.cols() + Jv.cols());
-        dfdx << Jq, Jv * dv_pin_dv;
+        matrix_t dfdx(output_dim, Jq.cols() + Jv.cols() + dims_.v);
+        dfdx << Jq, Jv, matrix_t::Zero(output_dim, dims_.v);
 
         // NOTE: this isn't used for collision avoidance (which is the only
         // place this method is called)
-        matrix_t dfdu(output_dim, INPUT_DIM);
+        matrix_t dfdu(output_dim, dims_.u);
         dfdu.setZero();
 
         return {dfdx, dfdu};
     }
+
+   private:
+    RobotDimensions dims_;
 };
 
 }  // namespace mobile_manipulator

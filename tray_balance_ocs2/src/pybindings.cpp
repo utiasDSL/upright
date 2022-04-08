@@ -8,12 +8,13 @@
 #include <tray_balance_constraints/nominal.h>
 #include <tray_balance_constraints/types.h>
 
-#include "tray_balance_ocs2/MobileManipulatorPythonInterface.h"
 #include "tray_balance_ocs2/ControllerSettings.h"
+#include "tray_balance_ocs2/MobileManipulatorPythonInterface.h"
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ConstraintType.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
 #include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
+#include "tray_balance_ocs2/dynamics/Dimensions.h"
 
 using namespace ocs2;
 using namespace mobile_manipulator;
@@ -64,11 +65,13 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("friction", &BalanceConstraintsEnabled::friction)
         .def_readwrite("zmp", &BalanceConstraintsEnabled::zmp);
 
-    pybind11::class_<TrayBalanceConfiguration<scalar_t>>(m, "TrayBalanceConfiguration")
+    pybind11::class_<TrayBalanceConfiguration<scalar_t>>(
+        m, "TrayBalanceConfiguration")
         .def(pybind11::init<>())
         .def_readwrite("objects", &TrayBalanceConfiguration<scalar_t>::objects)
         .def_readwrite("enabled", &TrayBalanceConfiguration<scalar_t>::enabled)
-        .def("num_constraints", &TrayBalanceConfiguration<scalar_t>::num_constraints);
+        .def("num_constraints",
+             &TrayBalanceConfiguration<scalar_t>::num_constraints);
 
     pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
         .def(pybind11::init<>())
@@ -119,6 +122,13 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("collision_spheres",
                        &DynamicObstacleSettings::collision_spheres);
 
+    pybind11::class_<RobotDimensions>(m, "RobotDimensions")
+        .def(pybind11::init<>())
+        .def_readwrite("q", &RobotDimensions::q)
+        .def_readwrite("v", &RobotDimensions::v)
+        .def_readwrite("x", &RobotDimensions::x)
+        .def_readwrite("u", &RobotDimensions::u);
+
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("method", &ControllerSettings::method)
@@ -131,20 +141,25 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("initial_state", &ControllerSettings::initial_state)
         .def_readwrite("input_weight", &ControllerSettings::input_weight)
         .def_readwrite("state_weight", &ControllerSettings::state_weight)
-        .def_readwrite("end_effector_weight", &ControllerSettings::end_effector_weight)
-        .def_readwrite("input_limit_lower", &ControllerSettings::input_limit_lower)
-        .def_readwrite("input_limit_upper", &ControllerSettings::input_limit_upper)
-        .def_readwrite("state_limit_lower", &ControllerSettings::state_limit_lower)
-        .def_readwrite("state_limit_upper", &ControllerSettings::state_limit_upper)
+        .def_readwrite("end_effector_weight",
+                       &ControllerSettings::end_effector_weight)
+        .def_readwrite("input_limit_lower",
+                       &ControllerSettings::input_limit_lower)
+        .def_readwrite("input_limit_upper",
+                       &ControllerSettings::input_limit_upper)
+        .def_readwrite("state_limit_lower",
+                       &ControllerSettings::state_limit_lower)
+        .def_readwrite("state_limit_upper",
+                       &ControllerSettings::state_limit_upper)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
-        .def_readwrite("obstacle_urdf_path", &ControllerSettings::obstacle_urdf_path)
-        .def_readwrite("ocs2_config_path", &ControllerSettings::ocs2_config_path)
+        .def_readwrite("obstacle_urdf_path",
+                       &ControllerSettings::obstacle_urdf_path)
+        .def_readwrite("ocs2_config_path",
+                       &ControllerSettings::ocs2_config_path)
         .def_readwrite("lib_folder", &ControllerSettings::lib_folder)
-        .def_readwrite("q_dim", &ControllerSettings::q_dim)
-        .def_readwrite("v_dim", &ControllerSettings::v_dim)
-        .def_readwrite("x_dim", &ControllerSettings::x_dim)
-        .def_readwrite("u_dim", &ControllerSettings::u_dim)
-        .def_readwrite("end_effector_link_name", &ControllerSettings::end_effector_link_name);
+        .def_readwrite("dims", &ControllerSettings::dims)
+        .def_readwrite("end_effector_link_name",
+                       &ControllerSettings::end_effector_link_name);
 
     pybind11::enum_<ControllerSettings::Method>(ctrl_settings, "Method")
         .value("DDP", ControllerSettings::Method::DDP)

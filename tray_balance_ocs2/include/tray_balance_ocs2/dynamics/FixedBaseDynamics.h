@@ -27,40 +27,42 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
-#include <tray_balance_ocs2/MobileManipulatorDynamics.h>
-#include <tray_balance_ocs2/util.h>
+#pragma once
+
+#include <ocs2_core/dynamics/SystemDynamicsBaseAD.h>
+
+#include <tray_balance_ocs2/definitions.h>
+#include <tray_balance_ocs2/dynamics/Dimensions.h>
+#include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
-MobileManipulatorDynamics::MobileManipulatorDynamics(
-    const std::string& modelName,
-    const std::string& modelFolder /*= "/tmp/ocs2"*/,
-    bool recompileLibraries /*= true*/, bool verbose /*= true*/)
-    : SystemDynamicsBaseAD() {
-    Base::initialize(STATE_DIM, INPUT_DIM, modelName, modelFolder,
-                     recompileLibraries, verbose);
-}
+class FixedBaseDynamics final : public SystemDynamicsBaseAD {
+   public:
+    using Base = SystemDynamicsBaseAD;
 
-ad_vector_t MobileManipulatorDynamics::systemFlowMap(
-    ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
-    const ad_vector_t& parameters) const {
+    explicit FixedBaseDynamics(
+        const std::string& modelName,
+        const RobotDimensions& dims,
+        const std::string& modelFolder = "/tmp/ocs2",
+        bool recompileLibraries = true, bool verbose = true);
 
-    Eigen::Matrix<ad_scalar_t, 2, 2> C_wb = base_rotation_matrix(state);
+    ~FixedBaseDynamics() override = default;
 
-    // convert base velocity from body frame to world frame
-    ad_vector_t v_body = state.template segment<NV>(NQ);
-    ad_vector_t dqdt(INPUT_DIM);
-    dqdt << C_wb * v_body.template head<2>(), v_body.template tail<NV - 2>();
+    FixedBaseDynamics* clone() const override {
+        return new FixedBaseDynamics(*this);
+    }
 
-    ad_vector_t dvdt = state.template tail<NV>();
-    ad_vector_t dadt = input;
-    // dvdt(1) = 0;  // nonholonomic
+    ad_vector_t systemFlowMap(ad_scalar_t time, const ad_vector_t& state,
+                              const ad_vector_t& input,
+                              const ad_vector_t& parameters) const override;
 
-    ad_vector_t dxdt(STATE_DIM);
-    dxdt << dqdt, dvdt, dadt;
-    return dxdt;
-}
+   private:
+    FixedBaseDynamics(const FixedBaseDynamics& rhs) = default;
+
+    RobotDimensions dims_;
+};
 
 }  // namespace mobile_manipulator
 }  // namespace ocs2
