@@ -20,7 +20,11 @@ simulation:
 
   robot:
     # home: [0.0, -0.524, 0.0, -2.617, 0.0, 2.094, 0]
-    home: [0, 0, 0, -0.5pi, -0.5pi, 0.5pi, 0.25pi]
+    # bounds
+    # lower: [-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973]
+    # upper: [ 2.8973,  1.7628,  2.8973, -0.0698,  2.8973,  3.7525,  2.8973]
+    # home: [0, 0, 0, -0.5pi, -0.5pi, 0.5pi, 0.25pi]
+    home: [0, -0.25pi, 0, -0.5pi, 0pi, 0.75pi, -0.25pi]
     dims:
       q: 7  # generalized position
       v: 7  # generalized velocity
@@ -67,11 +71,11 @@ controller:
   waypoints:
     -
       millis: 2000
-      position: [-0.5, -0.5, 0.0]
+      position: [0, -0.5, 0.0]
       orientation: [0.0, 0.0, 0.0, 1.0]
     -
       millis: 4000
-      position: [-0.5, 0.75, 0.0]
+      position: [0, 0.5, 0.0]
       orientation: [0.0, 0.0, 0.0, 1.0]
 
   weights:

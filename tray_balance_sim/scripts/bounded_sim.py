@@ -70,6 +70,9 @@ def main():
     sim_objects = simulation.sim_object_setup(r_ew_w, sim_config)
     num_objects = len(sim_objects)
 
+    # mark frame at the initial position
+    debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
+
     # initial time, state, input
     t = 0.0
     q, v = robot.joint_states()
