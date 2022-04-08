@@ -42,6 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <pinocchio/parsers/urdf.hpp>
 
+#include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <tray_balance_ocs2/ControllerSettings.h>
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
@@ -100,10 +101,13 @@ class MobileManipulatorInterface final : public RobotInterface {
     std::unique_ptr<StateInputCost> getQuadraticStateInputCost(
         const std::string& taskFile);
 
+    // std::unique_ptr<StateCost> getEndEffectorCost(
+    //     PinocchioInterface pinocchioInterface, const std::string& taskFile,
+    //     const std::string& prefix, bool useCaching,
+    //     const std::string& libraryFolder, bool recompileLibraries);
+
     std::unique_ptr<StateCost> getEndEffectorCost(
-        PinocchioInterface pinocchioInterface, const std::string& taskFile,
-        const std::string& prefix, bool useCaching,
-        const std::string& libraryFolder, bool recompileLibraries);
+        const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics);
 
     std::unique_ptr<StateCost> getCollisionAvoidanceConstraint(
         PinocchioInterface pinocchioInterface,
@@ -115,26 +119,26 @@ class MobileManipulatorInterface final : public RobotInterface {
         const std::string& taskFile);
 
     std::unique_ptr<StateInputConstraint> getTrayBalanceConstraint(
-        PinocchioInterface pinocchioInterface,
-        const TrayBalanceSettings& settings, bool usePreComputation,
-        const std::string& libraryFolder, bool recompileLibraries);
+        const TrayBalanceSettings& settings,
+        const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
+        bool recompileLibraries);
 
     // Soft version of the above (i.e. formulated as a cost via penalty
     // functions)
     std::unique_ptr<StateInputCost> getTrayBalanceSoftConstraint(
-        PinocchioInterface pinocchioInterface,
-        const TrayBalanceSettings& settings, bool usePreComputation,
-        const std::string& libraryFolder, bool recompileLibraries);
+        const TrayBalanceSettings& settings,
+        const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
+        bool recompileLibraries);
 
     std::unique_ptr<StateCost> getDynamicObstacleConstraint(
         PinocchioInterface pinocchioInterface,
         const DynamicObstacleSettings& settings, bool usePreComputation,
         const std::string& libraryFolder, bool recompileLibraries);
 
-    std::unique_ptr<StateInputCost> get_zmp_cost(
-        PinocchioInterface pinocchioInterface, const std::string& taskFile,
-        const std::string& prefix, bool usePreComputation,
-        const std::string& libraryFolder, bool recompileLibraries);
+    // std::unique_ptr<StateInputCost> get_zmp_cost(
+    //     PinocchioInterface pinocchioInterface, const std::string& taskFile,
+    //     const std::string& prefix, bool usePreComputation,
+    //     const std::string& libraryFolder, bool recompileLibraries);
 
     std::unique_ptr<StateConstraint> getNonHolonomicConstraint();
 

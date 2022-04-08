@@ -55,10 +55,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_sqp/MultipleShootingSettings.h>
 
 #include <tray_balance_ocs2/MobileManipulatorDynamics.h>
-#include <tray_balance_ocs2/PandaDynamics.h>
-#include <tray_balance_ocs2/PandaPinocchioMapping.h>
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
+#include <tray_balance_ocs2/PandaDynamics.h>
+#include <tray_balance_ocs2/PandaPinocchioMapping.h>
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/JointStateInputLimits.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
@@ -80,7 +80,6 @@ namespace mobile_manipulator {
 MobileManipulatorInterface::MobileManipulatorInterface(
     const ControllerSettings& settings)
     : settings_(settings) {
-
     // load setting from config file
     loadSettings();
 }
@@ -157,8 +156,8 @@ void MobileManipulatorInterface::loadSettings() {
      * Dynamics
      */
     std::unique_ptr<PandaDynamics> dynamicsPtr(
-        new PandaDynamics("mobile_manipulator_dynamics",
-                                      libraryFolder, recompileLibraries, true));
+        new PandaDynamics("mobile_manipulator_dynamics", libraryFolder,
+                          recompileLibraries, true));
 
     /*
      * Rollout
@@ -179,10 +178,15 @@ void MobileManipulatorInterface::loadSettings() {
     /* Cost */
     problem_.costPtr->add("stateInputCost",
                           getQuadraticStateInputCost(taskFile));
-    problem_.stateCostPtr->add(
-        "endEffector", getEndEffectorCost(*pinocchioInterfacePtr_, taskFile,
-                                          "endEffector", usePreComputation,
-                                          libraryFolder, recompileLibraries));
+
+    PandaPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+    PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
+        *pinocchioInterfacePtr_, pinocchioMappingCppAd,
+        {settings_.end_effector_link_name}, STATE_DIM, INPUT_DIM,
+        "end_effector_kinematics", libraryFolder, recompileLibraries, false);
+
+    problem_.stateCostPtr->add("endEffector",
+                               getEndEffectorCost(end_effector_kinematics));
 
     /* Constraints */
     problem_.softConstraintPtr->add(
@@ -220,9 +224,9 @@ void MobileManipulatorInterface::loadSettings() {
             std::cerr << "Soft tray balance constraints enabled." << std::endl;
             problem_.softConstraintPtr->add(
                 "trayBalance",
-                getTrayBalanceSoftConstraint(
-                    *pinocchioInterfacePtr_, settings_.tray_balance_settings,
-                    usePreComputation, libraryFolder, recompileLibraries));
+                getTrayBalanceSoftConstraint(settings_.tray_balance_settings,
+                                             end_effector_kinematics,
+                                             recompileLibraries));
 
         } else {
             // TODO: hard inequality constraints do not appear to be
@@ -230,9 +234,9 @@ void MobileManipulatorInterface::loadSettings() {
             std::cerr << "Hard tray balance constraints enabled." << std::endl;
             problem_.inequalityConstraintPtr->add(
                 "trayBalance",
-                getTrayBalanceConstraint(
-                    *pinocchioInterfacePtr_, settings_.tray_balance_settings,
-                    usePreComputation, libraryFolder, recompileLibraries));
+                getTrayBalanceConstraint(settings_.tray_balance_settings,
+                                         end_effector_kinematics,
+                                         recompileLibraries));
         }
     } else {
         std::cerr << "Tray balance constraints disabled." << std::endl;
@@ -339,69 +343,68 @@ MobileManipulatorInterface::getDynamicObstacleConstraint(
 }
 
 std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
-    PinocchioInterface pinocchioInterface, const std::string& taskFile,
-    const std::string& prefix, bool usePreComputation,
-    const std::string& libraryFolder, bool recompileLibraries) {
-
+    const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics) {
     matrix_t W = settings_.end_effector_weight;
     std::cout << "W: " << W << std::endl;
 
     // TODO can I just build the pinocchio mapping once?
-    PandaPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
-    PinocchioEndEffectorKinematicsCppAd eeKinematics(
-        pinocchioInterface, pinocchioMappingCppAd, {settings_.end_effector_link_name}, STATE_DIM, INPUT_DIM,
-        "end_effector_kinematics", libraryFolder, recompileLibraries, false);
-    std::unique_ptr<StateCost> ee_cost(
-        new EndEffectorCost(std::move(W), eeKinematics, *referenceManagerPtr_));
+    // PandaPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+    // PinocchioEndEffectorKinematicsCppAd eeKinematics(
+    //     pinocchioInterface, pinocchioMappingCppAd,
+    //     {settings_.end_effector_link_name}, STATE_DIM, INPUT_DIM,
+    //     "end_effector_kinematics", libraryFolder, recompileLibraries, false);
+    std::unique_ptr<StateCost> ee_cost(new EndEffectorCost(
+        std::move(W), end_effector_kinematics, *referenceManagerPtr_));
 
     return ee_cost;
 }
 
-std::unique_ptr<StateInputCost> MobileManipulatorInterface::get_zmp_cost(
-    PinocchioInterface pinocchioInterface, const std::string& taskFile,
-    const std::string& prefix, bool usePreComputation,
-    const std::string& libraryFolder, bool recompileLibraries) {
-
-    PandaPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
-    PinocchioEndEffectorKinematicsCppAd eeKinematics(
-        pinocchioInterface, pinocchioMappingCppAd, {settings_.end_effector_link_name}, STATE_DIM, INPUT_DIM,
-        "zmp_ee_kinematics", libraryFolder, recompileLibraries, false);
-
-    return std::unique_ptr<StateInputCost>(new ZMPCost(eeKinematics));
-}
+// std::unique_ptr<StateInputCost> MobileManipulatorInterface::get_zmp_cost(
+//     PinocchioInterface pinocchioInterface, const std::string& taskFile,
+//     const std::string& prefix, bool usePreComputation,
+//     const std::string& libraryFolder, bool recompileLibraries) {
+//     PandaPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+//     PinocchioEndEffectorKinematicsCppAd eeKinematics(
+//         pinocchioInterface, pinocchioMappingCppAd,
+//         {settings_.end_effector_link_name}, STATE_DIM, INPUT_DIM,
+//         "zmp_ee_kinematics", libraryFolder, recompileLibraries, false);
+//
+//     return std::unique_ptr<StateInputCost>(new ZMPCost(eeKinematics));
+// }
 
 std::unique_ptr<StateInputConstraint>
 MobileManipulatorInterface::getTrayBalanceConstraint(
-    PinocchioInterface pinocchioInterface, const TrayBalanceSettings& settings,
-    bool usePreComputation, const std::string& libraryFolder,
+    const TrayBalanceSettings& settings,
+    const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
     bool recompileLibraries) {
     // TODO precomputation is not implemented
-    PandaPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
-    PinocchioEndEffectorKinematicsCppAd pinocchioEEKinematics(
-        pinocchioInterface, pinocchioMappingCppAd, {settings_.end_effector_link_name}, STATE_DIM, INPUT_DIM,
-        "tray_balance_ee_kinematics", libraryFolder, recompileLibraries, false);
+    // PandaPinocchioMapping<ad_scalar_t> pinocchioMappingCppAd;
+    // PinocchioEndEffectorKinematicsCppAd pinocchioEEKinematics(
+    //     pinocchioInterface, pinocchioMappingCppAd,
+    //     {settings_.end_effector_link_name}, STATE_DIM, INPUT_DIM,
+    //     "tray_balance_ee_kinematics", libraryFolder, recompileLibraries,
+    //     false);
 
     if (settings.bounded) {
         return std::unique_ptr<StateInputConstraint>(
-            new BoundedTrayBalanceConstraints(pinocchioEEKinematics,
+            new BoundedTrayBalanceConstraints(end_effector_kinematics,
                                               settings.bounded_config,
                                               recompileLibraries));
     } else {
         return std::unique_ptr<StateInputConstraint>(new TrayBalanceConstraints(
-            pinocchioEEKinematics, settings.nominal_config,
+            end_effector_kinematics, settings.nominal_config,
             recompileLibraries));
     }
 }
 
 std::unique_ptr<StateInputCost>
 MobileManipulatorInterface::getTrayBalanceSoftConstraint(
-    PinocchioInterface pinocchioInterface, const TrayBalanceSettings& settings,
-    bool usePreComputation, const std::string& libraryFolder,
+    const TrayBalanceSettings& settings,
+    const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
     bool recompileLibraries) {
     // compute the hard constraint
     std::unique_ptr<StateInputConstraint> constraint = getTrayBalanceConstraint(
-        pinocchioInterface, settings, usePreComputation, libraryFolder,
-        recompileLibraries);
+        settings, end_effector_kinematics, recompileLibraries);
 
     // make it soft via penalty function
     std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(
@@ -480,13 +483,12 @@ MobileManipulatorInterface::getCollisionAvoidanceConstraint(
     if (usePreComputation) {
         constraint =
             std::unique_ptr<StateConstraint>(new CollisionAvoidanceConstraint(
-                PandaPinocchioMapping<scalar_t>(),
-                std::move(geometryInterface), settings.minimum_distance));
+                PandaPinocchioMapping<scalar_t>(), std::move(geometryInterface),
+                settings.minimum_distance));
     } else {
         constraint =
             std::unique_ptr<StateConstraint>(new SelfCollisionConstraintCppAd(
-                pinocchioInterface,
-                PandaPinocchioMapping<scalar_t>(),
+                pinocchioInterface, PandaPinocchioMapping<scalar_t>(),
                 std::move(geometryInterface), settings.minimum_distance,
                 "self_collision", libraryFolder, recompileLibraries, false));
     }
@@ -501,7 +503,6 @@ MobileManipulatorInterface::getCollisionAvoidanceConstraint(
 std::unique_ptr<StateInputCost>
 MobileManipulatorInterface::getJointStateInputLimitConstraint(
     const std::string& taskFile) {
-
     vector_t state_limit_lower = settings_.state_limit_lower;
     vector_t state_limit_upper = settings_.state_limit_upper;
     scalar_t state_limit_mu = settings_.state_limit_mu;
@@ -512,10 +513,14 @@ MobileManipulatorInterface::getJointStateInputLimitConstraint(
     scalar_t input_limit_mu = settings_.input_limit_mu;
     scalar_t input_limit_delta = settings_.input_limit_delta;
 
-    std::cout << "state limit lower: " << state_limit_lower.transpose() << std::endl;
-    std::cout << "state limit upper: " << state_limit_upper.transpose() << std::endl;
-    std::cout << "input limit lower: " << input_limit_lower.transpose() << std::endl;
-    std::cout << "input limit upper: " << input_limit_upper.transpose() << std::endl;
+    std::cout << "state limit lower: " << state_limit_lower.transpose()
+              << std::endl;
+    std::cout << "state limit upper: " << state_limit_upper.transpose()
+              << std::endl;
+    std::cout << "input limit lower: " << input_limit_lower.transpose()
+              << std::endl;
+    std::cout << "input limit upper: " << input_limit_upper.transpose()
+              << std::endl;
 
     std::unique_ptr<StateInputConstraint> constraint(new JointStateInputLimits);
     auto num_constraints = constraint->getNumConstraints(0);
