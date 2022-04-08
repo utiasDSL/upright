@@ -77,11 +77,13 @@ class ControllerConfigWrapper:
 
         settings.method = bindings.ControllerSettings.Method.DDP
 
+        settings.end_effector_link_name = ctrl_config["robot"]["tool_link_name"]
+
         # dimensions
-        self.q_dim = ctrl_config["robot"]["dims"]["q"]
-        self.v_dim = ctrl_config["robot"]["dims"]["v"]
-        self.x_dim = ctrl_config["robot"]["dims"]["x"]
-        self.u_dim = ctrl_config["robot"]["dims"]["u"]
+        settings.q_dim = ctrl_config["robot"]["dims"]["q"]
+        settings.v_dim = ctrl_config["robot"]["dims"]["v"]
+        settings.x_dim = ctrl_config["robot"]["dims"]["x"]
+        settings.u_dim = ctrl_config["robot"]["dims"]["u"]
 
         # initial state can be passed in directly (for example to match exactly
         # a simulation) or parsed from the config
@@ -91,7 +93,7 @@ class ControllerConfigWrapper:
             )
         else:
             settings.initial_state = x0
-        assert settings.initial_state.shape == (self.x_dim,)
+        assert settings.initial_state.shape == (settings.x_dim,)
 
         # weights for state, input, and EE pose
         settings.input_weight = core.parsing.parse_diag_matrix_dict(
@@ -103,8 +105,8 @@ class ControllerConfigWrapper:
         settings.end_effector_weight = core.parsing.parse_diag_matrix_dict(
             ctrl_config["weights"]["end_effector"]
         )
-        assert settings.input_weight.shape == (self.u_dim, self.u_dim)
-        assert settings.state_weight.shape == (self.x_dim, self.x_dim)
+        assert settings.input_weight.shape == (settings.u_dim, settings.u_dim)
+        assert settings.state_weight.shape == (settings.x_dim, settings.x_dim)
         assert settings.end_effector_weight.shape == (6, 6)
 
         # input limits
@@ -114,8 +116,8 @@ class ControllerConfigWrapper:
         settings.input_limit_upper = core.parsing.parse_array(
             ctrl_config["limits"]["input"]["upper"]
         )
-        assert settings.input_limit_lower.shape == (self.u_dim,)
-        assert settings.input_limit_upper.shape == (self.u_dim,)
+        assert settings.input_limit_lower.shape == (settings.u_dim,)
+        assert settings.input_limit_upper.shape == (settings.u_dim,)
 
         # state limits
         settings.state_limit_lower = core.parsing.parse_array(
@@ -124,8 +126,8 @@ class ControllerConfigWrapper:
         settings.state_limit_upper = core.parsing.parse_array(
             ctrl_config["limits"]["state"]["upper"]
         )
-        assert settings.state_limit_lower.shape == (self.x_dim,)
-        assert settings.state_limit_upper.shape == (self.x_dim,)
+        assert settings.state_limit_lower.shape == (settings.x_dim,)
+        assert settings.state_limit_upper.shape == (settings.x_dim,)
 
         # URDFs
         settings.robot_urdf_path = core.parsing.parse_ros_path(
@@ -262,7 +264,7 @@ class ControllerConfigWrapper:
     # of the robot included in this repo
     def reference_trajectory(self, r_ew_w, Q_we):
         return ReferenceTrajectory.from_config(
-            self.config, r_ew_w, Q_we, np.zeros(self.u_dim)
+            self.config, r_ew_w, Q_we, np.zeros(self.settings.u_dim)
         )
 
     def controller(self, r_ew_w, Q_we):

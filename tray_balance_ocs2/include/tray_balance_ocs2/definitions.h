@@ -34,10 +34,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace ocs2 {
 namespace mobile_manipulator {
 
-// constexpr size_t NUM_DOFS = 6 + 3;  // 6 DOF arm + 2D position + heading
-constexpr size_t NQ = 9;
-constexpr size_t NV = 9;
-constexpr size_t INPUT_DIM = 6 + 3;  // 6 DOF arm vel. + forward vel. + rotational vel.
+// constexpr size_t NQ = 9;
+// constexpr size_t NV = 9;
+// constexpr size_t INPUT_DIM = NV;
+// constexpr size_t STATE_DIM = NQ + NV * 2;  // position + velocity + acc
+
+constexpr size_t NQ = 7;
+constexpr size_t NV = 7;
+constexpr size_t INPUT_DIM = 7;
 constexpr size_t STATE_DIM = NQ + NV * 2;  // position + velocity + acc
 
 }  // namespace mobile_manipulator

@@ -65,9 +65,6 @@ def main():
     sim = simulation.MobileManipulatorSimulation(sim_config)
     robot = sim.robot
 
-    IPython.embed()
-    return
-
     # setup sim objects
     r_ew_w, Q_we = robot.link_pose()
     sim_objects = simulation.sim_object_setup(r_ew_w, sim_config)

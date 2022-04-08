@@ -80,6 +80,7 @@ link_directories(
 add_library(${PROJECT_NAME}
   src/MobileManipulatorPreComputation.cpp
   src/MobileManipulatorDynamics.cpp
+  src/PandaDynamics.cpp
   src/MobileManipulatorInterface.cpp
 )
 add_dependencies(${PROJECT_NAME}

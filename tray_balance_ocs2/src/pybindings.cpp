@@ -139,7 +139,12 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
         .def_readwrite("obstacle_urdf_path", &ControllerSettings::obstacle_urdf_path)
         .def_readwrite("ocs2_config_path", &ControllerSettings::ocs2_config_path)
-        .def_readwrite("lib_folder", &ControllerSettings::lib_folder);
+        .def_readwrite("lib_folder", &ControllerSettings::lib_folder)
+        .def_readwrite("q_dim", &ControllerSettings::q_dim)
+        .def_readwrite("v_dim", &ControllerSettings::v_dim)
+        .def_readwrite("x_dim", &ControllerSettings::x_dim)
+        .def_readwrite("u_dim", &ControllerSettings::u_dim)
+        .def_readwrite("end_effector_link_name", &ControllerSettings::end_effector_link_name);
 
     pybind11::enum_<ControllerSettings::Method>(ctrl_settings, "Method")
         .value("DDP", ControllerSettings::Method::DDP)

@@ -16,7 +16,7 @@ class SimulatedRobot:
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
         urdf_path = parsing.parse_ros_path(config["urdf"]["robot"])
-        self.uid = pyb.loadURDF(urdf_path, position, orientation)
+        self.uid = pyb.loadURDF(urdf_path, position, orientation, useFixedBase=True)
 
         # home position
         self.home = parsing.parse_array(config["robot"]["home"])

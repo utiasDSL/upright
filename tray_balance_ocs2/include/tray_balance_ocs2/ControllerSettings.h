@@ -40,6 +40,13 @@ struct ControllerSettings {
     std::string ocs2_config_path;
     std::string lib_folder;
 
+    // Robot settings
+    size_t q_dim;
+    size_t v_dim;
+    size_t x_dim;
+    size_t u_dim;
+    std::string end_effector_link_name;
+
     // Additional settings for constraints
     TrayBalanceSettings tray_balance_settings;
     DynamicObstacleSettings dynamic_obstacle_settings;

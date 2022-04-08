@@ -4,7 +4,7 @@ use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
 
 balancing:
-  arrangement: tall
+  arrangement: one_box
 
   enabled: true
   use_bounded_constraints: true
@@ -153,12 +153,8 @@ arrangements:
       parent: cup2
   one_box:
     -
-      name: tray
-      type: tray
-    -
       name: box1
       type: box
-      parent: tray
   boxes_stack:
     -
       name: tray
