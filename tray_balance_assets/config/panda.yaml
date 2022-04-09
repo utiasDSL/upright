@@ -45,14 +45,10 @@ simulation:
       - "panda_joint6"
       - "panda_joint7"
     tool_joint_name: "tray_joint"
-
-  urdf:
-    robot:
+    base_type: fixed
+    urdf:
       package: "tray_balance_assets"
       path: "franka_panda/panda.urdf"
-    obstacles:
-      package: "tray_balance_assets"
-      path: "urdf/obstacles.urdf"
 
 controller:
   robot:
@@ -61,7 +57,7 @@ controller:
       v: 7  # generalized velocity
       x: 21 # state
       u: 7  # input
-    dynamics: "todo"
+    base_type: fixed
     x0: [0rep7, 0rep7, 0rep7]
     urdf:
       package: "tray_balance_assets"

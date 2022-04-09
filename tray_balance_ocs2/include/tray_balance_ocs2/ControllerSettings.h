@@ -4,6 +4,7 @@
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
+#include <tray_balance_ocs2/dynamics/BaseType.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -42,6 +43,7 @@ struct ControllerSettings {
     std::string lib_folder;
 
     // Robot settings
+    RobotBaseType robot_base_type = RobotBaseType::Fixed;
     RobotDimensions dims;
     std::string end_effector_link_name;
 

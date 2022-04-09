@@ -7,8 +7,6 @@
 
 #include <ocs2_core/misc/LoadData.h>
 
-#include <tray_balance_ocs2/definitions.h>
-
 namespace ocs2 {
 namespace mobile_manipulator {
 

@@ -31,8 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_core/misc/LinearInterpolation.h>
 
-#include <tray_balance_ocs2/definitions.h>
-
 namespace ocs2 {
 namespace mobile_manipulator {
 

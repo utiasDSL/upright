@@ -70,6 +70,20 @@ class ReferenceTrajectory:
         return r, Q
 
 
+def base_type_from_string(s):
+    s = s.lower()
+    if s == "fixed":
+        return bindings.RobotBaseType.Fixed
+    elif s == "nonholonomic":
+        return bindings.RobotBaseType.Nonholonomic
+    elif s == "omnidirectional":
+        return bindings.RobotBaseType.Omnidirectional
+    elif s == "floating":
+        return bindings.RobotBaseType.Floating
+    else:
+        raise ValueError(f"Cannot create base type from string {s}.")
+
+
 class ControllerConfigWrapper:
     def __init__(self, ctrl_config, x0=None):
         self.config = ctrl_config
@@ -78,6 +92,7 @@ class ControllerConfigWrapper:
         settings.method = bindings.ControllerSettings.Method.DDP
 
         settings.end_effector_link_name = ctrl_config["robot"]["tool_link_name"]
+        settings.robot_base_type = base_type_from_string(ctrl_config["robot"]["base_type"])
 
         # dimensions
         settings.dims.q = ctrl_config["robot"]["dims"]["q"]

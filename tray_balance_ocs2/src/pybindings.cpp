@@ -15,6 +15,7 @@
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
 #include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
 #include "tray_balance_ocs2/dynamics/Dimensions.h"
+#include "tray_balance_ocs2/dynamics/BaseType.h"
 
 using namespace ocs2;
 using namespace mobile_manipulator;
@@ -129,6 +130,12 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("x", &RobotDimensions::x)
         .def_readwrite("u", &RobotDimensions::u);
 
+    pybind11::enum_<RobotBaseType>(m, "RobotBaseType")
+        .value("Fixed", RobotBaseType::Fixed)
+        .value("Nonholonomic", RobotBaseType::Nonholonomic)
+        .value("Omnidirectional", RobotBaseType::Omnidirectional)
+        .value("Floating", RobotBaseType::Floating);
+
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("method", &ControllerSettings::method)
@@ -157,6 +164,7 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("ocs2_config_path",
                        &ControllerSettings::ocs2_config_path)
         .def_readwrite("lib_folder", &ControllerSettings::lib_folder)
+        .def_readwrite("robot_base_type", &ControllerSettings::robot_base_type)
         .def_readwrite("dims", &ControllerSettings::dims)
         .def_readwrite("end_effector_link_name",
                        &ControllerSettings::end_effector_link_name);

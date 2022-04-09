@@ -4,7 +4,6 @@
 #include <tray_balance_constraints/nominal.h>
 #include <tray_balance_constraints/bounded.h>
 #include <tray_balance_ocs2/constraint/ConstraintType.h>
-#include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {

@@ -26,6 +26,11 @@ robot:
     - "ur10_arm_wrist_2_joint"
     - "ur10_arm_wrist_3_joint"
   tool_joint_name: "tool0_tcp_fixed_joint"
+  base_type: omnidirectional
+  urdf:
+    package: "tray_balance_assets"
+    path: "urdf/mm_pyb.urdf"
+    # path: "urdf/mm_pyb_static_obs.urdf"
 
 video:
   save_frames: true
@@ -38,20 +43,12 @@ video:
 
 static_obstacles:
   enabled: false
+  urdf:
+    package: "tray_balance_assets"
+    path: "urdf/obstacles.urdf"
 
 dynamic_obstacles:
   enabled: false
-
-urdf:
-  robot:
-    package: "tray_balance_assets"
-    path: "urdf/mm_pyb.urdf"
-  robot_obstacles:
-    package: "tray_balance_assets"
-    path: "urdf/mm_pyb_static_obs.urdf"
-  obstacles:
-    package: "tray_balance_assets"
-    path: "urdf/obstacles.urdf"
 
 # arrangements reference the objects below
 arrangements:

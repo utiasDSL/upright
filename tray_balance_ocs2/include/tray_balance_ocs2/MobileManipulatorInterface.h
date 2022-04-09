@@ -48,7 +48,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
 #include <tray_balance_ocs2/constraint/balancing/BalancingSettings.h>
-#include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -90,8 +89,7 @@ class MobileManipulatorInterface final : public RobotInterface {
         return *pinocchioInterfacePtr_;
     }
 
-    /** MobileManipulator PinocchioInterface factory */
-    static PinocchioInterface buildPinocchioInterface(
+    PinocchioInterface buildPinocchioInterface(
         const std::string& urdfPath, const std::string& obstacle_urdfPath);
 
     static pinocchio::GeometryModel build_geometry_model(

@@ -34,7 +34,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
-#include <tray_balance_ocs2/definitions.h>
 #include <tray_balance_ocs2/util.h>
 
 namespace ocs2 {

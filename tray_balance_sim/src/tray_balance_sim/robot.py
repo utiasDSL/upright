@@ -9,30 +9,77 @@ from tray_balance_constraints import parsing
 import IPython
 
 
+class PyBulletInputMapping:
+    """Functions to map generalized positions and velocity (q, v) to PyBullet
+    input velocities."""
+
+    @staticmethod
+    def fixed(q, v):
+        return np.copy(v)
+
+    @staticmethod
+    def nonholonomic(q, v):
+        v = np.copy(v)
+        yaw = q[2]
+        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        v[1] = 0
+        v[:3] = C_wb @ v[:3]
+        return v
+
+    @staticmethod
+    def omnidirectional(q, v):
+        v = np.copy(v)
+        yaw = q[2]
+        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        v[:3] = C_wb @ v[:3]
+        return v
+
+    @staticmethod
+    def from_string(s):
+        s = s.lower()
+        if s == "fixed":
+            return PyBulletInputMapping.fixed
+        elif s == "nonholonomic":
+            return PyBulletInputMapping.nonholonomic
+        elif s == "omnidirectional":
+            return PyBulletInputMapping.omnidirectional
+        elif s == "floating":
+            raise NotImplementedError("Floating base not yet implemented.")
+        else:
+            raise ValueError(f"Cannot create base type from string {s}.")
+
+
 class SimulatedRobot:
     def __init__(self, config, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
         # NOTE: passing the flag URDF_MERGE_FIXED_LINKS is good for performance
         # but messes up the origins of the merged links, so this is not
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
-        urdf_path = parsing.parse_ros_path(config["urdf"]["robot"])
+        urdf_path = parsing.parse_ros_path(config["robot"]["urdf"])
         self.uid = pyb.loadURDF(urdf_path, position, orientation, useFixedBase=True)
 
         # home position
         self.home = parsing.parse_array(config["robot"]["home"])
 
+        # map from (q, v) to PyBullet input
+        self.input_mapping = PyBulletInputMapping.from_string(
+            config["robot"]["base_type"]
+        )
+
+        # dimensions
         self.nq = config["robot"]["dims"]["q"]  # num positions
         self.nv = config["robot"]["dims"]["v"]  # num velocities
         self.nx = config["robot"]["dims"]["x"]  # num states
         self.nu = config["robot"]["dims"]["u"]  # num inputs
 
+        # commands
         self.cmd_vel = np.zeros(self.nv)
         self.cmd_acc = np.zeros_like(self.cmd_vel)
         self.cmd_jerk = np.zeros_like(self.cmd_vel)
 
         # noise
         self.q_meas_std_dev = config["robot"]["noise"]["measurement"]["q_std_dev"]
-        self.v_meas_std_dev= config["robot"]["noise"]["measurement"]["v_std_dev"]
+        self.v_meas_std_dev = config["robot"]["noise"]["measurement"]["v_std_dev"]
         self.v_cmd_std_dev = config["robot"]["noise"]["process"]["v_std_dev"]
 
         # build a dict of all joints, keyed by name
@@ -79,13 +126,10 @@ class SimulatedRobot:
         C_wb = liegroups.SO3.rotz(yaw).as_matrix()
         return C_wb
 
-    def command_velocity(self, u, bodyframe=True):
+    def command_velocity(self, v):
         """Command the velocity of the robot's joints."""
-        u = np.copy(u)
-        if bodyframe:
-            # u[1] = 0  # nonholonomic
-            C_wb = self._base_rotation_matrix()
-            u[:3] = C_wb @ u[:3]
+        q, _ = self.joint_states()
+        u = self.input_mapping(q, v)
 
         # add process noise
         u_noisy = u + np.random.normal(scale=self.v_cmd_std_dev, size=u.shape)
@@ -110,7 +154,7 @@ class SimulatedRobot:
         # input (acceleration) and velocity are both in the body frame
         self.cmd_acc += secs * self.cmd_jerk
         self.cmd_vel += secs * self.cmd_acc
-        self.command_velocity(self.cmd_vel, bodyframe=False)  # TODO need to handle b/t MM and Panda
+        self.command_velocity(self.cmd_vel)
 
     def joint_states(self, add_noise=False):
         """Get the current state of the joints.

@@ -32,7 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_core/dynamics/SystemDynamicsBaseAD.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
-#include <tray_balance_ocs2/definitions.h>
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
 
 namespace ocs2 {

@@ -37,7 +37,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
 #include <tray_balance_ocs2/MobileManipulatorReferenceTrajectory.h>
-#include <tray_balance_ocs2/definitions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
