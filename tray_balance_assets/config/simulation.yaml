@@ -1,36 +1,8 @@
 # all times are in (an integer value of) milliseconds
 timestep: 1
-duration: 6000
+duration: 10000
 gravity: [0, 0, -9.81]
-arrangement: one_box
-
-robot:
-  home:
-    base: [0, 0, 0]
-    arm: [0.0, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
-    # arm: [0.0, -0.75pi, -0.5pi, -0.75pi, -0.5pi, 0.5pi]  # standard
-  noise:
-    measurement:
-      q_std_dev: 0
-      v_std_dev: 0
-    process:
-      v_std_dev: 0
-  joint_names:
-    - "x_to_world_joint"
-    - "y_to_x_joint"
-    - "base_to_y_joint"
-    - "ur10_arm_shoulder_pan_joint"
-    - "ur10_arm_shoulder_lift_joint"
-    - "ur10_arm_elbow_joint"
-    - "ur10_arm_wrist_1_joint"
-    - "ur10_arm_wrist_2_joint"
-    - "ur10_arm_wrist_3_joint"
-  tool_joint_name: "tool0_tcp_fixed_joint"
-  base_type: omnidirectional
-  urdf:
-    package: "tray_balance_assets"
-    path: "urdf/mm_pyb.urdf"
-    # path: "urdf/mm_pyb_static_obs.urdf"
+arrangement: nothing
 
 video:
   save_frames: true

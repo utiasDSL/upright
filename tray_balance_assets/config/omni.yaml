@@ -1,0 +1,78 @@
+simulation:
+  robot:
+    home: [0, 0, 0, 0, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
+    # home: [0, 0, 0, 0, -0.75pi, -0.5pi, -0.75pi, -0.5pi, 0.5pi]  # standard
+    dims:
+      q: 9  # generalized position
+      v: 9  # generalized velocity
+      x: 27 # state
+      u: 9  # input
+    noise:
+      measurement:
+        q_std_dev: 0
+        v_std_dev: 0
+      process:
+        v_std_dev: 0
+    joint_names:
+      - "x_to_world_joint"
+      - "y_to_x_joint"
+      - "base_to_y_joint"
+      - "ur10_arm_shoulder_pan_joint"
+      - "ur10_arm_shoulder_lift_joint"
+      - "ur10_arm_elbow_joint"
+      - "ur10_arm_wrist_1_joint"
+      - "ur10_arm_wrist_2_joint"
+      - "ur10_arm_wrist_3_joint"
+    tool_joint_name: "tool0_tcp_fixed_joint"
+    base_type: omnidirectional
+    urdf:
+      package: "tray_balance_assets"
+      path: "urdf/mm_pyb.urdf"
+      # path: "urdf/mm_pyb_static_obs.urdf"
+
+controller:
+  # robot parameters
+  robot:
+    dims:
+      q: 9  # generalized position
+      v: 9  # generalized velocity
+      x: 27 # state
+      u: 9  # input
+    dynamics: "todo"
+    x0: [0, 0, 0, 0, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0rep9, 0rep9]
+    urdf:
+      package: "tray_balance_assets"
+      path: "urdf/mm_ocs2.urdf"
+    tool_link_name: "thing_tool"
+    base_type: omnidirectional
+
+  # weights on state, input, and end effector pose
+  weights:
+    input:
+      scale: 0.001
+      diag: [1rep9]
+    state:
+      scale: 0.01
+      diag: [0rep9, 1rep9, 10rep9]
+    end_effector:
+      scale: 1
+      diag: [1, 1, 1, 0, 0, 1]
+
+  # state and input limits
+  limits:
+    input:
+      lower: [-20, -20, -20, -40, -40, -40, -40, -40, -40]
+      upper: [20, 20, 20, 40, 40, 40, 40, 40, 40]
+    state:
+      lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
+              -1, -1, -1, -2, -2, -2, -2, -2, -2,
+              -2, -2, -2, -4, -4, -4, -4, -4, -4]
+      upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
+              1, 1, 1, 2, 2, 2, 2, 2, 2,
+              2, 2, 2, 4, 4, 4, 4, 4, 4]
+    # input:
+    #   lower: [-200rep3, -400rep6]
+    #   upper: [200rep3, 400rep6]
+    # state:
+    #   lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi, -10, -10, -10, -20, -20, -20, -20, -20, -20, -20, -20, -20, -40, -40, -40, -40, -40, -40]
+    #   upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi, 10, 10, 10, 20, 20, 20, 20, 20, 20, 20, 20, 20, 40, 40, 40, 40, 40, 40]

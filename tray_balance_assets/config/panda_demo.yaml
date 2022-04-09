@@ -1,0 +1,34 @@
+include:
+  -
+    key: simulation
+    package: tray_balance_assets
+    path: config/simulation.yaml
+  -
+    key: controller
+    package: tray_balance_assets
+    path: config/controller.yaml
+  -
+    package: tray_balance_assets
+    path: config/panda.yaml
+
+logging:
+  timestep: 10
+  log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
+
+simulation:
+  duration: 10000
+  arrangement: one_box
+
+controller:
+  balancing:
+    arrangement: one_box
+
+  waypoints:
+    -
+      millis: 2000
+      position: [0, -0.5, 0.0]
+      orientation: [0.0, 0.0, 0.0, 1.0]
+    -
+      millis: 4000
+      position: [0, 0.5, 0.0]
+      orientation: [0.0, 0.0, 0.0, 1.0]

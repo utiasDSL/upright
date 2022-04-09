@@ -1,23 +1,4 @@
-include:
-  -
-    key: simulation
-    package: tray_balance_assets
-    path: config/simulation.yaml
-  -
-    key: controller
-    package: tray_balance_assets
-    path: config/controller.yaml
-
-logging:
-  # log data every `timestep` milliseconds
-  timestep: 10
-
-  # logs are saved to the following directory
-  log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
-
 simulation:
-  duration: 10000
-
   robot:
     # home: [0.0, -0.524, 0.0, -2.617, 0.0, 2.094, 0]
     # bounds
@@ -64,16 +45,6 @@ controller:
       path: "franka_panda/panda.urdf"
     tool_link_name: "tray_link"
 
-  waypoints:
-    -
-      millis: 2000
-      position: [0, -0.5, 0.0]
-      orientation: [0.0, 0.0, 0.0, 1.0]
-    -
-      millis: 4000
-      position: [0, 0.5, 0.0]
-      orientation: [0.0, 0.0, 0.0, 1.0]
-
   weights:
     input:
       scale: 0.001
@@ -85,11 +56,14 @@ controller:
       scale: 1
       diag: [1, 1, 1, 0, 0, 1]
 
-  # state and input limits
   limits:
     input:
       lower: [-7500, -3750, -5000, -6250, -7500, -10000, -10000]
       upper: [7500, 3750, 5000, 6250, 7500, 10000, 10000]
     state:
-      lower: [-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973, -2.1750, -2.1750, -2.1750, -2.1750, -2.6100, -2.6100, -2.6100, -15, -7.5, -10, -12.5, -15, -20, -20]
-      upper: [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973, 2.1750, 2.1750, 2.1750, 2.1750, 2.6100, 2.6100, 2.6100, 15, 7.5, 10, 12.5, 15, 20, 20]
+      lower: [-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973,
+              -2.1750, -2.1750, -2.1750, -2.1750, -2.6100, -2.6100, -2.6100,
+              -15, -7.5, -10, -12.5, -15, -20, -20]
+      upper: [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973,
+              2.1750, 2.1750, 2.1750, 2.1750, 2.6100, 2.6100, 2.6100,
+              15, 7.5, 10, 12.5, 15, 20, 20]

@@ -7,10 +7,24 @@ include:
     key: controller
     package: tray_balance_assets
     path: config/controller.yaml
+  -
+    package: tray_balance_assets
+    path: config/omni.yaml
 
 logging:
-  # log data every `timestep` milliseconds
   timestep: 10
-
-  # logs are saved to the following directory
   log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
+
+simulation:
+  duration: 10000
+  arrangement: tall
+
+controller:
+  balancing:
+    arrangement: tall
+
+  waypoints:
+    -
+      millis: 0
+      position: [2.0, 0.0, 0.0]
+      orientation: [0.0, 0.0, 0.0, 1.0]

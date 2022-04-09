@@ -38,16 +38,22 @@ def load_config(path, depth=0, max_depth=5):
 
     # get the includes while also removing them from the dict
     includes = d.pop("include", [])
+
+    # construct a dict of everything included
+    includes_dict = {}
     for include in includes:
         path = core.parsing.parse_ros_path(include)
-        parent_dict = load_config(path, depth=depth + 1)
+        include_dict = load_config(path, depth=depth + 1)
 
         # nest the include under `key` if specified
         if "key" in include:
-            parent_dict = {include["key"]: parent_dict}
+            include_dict = {include["key"]: include_dict}
 
-        # update the parent dict and reassign
-        d = recursive_dict_update(parent_dict, d)
+        # update the includes dict and reassign
+        includes_dict = recursive_dict_update(includes_dict, include_dict)
+
+    # now add in the info from this file
+    d = recursive_dict_update(includes_dict, d)
     return d
 
 

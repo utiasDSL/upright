@@ -4,8 +4,7 @@ use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
 
 balancing:
-  arrangement: one_box
-
+  arrangement: nothing
   enabled: true
   use_bounded_constraints: true
   enable_normal_constraint: true
@@ -15,73 +14,16 @@ balancing:
   mu: 1e-2
   delta: 1e-3
 
-# weights on state, input, and end effector pose
-weights:
-  input:
-    scale: 0.001
-    diag: [1rep9]
-  state:
-    scale: 0.01
-    diag: [0rep9, 1rep9, 10rep9]
-  end_effector:
-    scale: 1
-    diag: [1, 1, 1, 0, 0, 1]
-
-# state and input limits
-limits:
-  input:
-    lower: [-20, -20, -20, -40, -40, -40, -40, -40, -40]
-    upper: [20, 20, 20, 40, 40, 40, 40, 40, 40]
-  state:
-    lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi, -1, -1, -1, -2, -2, -2, -2, -2, -2, -2, -2, -2, -4, -4, -4, -4, -4, -4]
-    upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4]
-  # input:
-  #   lower: [-200rep3, -400rep6]
-  #   upper: [200rep3, 400rep6]
-  # state:
-  #   lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi, -10, -10, -10, -20, -20, -20, -20, -20, -20, -20, -20, -20, -40, -40, -40, -40, -40, -40]
-  #   upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi, 10, 10, 10, 20, 20, 20, 20, 20, 20, 20, 20, 20, 40, 40, 40, 40, 40, 40]
-
-# robot parameters
-robot:
-  dims:
-    q: 9  # generalized position
-    v: 9  # generalized velocity
-    x: 27 # state
-    u: 9  # input
-  dynamics: "todo"
-  x0: [0, 0, 0, 0, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  urdf:
-    package: "tray_balance_assets"
-    path: "urdf/mm_ocs2.urdf"
-  tool_link_name: "thing_tool"
-
 # desired waypoints are set relative to the initial EE pose
 # each waypoint consists of:
 #   millis: time from beginning of trajectory in milliseconds
 #   position: [x, y, z] end effector position
 #   orientation: [x, y, z, w] end effector orientation quaternion
-waypoints:
-  -
-    millis: 0
-    position: [2.0, 0.0, 0.0]
-    orientation: [0.0, 0.0, 0.0, 1.0]
-  # -
-  #   millis: 1000
-  #   position: [0.0, -1.0, 0.0]
-  #   orientation: [0.0, 0.0, 0.0, 1.0]
-  # -
-  #   millis: 2000
-  #   position: [0.0, 1.0, 0.0]
-  #   orientation: [0.0, 0.0, 0.0, 1.0]
-  # -
-  #   millis: 3000
-  #   position: [0.0, -1.0, 0.0]
-  #   orientation: [0.0, 0.0, 0.0, 1.0]
-  # -
-  #   millis: 4000
-  #   position: [0.0, 1.0, 0.0]
-  #   orientation: [0.0, 0.0, 0.0, 1.0]
+# waypoints:
+#   -
+#     millis: 0
+#     position: [2.0, 0.0, 0.0]
+#     orientation: [0.0, 0.0, 0.0, 1.0]
 
 static_obstacles:
   enabled: false
