@@ -1,0 +1,18 @@
+include:
+  -
+    key: simulation
+    package: tray_balance_assets
+    path: config/simulation.yaml
+  -
+    package: tray_balance_assets
+    path: config/panda.yaml
+
+simulation:
+  duration: 10000
+
+  robot:
+    home: [0.0, -0.524, 0.0, -2.617, 0.0, 2.094, 0]
+    tool_joint_name: panda_hand_joint
+    urdf:
+      package: "tray_balance_assets"
+      path: "franka_panda/panda.urdf"

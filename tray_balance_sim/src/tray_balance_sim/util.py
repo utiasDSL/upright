@@ -1,3 +1,5 @@
+import argparse
+
 import pybullet as pyb
 import numpy as np
 import liegroups
@@ -7,6 +9,26 @@ import yaml
 import tray_balance_constraints as core
 
 import IPython
+
+
+def parse_cli_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True, help="Path to configuration file.")
+    parser.add_argument(
+        "--log",
+        nargs="?",
+        default=None,
+        const="",
+        help="Log data. Optionally specify prefix for log directoy.",
+    )
+    parser.add_argument(
+        "--video",
+        nargs="?",
+        default=None,
+        const="",
+        help="Record video. Optionally specify prefix for video directoy.",
+    )
+    return parser.parse_args()
 
 
 # This is from <https://github.com/Maples7/dict-recursive-update/blob/07204cdab891ac4123b19fe3fa148c3dd1c93992/dict_recursive_update/__init__.py>

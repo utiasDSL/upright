@@ -29,7 +29,7 @@ simulation:
     base_type: fixed
     urdf:
       package: "tray_balance_assets"
-      path: "franka_panda/panda.urdf"
+      path: "franka_panda/panda_tray.urdf"
 
 controller:
   robot:
