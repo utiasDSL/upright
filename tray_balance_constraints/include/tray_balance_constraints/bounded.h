@@ -247,8 +247,11 @@ Scalar max_beta_projection_exact(const Vec3<Scalar>& p, const Mat3<Scalar>& R2,
            p.dot(R2 * C_ew * angular_acc);
 }
 
+// Type of optimization: Min[imization] or Max[imization]
 enum class OptType { Min, Max };
 
+// optimize a.T * r + b s.t. r \in Ellipsoid
+// return optimal r
 template <typename Scalar>
 Scalar optimize_linear_st_ellipsoid(const Vec3<Scalar>& a, const Scalar& b,
                                     const Ellipsoid<Scalar>& ellipsoid,

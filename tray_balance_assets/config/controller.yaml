@@ -118,6 +118,14 @@ arrangements:
       name: box4
       type: box
       parent: box3
+  short:
+    -
+      name: tray
+      type: tray
+    -
+      name: box
+      type: box
+      parent: tray
   tall:
     -
       name: tray
@@ -197,12 +205,12 @@ objects:
     radii_of_gyration:
       use_exact:
         shape: cuboid
-        side_lengths: [0.08, 0.08, 0.5]
+        side_lengths: [0.06, 0.06, 0.5]
     mu_min: 0.5
     support_area:
       shape: "rect"
-      lx: 0.08
-      ly: 0.08
+      lx: 0.06
+      ly: 0.06
     height: 0.5
 
   cylinder_stack_base:

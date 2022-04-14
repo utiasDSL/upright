@@ -64,8 +64,29 @@ struct PolygonSupportArea {
         return es;
     }
 
+    // TODO combine and generalize with implementation of distance outside
+    // polygon below
     Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp,
                                    const Scalar& margin = Scalar(0)) const;
+
+    Scalar distance_outside(const Vec2<Scalar>& point) const {
+        Scalar margin = 0;
+        const size_t n = vertices.size();
+        Scalar dist_inside = 100;  // arbitrary large value for now
+        Scalar dist_inside_edge = 0;
+        for (int i = 0; i < n - 1; ++i) {
+            dist_inside_edge = edge_zmp_constraint(point, vertices[i], vertices[i + 1], margin);
+            if (dist_inside_edge < dist_inside) {
+                dist_inside = dist_inside_edge;
+            }
+        }
+        dist_inside_edge = edge_zmp_constraint(point, vertices[n - 1], vertices[0], margin);
+        if (dist_inside_edge < dist_inside) {
+            dist_inside = dist_inside_edge;
+        }
+        Scalar dist_outside = -dist_inside;
+        return dist_outside;
+    }
 
     // Vector<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
     //                                       Scalar& az) const;

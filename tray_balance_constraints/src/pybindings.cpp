@@ -21,6 +21,7 @@ PYBIND11_MODULE(bindings, m) {
              "vertices"_a)
         .def_readonly("vertices", &PolygonSupportArea<Scalar>::vertices)
         .def("offset", &PolygonSupportArea<Scalar>::offset, "offset"_a)
+        .def("distance_outside", &PolygonSupportArea<Scalar>::distance_outside, "point"_a)
         .def_static("circle", &PolygonSupportArea<Scalar>::circle, "radius"_a)
         .def_static("equilateral_triangle",
                     &PolygonSupportArea<Scalar>::equilateral_triangle,

@@ -42,7 +42,7 @@ controller:
     x0: [0rep7, 0rep7, 0rep7]
     urdf:
       package: "tray_balance_assets"
-      path: "franka_panda/panda.urdf"
+      path: "franka_panda/panda_tray.urdf"
     tool_link_name: "tray_link"
 
   weights:

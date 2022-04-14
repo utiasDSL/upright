@@ -22,30 +22,10 @@ import tray_balance_ocs2 as ctrl
 import IPython
 
 
-def parse_cli_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True, help="Path to configuration file.")
-    parser.add_argument(
-        "--log",
-        nargs="?",
-        default=None,
-        const="",
-        help="Log data. Optionally specify prefix for log directoy.",
-    )
-    parser.add_argument(
-        "--video",
-        nargs="?",
-        default=None,
-        const="",
-        help="Record video. Optionally specify prefix for video directoy.",
-    )
-    return parser.parse_args()
-
-
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    cli_args = parse_cli_args()
+    cli_args = util.parse_cli_args()
 
     # load configuration
     config = util.load_config(cli_args.config)
@@ -108,12 +88,12 @@ def main():
     ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
     mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
 
-    # visual indicator for target - note debug frame doesn't show up in video
-    r_ew_w_d, Q_we_d = ref.pose(ref.states[0])
-    debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
-
-    # ghost (i.e., pure visual) objects
-    ghosts = [GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1))]
+    # frames and ghost (i.e., pure visual) objects
+    ghosts = []
+    for state in ref.states:
+        r_ew_w_d, Q_we_d = ref.pose(state)
+        # ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
+        debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
     target_idx = 0
     x_opt = np.copy(x)
@@ -160,7 +140,7 @@ def main():
         # entire time horizon, without accounting for the given state. So it is
         # like doing feedforward input only, which is bad.
         mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
-        a = np.copy(x_opt[-robot.nv:])
+        a = np.copy(x_opt[-robot.nv :])
         # robot.command_acceleration(u)
         robot.command_jerk(u)
 
@@ -203,12 +183,17 @@ def main():
             logger.append("ω_ew_ws", ω_ew_w)
             logger.append("cmd_vels", robot.cmd_vel.copy())
 
-            # # TODO: ctrl object
-            # C_ew = util.quaternion_to_matrix(Q_we).T
-            # r_oe_e = ctrl_objects[1].body.com_ellipsoid.center()
-            # r_oe_w = C_ew @ r_oe_e
-            # if np.linalg.norm(r_oe_w[:2]) > 0.04:
-            #     print(r_oe_w)
+            # TODO: ctrl object
+            ctrl_object = ctrl_objects[1]
+            C_we = util.quaternion_to_matrix(Q_we)
+            # r_oe_e = ctrl_object.body.com_ellipsoid.center()
+            r_com_o = np.array([0, 0, ctrl_object.com_height])
+            r_com_w = C_we @ r_com_o
+            d = ctrl_object.support_area_min.distance_outside(r_com_w[:2])
+            logger.append("ds", d)
+
+            # if d > 0:
+            #     print("non-statically stable!")
             #     IPython.embed()
 
             r_ow_ws = np.zeros((num_objects, 3))
@@ -253,6 +238,12 @@ def main():
     plotter.plot_cmd_vs_real_vel()
     plotter.plot_joint_config()
     plotter.plot_joint_acceleration()
+
+    plotter.plot_vs_time(
+        "ds",
+        ylabel="Distance (m)",
+        title="Distance outside of SA vs. time",
+    )
 
     # last_sim_index = i
     # recorder.plot_ee_position(last_sim_index)

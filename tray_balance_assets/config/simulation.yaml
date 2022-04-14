@@ -102,6 +102,14 @@ arrangements:
       name: box4
       type: box4
       parent: box3
+  short:
+    -
+      name: tray
+      type: tray
+    -
+      name: box
+      type: box1
+      parent: tray
   tall:
     -
       name: tray
@@ -173,7 +181,7 @@ objects:
     shape: "cuboid"
     mass: 1.0
     mu: 0.5
-    side_lengths: [0.08, 0.08, 0.5]
+    side_lengths: [0.06, 0.06, 0.5]
     com_offset: [0, 0, 0]  # offset of CoM from object centroid
     color: [1, 0, 0, 1]
 

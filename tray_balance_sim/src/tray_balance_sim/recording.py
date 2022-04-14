@@ -15,6 +15,7 @@ import IPython
 
 class DataLogger:
     """Log data for later saving and viewing."""
+
     def __init__(self, config):
         self.config = config
         self.data = {}
@@ -281,3 +282,31 @@ class DataPlotter:
         plt.xlabel("Time (s)")
         plt.ylabel("Distance (m)")
         plt.title("Dynamic obstacle distance")
+
+    # TODO rewrite above functions in terms of this (probably eliminate a lot
+    # of them)
+    def plot_value_vs_time(
+        self, key, indices=None, legend_prefix=None, ylabel=None, title=None
+    ):
+        """Plot the value stored in `key` vs. time."""
+        ts = self.data["ts"]
+        ys = self.data[key]
+
+        if legend_prefix is None:
+            legend_prefix = key
+        if ylabel is None:
+            ylabel = key
+        if title is None:
+            title = f"{key} vs time"
+
+        plt.figure()
+        if indices is not None:
+            for idx in indices:
+                plt.plot(ts, ys[:, idx], label=f"${legend_prefix}_{j+1}$")
+        else:
+            plt.plot(ts, ys)
+
+        plt.grid()
+        plt.xlabel("Time (s)")
+        plt.ylabel(ylabel)
+        plt.title(title)

@@ -26,5 +26,5 @@ controller:
   waypoints:
     -
       millis: 0
-      position: [2.0, 0.0, 0.0]
+      position: [0.0, -2.0, 0.0]
       orientation: [0.0, 0.0, 0.0, 1.0]

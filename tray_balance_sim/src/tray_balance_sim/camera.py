@@ -56,7 +56,8 @@ class VideoManager:
             return
 
         self.save_frames = save_frames
-        dir_name = video_name + "_" + timestamp.strftime("%Y-%m-%d_%H-%M-%S")
+        prefix = video_name + "_" if len(video_name) > 0 else ""
+        dir_name = prefix + timestamp.strftime("%Y-%m-%d_%H-%M-%S")
         self.path = root_dir / dir_name
         self.path.mkdir()
 
