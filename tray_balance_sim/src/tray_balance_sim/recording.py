@@ -192,8 +192,8 @@ class DataPlotter:
         plt.grid()
         plt.legend()
         plt.xlabel("Time (s)")
-        plt.ylabel("Commanded joint acceleration")
-        plt.title("Input commands")
+        plt.ylabel("Commanded Input")
+        plt.title("Commanded Inputs vs. Time")
 
     def plot_control_durations(self):
         durations = self.data["control_durations"]
@@ -242,33 +242,19 @@ class DataPlotter:
         plt.ylabel("Velocity")
         plt.title("Actual and commanded velocity")
 
-    def plot_joint_acceleration(self):
-        ts = self.data["ts"]
-        xs = self.data["xs"]
-        nv = int(self.data["nv"])
-
-        plt.figure()
-        for i in range(nv):
-            plt.plot(ts, xs[:, 2 * nv + i], label=f"$a_{i+1}$")
-        plt.grid()
-        plt.legend()
-        plt.xlabel("Time (s)")
-        plt.ylabel("Acceleration")
-        plt.title("Joint acceleration")
-
-    def plot_joint_config(self):
-        ts = self.data["ts"]
-        xs = self.data["xs"]
-        nq = int(self.data["nq"])
-
-        plt.figure()
-        for i in range(nq):
-            plt.plot(ts, xs[:, i], label=f"$q_{i+1}$")
-        plt.grid()
-        plt.legend()
-        plt.xlabel("Time (s)")
-        plt.ylabel("Joint position")
-        plt.title("Joint configuration")
+    # def plot_joint_config(self):
+    #     ts = self.data["ts"]
+    #     xs = self.data["xs"]
+    #     nq = int(self.data["nq"])
+    #
+    #     plt.figure()
+    #     for i in range(nq):
+    #         plt.plot(ts, xs[:, i], label=f"$q_{i+1}$")
+    #     plt.grid()
+    #     plt.legend()
+    #     plt.xlabel("Time (s)")
+    #     plt.ylabel("Joint position")
+    #     plt.title("Joint configuration")
 
     def plot_dynamic_obs_dist(self):
         ts = self.data["ts"]
@@ -283,15 +269,25 @@ class DataPlotter:
         plt.ylabel("Distance (m)")
         plt.title("Dynamic obstacle distance")
 
-    # TODO rewrite above functions in terms of this (probably eliminate a lot
+    def _plot_line_value_vs_time(self, key, legend_prefix, indices=None):
+        ts = self.data["ts"]
+        ys = self.data[key]
+
+        if indices is not None:
+            for idx in indices:
+                plt.plot(ts, ys[:, idx], label=f"${legend_prefix}_{idx+1}$")
+        elif len(ys.shape) > 1:
+            for idx in range(ys.shape[1]):
+                plt.plot(ts, ys[:, idx], label=f"${legend_prefix}_{idx+1}$")
+        else:
+            plt.plot(ts, ys)
+
+    # TODO rewrite more functions in terms of this (probably eliminate a lot
     # of them)
     def plot_value_vs_time(
         self, key, indices=None, legend_prefix=None, ylabel=None, title=None
     ):
         """Plot the value stored in `key` vs. time."""
-        ts = self.data["ts"]
-        ys = self.data[key]
-
         if legend_prefix is None:
             legend_prefix = key
         if ylabel is None:
@@ -300,11 +296,8 @@ class DataPlotter:
             title = f"{key} vs time"
 
         plt.figure()
-        if indices is not None:
-            for idx in indices:
-                plt.plot(ts, ys[:, idx], label=f"${legend_prefix}_{j+1}$")
-        else:
-            plt.plot(ts, ys)
+
+        self._plot_line_value_vs_time(key, legend_prefix, indices=indices)
 
         plt.grid()
         plt.xlabel("Time (s)")

@@ -232,36 +232,43 @@ def main():
     plotter.plot_ee_velocity()
     for j in range(num_objects):
         plotter.plot_object_error(j)
-    plotter.plot_balancing_constraints()
-    plotter.plot_commands()
-    plotter.plot_control_durations()
-    plotter.plot_cmd_vs_real_vel()
-    plotter.plot_joint_config()
-    plotter.plot_joint_acceleration()
 
-    plotter.plot_vs_time(
-        "ds",
-        ylabel="Distance (m)",
-        title="Distance outside of SA vs. time",
+    plotter.plot_value_vs_time(
+        "ineq_cons",
+        legend_prefix="g",
+        ylabel="Constraint Value",
+        title="Balancing Inequality Constraints vs. Time",
+    )
+    plotter.plot_value_vs_time(
+        "us",
+        indices=range(robot.nu),
+        legend_prefix="u",
+        ylabel="Commanded Input",
+        title="Commanded Inputs vs. Time",
     )
 
-    # last_sim_index = i
-    # recorder.plot_ee_position(last_sim_index)
-    # recorder.plot_ee_orientation(last_sim_index)
-    # recorder.plot_ee_velocity(last_sim_index)
-    # for j in range(len(sim_objects)):
-    #     recorder.plot_object_error(last_sim_index, j)
-    # recorder.plot_balancing_constraints(last_sim_index)
-    # recorder.plot_commands(last_sim_index)
-    # recorder.plot_control_durations(last_sim_index)
-    # recorder.plot_cmd_vs_real_vel(last_sim_index)
-    # recorder.plot_joint_config(last_sim_index)
+    plotter.plot_control_durations()
+    plotter.plot_cmd_vs_real_vel()
 
-    # if ctrl_wrapper.settings.dynamic_obstacle_settings.enabled:
-    #     print(
-    #         f"Min dynamic obstacle distance = {np.min(recorder.dynamic_obs_distance, axis=0)}"
-    #     )
-    #     recorder.plot_dynamic_obs_dist(last_sim_index)
+    plotter.plot_value_vs_time(
+        "xs",
+        indices=range(robot.nq),
+        legend_prefix="q",
+        ylabel="Joint Position",
+        title="Joint Positions vs. Time",
+    )
+    plotter.plot_value_vs_time(
+        "xs",
+        indices=range(robot.nq + robot.nv, robot.nq + 2 * robot.nv),
+        legend_prefix="a",
+        ylabel="Joint Acceleration",
+        title="Joint Accelerations vs. Time",
+    )
+    plotter.plot_value_vs_time(
+        "ds",
+        ylabel="Distance (m)",
+        title="Distance Outside of SA vs. Time",
+    )
 
     plt.show()
 
