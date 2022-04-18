@@ -9,40 +9,70 @@ from tray_balance_constraints import parsing
 import IPython
 
 
-class PyBulletInputMapping:
-    """Functions to map generalized positions and velocity (q, v) to PyBullet
-    input velocities."""
+class FixedBaseMapping:
+    @staticmethod
+    def forward(q, v):
+        return q.copy(), v.copy()
 
     @staticmethod
-    def fixed(q, v):
-        return np.copy(v)
+    def inverse(q_pyb, v_pyb):
+        return q_pyb.copy(), v_pyb.copy()
 
+
+class NonholonomicBaseMapping:
     @staticmethod
-    def nonholonomic(q, v):
-        v = np.copy(v)
+    def forward(q, v):
         yaw = q[2]
         C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        v_pyb = np.copy(v)
+        v_pyb[1] = 0  # nonholonomic constraint: cannot move sideways
+        v_pyb[:3] = C_wb @ v[:3]
+        return q.copy(), v_pyb
+
+    @staticmethod
+    def inverse(q_pyb, v_pyb):
+        yaw = q_pyb[2]
+        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        v = np.copy(v_pyb)
+        v[:3] = C_wb.T @ v_pyb[:3]
         v[1] = 0
-        v[:3] = C_wb @ v[:3]
-        return v
+        return q_pyb.copy(), v
 
+
+class OmnidirectionalBaseMapping:
     @staticmethod
-    def omnidirectional(q, v):
-        v = np.copy(v)
+    def forward(q, v):
         yaw = q[2]
         C_wb = liegroups.SO3.rotz(yaw).as_matrix()
-        v[:3] = C_wb @ v[:3]
-        return v
+        v_pyb = np.copy(v)
+        v_pyb[:3] = C_wb @ v[:3]
+        return q.copy(), v_pyb
 
+    @staticmethod
+    def inverse(q_pyb, v_pyb):
+        yaw = q_pyb[2]
+        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        v = np.copy(v_pyb)
+        v[:3] = C_wb.T @ v_pyb[:3]
+        return q_pyb.copy(), v
+
+
+class PyBulletInputMapping:
+    """Mappings between our coordinates and PyBullet coordinates.
+
+    Each class provides two functions:
+        forward(q, v) -> (q_pyb, v_pyb)
+        inverse(q_pyb, v_pyb) -> (q, v)
+    """
     @staticmethod
     def from_string(s):
         s = s.lower()
         if s == "fixed":
-            return PyBulletInputMapping.fixed
+            return FixedBaseMapping
         elif s == "nonholonomic":
             return PyBulletInputMapping.nonholonomic
         elif s == "omnidirectional":
-            return PyBulletInputMapping.omnidirectional
+            return OmnidirectionalBaseMapping
         elif s == "floating":
             raise NotImplementedError("Floating base not yet implemented.")
         else:
@@ -62,7 +92,7 @@ class SimulatedRobot:
         self.home = parsing.parse_array(config["robot"]["home"])
 
         # map from (q, v) to PyBullet input
-        self.input_mapping = PyBulletInputMapping.from_string(
+        self.pyb_mapping = PyBulletInputMapping.from_string(
             config["robot"]["base_type"]
         )
 
@@ -126,19 +156,21 @@ class SimulatedRobot:
         C_wb = liegroups.SO3.rotz(yaw).as_matrix()
         return C_wb
 
-    def command_velocity(self, v):
+    def command_velocity(self, cmd_vel):
         """Command the velocity of the robot's joints."""
         q, _ = self.joint_states()
-        u = self.input_mapping(q, v)
+
+        # convert to PyBullet coordinates
+        _, v_pyb = self.pyb_mapping.forward(q, cmd_vel)
 
         # add process noise
-        u_noisy = u + np.random.normal(scale=self.v_cmd_std_dev, size=u.shape)
+        v_pyb_noisy = v_pyb + np.random.normal(scale=self.v_cmd_std_dev, size=v_pyb.shape)
 
         pyb.setJointMotorControlArray(
             self.uid,
             self.robot_joint_indices,
             controlMode=pyb.VELOCITY_CONTROL,
-            targetVelocities=list(u_noisy),
+            targetVelocities=list(v_pyb),
         )
 
     def command_acceleration(self, cmd_acc):
@@ -163,8 +195,12 @@ class SimulatedRobot:
         the n-dim array of velocities.
         """
         states = pyb.getJointStates(self.uid, self.robot_joint_indices)
-        q = np.array([state[0] for state in states])
-        v = np.array([state[1] for state in states])
+        q_pyb = np.array([state[0] for state in states])
+        v_pyb = np.array([state[1] for state in states])
+
+        # convert from PyBullet coordinates
+        q, v = self.pyb_mapping.inverse(q_pyb, v_pyb)
+
         if add_noise:
             q += np.random.normal(scale=self.q_meas_std_dev, size=q.shape)
             v += np.random.normal(scale=self.v_meas_std_dev, size=v.shape)

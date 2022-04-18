@@ -98,6 +98,8 @@ def main():
     target_idx = 0
     x_opt = np.copy(x)
 
+    static_stable = True
+
     # simulation loop
     for i in range(num_timesteps):
         q, v = robot.joint_states()
@@ -183,18 +185,35 @@ def main():
             logger.append("ω_ew_ws", ω_ew_w)
             logger.append("cmd_vels", robot.cmd_vel.copy())
 
-            # TODO: ctrl object
+            # compute distance outside of support area
             ctrl_object = ctrl_objects[1]
             C_we = util.quaternion_to_matrix(Q_we)
-            # r_oe_e = ctrl_object.body.com_ellipsoid.center()
+
+            # position of CoM relative to center of SA
             r_com_o = np.array([0, 0, ctrl_object.com_height])
             r_com_w = C_we @ r_com_o
-            d = ctrl_object.support_area_min.distance_outside(r_com_w[:2])
+
+            # solve for the intersection point of r_com_w with the SA (in the
+            # SA frame) knowing that:
+            # * intersection point in world frame has same (x, y) as CoM
+            # * intersection point in object frame has z = 0
+            A = np.eye(3)
+            A[:2, :] = C_we[:2, :]
+            b = np.zeros(3)
+            b[:2] = r_com_w[:2]
+            c = np.linalg.solve(A, b)
+
+            d = ctrl_object.support_area_min.distance_outside(c[:2])
             logger.append("ds", d)
 
-            # if d > 0:
-            #     print("non-statically stable!")
-            #     IPython.embed()
+            if d > 0:
+                if static_stable:
+                    sim_objects["box"].change_color((1, 0, 0, 1))
+                static_stable = False
+            else:
+                if not static_stable:
+                    sim_objects["box"].change_color((0, 1, 0, 1))
+                static_stable = True
 
             r_ow_ws = np.zeros((num_objects, 3))
             Q_wos = np.zeros((num_objects, 4))

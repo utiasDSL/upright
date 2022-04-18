@@ -10,6 +10,7 @@ from tray_balance_sim.robot import SimulatedRobot
 import IPython
 
 
+# TODO rename to something like BulletObject
 class BulletBody:
     def __init__(self, mass, mu, height, collision_uid, visual_uid, com_offset=None):
         self.mass = mass
@@ -51,6 +52,9 @@ class BulletBody:
         if orientation is None:
             orientation = current_orn
         pyb.resetBasePositionAndOrientation(self.uid, list(position), list(orientation))
+
+    def change_color(self, rgba):
+        pyb.changeVisualShape(self.uid, -1, rgbaColor=list(rgba))
 
     @staticmethod
     def cylinder(mass, mu, radius, height, com_offset=None, color=(0, 0, 1, 1)):
