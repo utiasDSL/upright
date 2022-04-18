@@ -22,6 +22,19 @@ template <typename Scalar>
 std::vector<Vec2<Scalar>> equilateral_triangle_support_vertices(
     Scalar side_length);
 
+template <typename Scalar>
+std::vector<Vec2<Scalar>> regular_polygon_vertices(
+    size_t n_sides, Scalar r, Scalar start_angle = Scalar(0)) {
+    Scalar angle_incr = Scalar(2 * M_PI / n_sides);
+    Scalar angle = start_angle;
+
+    std::vector<Vec2<Scalar>> vertices;
+    for (size_t i = 0; i < n_sides; ++i) {
+        vertices.push_back(r * Vec2<Scalar>(cos(angle), sin(angle)));
+        angle += angle_incr;
+    }
+    return vertices;
+}
 
 template <typename Scalar>
 struct PolygonEdge {
@@ -76,12 +89,14 @@ struct PolygonSupportArea {
         Scalar dist_inside = 100;  // arbitrary large value for now
         Scalar dist_inside_edge = 0;
         for (int i = 0; i < n - 1; ++i) {
-            dist_inside_edge = edge_zmp_constraint(point, vertices[i], vertices[i + 1], margin);
+            dist_inside_edge = edge_zmp_constraint(point, vertices[i],
+                                                   vertices[i + 1], margin);
             if (dist_inside_edge < dist_inside) {
                 dist_inside = dist_inside_edge;
             }
         }
-        dist_inside_edge = edge_zmp_constraint(point, vertices[n - 1], vertices[0], margin);
+        dist_inside_edge =
+            edge_zmp_constraint(point, vertices[n - 1], vertices[0], margin);
         if (dist_inside_edge < dist_inside) {
             dist_inside = dist_inside_edge;
         }
