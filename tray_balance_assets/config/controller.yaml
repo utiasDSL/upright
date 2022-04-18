@@ -53,6 +53,10 @@ arrangements:
       offset:
         x: 0
         y: 0
+  tray_only:
+    -
+      name: tray
+      type: tray
   cups_flat:
     -
       name: tray

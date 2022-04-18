@@ -169,32 +169,6 @@ class DataPlotter:
         plt.ylabel("Error")
         plt.title(f"Object {obj_name} error")
 
-    def plot_balancing_constraints(self):
-        ts = self.data["ts"]
-        balancing_cons = self.data["ineq_cons"]
-
-        plt.figure()
-        for j in range(balancing_cons.shape[1]):
-            plt.plot(ts, balancing_cons[:, j], label=f"$g_{j+1}$")
-        plt.grid()
-        plt.legend()
-        plt.xlabel("Time (s)")
-        plt.ylabel("Value")
-        plt.title("Balancing Inequality constraints")
-
-    def plot_commands(self):
-        ts = self.data["ts"]
-        us = self.data["us"]
-
-        plt.figure()
-        for i in range(us.shape[1]):
-            plt.plot(ts, us[:, i], label=f"$u_{i+1}$")
-        plt.grid()
-        plt.legend()
-        plt.xlabel("Time (s)")
-        plt.ylabel("Commanded Input")
-        plt.title("Commanded Inputs vs. Time")
-
     def plot_control_durations(self):
         durations = self.data["control_durations"]
 
@@ -242,20 +216,6 @@ class DataPlotter:
         plt.ylabel("Velocity")
         plt.title("Actual and commanded velocity")
 
-    # def plot_joint_config(self):
-    #     ts = self.data["ts"]
-    #     xs = self.data["xs"]
-    #     nq = int(self.data["nq"])
-    #
-    #     plt.figure()
-    #     for i in range(nq):
-    #         plt.plot(ts, xs[:, i], label=f"$q_{i+1}$")
-    #     plt.grid()
-    #     plt.legend()
-    #     plt.xlabel("Time (s)")
-    #     plt.ylabel("Joint position")
-    #     plt.title("Joint configuration")
-
     def plot_dynamic_obs_dist(self):
         ts = self.data["ts"]
         dynamic_obs_distance = self.data["dynamic_obs_distance"]
@@ -295,7 +255,7 @@ class DataPlotter:
         if title is None:
             title = f"{key} vs time"
 
-        plt.figure()
+        fig = plt.figure()
 
         self._plot_line_value_vs_time(key, legend_prefix, indices=indices)
 
@@ -303,3 +263,6 @@ class DataPlotter:
         plt.xlabel("Time (s)")
         plt.ylabel(ylabel)
         plt.title(title)
+
+        ax = plt.gca()
+        return ax

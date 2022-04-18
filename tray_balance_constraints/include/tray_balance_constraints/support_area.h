@@ -17,6 +17,7 @@ Scalar equilateral_triangle_inscribed_radius(Scalar side_length);
 
 // TODO this is not a fully general implementation, since it doesn't account
 // for different orientations
+// - this could be solved by including an angle parameter
 template <typename Scalar>
 std::vector<Vec2<Scalar>> equilateral_triangle_support_vertices(
     Scalar side_length);

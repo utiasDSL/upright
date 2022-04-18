@@ -244,6 +244,9 @@ def main():
     if cli_args.log is not None:
         logger.save(log_dir, now, name=cli_args.log)
 
+    if video_manager.save:
+        print(f"Saved video to {video_manager.path}")
+
     # visualize data
     plotter = DataPlotter(logger)
     plotter.plot_ee_position()
@@ -283,7 +286,7 @@ def main():
         ylabel="Joint Acceleration",
         title="Joint Accelerations vs. Time",
     )
-    plotter.plot_value_vs_time(
+    ax = plotter.plot_value_vs_time(
         "ds",
         ylabel="Distance (m)",
         title="Distance Outside of SA vs. Time",

@@ -81,6 +81,8 @@ class VideoManager:
             if save_frames:
                 frames_dir.mkdir()
 
+        self.frame_count = 0
+
     @classmethod
     def from_config_dict(cls, video_name, config, timestamp, r_ew_w=None):
         """Parse the video recording settings from the config.
@@ -125,5 +127,7 @@ class VideoManager:
             recorder.capture_frame(rgba=rgba)
 
             if self.save_frames:
-                path = frames_dir / f"frame_{t}.png"
+                path = frames_dir / f"frame_{self.frame_count}.png"
                 recorder.camera.save_frame(path, rgba=rgba)
+
+        self.frame_count += 1
