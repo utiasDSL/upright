@@ -16,19 +16,15 @@ logging:
   log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
 
 simulation:
-  duration: 10000
-  arrangement: short
+  duration: 3000
+  arrangement: tall
 
 controller:
   balancing:
-    arrangement: short
+    arrangement: tall
 
   waypoints:
     -
-      millis: 1000
-      position: [0.0, -1.0, 0.0]
-      orientation: [0.707, 0.0, 0.0, 0.707]
-    -
-      millis: 2000
+      millis: 0
       position: [0.0, -2.0, 0.0]
-      orientation: [0.707, 0.0, 0.0, 0.707]
+      orientation: [0.0, 0.0, 1.0, 0.0]
