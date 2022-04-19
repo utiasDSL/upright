@@ -1,0 +1,93 @@
+# Default controller gains for Franka Panda
+
+panda_controller:
+  Real:
+    EEImpedance:
+      kp:  [100, 100, 100, 60.0, 60.0, 60.0] #70 #50 #200 #75 #200 # P Gain for Impedance Control
+      kv: [20.0, 20.0, 20.0, 10.0, 10.0, 10.0]
+      damping: 1.0 #1 #0.5 #1 #0.5 # Damping factor [0,1]
+      input_max: 1.0
+      input_min: -1.0
+      output_max: 1.0
+      output_min: -1.0
+    JointVelocity:
+      kv: 10.0 #0.5
+      input_max: 1.0
+      input_min: -1.0
+      output_max: 1.0 #1.0
+      output_min: -1.0 #-1.0
+    JointImpedance:
+      kp: [300.0, 300.0, 300.0, 300.0, 250.0, 150.0, 150.0] #[70.0, 70.0, 60.0, 60.0, 50.0, 50.0, 20.0] #[100.0, 100.0, 80.0, 80.0, 70.0, 70.0, 50.0]
+      kv: [20.0, 20.0, 20.0, 20.0, 15.0, 12.0, 15.0]
+      damping: 1.0
+      input_max: 1.0
+      input_min: -1.0
+      output_max: 1.0
+      output_min: -1.0
+    JointTorque:
+      input_max: 1.0
+      input_min: -1.0
+      output_max: 1.0
+      output_min: -1.0
+    EEPosture:
+      kp:  [100, 100, 100, 60.0, 60.0, 60.0] #70 #50 #200 #75 #200 # P Gain for Impedance Control
+      kv: [20.0, 20.0, 20.0, 10.0, 10.0, 10.0]
+      damping: 1.0 #1 #0.5 #1 #0.5 # Damping factor [0,1]
+      posture_gain: [5.0, 5.0, 5.0, 4.0, 3.0, 3.0, 3.0]  #[7.0, 7.0, 7.0, 6.0, 5.0, 5.0, 5.0] #0.7
+      input_max: 1.0
+      input_min: -1.0
+      output_max: 1.0
+      output_min: -1.0
+  interpolator_pos:
+      type: 'linear'
+      order: 1
+      max_dx: 0.2
+      ramp_ratio: 0.2
+  interpolator_ori:
+      type: 'linear'
+      fraction: 0.2
+  Bullet:
+    EEImpedance:
+      kp:  [100, 100, 100, 60.0, 60.0, 60.0] #70 #50 #200 #75 #200 # P Gain for Impedance Control
+      kv: [20.0, 20.0, 20.0, 10.0, 10.0, 10.0]
+      damping: 1.0 #1 #0.5 #1 #0.5 # Damping factor [0,1]
+      input_max: 1.0
+      input_min: -1.0
+      output_max: 1.0
+      output_min: -1.0
+    JointVelocity:
+      kv: 10.0 #0.5
+      input_max: 1.0
+      input_min: -1.0
+      output_max: 1.0 #1.0
+      output_min: -1.0 #-1.0
+    JointImpedance:
+      kp: [300.0, 300.0, 300.0, 300.0, 250.0, 150.0, 150.0] #[70.0, 70.0, 60.0, 60.0, 50.0, 50.0, 20.0] #[100.0, 100.0, 80.0, 80.0, 70.0, 70.0, 50.0]
+      kv: [20.0, 20.0, 20.0, 20.0, 15.0, 12.0, 15.0]
+      damping: 1.0
+      input_max: 1.0
+      input_min: -1.0
+      output_max: 1.0
+      output_min: -1.0
+    JointTorque:
+      input_max: 1.0
+      input_min: -1.0
+      output_max: 5.0
+      output_min: -5.0
+    EEPosture:
+      kp:  [100, 100, 100, 60.0, 60.0, 60.0] #70 #50 #200 #75 #200 # P Gain for Impedance Control
+      kv: [20.0, 20.0, 20.0, 10.0, 10.0, 10.0]
+      damping: 1.0 #1 #0.5 #1 #0.5 # Damping factor [0,1]
+      posture_gain: [5.0, 5.0, 5.0, 4.0, 3.0, 3.0, 3.0]  #[7.0, 7.0, 7.0, 6.0, 5.0, 5.0, 5.0] #0.7
+      input_max: 1.0
+      input_min: -1.0
+      output_max: 1.0
+      output_min: -1.0
+  interpolator_pos:
+      type: 'linear'
+      order: 1
+      max_dx: 0.2
+      ramp_ratio: 0.2
+  interpolator_ori:
+      type: 'linear'
+      fraction: 0.2

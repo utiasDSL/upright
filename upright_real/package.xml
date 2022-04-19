@@ -1,15 +1,10 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>tray_balance_sim</name>
+  <name>upright_real</name>
   <version>0.0.0</version>
-  <description>
-    Pybullet simulation for mobile manipulator.
-    </description>
+  <description>The upright_real package</description>
   <maintainer email="adam.heins@robotics.utias.utoronto.ca">Adam Heins</maintainer>
   <license>MIT</license>
-
-  <depend>rospy</depend>
-  <depend>tray_balance_constraints</depend>
 
   <!-- The *depend tags are used to specify dependencies -->
   <!-- Dependencies can be catkin packages or system dependencies -->

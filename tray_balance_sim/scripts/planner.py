@@ -103,15 +103,25 @@ def main():
 
     # rollout the controller, effectively using it as a planner
     x_opts = np.zeros((num_timesteps, robot.nx))
+    us = np.zeros((num_timesteps, robot.nu))
+    ts = timestep_secs * np.arange(num_timesteps)
     for i in range(num_timesteps):
         if i % ctrl_period == 0:
             mpc.setObservation(t, x_opt, u)
             mpc.advanceMpc()
         mpc.evaluateMpcSolution(t, x_opt, x_opt, u)
         x_opts[i, :] = x_opt
+        us[i, :] = u
         t += timestep_secs
 
     print("Finished planning.")
+
+    # save the plan
+    np.savez_compressed("trajectory.npz", ts=ts, xs=x_opts, us=us)
+
+    # load the plan
+    with np.load("trajectory.npz") as data:
+        x_opts = data["xs"]
 
     # simulation loop
     t = 0
@@ -163,35 +173,35 @@ def main():
             logger.append("ω_ew_ws", ω_ew_w)
             logger.append("cmd_vels", robot.cmd_vel.copy())
 
-            # compute distance outside of support area
-            ctrl_object = ctrl_objects[1]
-            C_we = util.quaternion_to_matrix(Q_we)
+            # # compute distance outside of support area
+            # ctrl_object = ctrl_objects[1]
+            # C_we = util.quaternion_to_matrix(Q_we)
+            #
+            # # position of CoM relative to center of SA
+            # r_com_o = np.array([0, 0, ctrl_object.com_height])
+            # r_com_w = C_we @ r_com_o
+            #
+            # # solve for the intersection point of r_com_w with the SA (in the
+            # # SA frame) knowing that:
+            # # * intersection point in world frame has same (x, y) as CoM
+            # # * intersection point in object frame has z = 0
+            # A = np.eye(3)
+            # A[:2, :] = C_we[:2, :]
+            # b = np.zeros(3)
+            # b[:2] = r_com_w[:2]
+            # c = np.linalg.solve(A, b)
+            #
+            # d = ctrl_object.support_area_min.distance_outside(c[:2])
+            # logger.append("ds", d)
 
-            # position of CoM relative to center of SA
-            r_com_o = np.array([0, 0, ctrl_object.com_height])
-            r_com_w = C_we @ r_com_o
-
-            # solve for the intersection point of r_com_w with the SA (in the
-            # SA frame) knowing that:
-            # * intersection point in world frame has same (x, y) as CoM
-            # * intersection point in object frame has z = 0
-            A = np.eye(3)
-            A[:2, :] = C_we[:2, :]
-            b = np.zeros(3)
-            b[:2] = r_com_w[:2]
-            c = np.linalg.solve(A, b)
-
-            d = ctrl_object.support_area_min.distance_outside(c[:2])
-            logger.append("ds", d)
-
-            if d > 0:
-                if static_stable:
-                    sim_objects["box"].change_color((1, 0, 0, 1))
-                static_stable = False
-            else:
-                if not static_stable:
-                    sim_objects["box"].change_color((0, 1, 0, 1))
-                static_stable = True
+            # if d > 0:
+            #     if static_stable:
+            #         sim_objects["box"].change_color((1, 0, 0, 1))
+            #     static_stable = False
+            # else:
+            #     if not static_stable:
+            #         sim_objects["box"].change_color((0, 1, 0, 1))
+            #     static_stable = True
 
             r_ow_ws = np.zeros((num_objects, 3))
             Q_wos = np.zeros((num_objects, 4))

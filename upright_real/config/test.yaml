@@ -1,0 +1,21 @@
+# Cfg file for  Demo control environment
+world:
+  type: 'Real' #'Bullet' or 'Real'
+  robot: 'panda'
+  controlType: 'JointVelocity'
+data_dir: 'data'
+
+# TODO
+policy_freq: 100
+control_freq: 500 # Hz
+
+include:
+  -
+    package: upright_real
+    path: config/redis.yaml
+  -
+    package: upright_real
+    path: config/panda.yaml
+  -
+    package: upright_real
+    path: config/demo_panda_controller.yaml

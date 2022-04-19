@@ -1,0 +1,19 @@
+# Cfg file for  Demo control environment
+world:
+  type: 'Real' #'Bullet' or 'Real'
+  robot: 'panda'
+  controlType: 'JointVelocity'
+data_dir: 'data'
+
+# TODO
+policy_freq: 100
+control_freq: 500 # Hz
+
+# Redis config specific to this machine.
+!include redis.yaml
+
+# General Panda config
+!include panda.yaml
+
+# Controller config for each robot
+!include demo_panda_controller.yaml
