@@ -5,7 +5,7 @@ from collections import OrderedDict
 from perls2.robots.real_panda_interface import RealPandaInterface
 from perls2.utils.yaml_config import YamlConfig
 
-from tray_balance_sim import util
+import tray_balance_constraints as core
 
 import IPython
 
@@ -38,7 +38,7 @@ def main():
     config_file = "../config/follow_plan_demo.yaml"
     config = YamlConfig(config_file)
 
-    # config_mine = util.load_config(config_mine)
+    # config_mine = core.parsing.load_config(config_mine)
     # assert config_mine == unorder_dict(config.config)
 
     IPython.embed()
