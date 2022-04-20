@@ -1,9 +1,5 @@
-import os
-import shutil
-
 import numpy as np
 import matplotlib.pyplot as plt
-import pybullet as pyb
 from pathlib import Path
 from liegroups import SO3
 import yaml

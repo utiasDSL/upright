@@ -1,9 +1,11 @@
 import numpy as np
 import time
+import datetime
 
 from perls2.robots.real_panda_interface import RealPandaInterface
 
 import tray_balance_constraints as core
+from tray_balance_constraints.logging import DataLogger, DataPlotter
 
 import IPython
 
@@ -24,6 +26,13 @@ def main():
 
     rate = core.util.Rate.from_timestep_secs(dt)
 
+    # data logging
+    log_dir = Path(config["logging"]["log_dir"])
+    log_dt = config["logging"]["timestep"]
+    logger = DataLogger(config)
+
+    now = datetime.datetime.now()
+
     robot = RealPandaInterface(config, controlType="JointVelocity")
     robot.reset()
 
@@ -38,17 +47,21 @@ def main():
         # joint velocity controller
         v = K @ (qd - q) + vd
 
-        # print(f"error = {qd - q}")
-
         # send the command
         robot.set_joint_velocities(v)
 
-        # time.sleep(dt)
+        if i % log_dt == 0:
+            logger.append("qs", q)
+            logger.append("qds", qd)
+            logger.append("v_cmds", v)
+
         rate.sleep()
 
     # put robot back to home position
     robot.reset()
     robot.disconnect()
+
+    logger.save(log_dir, now, name="real_panda")
 
 
 if __name__ == "__main__":
