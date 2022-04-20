@@ -248,6 +248,10 @@ class DataPlotter:
         self, key, indices=None, legend_prefix=None, ylabel=None, title=None
     ):
         """Plot the value stored in `key` vs. time."""
+        if key not in self.data:
+            print(f"Key {key} not found, skipping plot.")
+            return
+
         if legend_prefix is None:
             legend_prefix = key
         if ylabel is None:

@@ -25,6 +25,7 @@ import IPython
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
+    # TODO return the parse so that it can be extended
     cli_args = util.parse_cli_args()
 
     # load configuration
@@ -127,6 +128,8 @@ def main():
     t = 0
     for i in range(num_timesteps):
         q, v = robot.joint_states()
+        a = x_opts[i, -robot.nv:]
+        x = np.concatenate((q, v, a))
 
         # velocity joint controller
         qd = x_opts[i, :robot.nq]
@@ -164,7 +167,6 @@ def main():
             logger.append("ts", t)
             logger.append("us", u)
             logger.append("xs", x)
-            # logger.append("xs_noisy", x_noisy)
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("r_ew_ws", r_ew_w)
             logger.append("Q_wes", Q_we)
@@ -174,17 +176,19 @@ def main():
             logger.append("cmd_vels", robot.cmd_vel.copy())
 
             # compute distance outside of support area
-            d = core.util.support_area_distance(ctrl_objects[1], Q_we)
-            logger.append("ds", d)
+            # TODO should I actually be using the sim object here?
+            if len(ctrl_objects) > 1:
+                d = core.util.support_area_distance(ctrl_objects[1], Q_we)
+                logger.append("ds", d)
 
-            if d > 0:
-                if static_stable:
-                    sim_objects["box"].change_color((1, 0, 0, 1))
-                static_stable = False
-            else:
-                if not static_stable:
-                    sim_objects["box"].change_color((0, 1, 0, 1))
-                static_stable = True
+                if d > 0:
+                    if static_stable:
+                        sim_objects["box"].change_color((1, 0, 0, 1))
+                    static_stable = False
+                else:
+                    if not static_stable:
+                        sim_objects["box"].change_color((0, 1, 0, 1))
+                    static_stable = True
 
             r_ow_ws = np.zeros((num_objects, 3))
             Q_wos = np.zeros((num_objects, 4))

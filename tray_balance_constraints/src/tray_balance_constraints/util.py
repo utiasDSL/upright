@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import liegroups
 
@@ -51,3 +53,43 @@ def support_area_distance(ctrl_object, Q_we):
 
     d = ctrl_object.support_area_min.distance_outside(c[:2])
     return d
+
+
+def secs_to_ns(secs):
+    """Convert seconds to nanoseconds."""
+    return 1e9 * secs
+
+
+def secs_from_ns(ns):
+    """Convert nanoseconds to seconds."""
+    return 1e-9 * ns
+
+# see the (more sophisticated) ROS implementation:
+# <https://github.com/ros/ros_comm/blob/noetic-devel/clients/rospy/src/rospy/timer.py>
+class Rate:
+    def __init__(self, timestep_ns):
+        """Initialize a Rate based on a timestep in nanoseconds."""
+        self.timestep_ns = int(timestep_ns)
+        self.timestep_secs = secs_from_ns(timestep_ns)
+
+        self._last_time_ns = time.time_ns()
+
+    @classmethod
+    def from_timestep_secs(cls, timestep_secs):
+        """Construct a Rate based on a timestep in seconds."""
+        return cls(secs_to_ns(timestep_secs))
+
+    @classmethod
+    def from_hz(cls, hz):
+        """Construct a Rate based on a frequency in Hertz (1 / seconds)."""
+        return cls.from_timestep_secs(1. / hz)
+
+    def sleep(self):
+        elapsed_ns = time.time_ns() - self._last_time_ns
+        duration_ns = self.timestep_ns - elapsed_ns
+        if duration_ns > 0:
+            time.sleep(secs_from_ns(duration_ns))
+        else:
+            print(f"loop is too slow by {-duration_ns} ns")
+        self._last_time_ns = time.time_ns()
+        # self.last_time += self.secs

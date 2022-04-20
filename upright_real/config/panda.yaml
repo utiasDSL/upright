@@ -10,10 +10,12 @@ panda:
     is_static:
       True
   base: 'None'
-  # neutral_joint_angles:
-  #  [0., -0.3135, 0., -2.515, 0., 2.226, 0.87]
+
+  # default perls2
   neutral_joint_angles: [0.0, -0.524, 0.0, -2.617, 0.0, 2.094, 0.0]
-  # neutral_joint_angles: [-0.16172688795543, 0.446162338187715, -0.211960327838597, -2.49406191371722, -0.0575494087272164, 2.94740106578862, 0.622476284949879]
+
+  # object balancing
+  # neutral_joint_angles: [0, -0.7854, 0, -1.5708, 0, 2.3562, -0.7854]
   limb_joint_names: [
   'panda_link0',
   'panda_link1',
