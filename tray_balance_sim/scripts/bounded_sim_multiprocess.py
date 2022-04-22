@@ -34,20 +34,20 @@ def control_loop(
         t, x, u = outer_ctrl_txu.recv()
         mpc.setObservation(t, x, u)
         mpc.advanceMpc()
-        print("first MPC iteration done")
         outer_ctrl_con.send(mpc.getLinearController())
     finally:
         sync_lock.release()
 
-    rate = core.util.Rate.from_hz(40)
+    # run MPC as fast as possible
+    # rate = core.util.Rate.from_hz(40)
     while True:
+        # get the latest state
         while outer_ctrl_txu.poll(timeout=0):
             t, x, u = outer_ctrl_txu.recv()
         mpc.setObservation(t, x, u)
         mpc.advanceMpc()
         outer_ctrl_con.send(mpc.getLinearController())
-        print("advanced mpc!")
-        rate.sleep()
+        # rate.sleep()
 
 
 def main():
@@ -114,7 +114,11 @@ def main():
 
     # create reference trajectory and controller
     ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
-    # mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
+
+    # TODO this is only used to easily compute constraint values
+    # would be better to separate out that functionality to avoid having to
+    # create a whole other object (which requires autodiff compilation, etc.)
+    mpc_inner = ctrl_wrapper.controller(r_ew_w, Q_we)
 
     # frames and ghost (i.e., pure visual) objects
     ghosts = []
@@ -124,7 +128,6 @@ def main():
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
     target_idx = 0
-    x_opt = np.copy(x)
     static_stable = True
 
     # namespace to manage shared controller resources
@@ -136,6 +139,7 @@ def main():
     sync_lock = Lock()
     sync_lock.acquire()
 
+    # send the initial state
     inner_ctrl_txu.send((t, x, u))
 
     # start separate control process
@@ -166,16 +170,12 @@ def main():
         q_noisy, v_noisy = robot.joint_states(add_noise=True)
         x_noisy = np.concatenate((q_noisy, v_noisy, a))
 
-        # by using x_opt, we're basically just doing pure open-loop planning,
-        # since the state never deviates from the optimal trajectory (at least
-        # due to noise)
-        # this does have the benefit of smoothing out the state used for
-        # computation, which is important for constraint handling
         if ctrl_config["use_noisy_state_to_plan"]:
             inner_ctrl_txu.send((t, x_noisy, u))
         else:
             inner_ctrl_txu.send((t, x, u))
 
+        # get a new controller if available
         if inner_ctrl_con.poll(timeout=0):
             lin_ctrl = inner_ctrl_con.recv()
 
@@ -184,19 +184,19 @@ def main():
         robot.command_jerk(u)
 
         if i % log_dt == 0:
-            # if ctrl_wrapper.settings.tray_balance_settings.enabled:
-            #     if (
-            #         ctrl_wrapper.settings.tray_balance_settings.constraint_type
-            #         == ctrl.bindings.ConstraintType.Hard
-            #     ):
-            #         balance_cons = mpc.stateInputInequalityConstraint(
-            #             "trayBalance", t, x, u
-            #         )
-            #     else:
-            #         balance_cons = mpc.softStateInputInequalityConstraint(
-            #             "trayBalance", t, x, u
-            #         )
-            #     logger.append("ineq_cons", balance_cons)
+            if ctrl_wrapper.settings.tray_balance_settings.enabled:
+                if (
+                    ctrl_wrapper.settings.tray_balance_settings.constraint_type
+                    == ctrl.bindings.ConstraintType.Hard
+                ):
+                    balance_cons = mpc_inner.stateInputInequalityConstraint(
+                        "trayBalance", t, x, u
+                    )
+                else:
+                    balance_cons = mpc_inner.softStateInputInequalityConstraint(
+                        "trayBalance", t, x, u
+                    )
+                logger.append("ineq_cons", balance_cons)
             # if ctrl_wrapper.settings.dynamic_obstacle_settings.enabled:
             #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
             #         "dynamicObstacleAvoidance", t, x
@@ -280,12 +280,12 @@ def main():
     for j in range(num_objects):
         plotter.plot_object_error(j)
 
-    # plotter.plot_value_vs_time(
-    #     "ineq_cons",
-    #     legend_prefix="g",
-    #     ylabel="Constraint Value",
-    #     title="Balancing Inequality Constraints vs. Time",
-    # )
+    plotter.plot_value_vs_time(
+        "ineq_cons",
+        legend_prefix="g",
+        ylabel="Constraint Value",
+        title="Balancing Inequality Constraints vs. Time",
+    )
     plotter.plot_value_vs_time(
         "us",
         indices=range(robot.nu),
