@@ -126,7 +126,6 @@ def main():
                 t0 = time.time()
                 mpc.advanceMpc()
                 t1 = time.time()
-                lin_ctrl = mpc.getLinearController()
             except RuntimeError as e:
                 print(e)
                 print("exit the interpreter to proceed to plots")
@@ -142,20 +141,9 @@ def main():
         # getMpcSolution just gives the current MPC policy trajectory over the
         # entire time horizon, without accounting for the given state. So it is
         # like doing feedforward input only, which is bad.
-        # mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
-        # a = np.copy(x_opt[-robot.nv :])
-        # robot.command_jerk(u)
-
-        # TODO need to get x_opt here, too
-        # K = mpc.getLinearFeedbackGain(t)
-        # k = mpc.getBias(t)
-        # # u = K @ (x_opt - x) + k
-        # u = K @ x + k
-        # # a = np.copy(x_opt[-robot.nv :])
-        # a = np.copy(robot.cmd_acc)
-        # robot.command_jerk(u)
-        u = lin_ctrl.computeInput(t, x)
-        a = np.copy(robot.cmd_acc)
+        mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
+        a = np.copy(x_opt[-robot.nv :])
+        # robot.command_acceleration(u)
         robot.command_jerk(u)
 
         if i % log_dt == 0:
