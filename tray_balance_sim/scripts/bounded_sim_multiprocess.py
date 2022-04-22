@@ -6,6 +6,8 @@ import datetime
 import sys
 import os
 from pathlib import Path
+from multiprocessing import Process, Manager, Pipe
+import pickle
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -100,7 +102,52 @@ def main():
 
     static_stable = True
 
+    def control_loop(ns, mpc):
+        """Advance MPC at a fixed control rate."""
+        # print(f"child process id = {id(mpc)}")
+        rate = core.util.Rate.from_hz(40)
+        while True:
+            mpc.setObservation(ns.t, ns.x, ns.u)
+            mpc.advanceMpc()
+            ns.lin_ctrl = mpc.getLinearController()
+            print("advanced mpc!")
+            rate.sleep()
+
+    # initialize and run first iteration
+    mpc.setObservation(t, x, u)
+    mpc.advanceMpc()
+
+    # namespace to manage shared controller resources
+    mgr = Manager()
+    ns = mgr.Namespace()
+    # outer_ctrl_con, inner_ctrl_con = Pipe()
+    # outer_ctrl_txu, inner_ctrl_txu = Pipe()
+
+    ns.t = t
+    ns.x = x
+    ns.u = u
+
+    lin_ctrl = mpc.getLinearController()
+    ns.lin_ctrl = lin_ctrl
+
+    # lin_ctrl_bytes = pickle.dumps(lin_ctrl)
+    # lin_ctrl_reconstructed = pickle.loads(lin_ctrl_bytes)
+
+    # arr = ctrl.bindings.scalar_array()
+    # arr.push_back(1.0)
+    # arr.push_back(2.0)
+    # pickle.loads(pickle.dumps(arr))
+
+    # IPython.embed()
+    # return
+
+    # start separate control process
+    control_proc = Process(target=control_loop, args=(ns, mpc))
+    control_proc.start()
+
     # simulation loop
+    # this loop sets the MPC observation and computes the control input at a
+    # faster rate than the outer loop MPC optimization problem
     for i in range(num_timesteps):
         q, v = robot.joint_states()
         x = np.concatenate((q, v, a))
@@ -115,26 +162,31 @@ def main():
         # this does have the benefit of smoothing out the state used for
         # computation, which is important for constraint handling
         if ctrl_config["use_noisy_state_to_plan"]:
-            mpc.setObservation(t, x_noisy, u)
+            # mpc.setObservation(t, x_noisy, u)
+            ns.t = t
+            ns.x = x_noisy
+            ns.u = u
         else:
-            mpc.setObservation(t, x_opt, u)
+            ns.t = t
+            ns.x = x
+            ns.u = u
+            # mpc.setObservation(t, x_opt, u)
 
-        # this should be set to reflect the MPC time step
-        # we can increase it if the MPC rate is faster
-        if i % ctrl_period == 0:
-            try:
-                t0 = time.time()
-                mpc.advanceMpc()
-                t1 = time.time()
-                lin_ctrl = mpc.getLinearController()
-            except RuntimeError as e:
-                print(e)
-                print("exit the interpreter to proceed to plots")
-                IPython.embed()
-                # i -= 1  # for the recorder
-                break
-            # recorder.control_durations[i // ctrl_period] = t1 - t0
-            logger.append("control_durations", t1 - t0)
+        # # this should be set to reflect the MPC time step
+        # # we can increase it if the MPC rate is faster
+        # if i % ctrl_period == 0:
+        #     try:
+        #         t0 = time.time()
+        #         mpc.advanceMpc()
+        #         t1 = time.time()
+        #     except RuntimeError as e:
+        #         print(e)
+        #         print("exit the interpreter to proceed to plots")
+        #         IPython.embed()
+        #         # i -= 1  # for the recorder
+        #         break
+        #     # recorder.control_durations[i // ctrl_period] = t1 - t0
+        #     logger.append("control_durations", t1 - t0)
 
         # As far as I can tell, evaluateMpcSolution actually computes the input
         # for the particular time and state (the input is often at least
@@ -144,17 +196,10 @@ def main():
         # like doing feedforward input only, which is bad.
         # mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
         # a = np.copy(x_opt[-robot.nv :])
+        # # robot.command_acceleration(u)
         # robot.command_jerk(u)
 
-        # TODO need to get x_opt here, too
-        # K = mpc.getLinearFeedbackGain(t)
-        # k = mpc.getBias(t)
-        # # u = K @ (x_opt - x) + k
-        # u = K @ x + k
-        # # a = np.copy(x_opt[-robot.nv :])
-        # a = np.copy(robot.cmd_acc)
-        # robot.command_jerk(u)
-        u = lin_ctrl.computeInput(t, x)
+        u = ns.lin_ctrl.computeInput(t, x)
         a = np.copy(robot.cmd_acc)
         robot.command_jerk(u)
 

@@ -1,8 +1,10 @@
 #include <pybind11/eigen.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
 
 #include <ocs2_core/Types.h>
+#include <ocs2_core/control/LinearController.h>
 #include <ocs2_python_interface/PybindMacros.h>
 #include <tray_balance_constraints/dynamics.h>
 #include <tray_balance_constraints/nominal.h>
@@ -14,8 +16,8 @@
 #include "tray_balance_ocs2/constraint/ConstraintType.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
 #include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
-#include "tray_balance_ocs2/dynamics/Dimensions.h"
 #include "tray_balance_ocs2/dynamics/BaseType.h"
+#include "tray_balance_ocs2/dynamics/Dimensions.h"
 
 using namespace ocs2;
 using namespace mobile_manipulator;
@@ -38,6 +40,18 @@ PYBIND11_MODULE(bindings, m) {
     VECTOR_TYPE_BINDING(ocs2::vector_array_t, "vector_array")
     VECTOR_TYPE_BINDING(ocs2::matrix_array_t, "matrix_array")
 
+    // pybind11::implicitly_convertible<pybind11::list, ocs2::scalar_array_t>();
+    // pybind11::implicitly_convertible<pybind11::list, ocs2::vector_array_t>();
+    // pybind11::implicitly_convertible<pybind11::list, ocs2::matrix_array_t>();
+
+    // pybind11::implicitly_convertible<ocs2::scalar_array_t, pybind11::list>();
+    // pybind11::implicitly_convertible<ocs2::vector_array_t, pybind11::list>();
+    // pybind11::implicitly_convertible<ocs2::matrix_array_t, pybind11::list>();
+
+    // pybind11::bind_vector<ocs2::scalar_array_t>(m, "scalar_array");
+    // pybind11::bind_vector<ocs2::vector_array_t>(m, "vector_array");
+    // pybind11::bind_vector<ocs2::matrix_array_t>(m, "matrix_array");
+
     VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
 
@@ -46,16 +60,16 @@ PYBIND11_MODULE(bindings, m) {
 
     /// Normal balancing
     pybind11::class_<RigidBody<scalar_t>>(m, "RigidBody")
-        .def(pybind11::init<const scalar_t, const Mat3<scalar_t>&,
-                            const Vec3<scalar_t>&>(),
+        .def(pybind11::init<const scalar_t, const Mat3<scalar_t> &,
+                            const Vec3<scalar_t> &>(),
              "mass"_a, "inertia"_a, "com"_a)
         .def_readwrite("mass", &RigidBody<scalar_t>::mass)
         .def_readwrite("inertia", &RigidBody<scalar_t>::inertia)
         .def_readwrite("com", &RigidBody<scalar_t>::com);
 
     pybind11::class_<BalancedObject<scalar_t>>(m, "BalancedObject")
-        .def(pybind11::init<const RigidBody<scalar_t>&, scalar_t,
-                            const PolygonSupportArea<scalar_t>&, scalar_t,
+        .def(pybind11::init<const RigidBody<scalar_t> &, scalar_t,
+                            const PolygonSupportArea<scalar_t> &, scalar_t,
                             scalar_t>(),
              "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
         .def_static("compose", &BalancedObject<scalar_t>::compose, "objects"_a);
@@ -90,8 +104,8 @@ PYBIND11_MODULE(bindings, m) {
         .value("Hard", ConstraintType::Hard);
 
     pybind11::class_<CollisionSphere<scalar_t>>(m, "CollisionSphere")
-        .def(pybind11::init<const std::string&, const std::string&,
-                            const Eigen::Matrix<scalar_t, 3, 1>&,
+        .def(pybind11::init<const std::string &, const std::string &,
+                            const Eigen::Matrix<scalar_t, 3, 1> &,
                             const scalar_t>(),
              "name"_a, "parent_frame_name"_a, "offset"_a, "radius"_a)
         .def_readwrite("name", &CollisionSphere<scalar_t>::name)
@@ -213,9 +227,32 @@ PYBIND11_MODULE(bindings, m) {
         .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
                             ocs2::vector_array_t>());
 
+    pybind11::class_<ocs2::LinearController>(m, "LinearController")
+        .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
+                            ocs2::matrix_array_t>(),
+             "times"_a, "biases"_a, "gains"_a)
+        .def("computeInput", &ocs2::LinearController::computeInput, "t"_a,
+             "x"_a)
+        .def(pybind11::pickle(
+            [](const ocs2::LinearController &c) {
+                /* Return a tuple that fully encodes the state of the object */
+                return pybind11::make_tuple(c.timeStamp_, c.biasArray_,
+                                            c.gainArray_);
+            },
+            [](pybind11::tuple t) {
+                if (t.size() != 3) {
+                    throw std::runtime_error("Invalid state!");
+                }
+
+                ocs2::LinearController c(t[0].cast<ocs2::scalar_array_t>(),
+                                         t[1].cast<ocs2::vector_array_t>(),
+                                         t[2].cast<ocs2::matrix_array_t>());
+                return c;
+            }));
+
     /* bind the actual mpc interface */
     pybind11::class_<MobileManipulatorPythonInterface>(m, "ControllerInterface")
-        .def(pybind11::init<const ControllerSettings&>(), "settings"_a)
+        .def(pybind11::init<const ControllerSettings &>(), "settings"_a)
         .def("getStateDim", &MobileManipulatorPythonInterface::getStateDim)
         .def("getInputDim", &MobileManipulatorPythonInterface::getInputDim)
         .def("setObservation",
@@ -237,6 +274,10 @@ PYBIND11_MODULE(bindings, m) {
         .def("getLinearFeedbackGain",
              &MobileManipulatorPythonInterface::getLinearFeedbackGain,
              "t"_a.noconvert())
+        .def("getBias", &MobileManipulatorPythonInterface::getBias,
+             "t"_a.noconvert())
+        .def("getLinearController",
+             &MobileManipulatorPythonInterface::getLinearController)
         .def("flowMap", &MobileManipulatorPythonInterface::flowMap, "t"_a,
              "x"_a.noconvert(), "u"_a.noconvert())
         .def("flowMapLinearApproximation",
