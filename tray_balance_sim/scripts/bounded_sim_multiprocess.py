@@ -24,23 +24,28 @@ import tray_balance_ocs2 as ctrl
 import IPython
 
 
-def control_loop(ns, ctrl_wrapper, r_ew_w, Q_we, sync_lock):
+def control_loop(
+    ctrl_wrapper, r_ew_w, Q_we, sync_lock, outer_ctrl_con, outer_ctrl_txu
+):
     """Advance MPC at a fixed control rate."""
     try:
         # initialize and run first iteration
         mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
-        mpc.setObservation(ns.t, ns.x, ns.u)
+        t, x, u = outer_ctrl_txu.recv()
+        mpc.setObservation(t, x, u)
         mpc.advanceMpc()
         print("first MPC iteration done")
-        ns.lin_ctrl = mpc.getLinearController()
+        outer_ctrl_con.send(mpc.getLinearController())
     finally:
         sync_lock.release()
 
     rate = core.util.Rate.from_hz(40)
     while True:
-        mpc.setObservation(ns.t, ns.x, ns.u)
+        while outer_ctrl_txu.poll(timeout=0):
+            t, x, u = outer_ctrl_txu.recv()
+        mpc.setObservation(t, x, u)
         mpc.advanceMpc()
-        ns.lin_ctrl = mpc.getLinearController()
+        outer_ctrl_con.send(mpc.getLinearController())
         print("advanced mpc!")
         rate.sleep()
 
@@ -123,29 +128,27 @@ def main():
     static_stable = True
 
     # namespace to manage shared controller resources
-    mgr = Manager()
-    ns = mgr.Namespace()
-    # outer_ctrl_con, inner_ctrl_con = Pipe()
-    # outer_ctrl_txu, inner_ctrl_txu = Pipe()
-
-    ns.t = t
-    ns.x = x
-    ns.u = u
-
-    # lin_ctrl = mpc.getLinearController()
-    # ns.lin_ctrl = lin_ctrl
-
-    # lin_ctrl_bytes = pickle.dumps(lin_ctrl)
-    # lin_ctrl_reconstructed = pickle.loads(lin_ctrl_bytes)
+    outer_ctrl_con, inner_ctrl_con = Pipe()
+    outer_ctrl_txu, inner_ctrl_txu = Pipe()
 
     # acquire a lock which is only released after MPC is initialized in the
     # outer-loop process
     sync_lock = Lock()
     sync_lock.acquire()
 
+    inner_ctrl_txu.send((t, x, u))
+
     # start separate control process
     control_proc = Process(
-        target=control_loop, args=(ns, ctrl_wrapper, r_ew_w, Q_we, sync_lock)
+        target=control_loop,
+        args=(
+            ctrl_wrapper,
+            r_ew_w,
+            Q_we,
+            sync_lock,
+            outer_ctrl_con,
+            outer_ctrl_txu,
+        ),
     )
     control_proc.start()
 
@@ -169,44 +172,14 @@ def main():
         # this does have the benefit of smoothing out the state used for
         # computation, which is important for constraint handling
         if ctrl_config["use_noisy_state_to_plan"]:
-            # mpc.setObservation(t, x_noisy, u)
-            ns.t = t
-            ns.x = x_noisy
-            ns.u = u
+            inner_ctrl_txu.send((t, x_noisy, u))
         else:
-            ns.t = t
-            ns.x = x
-            ns.u = u
-            # mpc.setObservation(t, x_opt, u)
+            inner_ctrl_txu.send((t, x, u))
 
-        # # this should be set to reflect the MPC time step
-        # # we can increase it if the MPC rate is faster
-        # if i % ctrl_period == 0:
-        #     try:
-        #         t0 = time.time()
-        #         mpc.advanceMpc()
-        #         t1 = time.time()
-        #     except RuntimeError as e:
-        #         print(e)
-        #         print("exit the interpreter to proceed to plots")
-        #         IPython.embed()
-        #         # i -= 1  # for the recorder
-        #         break
-        #     # recorder.control_durations[i // ctrl_period] = t1 - t0
-        #     logger.append("control_durations", t1 - t0)
+        if inner_ctrl_con.poll(timeout=0):
+            lin_ctrl = inner_ctrl_con.recv()
 
-        # As far as I can tell, evaluateMpcSolution actually computes the input
-        # for the particular time and state (the input is often at least
-        # state-varying in DDP, with linear feedback on state error). OTOH,
-        # getMpcSolution just gives the current MPC policy trajectory over the
-        # entire time horizon, without accounting for the given state. So it is
-        # like doing feedforward input only, which is bad.
-        # mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
-        # a = np.copy(x_opt[-robot.nv :])
-        # # robot.command_acceleration(u)
-        # robot.command_jerk(u)
-
-        u = ns.lin_ctrl.computeInput(t, x)
+        u = lin_ctrl.computeInput(t, x)
         a = np.copy(robot.cmd_acc)
         robot.command_jerk(u)
 
