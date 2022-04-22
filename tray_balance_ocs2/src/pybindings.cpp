@@ -40,18 +40,6 @@ PYBIND11_MODULE(bindings, m) {
     VECTOR_TYPE_BINDING(ocs2::vector_array_t, "vector_array")
     VECTOR_TYPE_BINDING(ocs2::matrix_array_t, "matrix_array")
 
-    // pybind11::implicitly_convertible<pybind11::list, ocs2::scalar_array_t>();
-    // pybind11::implicitly_convertible<pybind11::list, ocs2::vector_array_t>();
-    // pybind11::implicitly_convertible<pybind11::list, ocs2::matrix_array_t>();
-
-    // pybind11::implicitly_convertible<ocs2::scalar_array_t, pybind11::list>();
-    // pybind11::implicitly_convertible<ocs2::vector_array_t, pybind11::list>();
-    // pybind11::implicitly_convertible<ocs2::matrix_array_t, pybind11::list>();
-
-    // pybind11::bind_vector<ocs2::scalar_array_t>(m, "scalar_array");
-    // pybind11::bind_vector<ocs2::vector_array_t>(m, "vector_array");
-    // pybind11::bind_vector<ocs2::matrix_array_t>(m, "matrix_array");
-
     VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
 

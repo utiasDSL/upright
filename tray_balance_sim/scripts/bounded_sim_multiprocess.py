@@ -24,10 +24,12 @@ import tray_balance_ocs2 as ctrl
 import IPython
 
 
-def control_loop(
+def outer_control_loop(
     ctrl_wrapper, r_ew_w, Q_we, sync_lock, outer_ctrl_con, outer_ctrl_txu
 ):
-    """Advance MPC at a fixed control rate."""
+    """Outer control loop containing MPC optimization.
+
+    Advance MPC at a fixed control rate."""
     try:
         # initialize and run first iteration
         mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
@@ -143,8 +145,8 @@ def main():
     inner_ctrl_txu.send((t, x, u))
 
     # start separate control process
-    control_proc = Process(
-        target=control_loop,
+    outer_control_proc = Process(
+        target=outer_control_loop,
         args=(
             ctrl_wrapper,
             r_ew_w,
@@ -154,7 +156,7 @@ def main():
             outer_ctrl_txu,
         ),
     )
-    control_proc.start()
+    outer_control_proc.start()
 
     # wait until MPC is initialized
     sync_lock.acquire()
@@ -162,6 +164,7 @@ def main():
     # simulation loop
     # this loop sets the MPC observation and computes the control input at a
     # faster rate than the outer loop MPC optimization problem
+    # TODO: ideally we'd seperate this cleanly into its own function
     for i in range(num_timesteps):
         q, v = robot.joint_states()
         x = np.concatenate((q, v, a))
@@ -170,6 +173,7 @@ def main():
         q_noisy, v_noisy = robot.joint_states(add_noise=True)
         x_noisy = np.concatenate((q_noisy, v_noisy, a))
 
+        # send updated states
         if ctrl_config["use_noisy_state_to_plan"]:
             inner_ctrl_txu.send((t, x_noisy, u))
         else:
@@ -179,6 +183,7 @@ def main():
         if inner_ctrl_con.poll(timeout=0):
             lin_ctrl = inner_ctrl_con.recv()
 
+        # compute the input using the current controller
         u = lin_ctrl.computeInput(t, x)
         a = np.copy(robot.cmd_acc)
         robot.command_jerk(u)
@@ -257,8 +262,8 @@ def main():
 
     # rejoin the control process
     # TODO probably put this in the finally part of a try-finally
-    control_proc.terminate()
-    print("killed MPC process")
+    outer_control_proc.terminate()
+    print("killed outer control loop process")
 
     try:
         print(f"Min constraint value = {np.min(logger.data['ineq_cons'])}")

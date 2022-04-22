@@ -169,11 +169,10 @@ class ControllerConfigWrapper:
             ctrl_config["balancing"]["delta"]
         )
 
+        # TODO just pull this out
         ctrl_objects = core.parsing.parse_control_objects(ctrl_config)
         settings.tray_balance_settings.bounded_config.objects = ctrl_objects
         settings.tray_balance_settings.bounded_config.gravity = ctrl_config["gravity"]
-
-        # IPython.embed()
 
         # collision avoidance settings
         settings.collision_avoidance_settings.enabled = False

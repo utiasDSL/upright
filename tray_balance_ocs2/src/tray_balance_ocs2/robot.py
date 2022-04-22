@@ -5,6 +5,8 @@ import pinocchio
 import rospack
 import liegroups
 
+# TODO probably want to actually bind the pinocchio mapping for use here
+
 
 # TODO build this from config
 class PinocchioRobot:
