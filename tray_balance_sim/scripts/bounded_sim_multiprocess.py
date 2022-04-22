@@ -6,7 +6,7 @@ import datetime
 import sys
 import os
 from pathlib import Path
-from multiprocessing import Process, Manager, Pipe
+from multiprocessing import Process, Manager, Pipe, Lock
 import pickle
 
 import numpy as np
@@ -22,6 +22,27 @@ import tray_balance_constraints as core
 import tray_balance_ocs2 as ctrl
 
 import IPython
+
+
+def control_loop(ns, ctrl_wrapper, r_ew_w, Q_we, sync_lock):
+    """Advance MPC at a fixed control rate."""
+    try:
+        # initialize and run first iteration
+        mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
+        mpc.setObservation(ns.t, ns.x, ns.u)
+        mpc.advanceMpc()
+        print("first MPC iteration done")
+        ns.lin_ctrl = mpc.getLinearController()
+    finally:
+        sync_lock.release()
+
+    rate = core.util.Rate.from_hz(40)
+    while True:
+        mpc.setObservation(ns.t, ns.x, ns.u)
+        mpc.advanceMpc()
+        ns.lin_ctrl = mpc.getLinearController()
+        print("advanced mpc!")
+        rate.sleep()
 
 
 def main():
@@ -88,7 +109,7 @@ def main():
 
     # create reference trajectory and controller
     ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
-    mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
+    # mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
 
     # frames and ghost (i.e., pure visual) objects
     ghosts = []
@@ -99,23 +120,7 @@ def main():
 
     target_idx = 0
     x_opt = np.copy(x)
-
     static_stable = True
-
-    def control_loop(ns, mpc):
-        """Advance MPC at a fixed control rate."""
-        # print(f"child process id = {id(mpc)}")
-        rate = core.util.Rate.from_hz(40)
-        while True:
-            mpc.setObservation(ns.t, ns.x, ns.u)
-            mpc.advanceMpc()
-            ns.lin_ctrl = mpc.getLinearController()
-            print("advanced mpc!")
-            rate.sleep()
-
-    # initialize and run first iteration
-    mpc.setObservation(t, x, u)
-    mpc.advanceMpc()
 
     # namespace to manage shared controller resources
     mgr = Manager()
@@ -127,23 +132,25 @@ def main():
     ns.x = x
     ns.u = u
 
-    lin_ctrl = mpc.getLinearController()
-    ns.lin_ctrl = lin_ctrl
+    # lin_ctrl = mpc.getLinearController()
+    # ns.lin_ctrl = lin_ctrl
 
     # lin_ctrl_bytes = pickle.dumps(lin_ctrl)
     # lin_ctrl_reconstructed = pickle.loads(lin_ctrl_bytes)
 
-    # arr = ctrl.bindings.scalar_array()
-    # arr.push_back(1.0)
-    # arr.push_back(2.0)
-    # pickle.loads(pickle.dumps(arr))
-
-    # IPython.embed()
-    # return
+    # acquire a lock which is only released after MPC is initialized in the
+    # outer-loop process
+    sync_lock = Lock()
+    sync_lock.acquire()
 
     # start separate control process
-    control_proc = Process(target=control_loop, args=(ns, mpc))
+    control_proc = Process(
+        target=control_loop, args=(ns, ctrl_wrapper, r_ew_w, Q_we, sync_lock)
+    )
     control_proc.start()
+
+    # wait until MPC is initialized
+    sync_lock.acquire()
 
     # simulation loop
     # this loop sets the MPC observation and computes the control input at a
@@ -204,19 +211,19 @@ def main():
         robot.command_jerk(u)
 
         if i % log_dt == 0:
-            if ctrl_wrapper.settings.tray_balance_settings.enabled:
-                if (
-                    ctrl_wrapper.settings.tray_balance_settings.constraint_type
-                    == ctrl.bindings.ConstraintType.Hard
-                ):
-                    balance_cons = mpc.stateInputInequalityConstraint(
-                        "trayBalance", t, x, u
-                    )
-                else:
-                    balance_cons = mpc.softStateInputInequalityConstraint(
-                        "trayBalance", t, x, u
-                    )
-                logger.append("ineq_cons", balance_cons)
+            # if ctrl_wrapper.settings.tray_balance_settings.enabled:
+            #     if (
+            #         ctrl_wrapper.settings.tray_balance_settings.constraint_type
+            #         == ctrl.bindings.ConstraintType.Hard
+            #     ):
+            #         balance_cons = mpc.stateInputInequalityConstraint(
+            #             "trayBalance", t, x, u
+            #         )
+            #     else:
+            #         balance_cons = mpc.softStateInputInequalityConstraint(
+            #             "trayBalance", t, x, u
+            #         )
+            #     logger.append("ineq_cons", balance_cons)
             # if ctrl_wrapper.settings.dynamic_obstacle_settings.enabled:
             #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
             #         "dynamicObstacleAvoidance", t, x
@@ -275,6 +282,11 @@ def main():
 
         video_manager.record(i)
 
+    # rejoin the control process
+    # TODO probably put this in the finally part of a try-finally
+    control_proc.terminate()
+    print("killed MPC process")
+
     try:
         print(f"Min constraint value = {np.min(logger.data['ineq_cons'])}")
     except:
@@ -295,12 +307,12 @@ def main():
     for j in range(num_objects):
         plotter.plot_object_error(j)
 
-    plotter.plot_value_vs_time(
-        "ineq_cons",
-        legend_prefix="g",
-        ylabel="Constraint Value",
-        title="Balancing Inequality Constraints vs. Time",
-    )
+    # plotter.plot_value_vs_time(
+    #     "ineq_cons",
+    #     legend_prefix="g",
+    #     ylabel="Constraint Value",
+    #     title="Balancing Inequality Constraints vs. Time",
+    # )
     plotter.plot_value_vs_time(
         "us",
         indices=range(robot.nu),
@@ -309,7 +321,7 @@ def main():
         title="Commanded Inputs vs. Time",
     )
 
-    plotter.plot_control_durations()
+    # plotter.plot_control_durations()
     plotter.plot_cmd_vs_real_vel()
 
     plotter.plot_value_vs_time(
