@@ -18,6 +18,8 @@
 #include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
 #include "tray_balance_ocs2/dynamics/BaseType.h"
 #include "tray_balance_ocs2/dynamics/Dimensions.h"
+#include "tray_balance_ocs2/dynamics/FixedBasePinocchioMapping.h"
+#include "tray_balance_ocs2/dynamics/MobileManipulatorPinocchioMapping.h"
 
 using namespace ocs2;
 using namespace mobile_manipulator;
@@ -42,6 +44,36 @@ PYBIND11_MODULE(bindings, m) {
 
     VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
+
+    pybind11::class_<FixedBasePinocchioMapping<scalar_t>>(
+        m, "FixedBasePinocchioMapping")
+        .def(pybind11::init<const RobotDimensions &>(), "dims")
+        .def("get_pinocchio_joint_position",
+             &FixedBasePinocchioMapping<scalar_t>::getPinocchioJointPosition,
+             "state"_a)
+        .def("get_pinocchio_joint_velocity",
+             &FixedBasePinocchioMapping<scalar_t>::getPinocchioJointVelocity,
+             "state"_a, "input"_a)
+        .def(
+            "get_pinocchio_joint_acceleration",
+            &FixedBasePinocchioMapping<scalar_t>::getPinocchioJointAcceleration,
+            "state"_a, "input"_a);
+
+    pybind11::class_<MobileManipulatorPinocchioMapping<scalar_t>>(
+        m, "OmnidirectionalPinocchioMapping")
+        .def(pybind11::init<const RobotDimensions &>(), "dims")
+        .def("get_pinocchio_joint_position",
+             &MobileManipulatorPinocchioMapping<
+                 scalar_t>::getPinocchioJointPosition,
+             "state"_a)
+        .def("get_pinocchio_joint_velocity",
+             &MobileManipulatorPinocchioMapping<
+                 scalar_t>::getPinocchioJointVelocity,
+             "state"_a, "input"_a)
+        .def("get_pinocchio_joint_acceleration",
+             &MobileManipulatorPinocchioMapping<
+                 scalar_t>::getPinocchioJointAcceleration,
+             "state"_a, "input"_a);
 
     pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
         .def(pybind11::init<>())

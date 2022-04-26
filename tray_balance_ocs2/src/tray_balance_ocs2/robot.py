@@ -2,42 +2,55 @@ import os
 
 import numpy as np
 import pinocchio
-import rospack
 import liegroups
+
+import tray_balance_constraints as core
+from tray_balance_ocs2 import bindings
 
 # TODO probably want to actually bind the pinocchio mapping for use here
 
 
 # TODO build this from config
 class PinocchioRobot:
-    def __init__(self):
-        rospack = rospkg.RosPack()
-        urdf_path = os.path.join(
-            rospack.get_path("tray_balance_assets"), "urdf", "mm_ocs2.urdf"
-        )
+    def __init__(self, config):
+        # dimensions
+        self.dims = bindings.RobotDimensions()
+        self.dims.q = config["robot"]["dims"]["q"]  # num positions
+        self.dims.v = config["robot"]["dims"]["v"]  # num velocities
+        self.dims.x = config["robot"]["dims"]["x"]  # num states
+        self.dims.u = config["robot"]["dims"]["u"]  # num inputs
 
-        root_joint = pinocchio.JointModelComposite(3)
-        root_joint.addJoint(pinocchio.JointModelPX())
-        root_joint.addJoint(pinocchio.JointModelPY())
-        root_joint.addJoint(pinocchio.JointModelRZ())
-        self.model = pinocchio.buildModelFromUrdf(urdf_path, root_joint)
-
-        self.nq = self.model.nq
-        self.nv = self.model.nv
-        self.ns = self.nq + self.nv
-        self.ni = self.nv
+        # create the model
+        urdf_path = core.parsing.parse_ros_path(config["robot"]["urdf"])
+        base_type = config["robot"]["base_type"]
+        if base_type == "fixed":
+            self.model = pinocchio.buildModelFromUrdf(urdf_path)
+            self.mapping = bindings.FixedBasePinocchioMapping(self.dims)
+        elif base_type == "omnidirectional":
+            root_joint = pinocchio.JointModelComposite(3)
+            root_joint.addJoint(pinocchio.JointModelPX())
+            root_joint.addJoint(pinocchio.JointModelPY())
+            root_joint.addJoint(pinocchio.JointModelRZ())
+            self.model = pinocchio.buildModelFromUrdf(urdf_path, root_joint)
+            self.mapping = bindings.OmnidirectionalPinocchioMapping(self.dims)
+        else:
+            raise ValueError(f"Invalid base type {base_type}.")
 
         self.data = self.model.createData()
 
-        self.tool_idx = self.model.getBodyId("thing_tool")
+        self.tool_idx = self.model.getBodyId(config["robot"]["tool_link_name"])
 
     def forward_qva(self, q, v=None, a=None):
         """Forward kinematics using (q, v, a) all in the world frame (i.e.,
         corresponding directly to the Pinocchio model."""
         if v is None:
-            v = np.zeros(self.nv)
+            v = np.zeros(self.dims.v)
         if a is None:
-            a = np.zeros(self.ni)
+            a = np.zeros(self.dims.v)
+
+        assert q.shape == (self.dims.q,)
+        assert v.shape == (self.dims.v,)
+        assert a.shape == (self.dims.v,)
 
         pinocchio.forwardKinematics(self.model, self.data, q, v, a)
         pinocchio.updateFramePlacements(self.model, self.data)
@@ -45,15 +58,16 @@ class PinocchioRobot:
     def forward(self, x, u=None):
         """Forward kinematics. Must be called before the link pose, velocity,
         or acceleration methods."""
-        q, v = x[: self.nq], x[self.nq :]
-        assert v.shape[0] == self.nv
         if u is None:
-            u = np.zeros(self.ni)
+            u = np.zeros(self.dims.u)
 
-        # rotate input into the world frame
-        a = np.copy(u)
-        C_wb = liegroups.SO3.rotz(q[2]).as_matrix()
-        a[:3] = C_wb @ u[:3]
+        assert x.shape == (self.dims.x,)
+        assert u.shape == (self.dims.u,)
+
+        # get values in Pinocchio coordinates
+        q = self.mapping.get_pinocchio_joint_position(x)
+        v = self.mapping.get_pinocchio_joint_velocity(x, u)
+        a = self.mapping.get_pinocchio_joint_acceleration(x, u)
 
         self.forward_qva(q, v, a)
 

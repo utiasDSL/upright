@@ -8,6 +8,10 @@ include:
     package: tray_balance_assets
     path: config/controller.yaml
   -
+    key: perls2
+    package: upright_real
+    path: config/closed_loop_demo.yaml
+  -
     package: tray_balance_assets
     path: config/panda.yaml
 
