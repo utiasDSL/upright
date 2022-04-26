@@ -186,17 +186,19 @@ def main():
             logger.append("cmd_vels", robot.cmd_vel.copy())
 
             # compute distance outside of support area
-            d = core.util.support_area_distance(ctrl_objects[1], Q_we)
-            logger.append("ds", d)
+            # TODO use sim objects here?
+            if len(ctrl_objects) > 0:
+                d = core.util.support_area_distance(ctrl_objects[-1], Q_we)
+                logger.append("ds", d)
 
-            if d > 0:
-                if static_stable:
-                    sim_objects["box"].change_color((1, 0, 0, 1))
-                static_stable = False
-            else:
-                if not static_stable:
-                    sim_objects["box"].change_color((0, 1, 0, 1))
-                static_stable = True
+                # if d > 0:
+                #     if static_stable:
+                #         sim_objects["box"].change_color((1, 0, 0, 1))
+                #     static_stable = False
+                # else:
+                #     if not static_stable:
+                #         sim_objects["box"].change_color((0, 1, 0, 1))
+                #     static_stable = True
 
             r_ow_ws = np.zeros((num_objects, 3))
             Q_wos = np.zeros((num_objects, 4))

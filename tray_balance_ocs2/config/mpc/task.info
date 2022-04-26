@@ -94,6 +94,6 @@ mpc
 
   solutionTimeWindow             -1   ; [s]
 
-  mpcDesiredFrequency            10   ; [Hz]
-  mrtDesiredFrequency            10   ; [Hz]
+  ; mpcDesiredFrequency            10   ; [Hz]
+  ; mrtDesiredFrequency            10   ; [Hz]
 }

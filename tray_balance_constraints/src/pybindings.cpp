@@ -2,6 +2,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "tray_balance_constraints/nominal.h"
 #include "tray_balance_constraints/bounded.h"
 #include "tray_balance_constraints/ellipsoid.h"
 #include "tray_balance_constraints/support_area.h"
@@ -15,6 +16,35 @@ using namespace pybind11::literals;
 
 PYBIND11_MODULE(bindings, m) {
     using Scalar = double;
+
+    pybind11::class_<RigidBody<Scalar>>(m, "RigidBody")
+        .def(pybind11::init<const Scalar, const Mat3<Scalar> &,
+                            const Vec3<Scalar> &>(),
+             "mass"_a, "inertia"_a, "com"_a)
+        .def_readwrite("mass", &RigidBody<Scalar>::mass)
+        .def_readwrite("inertia", &RigidBody<Scalar>::inertia)
+        .def_readwrite("com", &RigidBody<Scalar>::com);
+
+    pybind11::class_<BalancedObject<Scalar>>(m, "BalancedObject")
+        .def(pybind11::init<const RigidBody<Scalar> &, Scalar,
+                            const PolygonSupportArea<Scalar> &, Scalar,
+                            Scalar>(),
+             "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
+        .def_static("compose", &BalancedObject<Scalar>::compose, "objects"_a);
+
+    pybind11::class_<BalanceConstraintsEnabled>(m, "BalanceConstraintsEnabled")
+        .def(pybind11::init<>())
+        .def_readwrite("normal", &BalanceConstraintsEnabled::normal)
+        .def_readwrite("friction", &BalanceConstraintsEnabled::friction)
+        .def_readwrite("zmp", &BalanceConstraintsEnabled::zmp);
+
+    pybind11::class_<TrayBalanceConfiguration<Scalar>>(
+        m, "TrayBalanceConfiguration")
+        .def(pybind11::init<>())
+        .def_readwrite("objects", &TrayBalanceConfiguration<Scalar>::objects)
+        .def_readwrite("enabled", &TrayBalanceConfiguration<Scalar>::enabled)
+        .def("num_constraints",
+             &TrayBalanceConfiguration<Scalar>::num_constraints);
 
     pybind11::class_<PolygonSupportArea<Scalar>>(m, "PolygonSupportArea")
         .def(pybind11::init<const std::vector<Vec2<Scalar>>&>(),
@@ -88,6 +118,8 @@ PYBIND11_MODULE(bindings, m) {
                        &BoundedTrayBalanceConfiguration<Scalar>::objects)
         .def_readwrite("gravity",
                        &BoundedTrayBalanceConfiguration<Scalar>::gravity)
+        .def_readwrite("enabled",
+                       &BoundedTrayBalanceConfiguration<Scalar>::enabled)
         .def("num_constraints",
              &BoundedTrayBalanceConfiguration<Scalar>::num_constraints);
 }

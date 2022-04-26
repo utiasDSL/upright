@@ -239,10 +239,10 @@ Scalar max_beta_projection_approx(const Vec3<Scalar>& p, const Mat3<Scalar>& R2,
 
 // This should only be called if the radii of gyration of the body are exact
 template <typename Scalar>
-Scalar max_beta_projection_exact(const Vec3<Scalar>& p, const Mat3<Scalar>& R2,
-                                 const Mat3<Scalar>& C_ew,
-                                 const Vec3<Scalar>& angular_vel,
-                                 const Vec3<Scalar>& angular_acc) {
+Scalar beta_projection_exact(const Vec3<Scalar>& p, const Mat3<Scalar>& R2,
+                             const Mat3<Scalar>& C_ew,
+                             const Vec3<Scalar>& angular_vel,
+                             const Vec3<Scalar>& angular_acc) {
     return p.cross(C_ew * angular_vel).dot(R2 * C_ew * angular_vel) +
            p.dot(R2 * C_ew * angular_acc);
 }
@@ -256,6 +256,7 @@ template <typename Scalar>
 Scalar optimize_linear_st_ellipsoid(const Vec3<Scalar>& a, const Scalar& b,
                                     const Ellipsoid<Scalar>& ellipsoid,
                                     const Scalar& eps, OptType type) {
+    // TODO should we special-case ellipsoid with rank = 0 (i.e. just a point)
     Scalar v = sqrt(a.dot(ellipsoid.Einv() * a) + eps);
     if (type == OptType::Min) {
         v = -v;
@@ -310,8 +311,9 @@ Vector<Scalar> bounded_friction_constraint(
     Mat3<Scalar> R2 = object.body.radii_of_gyration_matrix();
     Scalar beta_z_max;
     if (object.body.has_exact_radii()) {
+        // std::cerr << "BODY HAS EXACT RADII" << std::endl;
         beta_z_max =
-            max_beta_projection_exact(z, R2, C_ew, angular_vel, angular_acc);
+            beta_projection_exact(z, R2, C_ew, angular_vel, angular_acc);
     } else {
         beta_z_max = max_beta_projection_approx(z, R2, C_ew, angular_vel,
                                                 angular_acc, eps);
@@ -338,8 +340,9 @@ Vector<Scalar> bounded_friction_constraint(
 
     // TODO hopefully come up with a more elegant way to handle the exact case
     if (object.body.has_exact_radii()) {
-        // For the exact beta, we need to handle the sign but can get away with
-        // sqrt(x**2 + eps), since the max and min values cannot be different
+        // For the exact beta, we need to handle the sign (since in this case
+        // beta is an absolute value) but can get away with sqrt(x**2 + eps),
+        // since the max and min values cannot be different
         Scalar beta_positive = sqrt(squared(beta_z_max) + eps);
         friction_constraint(0) = min1 - beta_positive / object.r_tau_min;
         friction_constraint(1) = min2 - beta_positive / object.r_tau_min;
@@ -389,8 +392,8 @@ Vector<Scalar> bounded_zmp_constraint(
         Vec3<Scalar> p = S.transpose() * edges[i].normal;
         Scalar beta_xy_max;
         if (object.body.has_exact_radii()) {
-            beta_xy_max = max_beta_projection_exact(p, R2, C_ew, angular_vel,
-                                                    angular_acc);
+            beta_xy_max =
+                beta_projection_exact(p, R2, C_ew, angular_vel, angular_acc);
         } else {
             beta_xy_max = max_beta_projection_approx(p, R2, C_ew, angular_vel,
                                                      angular_acc, Scalar(1e-6));
@@ -441,7 +444,8 @@ template <typename Scalar>
 Vector<Scalar> bounded_balancing_constraints_single(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
-    const BoundedBalancedObject<Scalar>& object, const Vec3<Scalar>& gravity) {
+    const BoundedBalancedObject<Scalar>& object, const Vec3<Scalar>& gravity,
+    const BalanceConstraintsEnabled& enabled) {
     Mat3<Scalar> C_we = orientation;
     Mat3<Scalar> C_ew = C_we.transpose();
     Mat3<Scalar> ddC_we =
@@ -455,16 +459,28 @@ Vector<Scalar> bounded_balancing_constraints_single(
     Scalar eps(1e-6);
 
     // normal contact constraint
-    Vector<Scalar> g_con =
-        bounded_contact_constraint(ddC_we, C_ew, linear_acc, gravity, object, eps);
+    Vector<Scalar> g_con = bounded_contact_constraint(ddC_we, C_ew, linear_acc,
+                                                      gravity, object, eps);
 
     // friction constraint
-    Vector<Scalar> g_fric = bounded_friction_constraint(
-        ddC_we, C_ew, angular_vel, linear_acc, angular_acc, gravity, object, eps);
+    Vector<Scalar> g_fric =
+        bounded_friction_constraint(ddC_we, C_ew, angular_vel, linear_acc,
+                                    angular_acc, gravity, object, eps);
 
     // tipping constraint
-    Vector<Scalar> g_zmp = bounded_zmp_constraint(
-        ddC_we, C_ew, angular_vel, linear_acc, angular_acc, gravity, object, eps);
+    Vector<Scalar> g_zmp =
+        bounded_zmp_constraint(ddC_we, C_ew, angular_vel, linear_acc,
+                               angular_acc, gravity, object, eps);
+
+    if (!enabled.normal) {
+        g_con.setZero();
+    }
+    if (!enabled.friction) {
+        g_fric.setZero();
+    }
+    if (!enabled.zmp) {
+        g_zmp.setZero();
+    }
 
     Vector<Scalar> g_bal(object.num_constraints());
     g_bal << g_con, g_fric, g_zmp;
@@ -481,12 +497,14 @@ struct BoundedTrayBalanceConfiguration {
 
     BoundedTrayBalanceConfiguration(
         const std::vector<BoundedBalancedObject<Scalar>>& objects,
-        const Vec3<Scalar>& gravity)
-        : objects(objects), gravity(gravity) {}
+        const Vec3<Scalar>& gravity, const BalanceConstraintsEnabled& enabled)
+        : objects(objects), gravity(gravity), enabled(enabled) {}
 
     BoundedTrayBalanceConfiguration(
         const BoundedTrayBalanceConfiguration& other)
-        : objects(other.objects), gravity(other.gravity) {}
+        : objects(other.objects),
+          gravity(other.gravity),
+          enabled(other.enabled) {}
 
     // Number of balancing constraints.
     size_t num_constraints() const {
@@ -533,7 +551,8 @@ struct BoundedTrayBalanceConfiguration {
             objectsT.push_back(objT);
             index += n;
         }
-        return BoundedTrayBalanceConfiguration<T>(objectsT, gravity.template cast<T>());
+        return BoundedTrayBalanceConfiguration<T>(objectsT,
+                                                  gravity.template cast<T>());
     }
 
     template <typename T>
@@ -542,7 +561,8 @@ struct BoundedTrayBalanceConfiguration {
         for (const auto& obj : objects) {
             objectsT.push_back(obj.template cast<T>());
         }
-        return BoundedTrayBalanceConfiguration<T>(objectsT, gravity.template cast<T>());
+        return BoundedTrayBalanceConfiguration<T>(
+            objectsT, gravity.template cast<T>(), enabled);
     }
 
     // Compute the nominal balancing constraints for this configuration.
@@ -555,7 +575,7 @@ struct BoundedTrayBalanceConfiguration {
         for (const auto& object : objects) {
             Vector<Scalar> v = bounded_balancing_constraints_single(
                 orientation, angular_vel, linear_acc, angular_acc, object,
-                gravity);
+                gravity, enabled);
             constraints.segment(index, v.rows()) = v;
             index += v.rows();
         }
@@ -564,4 +584,5 @@ struct BoundedTrayBalanceConfiguration {
 
     Vec3<Scalar> gravity;
     std::vector<BoundedBalancedObject<Scalar>> objects;
+    BalanceConstraintsEnabled enabled;
 };

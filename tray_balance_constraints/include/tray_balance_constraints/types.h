@@ -2,6 +2,12 @@
 
 #include <Eigen/Eigen>
 
+struct BalanceConstraintsEnabled {
+    bool normal = true;
+    bool friction = true;
+    bool zmp = true;
+};
+
 template <typename Scalar>
 using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 

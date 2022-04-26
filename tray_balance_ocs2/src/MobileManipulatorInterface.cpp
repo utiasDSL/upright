@@ -37,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_core/constraint/LinearStateInputConstraint.h>
 #include <ocs2_core/cost/QuadraticStateCost.h>
 #include <ocs2_core/initialization/DefaultInitializer.h>
+#include <ocs2_core/initialization/OperatingPoints.h>
 #include <ocs2_core/misc/LoadData.h>
 #include <ocs2_core/soft_constraint/StateInputSoftConstraint.h>
 #include <ocs2_core/soft_constraint/StateSoftConstraint.h>
@@ -62,6 +63,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
 #include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
 #include <tray_balance_ocs2/cost/ZMPCost.h>
+#include <tray_balance_ocs2/cost/AntiStaticCost.h>
 #include <tray_balance_ocs2/dynamics/BaseType.h>
 #include <tray_balance_ocs2/dynamics/FixedBaseDynamics.h>
 #include <tray_balance_ocs2/dynamics/FixedBasePinocchioMapping.h>
@@ -196,8 +198,6 @@ void MobileManipulatorInterface::loadSettings() {
                           getQuadraticStateInputCost(taskFile));
 
     // Build the end effector kinematics
-    // FixedBasePinocchioMapping<ad_scalar_t> pinocchioMappingCppAd(
-    //     settings_.dims);
     std::unique_ptr<PinocchioStateInputMapping<ad_scalar_t>>
         pinocchio_mapping_ptr;
     if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
@@ -215,6 +215,10 @@ void MobileManipulatorInterface::loadSettings() {
 
     problem_.stateCostPtr->add("endEffector",
                                getEndEffectorCost(end_effector_kinematics));
+
+    // std::unique_ptr<StateCost> anti_static_cost(new AntiStaticCost(
+    //     end_effector_kinematics, settings_.dims));
+    // problem_.stateCostPtr->add("anti_static_cost", std::move(anti_static_cost));
 
     /* Constraints */
     problem_.softConstraintPtr->add(
@@ -284,7 +288,10 @@ void MobileManipulatorInterface::loadSettings() {
     /*
      * Initialization state
      */
+    // TODO ideally, we'd like to initialize about the trajectory where
+    // balancing constraints are not enforced
     initializerPtr_.reset(new DefaultInitializer(settings_.dims.u));
+    // initializerPtr_.reset(new OperatingPoints({0, 2}, settings_.dims.u));
 
     initialState_ = settings_.initial_state;
     std::cerr << "Initial State:   " << initialState_.transpose() << std::endl;

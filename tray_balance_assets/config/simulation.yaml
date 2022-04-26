@@ -41,6 +41,14 @@ arrangements:
     -
       name: tray
       type: tray
+  tray_cube:
+    -
+      name: tray
+      type: tray
+    -
+      name: cube
+      type: cube
+      parent: tray
   cups_flat:
     -
       name: tray
@@ -85,7 +93,7 @@ arrangements:
   one_box:
     -
       name: box1
-      type: box1
+      type: tall_box
   boxes_stack:
     -
       name: tray
@@ -132,7 +140,7 @@ objects:
   tray:
     shape: cylinder
     mass: 0.5
-    mu: 0.5
+    mu: 2.0
     height: 0.02
     radius: 0.2
     color: [0, 0, 1, 1]
@@ -179,6 +187,13 @@ objects:
     mass: 2.0
     mu: 0.5
     side_lengths: [0.08, 0.08, 0.15]
+    color: [1, 0, 0, 1]
+
+  cube:
+    shape: cuboid
+    mass: 1.0
+    mu: 1.0
+    side_lengths: [0.1, 0.1, 0.05]
     color: [1, 0, 0, 1]
 
   tall_box:

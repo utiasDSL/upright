@@ -11,7 +11,7 @@ balancing:
   enable_friction_constraint: true
   enable_zmp_constraint: true
 
-  mu: 1e-2
+  mu: 1e-3
   delta: 1e-3
 
 # desired waypoints are set relative to the initial EE pose
@@ -57,6 +57,14 @@ arrangements:
     -
       name: tray
       type: tray
+  tray_cube:
+    -
+      name: tray
+      type: tray
+    -
+      name: cube
+      type: cube
+      parent: tray
   cups_flat:
     -
       name: tray
@@ -157,7 +165,7 @@ objects:
         shape: cylinder
         height: 0.02
         radius: 0.2
-    mu_min: 0.5
+    mu_min: 2.0
     support_area:
       shape: "circle"
       radius: 0.2
@@ -198,6 +206,24 @@ objects:
       lx: 0.08
       ly: 0.08
     height: 0.15
+
+  cube:
+    mass:
+      min: 1.0
+      max: 1.0
+    com:
+      height: 0.025
+      half_lengths: [0.0, 0.0, 0.0]
+    radii_of_gyration:
+      use_exact:
+        shape: cuboid
+        side_lengths: [0.1, 0.1, 0.05]
+    mu_min: 2
+    support_area:
+      shape: "rect"
+      lx: 0.1
+      ly: 0.1
+    height: 0.05
 
   tall_box:
     mass:

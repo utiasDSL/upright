@@ -16,15 +16,15 @@ logging:
   log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
 
 simulation:
-  duration: 3000
-  arrangement: tall
+  duration: 10000
+  arrangement: tray_cube
 
 controller:
   balancing:
-    arrangement: tall
+    arrangement: tray_cube
 
   waypoints:
     -
       millis: 0
-      position: [0.0, -2.0, 0.0]
-      orientation: [0.0, 0.0, 1.0, 0.0]
+      position: [2.0, 0.0, 0.0]
+      orientation: [0, 0.707, 0, 0.707]

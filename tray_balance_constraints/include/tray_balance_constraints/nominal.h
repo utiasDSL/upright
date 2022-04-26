@@ -7,13 +7,6 @@
 #include "tray_balance_constraints/types.h"
 
 
-// TODO make pyramidal friction an option here
-struct BalanceConstraintsEnabled {
-    bool normal = true;
-    bool friction = true;
-    bool zmp = true;
-};
-
 template <typename Scalar>
 struct BalancedObject {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

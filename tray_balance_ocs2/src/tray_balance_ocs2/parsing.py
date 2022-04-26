@@ -15,6 +15,7 @@ class ReferenceTrajectory:
     If there is more than one waypoint, then the desired pose is interpolated
     between them.
     """
+
     def __init__(self, times, states, inputs):
         assert len(times) == len(states)
         assert len(times) == len(inputs)
@@ -34,7 +35,7 @@ class ReferenceTrajectory:
 
             r_ew_w_d = r_ew_w + waypoint["position"]
             Q_we_d = core.math.quat_multiply(Q_we, waypoint["orientation"])
-            r_obs = np.zeros(3)  #r_ew_w + np.array([0, -10, 0])
+            r_obs = np.zeros(3)  # r_ew_w + np.array([0, -10, 0])
             state = np.concatenate((r_ew_w_d, Q_we_d, r_obs))
 
             times.append(secs)
@@ -92,7 +93,9 @@ class ControllerConfigWrapper:
         settings.method = bindings.ControllerSettings.Method.DDP
 
         settings.end_effector_link_name = ctrl_config["robot"]["tool_link_name"]
-        settings.robot_base_type = base_type_from_string(ctrl_config["robot"]["base_type"])
+        settings.robot_base_type = base_type_from_string(
+            ctrl_config["robot"]["base_type"]
+        )
 
         # dimensions
         settings.dims.q = ctrl_config["robot"]["dims"]["q"]
@@ -173,6 +176,15 @@ class ControllerConfigWrapper:
         ctrl_objects = core.parsing.parse_control_objects(ctrl_config)
         settings.tray_balance_settings.bounded_config.objects = ctrl_objects
         settings.tray_balance_settings.bounded_config.gravity = ctrl_config["gravity"]
+        settings.tray_balance_settings.bounded_config.enabled.normal = ctrl_config[
+            "balancing"
+        ]["enable_normal_constraint"]
+        settings.tray_balance_settings.bounded_config.enabled.friction = ctrl_config[
+            "balancing"
+        ]["enable_friction_constraint"]
+        settings.tray_balance_settings.bounded_config.enabled.zmp = ctrl_config[
+            "balancing"
+        ]["enable_zmp_constraint"]
 
         # collision avoidance settings
         settings.collision_avoidance_settings.enabled = False

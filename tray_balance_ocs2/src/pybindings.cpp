@@ -43,39 +43,6 @@ PYBIND11_MODULE(bindings, m) {
     VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
 
-    /* bind settings */
-    // TODO move this stuff to the tray_balance_constraints package
-
-    /// Normal balancing
-    pybind11::class_<RigidBody<scalar_t>>(m, "RigidBody")
-        .def(pybind11::init<const scalar_t, const Mat3<scalar_t> &,
-                            const Vec3<scalar_t> &>(),
-             "mass"_a, "inertia"_a, "com"_a)
-        .def_readwrite("mass", &RigidBody<scalar_t>::mass)
-        .def_readwrite("inertia", &RigidBody<scalar_t>::inertia)
-        .def_readwrite("com", &RigidBody<scalar_t>::com);
-
-    pybind11::class_<BalancedObject<scalar_t>>(m, "BalancedObject")
-        .def(pybind11::init<const RigidBody<scalar_t> &, scalar_t,
-                            const PolygonSupportArea<scalar_t> &, scalar_t,
-                            scalar_t>(),
-             "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
-        .def_static("compose", &BalancedObject<scalar_t>::compose, "objects"_a);
-
-    pybind11::class_<BalanceConstraintsEnabled>(m, "BalanceConstraintsEnabled")
-        .def(pybind11::init<>())
-        .def_readwrite("normal", &BalanceConstraintsEnabled::normal)
-        .def_readwrite("friction", &BalanceConstraintsEnabled::friction)
-        .def_readwrite("zmp", &BalanceConstraintsEnabled::zmp);
-
-    pybind11::class_<TrayBalanceConfiguration<scalar_t>>(
-        m, "TrayBalanceConfiguration")
-        .def(pybind11::init<>())
-        .def_readwrite("objects", &TrayBalanceConfiguration<scalar_t>::objects)
-        .def_readwrite("enabled", &TrayBalanceConfiguration<scalar_t>::enabled)
-        .def("num_constraints",
-             &TrayBalanceConfiguration<scalar_t>::num_constraints);
-
     pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
         .def(pybind11::init<>())
         .def_readwrite("enabled", &TrayBalanceSettings::enabled)

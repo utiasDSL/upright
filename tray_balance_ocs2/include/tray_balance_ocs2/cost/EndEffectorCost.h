@@ -61,6 +61,8 @@ class EndEffectorCost final : public StateCost {
         }
         pinocchioEEKinPtr_ = dynamic_cast<PinocchioEndEffectorKinematics*>(
             endEffectorKinematicsPtr_.get());
+        target_time_lower = 2.0;
+        target_time_upper = 2.5;
     }
 
     ~EndEffectorCost() override = default;
@@ -93,6 +95,12 @@ class EndEffectorCost final : public StateCost {
                             ->getOrientationError(
                                 state, {desiredPositionOrientation.second})
                             .front();
+        // std::cerr << "orn des = " << desiredPositionOrientation.second.coeffs() << std::endl;
+        // std::cerr << "orn err = " << err.tail<3>() << std::endl;
+        // if (time < target_time_lower || time > target_time_upper) {
+        //     return 0.0;
+        // }
+
         return 0.5 * err.transpose() * W_ * err;
     }
 
@@ -142,6 +150,12 @@ class EndEffectorCost final : public StateCost {
         // Hessian (Gauss-Newton approximation)
         approximation.dfdxx = dedx.transpose() * W_ * dedx;
 
+        // if (time < target_time_lower || time > target_time_upper) {
+        //     approximation.f = 0;
+        //     approximation.dfdx.setZero();
+        //     approximation.dfdxx.setZero();
+        // }
+
         return approximation;
     }
 
@@ -149,6 +163,8 @@ class EndEffectorCost final : public StateCost {
     EndEffectorCost(const EndEffectorCost& other) = default;
 
     matrix_t W_;  // weight matrix
+    scalar_t target_time_lower;
+    scalar_t target_time_upper;
 
     /** Cached pointer to the pinocchio end effector kinematics. Is set to
      * nullptr if not used. */

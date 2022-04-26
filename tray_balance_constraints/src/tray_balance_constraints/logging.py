@@ -230,11 +230,14 @@ class DataPlotter:
         ys = self.data[key]
 
         if indices is not None:
+            min_idx = np.min(indices)
             for idx in indices:
-                plt.plot(ts, ys[:, idx], label=f"${legend_prefix}_{idx+1}$")
+                # triple {{{ required to to f-string substitution and leave a
+                # literal { for latex
+                plt.plot(ts, ys[:, idx], label=f"${legend_prefix}_{{{idx+1-min_idx}}}$")
         elif len(ys.shape) > 1:
             for idx in range(ys.shape[1]):
-                plt.plot(ts, ys[:, idx], label=f"${legend_prefix}_{idx+1}$")
+                plt.plot(ts, ys[:, idx], label=f"${legend_prefix}_{{{idx+1}}}$")
         else:
             plt.plot(ts, ys)
 
@@ -262,6 +265,7 @@ class DataPlotter:
         plt.grid()
         plt.xlabel("Time (s)")
         plt.ylabel(ylabel)
+        plt.legend()
         plt.title(title)
 
         ax = plt.gca()
