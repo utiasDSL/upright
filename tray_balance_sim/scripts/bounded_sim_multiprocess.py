@@ -20,6 +20,7 @@ from tray_balance_sim import util, camera, simulation
 from tray_balance_constraints.logging import DataLogger, DataPlotter
 import tray_balance_constraints as core
 import tray_balance_ocs2 as ctrl
+import upright_cmd as cmd
 
 import IPython
 
@@ -55,7 +56,7 @@ def outer_control_loop(
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    cli_args = util.parse_cli_args()
+    cli_args = cmd.cli.sim_arg_parser().parse_args()
 
     # load configuration
     config = core.parsing.load_config(cli_args.config)
