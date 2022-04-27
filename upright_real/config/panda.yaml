@@ -16,14 +16,15 @@ panda:
 
   # object balancing
   # neutral_joint_angles: [0, -0.7854, 0, -1.5708, 0, 2.3562, -0.7854]
+
   limb_joint_names: [
-  'panda_link0',
-  'panda_link1',
-  'panda_link2',
-  'panda_link3',
-  'panda_link4',
-  'panda_link5',
-  'panda_link6',
+    'panda_link0',
+    'panda_link1',
+    'panda_link2',
+    'panda_link3',
+    'panda_link4',
+    'panda_link5',
+    'panda_link6',
   ]
 
   # TODO: Change these to actual values. with gripper.

@@ -5,7 +5,7 @@ import tray_balance_constraints as core
 
 
 def main():
-    config = core.parsing.load_config("../config/test.yaml")
+    config = core.parsing.load_config("../config/follow_plan_demo.yaml")
     robot = RealPandaInterface(config, controlType="JointVelocity")
     robot.reset()
     robot.disconnect()

@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 import pinocchio
 import liegroups
@@ -7,10 +5,7 @@ import liegroups
 import tray_balance_constraints as core
 from tray_balance_ocs2 import bindings
 
-# TODO probably want to actually bind the pinocchio mapping for use here
 
-
-# TODO build this from config
 class PinocchioRobot:
     def __init__(self, config):
         # dimensions

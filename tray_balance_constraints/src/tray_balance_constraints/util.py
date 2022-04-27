@@ -67,22 +67,23 @@ def secs_from_ns(ns):
 # see the (more sophisticated) ROS implementation:
 # <https://github.com/ros/ros_comm/blob/noetic-devel/clients/rospy/src/rospy/timer.py>
 class Rate:
-    def __init__(self, timestep_ns):
+    def __init__(self, timestep_ns, quiet=False):
         """Initialize a Rate based on a timestep in nanoseconds."""
         self.timestep_ns = int(timestep_ns)
         self.timestep_secs = secs_from_ns(timestep_ns)
+        self.quiet = quiet
 
         self._last_time_ns = time.time_ns()
 
     @classmethod
-    def from_timestep_secs(cls, timestep_secs):
+    def from_timestep_secs(cls, timestep_secs, quiet=False):
         """Construct a Rate based on a timestep in seconds."""
-        return cls(secs_to_ns(timestep_secs))
+        return cls(secs_to_ns(timestep_secs), quiet=quiet)
 
     @classmethod
-    def from_hz(cls, hz):
+    def from_hz(cls, hz, quiet=False):
         """Construct a Rate based on a frequency in Hertz (1 / seconds)."""
-        return cls.from_timestep_secs(1. / hz)
+        return cls.from_timestep_secs(1. / hz, quiet=quiet)
 
     def sleep(self):
         elapsed_ns = time.time_ns() - self._last_time_ns
@@ -90,6 +91,7 @@ class Rate:
         if duration_ns > 0:
             time.sleep(secs_from_ns(duration_ns))
         else:
-            print(f"loop is too slow by {-duration_ns} ns")
+            if not self.quiet:
+                print(f"loop is too slow by {-duration_ns} ns")
         self._last_time_ns = time.time_ns()
         # self.last_time += self.secs
