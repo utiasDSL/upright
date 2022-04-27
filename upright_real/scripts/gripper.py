@@ -22,16 +22,17 @@ def main():
     config = core.parsing.load_config(args.config)
     robot = RealPandaInterface(config, controlType="JointVelocity")
 
-    # wait a bit to give user time to do anything necessary, like place an
-    # object to be gripped
-    time.sleep(args.wait)
+    try:
+        # wait a bit to give user time to do anything necessary, like place an
+        # object to be gripped
+        time.sleep(args.wait)
 
-    if args.command == "close":
-        robot.close_gripper()
-    else:
-        robot.open_gripper()
-
-    robot.disconnect()
+        if args.command == "close":
+            robot.close_gripper()
+        else:
+            robot.open_gripper()
+    finally:
+        robot.disconnect()
 
 
 if __name__ == "__main__":

@@ -1,19 +1,19 @@
 include:
   -
     key: simulation
-    package: tray_balance_assets
+    package: upright_cmd
     path: config/simulation.yaml
   -
     key: controller
-    package: tray_balance_assets
+    package: upright_cmd
     path: config/controller.yaml
   -
     key: perls2
-    package: upright_real
-    path: config/closed_loop_demo.yaml
+    package: upright_cmd
+    path: config/panda/perls2/joint_velocity_demo.yaml
   -
-    package: tray_balance_assets
-    path: config/panda.yaml
+    package: upright_cmd
+    path: config/panda/panda.yaml
 
 logging:
   timestep: 10
@@ -26,6 +26,7 @@ simulation:
 controller:
   balancing:
     arrangement: one_box
+    enabled: true
     enable_normal_constraint: false
     enable_friction_constraint: false
     enable_zmp_constraint: false

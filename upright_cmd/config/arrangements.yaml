@@ -1,0 +1,110 @@
+# arrangements reference the objects below
+# arrangements are used for both simulation and the controller, but the one
+# used in each can be different
+arrangements:
+  nothing: []
+  one:
+    -
+      name: "cylinder_stack_base"
+  two:
+    -
+      name: "cylinder_stack_base"
+    -
+      name: "cuboid1_stack"
+      parent: "cylinder_stack_base"
+      offset:
+        x: 0
+        y: 0
+  tray_only:
+    -
+      name: tray
+      type: tray
+  tray_cube:
+    -
+      name: tray
+      type: tray
+    -
+      name: cube
+      type: cube
+      parent: tray
+  cups_flat:
+    -
+      name: tray
+      type: tray
+    -
+      name: cup1
+      type: cup
+      parent: tray
+      offset:
+        r: 0.08
+        θ: 0
+    -
+      name: cup2
+      type: cup
+      parent: tray
+      offset:
+        r: 0.08
+        θ: 0.667pi
+    -
+      name: cup3
+      type: cup
+      parent: tray
+      offset:
+        r: 0.08
+        θ: 1.333pi
+  cups_stack:
+    -
+      name: tray
+      type: tray
+    -
+      name: cup1
+      type: cup
+      parent: tray
+    -
+      name: cup2
+      type: cup
+      parent: cup1
+    -
+      name: cup3
+      type: cup
+      parent: cup2
+  one_box:
+    -
+      name: box1
+      type: box
+  boxes_stack:
+    -
+      name: tray
+      type: tray
+    -
+      name: box1
+      type: box
+      parent: tray
+    -
+      name: box2
+      type: box
+      parent: box1
+    -
+      name: box3
+      type: box
+      parent: box2
+    -
+      name: box4
+      type: box
+      parent: box3
+  short:
+    -
+      name: tray
+      type: tray
+    -
+      name: box
+      type: box
+      parent: tray
+  tall:
+    -
+      name: tray
+      type: tray
+    -
+      name: box
+      type: tall_box
+      parent: tray

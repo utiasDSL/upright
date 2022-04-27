@@ -16,18 +16,21 @@ def main():
     args = cmd.cli.basic_arg_parser().parse_args()
     config = core.parsing.load_config(args.config)
 
-    K = 10 * np.eye(7)
-
     # load trajectory data
     with np.load("trajectory.npz") as data:
         ts = data["ts"]
         xds = data["xs"]
 
-    # TODO: unhardcode dimensions
+    nq = nv = 7  # TODO maybe load these from the trajectory file?
     step = 2
-    dt = step * (ts[1] - ts[0])
-    qds = xds[:, :7]
-    vds = xds[:, 7:14]
+    dt = step * (ts[1] - ts[0])  # timestep
+
+    # desired trajectory
+    qds = xds[:, :nq]
+    vds = xds[:, nq:nq+nv]
+
+    # position gain
+    K = 10 * np.eye(7)
 
     rate = core.util.Rate.from_timestep_secs(dt, quiet=True)
 

@@ -38,7 +38,6 @@ controller:
       v: 9  # generalized velocity
       x: 27 # state
       u: 9  # input
-    dynamics: "todo"
     x0: [0, 0, 0, 0, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0rep9, 0rep9]
     urdf:
       package: "tray_balance_assets"

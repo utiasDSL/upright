@@ -1,0 +1,50 @@
+# cameras used in (PyBullet) simulation
+cameras:
+  balance_objects:
+    relative_target: [0, 0, 0.1]
+    relative_position: [0.4, -1, 0.6]
+  robot:
+    relative_target: [-0.4, 0, -0.3]
+    relative_position: [0.5, -2, 0.5]
+  dynamic_obstacles1:
+    target: [1.28, 0.045, 0.647]
+    distance: 1.8
+    roll: 0
+    pitch: -29
+    yaw: 147.6
+  dynamic_obstacles2:
+    target: [1.28, 0.045, 0.647]
+    distance: 2.6
+    roll: 0
+    pitch: -20.6
+    yaw: -3.2
+  static_obstacles1:
+    target: [2.77, 0.043, 0.142]
+    distance: 4.8
+    roll: 0
+    pitch: -13.4
+    yaw: 87.6
+  static_obstacles2:
+    target: [2.77, 0.043, 0.142]
+    distance: 3.4
+    roll: 0
+    pitch: -23.4
+    yaw: 10.0
+  static_obstacles3:
+    target: [1.66, -0.31, 0.03]
+    distance: 3.6
+    roll: 0
+    pitch: -38.2
+    yaw: -39.6
+  pose_to_pose1:
+    target: [1.28, 0.045, 0.647]
+    distance: 4
+    roll: 0
+    pitch: -35.8
+    yaw: 42
+  pose_to_pose2:
+    target: [1.375, -1.097, 1.039]
+    distance: 1.4
+    roll: 0
+    pitch: -32.2
+    yaw: 91.6

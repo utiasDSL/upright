@@ -1,15 +1,15 @@
 include:
   -
     key: simulation
-    package: tray_balance_assets
+    package: upright_cmd
     path: config/simulation.yaml
   -
     key: controller
-    package: tray_balance_assets
+    package: upright_cmd
     path: config/controller.yaml
   -
-    package: tray_balance_assets
-    path: config/omni.yaml
+    package: upright_cmd
+    path: config/omni/omni.yaml
 
 logging:
   timestep: 10

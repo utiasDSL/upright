@@ -15,11 +15,11 @@ logging:
 
 include:
   -
-    package: upright_real
-    path: config/redis.yaml
+    package: upright_cmd
+    path: config/panda/perls2/redis.yaml
   -
-    package: upright_real
-    path: config/panda.yaml
+    package: upright_cmd
+    path: config/panda/perls2/panda.yaml
   -
-    package: upright_real
-    path: config/demo_panda_controller.yaml
+    package: upright_cmd
+    path: config/panda/perls2/demo_panda_controller.yaml
