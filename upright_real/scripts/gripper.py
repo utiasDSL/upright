@@ -5,28 +5,31 @@ import sys
 from perls2.robots.real_panda_interface import RealPandaInterface
 
 import tray_balance_constraints as core
+import upright_cmd as cmd
+
+import IPython
 
 
 def main():
-    try:
-        cmd = sys.argv[1].lower()
-    except IndexError:
-        print("Command required: `open` or `close`")
-        return 1
+    parser = cmd.cli.basic_arg_parser()
+    parser.add_argument("command", choices=["open", "close"])
+    parser.add_argument("--wait", type=float, default=0)
+    args = parser.parse_args()
 
-    config = core.parsing.load_config("../config/simple_joint_vel_demo.yaml")
+    if args.wait < 0:
+        raise ValueError("Wait time cannot be negative.")
+
+    config = core.parsing.load_config(args.config)
     robot = RealPandaInterface(config, controlType="JointVelocity")
 
     # wait a bit to give user time to do anything necessary, like place an
     # object to be gripped
-    time.sleep(5)
+    time.sleep(args.wait)
 
-    if "close".startswith(cmd):
+    if args.command == "close":
         robot.close_gripper()
-    elif "open".startswith(cmd):
-        robot.open_gripper()
     else:
-        print(f"Unrecognized command: {cmd}. Exiting.")
+        robot.open_gripper()
 
     robot.disconnect()
 

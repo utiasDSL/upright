@@ -7,12 +7,14 @@ from perls2.robots.real_panda_interface import RealPandaInterface
 
 import tray_balance_constraints as core
 from tray_balance_constraints.logging import DataLogger, DataPlotter
+import upright_cmd as cmd
 
 import IPython
 
 
 def main():
-    config = core.parsing.load_config("../config/follow_plan_demo.yaml")
+    args = cmd.cli.basic_arg_parser().parse_args()
+    config = core.parsing.load_config(args.config)
 
     K = 10 * np.eye(7)
 

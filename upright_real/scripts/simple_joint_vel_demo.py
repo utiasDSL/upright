@@ -1,16 +1,17 @@
 import numpy as np
-import time
 
 from perls2.robots.real_panda_interface import RealPandaInterface
-from perls2.utils.yaml_config import YamlConfig
 
 import tray_balance_constraints as core
+import upright_cmd as cmd
 
 import IPython
 
 
 def main():
-    config = core.parsing.load_config("../config/simple_joint_vel_demo.yaml")
+    args = cmd.cli.basic_arg_parser().parse_args()
+    config = core.parsing.load_config(args.config)
+
     robot = RealPandaInterface(config, controlType="JointVelocity")
     robot.reset()
 
@@ -37,13 +38,10 @@ def main():
         # joint velocity controller
         v = K @ (qd - q) + vd
 
-        print(f"error = {qd - q}")
-
         # send the command
         robot.set_joint_velocities(v)
 
         t += dt
-        # time.sleep(dt)
         rate.sleep()
 
     # put robot back to home position
