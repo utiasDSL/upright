@@ -60,10 +60,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/JointStateInputLimits.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
+#include <tray_balance_ocs2/cost/AntiStaticCost.h>
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
 #include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
 #include <tray_balance_ocs2/cost/ZMPCost.h>
-#include <tray_balance_ocs2/cost/AntiStaticCost.h>
 #include <tray_balance_ocs2/dynamics/BaseType.h>
 #include <tray_balance_ocs2/dynamics/FixedBaseDynamics.h>
 #include <tray_balance_ocs2/dynamics/FixedBasePinocchioMapping.h>
@@ -218,7 +218,8 @@ void MobileManipulatorInterface::loadSettings() {
 
     // std::unique_ptr<StateCost> anti_static_cost(new AntiStaticCost(
     //     end_effector_kinematics, settings_.dims));
-    // problem_.stateCostPtr->add("anti_static_cost", std::move(anti_static_cost));
+    // problem_.stateCostPtr->add("anti_static_cost",
+    // std::move(anti_static_cost));
 
     /* Constraints */
     problem_.softConstraintPtr->add(
@@ -288,10 +289,15 @@ void MobileManipulatorInterface::loadSettings() {
     /*
      * Initialization state
      */
-    // TODO ideally, we'd like to initialize about the trajectory where
-    // balancing constraints are not enforced
-    initializerPtr_.reset(new DefaultInitializer(settings_.dims.u));
-    // initializerPtr_.reset(new OperatingPoints({0, 2}, settings_.dims.u));
+    if (settings_.use_operating_points) {
+        initializerPtr_.reset(new OperatingPoints(settings_.operating_times,
+                                                  settings_.operating_states,
+                                                  settings_.operating_inputs));
+    } else {
+        initializerPtr_.reset(new DefaultInitializer(settings_.dims.u));
+    }
+
+    // referenceManagerPtr_->setTargetTrajectories(settings_.target_trajectory);
 
     initialState_ = settings_.initial_state;
     std::cerr << "Initial State:   " << initialState_.transpose() << std::endl;

@@ -43,6 +43,7 @@ panda:
 
   # Default maximum joint velocity ratio, chosen from (0, 1].
   # Set it to 1.0 for data collection, 0.3 for demo.
+  # NOTE this is only for simulation
   limb_max_velocity_ratio: 0.01
 
   # Threshold (in rads) for each joint for position control.

@@ -23,6 +23,21 @@ import upright_cmd as cmd
 import IPython
 
 
+def use_operating_points(ctrl_wrapper):
+    with np.load("short_box_trajectory.npz") as data:
+        ts_op = data["ts"]
+        xs_op = data["xs"]
+        us_op = data["us"]
+
+    step = 1
+    for i in range(0, ts_op.shape[0], step):
+        ctrl_wrapper.settings.operating_times.push_back(ts_op[i])
+        ctrl_wrapper.settings.operating_states.push_back(xs_op[i, :])
+        ctrl_wrapper.settings.operating_inputs.push_back(us_op[i, :])
+
+    ctrl_wrapper.settings.use_operating_points = True
+
+
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
@@ -70,6 +85,8 @@ def main():
     ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config, x0=x)
     ctrl_objects = ctrl_wrapper.objects()
 
+    use_operating_points(ctrl_wrapper)
+
     # data logging
     log_dir = Path(log_config["log_dir"])
     log_dt = log_config["timestep"]
@@ -87,7 +104,7 @@ def main():
 
     # create reference trajectory and controller
     ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
-    mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
+    mpc = ctrl_wrapper.controller(ref)
 
     # frames and ghost (i.e., pure visual) objects
     ghosts = []

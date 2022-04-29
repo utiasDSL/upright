@@ -16,6 +16,7 @@ from pyb_utils.frame import debug_frame_world
 from tray_balance_sim import util, camera, simulation
 
 from tray_balance_constraints.logging import DataLogger, DataPlotter
+import upright_cmd as cmd
 import tray_balance_constraints as core
 import tray_balance_ocs2 as ctrl
 
@@ -25,8 +26,7 @@ import IPython
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    # TODO return the parse so that it can be extended
-    cli_args = util.parse_cli_args()
+    cli_args = cmd.cli.sim_arg_parser().parse_args()
 
     # load configuration
     config = core.parsing.load_config(cli_args.config)
@@ -87,7 +87,7 @@ def main():
 
     # create reference trajectory and controller
     ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
-    mpc = ctrl_wrapper.controller(r_ew_w, Q_we)
+    mpc = ctrl_wrapper.controller(ref)
 
     # frames and ghost (i.e., pure visual) objects
     ghosts = []

@@ -293,12 +293,9 @@ class ControllerConfigWrapper:
             self.config, r_ew_w, Q_we, np.zeros(self.settings.dims.u)
         )
 
-    def controller(self, r_ew_w, Q_we):
+    def controller(self, reference_trajectory):
         """Build the interface to the controller."""
-        target_trajectories = self.reference_trajectory(
-            r_ew_w, Q_we
-        ).target_trajectories()
-
+        # TODO take target trajectories out of the settings
         controller = bindings.ControllerInterface(self.settings)
-        controller.reset(target_trajectories)
+        controller.reset(reference_trajectory.target_trajectories())
         return controller

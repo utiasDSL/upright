@@ -27,9 +27,9 @@ controller:
   balancing:
     arrangement: one_box
     enabled: true
-    enable_normal_constraint: false
-    enable_friction_constraint: false
-    enable_zmp_constraint: false
+    enable_normal_constraint: true
+    enable_friction_constraint: true
+    enable_zmp_constraint: true
 
   waypoints:
     -

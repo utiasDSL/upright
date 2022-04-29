@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ocs2_core/initialization/OperatingPoints.h>
+
 #include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
@@ -33,6 +35,13 @@ struct ControllerSettings {
     vector_t state_limit_upper;
     scalar_t state_limit_mu = 1e-2;
     scalar_t state_limit_delta = 1e-3;
+
+    // We can linearize around a set of operating points instead of just using
+    // a stationary trajectory.
+    bool use_operating_points = false;
+    scalar_array_t operating_times;
+    vector_array_t operating_states;
+    vector_array_t operating_inputs;
 
     // URDFs
     std::string robot_urdf_path;

@@ -168,7 +168,15 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("robot_base_type", &ControllerSettings::robot_base_type)
         .def_readwrite("dims", &ControllerSettings::dims)
         .def_readwrite("end_effector_link_name",
-                       &ControllerSettings::end_effector_link_name);
+                       &ControllerSettings::end_effector_link_name)
+        .def_readwrite("use_operating_points",
+                       &ControllerSettings::use_operating_points)
+        .def_readwrite("operating_times",
+                       &ControllerSettings::operating_times)
+        .def_readwrite("operating_states",
+                       &ControllerSettings::operating_states)
+        .def_readwrite("operating_inputs",
+                       &ControllerSettings::operating_inputs);
 
     pybind11::enum_<ControllerSettings::Method>(ctrl_settings, "Method")
         .value("DDP", ControllerSettings::Method::DDP)
@@ -211,6 +219,10 @@ PYBIND11_MODULE(bindings, m) {
 
     /* bind TargetTrajectories class */
     pybind11::class_<ocs2::TargetTrajectories>(m, "TargetTrajectories")
+        .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
+                            ocs2::vector_array_t>());
+
+    pybind11::class_<ocs2::OperatingPoints>(m, "OperatingPoints")
         .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
                             ocs2::vector_array_t>());
 
