@@ -8,10 +8,6 @@ include:
     package: upright_cmd
     path: config/controller.yaml
   -
-    key: perls2
-    package: upright_cmd
-    path: config/panda/perls2/joint_velocity_demo.yaml
-  -
     package: upright_cmd
     path: config/panda/panda.yaml
 

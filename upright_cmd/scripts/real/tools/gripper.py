@@ -1,13 +1,10 @@
 """Open or close real Panda gripper."""
 import time
-import sys
 
 from perls2.robots.real_panda_interface import RealPandaInterface
 
 import tray_balance_constraints as core
 import upright_cmd as cmd
-
-import IPython
 
 
 def main():
@@ -20,7 +17,7 @@ def main():
         raise ValueError("Wait time cannot be negative.")
 
     config = core.parsing.load_config(args.config)
-    robot = RealPandaInterface(config, controlType="JointVelocity")
+    robot = RealPandaInterface(config["perls2"], controlType="JointVelocity")
 
     try:
         # wait a bit to give user time to do anything necessary, like place an

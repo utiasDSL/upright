@@ -1,0 +1,12 @@
+include:
+  -
+    key: perls2
+    package: upright_cmd
+    path: config/panda/perls2/joint_velocity_demo.yaml
+  -
+    package: upright_cmd
+    path: config/panda/panda.yaml
+
+logging:
+  timestep: 10
+  log_dir: /media/adam/Data/PhD/Data/object-balance/real-panda

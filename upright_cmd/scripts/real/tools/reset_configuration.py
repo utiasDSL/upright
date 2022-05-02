@@ -8,7 +8,7 @@ import upright_cmd as cmd
 def main():
     args = cmd.cli.basic_arg_parser().parse_args()
     config = core.parsing.load_config(args.config)
-    robot = RealPandaInterface(config, controlType="JointVelocity")
+    robot = RealPandaInterface(config["perls2"], controlType="JointVelocity")
     robot.reset()
     robot.disconnect()
 

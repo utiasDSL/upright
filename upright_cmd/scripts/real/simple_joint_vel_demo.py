@@ -12,7 +12,7 @@ def main():
     args = cmd.cli.basic_arg_parser().parse_args()
     config = core.parsing.load_config(args.config)
 
-    robot = RealPandaInterface(config, controlType="JointVelocity")
+    robot = RealPandaInterface(config["perls2"], controlType="JointVelocity")
     robot.reset()
 
     q0 = np.copy(robot.q)
@@ -21,10 +21,9 @@ def main():
     freq = 2
 
     dt = 0.01  # seconds
-    N = 600  # duration = N * dt
+    N = 1000  # duration = N * dt
 
     rate = core.util.Rate.from_timestep_secs(dt)
-    dt = rate.timestep_secs
 
     t = 0
     for i in range(N):
@@ -36,10 +35,10 @@ def main():
         vd = np.array([0, 0, 0, 0, 0, amp * freq * np.sin(freq * t), 0])
 
         # joint velocity controller
-        v = K @ (qd - q) + vd
+        v_cmd = K @ (qd - q) + vd
 
         # send the command
-        robot.set_joint_velocities(v)
+        robot.set_joint_velocities(v_cmd)
 
         t += dt
         rate.sleep()

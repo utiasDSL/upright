@@ -41,7 +41,7 @@ def main():
     logger = DataLogger(config)
     logger.add("log_dt", log_dt)
 
-    robot = RealPandaInterface(config, controlType="JointVelocity")
+    robot = RealPandaInterface(config["perls2"], controlType="JointVelocity")
     robot.reset()
 
     try:
@@ -51,6 +51,7 @@ def main():
             # joint feedback
             q = robot.q
             v = robot.dq
+            τ = robot.tau
 
             # desired joint angles
             qd = qds[i, :]
@@ -70,6 +71,7 @@ def main():
                 logger.append("vs", v)
                 logger.append("qds", qd)
                 logger.append("v_cmds", v_cmd)
+                logger.append("taus", τ)
 
             rate.sleep()
     finally:
