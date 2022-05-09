@@ -28,10 +28,10 @@ panda_controller:
       output_min: -1.0
 
     JointTorque:
-      input_max: 1.0
-      input_min: -1.0
-      output_max: 1.0
-      output_min: -1.0
+      input_max: 2.0
+      input_min: -2.0
+      output_max: 2.0
+      output_min: -2.0
 
     EEPosture:
       kp:  [100, 100, 100, 60.0, 60.0, 60.0] #70 #50 #200 #75 #200 # P Gain for Impedance Control

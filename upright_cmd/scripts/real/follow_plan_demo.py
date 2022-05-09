@@ -41,10 +41,21 @@ def main():
     logger = DataLogger(config)
     logger.add("log_dt", log_dt)
 
+    # TODO: note it would be better to actually acquire the robot using a
+    # `with` block, which would then take care of the required clean-up
+    # automatically
     robot = RealPandaInterface(config["perls2"], controlType="JointVelocity")
     robot.reset()
 
     try:
+        # M = robot.mass_matrix
+        # c = robot.coriolis_vector
+        # g = robot.gravity_vector
+        #
+        # print(f"M = {M}")
+        # print(f"c = {c}")
+        # print(f"g = {g}")
+
         for i in range(0, ts.shape[0], step):
             # start = time.time_ns()
 

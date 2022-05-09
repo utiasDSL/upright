@@ -31,7 +31,7 @@ def main():
     ads = xds[:, -nv:]
 
     # position and velocity gain
-    Kp = 50 * np.eye(7)
+    Kp = 100 * np.eye(7)
     damping = 1
     Kv = 2 * np.sqrt(Kp) * damping
 
@@ -44,7 +44,7 @@ def main():
     logger = DataLogger(config)
     logger.add("log_dt", log_dt)
 
-    robot = RealPandaInterface(config["perls2"], controlType="JointVelocity")
+    robot = RealPandaInterface(config["perls2"], controlType="JointTorque")
     robot.reset()
 
     try:
@@ -55,6 +55,8 @@ def main():
             τ = robot.tau
 
             M = robot.mass_matrix
+            c = robot.coriolis_vector
+            g = robot.gravity_vector
 
             # desired joint angles
             qd = qds[i, :]
@@ -65,7 +67,7 @@ def main():
 
             # TODO Panda compensates for gravity internally, but we could add
             # Coriolis effects here
-            τ_cmd = M @ a_cmd
+            τ_cmd = M @ a_cmd + c
 
             robot.set_joint_torques(τ_cmd)
 
@@ -73,6 +75,8 @@ def main():
                 logger.append("qs", q)
                 logger.append("vs", v)
                 logger.append("taus", τ)
+                logger.append("cs", c)
+                logger.append("gs", g)
 
                 logger.append("vds", vd)
                 logger.append("qds", qd)

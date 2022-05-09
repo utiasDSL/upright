@@ -2,7 +2,7 @@ include:
   -
     key: perls2
     package: upright_cmd
-    path: config/panda/perls2/joint_velocity_demo.yaml
+    path: config/panda/perls2/perls2.yaml
   -
     package: upright_cmd
     path: config/panda/panda.yaml

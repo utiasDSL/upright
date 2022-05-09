@@ -2,8 +2,11 @@
 world:
   type: 'Real' #'Bullet' or 'Real'
   robot: 'panda'
-  controlType: 'JointVelocity'
+  controlType: 'JointTorque'
 data_dir: 'data'
+
+# required by perls2 but unused
+policy_freq: 500
 
 control_freq: 1000 # Hz
 
