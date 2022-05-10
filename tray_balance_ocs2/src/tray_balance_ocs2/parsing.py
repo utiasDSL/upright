@@ -97,6 +97,9 @@ class ControllerConfigWrapper:
             ctrl_config["robot"]["base_type"]
         )
 
+        # gravity
+        settings.set_gravity(ctrl_config["gravity"])
+
         # dimensions
         settings.dims.q = ctrl_config["robot"]["dims"]["q"]
         settings.dims.v = ctrl_config["robot"]["dims"]["v"]
@@ -172,10 +175,8 @@ class ControllerConfigWrapper:
             ctrl_config["balancing"]["delta"]
         )
 
-        # TODO just pull this out
         ctrl_objects = core.parsing.parse_control_objects(ctrl_config)
         settings.tray_balance_settings.bounded_config.objects = ctrl_objects
-        settings.tray_balance_settings.bounded_config.gravity = ctrl_config["gravity"]
         settings.tray_balance_settings.bounded_config.enabled.normal = ctrl_config[
             "balancing"
         ]["enable_normal_constraint"]
@@ -185,6 +186,16 @@ class ControllerConfigWrapper:
         settings.tray_balance_settings.bounded_config.enabled.zmp = ctrl_config[
             "balancing"
         ]["enable_zmp_constraint"]
+
+        # alternative inertial alignment objective
+        # tries to keep tray/EE normal aligned with the negative acceleration
+        # vector
+        settings.inertial_alignment_settings.enabled = ctrl_config["inertial_alignment"]["enabled"]
+        settings.inertial_alignment_settings.use_angular_acceleration = ctrl_config["inertial_alignment"]["use_angular_acceleration"]
+        settings.inertial_alignment_settings.weight = ctrl_config["inertial_alignment"]["weight"]
+        settings.inertial_alignment_settings.r_oe_e = ctrl_objects[
+            -1
+        ].body.com_ellipsoid.center()  # TODO could specify index in config
 
         # collision avoidance settings
         settings.collision_avoidance_settings.enabled = False

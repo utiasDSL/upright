@@ -19,6 +19,11 @@ balancing:
   mu: 1e-3
   delta: 1e-3
 
+inertial_alignment:
+  enabled: false
+  use_angular_acceleration: false
+  weight: 10
+
 # desired waypoints are set relative to the initial EE pose
 # each waypoint consists of:
 #   millis: time from beginning of trajectory in milliseconds

@@ -2,11 +2,12 @@
 
 #include <ocs2_core/initialization/OperatingPoints.h>
 
-#include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
+#include <tray_balance_ocs2/cost/InertialAlignmentCost.h>
+#include <tray_balance_ocs2/dynamics/BaseType.h>
+#include <tray_balance_ocs2/dynamics/Dimensions.h>
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
-#include <tray_balance_ocs2/dynamics/Dimensions.h>
-#include <tray_balance_ocs2/dynamics/BaseType.h>
+#include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -16,6 +17,11 @@ struct ControllerSettings {
         DDP,
         SQP,
     };
+
+    void set_gravity(const Vec3<scalar_t>& gravity) {
+        tray_balance_settings.bounded_config.gravity = gravity;
+        inertial_alignment_settings.gravity = gravity;
+    }
 
     Method method = Method::DDP;
     vector_t initial_state;
@@ -58,9 +64,10 @@ struct ControllerSettings {
 
     // Additional settings for constraints
     TrayBalanceSettings tray_balance_settings;
+    InertialAlignmentSettings inertial_alignment_settings;
     DynamicObstacleSettings dynamic_obstacle_settings;
     CollisionAvoidanceSettings collision_avoidance_settings;
 };
 
 }  // namespace mobile_manipulator
-}  // namespace ocs
+}  // namespace ocs2

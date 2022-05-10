@@ -60,6 +60,7 @@ def main():
     # start the simulation
     sim = simulation.MobileManipulatorSimulation(sim_config)
     robot = sim.robot
+    model = ctrl.robot.PinocchioRobot(ctrl_config)
 
     # setup sim objects
     r_ew_w, Q_we = robot.link_pose()
@@ -85,7 +86,7 @@ def main():
     ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config, x0=x)
     ctrl_objects = ctrl_wrapper.objects()
 
-    use_operating_points(ctrl_wrapper)
+    # use_operating_points(ctrl_wrapper)
 
     # data logging
     log_dir = Path(log_config["log_dir"])
@@ -218,6 +219,23 @@ def main():
                 #         sim_objects["box"].change_color((0, 1, 0, 1))
                 #     static_stable = True
 
+            # compute angle between vectors
+            model.forward(x, u)
+            _, ω_ew_w = model.link_velocity()
+            a_ew_w, α_ew_w = model.link_acceleration()
+            C_we = core.util.quaternion_to_matrix(Q_we)
+            z_w = C_we @ np.array([0, 0, 1])
+            total_acc = a_ew_w - ctrl_config["gravity"]
+            total_acc_dir = total_acc / np.linalg.norm(total_acc)
+            angle = np.arccos(z_w @ total_acc_dir)
+            logger.append("orn_err", angle)
+
+            ddC_we = (core.math.skew3(α_ew_w) + core.math.skew3(ω_ew_w) @ core.math.skew3(ω_ew_w)) @ C_we
+            logger.append("ddC_we_norm", np.linalg.norm(ddC_we, ord=2))
+
+            # IPython.embed()
+            # break
+
             r_ow_ws = np.zeros((num_objects, 3))
             Q_wos = np.zeros((num_objects, 4))
             for j, obj in enumerate(sim_objects.values()):
@@ -293,6 +311,16 @@ def main():
         "ds",
         ylabel="Distance (m)",
         title="Distance Outside of SA vs. Time",
+    )
+    plotter.plot_value_vs_time(
+        "orn_err",
+        ylabel="Angle error (rad)",
+        title="Angle between tray normal and total acceleration",
+    )
+    plotter.plot_value_vs_time(
+        "ddC_we_norm",
+        ylabel="ddC_we norm",
+        title="ddC_we norm",
     )
 
     plt.show()

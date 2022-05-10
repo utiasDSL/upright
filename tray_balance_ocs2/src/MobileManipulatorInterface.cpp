@@ -58,10 +58,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
+#include <tray_balance_ocs2/constraint/InertialAlignmentConstraint.h>
 #include <tray_balance_ocs2/constraint/JointStateInputLimits.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
 #include <tray_balance_ocs2/cost/AntiStaticCost.h>
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
+#include <tray_balance_ocs2/cost/InertialAlignmentCost.h>
 #include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
 #include <tray_balance_ocs2/cost/ZMPCost.h>
 #include <tray_balance_ocs2/dynamics/BaseType.h>
@@ -220,6 +222,22 @@ void MobileManipulatorInterface::loadSettings() {
     //     end_effector_kinematics, settings_.dims));
     // problem_.stateCostPtr->add("anti_static_cost",
     // std::move(anti_static_cost));
+
+    std::unique_ptr<StateInputCost> inertial_alignment_cost(
+        new InertialAlignmentCost(
+            end_effector_kinematics,
+            settings_.inertial_alignment_settings, settings_.dims,
+            true));
+    problem_.costPtr->add("inertial_alignment_cost",
+                          std::move(inertial_alignment_cost));
+
+    // std::unique_ptr<StateConstraint> inertial_alignment_constraint(
+    //     new InertialAlignmentConstraint(end_effector_kinematics,
+    //     settings_.dims,
+    //                                     true));
+    // problem_.stateEqualityConstraintPtr->add(
+    //     "inertial_alignment_constraint",
+    //     std::move(inertial_alignment_constraint));
 
     /* Constraints */
     problem_.softConstraintPtr->add(

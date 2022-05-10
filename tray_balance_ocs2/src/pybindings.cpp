@@ -137,8 +137,17 @@ PYBIND11_MODULE(bindings, m) {
         .value("Omnidirectional", RobotBaseType::Omnidirectional)
         .value("Floating", RobotBaseType::Floating);
 
+    pybind11::class_<InertialAlignmentSettings>(m, "InertialAlignmentSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("enabled", &InertialAlignmentSettings::enabled)
+        .def_readwrite("use_angular_acceleration",
+                       &InertialAlignmentSettings::use_angular_acceleration)
+        .def_readwrite("weight", &InertialAlignmentSettings::weight)
+        .def_readwrite("r_oe_e", &InertialAlignmentSettings::r_oe_e);
+
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
     ctrl_settings.def(pybind11::init<>())
+        .def("set_gravity", &ControllerSettings::set_gravity, "gravity"_a)
         .def_readwrite("method", &ControllerSettings::method)
         .def_readwrite("dynamic_obstacle_settings",
                        &ControllerSettings::dynamic_obstacle_settings)
@@ -171,12 +180,13 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::end_effector_link_name)
         .def_readwrite("use_operating_points",
                        &ControllerSettings::use_operating_points)
-        .def_readwrite("operating_times",
-                       &ControllerSettings::operating_times)
+        .def_readwrite("operating_times", &ControllerSettings::operating_times)
         .def_readwrite("operating_states",
                        &ControllerSettings::operating_states)
         .def_readwrite("operating_inputs",
-                       &ControllerSettings::operating_inputs);
+                       &ControllerSettings::operating_inputs)
+        .def_readwrite("inertial_alignment_settings",
+                       &ControllerSettings::inertial_alignment_settings);
 
     pybind11::enum_<ControllerSettings::Method>(ctrl_settings, "Method")
         .value("DDP", ControllerSettings::Method::DDP)
