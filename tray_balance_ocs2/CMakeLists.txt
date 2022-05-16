@@ -62,7 +62,15 @@ catkin_package(
 ## Build ##
 ###########
 
-set(FLAGS ${OCS2_CXX_FLAGS} ${pinocchio_CFLAGS_OTHER} -Wno-invalid-partial-specialization -std=c++14)
+set(FLAGS ${OCS2_CXX_FLAGS} ${pinocchio_CFLAGS_OTHER} -Wno-invalid-partial-specialization)
+
+# setting CMAKE_CXX_STANDARD is the most "powerful" way to enforce a particular
+# C++ version, in that it overwrites other options such as set_compile
+# add_compile_options(-std=c++14). It is included here to force the use of
+# C++14 over C++11 enforced in the same way by OCS2. We need C++14 to compile
+# CGAL.
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(
   include

@@ -60,7 +60,7 @@ def main():
     # start the simulation
     sim = simulation.MobileManipulatorSimulation(sim_config)
     robot = sim.robot
-    model = ctrl.robot.PinocchioRobot(ctrl_config)
+    model = ctrl.robot.PinocchioRobot(ctrl_config["robot"])
 
     # setup sim objects
     r_ew_w, Q_we = robot.link_pose()
