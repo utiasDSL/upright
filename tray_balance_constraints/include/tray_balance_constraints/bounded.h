@@ -1,5 +1,7 @@
 #pragma once
 
+#include <numeric>
+
 #include <Eigen/Eigen>
 
 #include "tray_balance_constraints/dynamics.h"

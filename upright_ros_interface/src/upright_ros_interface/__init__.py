@@ -1,0 +1,1 @@
+from upright_ros_interface.thing_ros_interface import ThingRobot

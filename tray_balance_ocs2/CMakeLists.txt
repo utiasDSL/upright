@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(tray_balance_ocs2)
 
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 
 # Generate compile_commands.json for clang tools
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -62,7 +62,7 @@ catkin_package(
 ## Build ##
 ###########
 
-set(FLAGS ${OCS2_CXX_FLAGS} ${pinocchio_CFLAGS_OTHER} -Wno-invalid-partial-specialization)
+set(FLAGS ${OCS2_CXX_FLAGS} ${pinocchio_CFLAGS_OTHER} -Wno-invalid-partial-specialization -std=c++14)
 
 include_directories(
   include

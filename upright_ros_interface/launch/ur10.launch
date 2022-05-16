@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<!-- Launch UR10 driver. -->
+
+<launch>
+  <arg name="robot_ip" default="192.168.131.40"/>
+  <arg name="limited" default="false"/>
+  <arg name="min_payload"  default="0.0"/>
+  <arg name="max_payload"  default="5.0"/>
+  <arg name="prefix" default="ur10_arm_" />
+  <arg name="servoj_time" default="0.008" /> <!-- 125Hz = controller time step -->
+  <arg name="base_frame" default="$(arg prefix)base_link" />
+  <arg name="tool_frame" default="palm" />
+  <arg name="max_velocity" default="10.0"/> <!-- [rad/s] -->
+
+  <!-- Launch UR driver -->
+  <!-- Note we are not using ros_control here since we're boldly rolling our own shit -->
+  <node name="ur_hardware_interface" pkg="ur_modern_driver" type="ur_driver" output="screen">
+    <param name="robot_ip_address" type="str" value="$(arg robot_ip)"/>
+    <param name="min_payload" type="double" value="$(arg min_payload)"/>
+    <param name="max_payload" type="double" value="$(arg max_payload)"/>
+    <param name="max_velocity" type="double" value="$(arg max_velocity)"/>
+    <param name="use_ros_control" type="bool" value="False"/>
+    <param name="prefix" value="$(arg prefix)" />
+    <remap from="/joint_states" to="/ur10_joint_states" />
+  </node>
+</launch>

@@ -10,14 +10,14 @@ class PinocchioRobot:
     def __init__(self, config):
         # dimensions
         self.dims = bindings.RobotDimensions()
-        self.dims.q = config["robot"]["dims"]["q"]  # num positions
-        self.dims.v = config["robot"]["dims"]["v"]  # num velocities
-        self.dims.x = config["robot"]["dims"]["x"]  # num states
-        self.dims.u = config["robot"]["dims"]["u"]  # num inputs
+        self.dims.q = config["dims"]["q"]  # num positions
+        self.dims.v = config["dims"]["v"]  # num velocities
+        self.dims.x = config["dims"]["x"]  # num states
+        self.dims.u = config["dims"]["u"]  # num inputs
 
         # create the model
-        urdf_path = core.parsing.parse_ros_path(config["robot"]["urdf"])
-        base_type = config["robot"]["base_type"]
+        urdf_path = core.parsing.parse_ros_path(config["urdf"])
+        base_type = config["base_type"]
         if base_type == "fixed":
             self.model = pinocchio.buildModelFromUrdf(urdf_path)
             self.mapping = bindings.FixedBasePinocchioMapping(self.dims)
@@ -33,7 +33,7 @@ class PinocchioRobot:
 
         self.data = self.model.createData()
 
-        self.tool_idx = self.model.getBodyId(config["robot"]["tool_link_name"])
+        self.tool_idx = self.model.getBodyId(config["tool_link_name"])
 
     def forward_qva(self, q, v=None, a=None):
         """Forward kinematics using (q, v, a) all in the world frame (i.e.,
@@ -50,6 +50,19 @@ class PinocchioRobot:
         pinocchio.forwardKinematics(self.model, self.data, q, v, a)
         pinocchio.updateFramePlacements(self.model, self.data)
 
+    def forward_derivatives_qva(self, q, v, a=None):
+        """Compute derivatives of the forward kinematics using (q, v, a) all in
+        the world frame (i.e., corresponding directly to the Pinocchio
+        model."""
+        if a is None:
+            a = np.zeros(self.dims.v)
+
+        assert q.shape == (self.dims.q,)
+        assert v.shape == (self.dims.v,)
+        assert a.shape == (self.dims.v,)
+
+        pinocchio.computeForwardKinematicsDerivatives(self.model, self.data, q, v, a)
+
     def forward(self, x, u=None):
         """Forward kinematics. Must be called before the link pose, velocity,
         or acceleration methods."""
@@ -65,6 +78,20 @@ class PinocchioRobot:
         a = self.mapping.get_pinocchio_joint_acceleration(x, u)
 
         self.forward_qva(q, v, a)
+
+    def forward_derivatives(self, x, u=None):
+        if u is None:
+            u = np.zeros(self.dims.u)
+
+        assert x.shape == (self.dims.x,)
+        assert u.shape == (self.dims.u,)
+
+        # get values in Pinocchio coordinates
+        q = self.mapping.get_pinocchio_joint_position(x)
+        v = self.mapping.get_pinocchio_joint_velocity(x, u)
+        a = self.mapping.get_pinocchio_joint_acceleration(x, u)
+
+        self.forward_derivatives_qva(q, v, a)
 
     def link_pose(self, link_idx=None):
         if link_idx is None:
@@ -96,8 +123,44 @@ class PinocchioRobot:
         )
         return A.linear, A.angular
 
+    def link_spatial_acceleration(self, link_idx=None):
+        if link_idx is None:
+            link_idx = self.tool_idx
+        A = pinocchio.getFrameAcceleration(
+            self.model,
+            self.data,
+            link_idx,
+            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
+        )
+        return A.linear, A.angular
+
     def jacobian(self, q):
         return pinocchio.computeFrameJacobian(self.model, self.data, q, self.tool_idx)
+
+    def link_velocity_derivatives(self, link_idx=None):
+        """Compute derivative of link velocity with respect to q and v."""
+        if link_idx is None:
+            link_idx = self.tool_idx
+        dVdq, dVdv = pinocchio.getFrameVelocityDerivatives(
+            self.model,
+            self.data,
+            link_idx,
+            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
+        )
+        return dVdq, dVdv
+
+    def link_spatial_acceleration_derivatives(self, link_idx=None):
+        """Compute derivative of link spatial acceleration with respect to q, v, a."""
+        # TODO how to transform this to the classical version?
+        if link_idx is None:
+            link_idx = self.tool_idx
+        _, dAdq, dAdv, dAda = pinocchio.getFrameAccelerationDerivatives(
+            self.model,
+            self.data,
+            link_idx,
+            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
+        )
+        return dAdq, dAdv, dAda
 
     # TODO need to update these methods from previous iteration of the model
     # def tangent(self, x, u):
