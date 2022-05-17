@@ -73,9 +73,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/dynamics/MobileManipulatorPinocchioMapping.h>
 #include <tray_balance_ocs2/util.h>
 
-#include <tray_balance_ocs2/constraint/balancing/BalancingSettings.h>
-#include <tray_balance_ocs2/constraint/balancing/BoundedBalancingConstraints.h>
-#include <tray_balance_ocs2/constraint/balancing/NominalBalancingConstraints.h>
+#include <tray_balance_ocs2/constraint/BoundedBalancingConstraints.h>
 
 #include <ros/package.h>
 
@@ -224,10 +222,9 @@ void MobileManipulatorInterface::loadSettings() {
     // std::move(anti_static_cost));
 
     std::unique_ptr<StateInputCost> inertial_alignment_cost(
-        new InertialAlignmentCost(
-            end_effector_kinematics,
-            settings_.inertial_alignment_settings, settings_.dims,
-            true));
+        new InertialAlignmentCost(end_effector_kinematics,
+                                  settings_.inertial_alignment_settings,
+                                  settings_.gravity, settings_.dims, true));
     problem_.costPtr->add("inertial_alignment_cost",
                           std::move(inertial_alignment_cost));
 
@@ -275,8 +272,7 @@ void MobileManipulatorInterface::loadSettings() {
             std::cerr << "Soft tray balance constraints enabled." << std::endl;
             problem_.softConstraintPtr->add(
                 "trayBalance",
-                getTrayBalanceSoftConstraint(settings_.tray_balance_settings,
-                                             end_effector_kinematics,
+                getTrayBalanceSoftConstraint(end_effector_kinematics,
                                              recompileLibraries));
 
         } else {
@@ -284,10 +280,8 @@ void MobileManipulatorInterface::loadSettings() {
             // implemented by OCS2
             std::cerr << "Hard tray balance constraints enabled." << std::endl;
             problem_.inequalityConstraintPtr->add(
-                "trayBalance",
-                getTrayBalanceConstraint(settings_.tray_balance_settings,
-                                         end_effector_kinematics,
-                                         recompileLibraries));
+                "trayBalance", getTrayBalanceConstraint(end_effector_kinematics,
+                                                        recompileLibraries));
         }
     } else {
         std::cerr << "Tray balance constraints disabled." << std::endl;
@@ -437,30 +431,22 @@ std::unique_ptr<StateCost> MobileManipulatorInterface::getEndEffectorCost(
 
 std::unique_ptr<StateInputConstraint>
 MobileManipulatorInterface::getTrayBalanceConstraint(
-    const TrayBalanceSettings& settings,
     const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
     bool recompileLibraries) {
     // TODO precomputation is not implemented
-    if (settings.bounded) {
-        return std::unique_ptr<StateInputConstraint>(
-            new BoundedTrayBalanceConstraints(
-                end_effector_kinematics, settings.bounded_config,
-                settings_.dims, recompileLibraries));
-    } else {
-        return std::unique_ptr<StateInputConstraint>(new TrayBalanceConstraints(
-            end_effector_kinematics, settings.nominal_config, settings_.dims,
-            recompileLibraries));
-    }
+    return std::unique_ptr<StateInputConstraint>(
+        new BoundedTrayBalanceConstraints(
+            end_effector_kinematics, settings_.tray_balance_settings,
+            settings_.gravity, settings_.dims, recompileLibraries));
 }
 
 std::unique_ptr<StateInputCost>
 MobileManipulatorInterface::getTrayBalanceSoftConstraint(
-    const TrayBalanceSettings& settings,
     const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
     bool recompileLibraries) {
     // compute the hard constraint
-    std::unique_ptr<StateInputConstraint> constraint = getTrayBalanceConstraint(
-        settings, end_effector_kinematics, recompileLibraries);
+    std::unique_ptr<StateInputConstraint> constraint =
+        getTrayBalanceConstraint(end_effector_kinematics, recompileLibraries);
 
     // make it soft via penalty function
     std::vector<std::unique_ptr<PenaltyBase>> penaltyArray(
@@ -468,7 +454,8 @@ MobileManipulatorInterface::getTrayBalanceSoftConstraint(
     for (int i = 0; i < constraint->getNumConstraints(0); i++) {
         penaltyArray[i].reset(
             // new SquaredHingePenalty({settings.mu, settings.delta}));
-            new RelaxedBarrierPenalty({settings.mu, settings.delta}));
+            new RelaxedBarrierPenalty({settings_.tray_balance_settings.mu,
+                                       settings_.tray_balance_settings.delta}));
     }
 
     return std::unique_ptr<StateInputCost>(new StateInputSoftConstraint(

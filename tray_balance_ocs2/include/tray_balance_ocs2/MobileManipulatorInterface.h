@@ -47,7 +47,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/ControllerSettings.h>
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
-#include <tray_balance_ocs2/constraint/balancing/BalancingSettings.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -117,14 +116,12 @@ class MobileManipulatorInterface final : public RobotInterface {
         const std::string& taskFile);
 
     std::unique_ptr<StateInputConstraint> getTrayBalanceConstraint(
-        const TrayBalanceSettings& settings,
         const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
         bool recompileLibraries);
 
     // Soft version of the above (i.e. formulated as a cost via penalty
     // functions)
     std::unique_ptr<StateInputCost> getTrayBalanceSoftConstraint(
-        const TrayBalanceSettings& settings,
         const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
         bool recompileLibraries);
 

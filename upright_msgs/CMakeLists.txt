@@ -1,30 +1,26 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(upright_ros_interface)
+project(upright_msgs)
 
-add_compile_options(-std=c++14)
+## Compile as C++11, supported in ROS Kinetic and newer
+# add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  pybind11_catkin
-  tray_balance_ocs2
   message_generation
   std_msgs
   geometry_msgs
-  upright_msgs
 )
 
-# hack to resolve pinocchio error, see
-# <https://github.com/epfl-lasa/control-libraries/issues/120>
-find_package(Boost REQUIRED COMPONENTS system)
-add_compile_definitions(BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS)
-add_compile_definitions(BOOST_MPL_LIMIT_LIST_SIZE=30)
-
-catkin_python_setup()
-
 ## System dependencies are found with CMake's conventions
-#find_package(Boost REQUIRED COMPONENTS system)
+# find_package(Boost REQUIRED COMPONENTS system)
+
+
+## Uncomment this if the package has a setup.py. This macro ensures
+## modules and global scripts declared therein get installed
+## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
+# catkin_python_setup()
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -51,17 +47,20 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  RobotDimensions.msg
+  BoundedBalancedObject.msg
+  RobotDimensions.msg
+  TrayBalanceSettings.msg
+)
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  ParseControlSettings.srv
-)
+# add_service_files(
+#   FILES
+#   Service1.srv
+#   Service2.srv
+# )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -75,7 +74,6 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   geometry_msgs
-  upright_msgs
 )
 
 ################################################
@@ -109,8 +107,8 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES upright_ros_interface
-#  CATKIN_DEPENDS other_catkin_pkg
+#  LIBRARIES upright_msgs
+   CATKIN_DEPENDS message_runtime std_msgs geometry_msgs
 #  DEPENDS system_lib
 )
 
@@ -118,24 +116,16 @@ catkin_package(
 ## Build ##
 ###########
 
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-)
-
-pybind11_add_module(bindings SHARED
-  src/mpc_node.cpp
-  src/pybindings.cpp
+# include
+# ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/upright_ros_interface.cpp
+#   src/${PROJECT_NAME}/upright_msgs.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -146,7 +136,7 @@ pybind11_add_module(bindings SHARED
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/upright_ros_interface_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/upright_msgs_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -166,14 +156,6 @@ pybind11_add_module(bindings SHARED
 #############
 ## Install ##
 #############
-
-install(TARGETS bindings
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
-)
-set_target_properties(bindings
-    PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
-)
 
 # all install targets should use catkin DESTINATION variables
 # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
@@ -218,7 +200,7 @@ set_target_properties(bindings
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_upright_ros_interface.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_upright_msgs.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

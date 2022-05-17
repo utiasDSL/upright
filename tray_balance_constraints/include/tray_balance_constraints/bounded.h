@@ -442,6 +442,8 @@ Vector<Scalar> bounded_zmp_constraint(
     return zmp_constraints;
 }
 
+
+// TODO make this a member of the object class
 template <typename Scalar>
 Vector<Scalar> bounded_balancing_constraints_single(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
@@ -452,9 +454,6 @@ Vector<Scalar> bounded_balancing_constraints_single(
     Mat3<Scalar> C_ew = C_we.transpose();
     Mat3<Scalar> ddC_we =
         rotation_matrix_second_derivative(C_we, angular_vel, angular_acc);
-
-    // gravity
-    // Vec3<Scalar> g = Scalar(-9.81) * Vec3<Scalar>::UnitZ();
 
     // NOTE: SLQ solver with soft constraints is sensitive to constraint
     // values, so having small values squared makes them too close to zero.
@@ -489,24 +488,17 @@ Vector<Scalar> bounded_balancing_constraints_single(
     return g_bal;
 }
 
+// Convenience wrapper around a list of balanced objects
 template <typename Scalar>
-struct BoundedTrayBalanceConfiguration {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+struct BoundedBalancedObjects {
+    BoundedBalancedObjects() {}
 
-    BoundedTrayBalanceConfiguration() {
-        gravity = Scalar(-9.81) * Vec3<Scalar>::UnitZ();
-    }
+    BoundedBalancedObjects(
+        const std::vector<BoundedBalancedObject<Scalar>>& objects)
+        : objects(objects) {}
 
-    BoundedTrayBalanceConfiguration(
-        const std::vector<BoundedBalancedObject<Scalar>>& objects,
-        const Vec3<Scalar>& gravity, const BalanceConstraintsEnabled& enabled)
-        : objects(objects), gravity(gravity), enabled(enabled) {}
-
-    BoundedTrayBalanceConfiguration(
-        const BoundedTrayBalanceConfiguration& other)
-        : objects(other.objects),
-          gravity(other.gravity),
-          enabled(other.enabled) {}
+    BoundedBalancedObjects(
+        const BoundedBalancedObjects& other) : objects(other.objects) {}
 
     // Number of balancing constraints.
     size_t num_constraints() const {
@@ -526,52 +518,20 @@ struct BoundedTrayBalanceConfiguration {
         return n;
     }
 
-    // Get the parameter vector representing all objects in the configuration.
-    Vector<Scalar> get_parameters() const {
-        Vector<Scalar> parameters(num_parameters());
-        size_t index = 0;
-        for (const auto& obj : objects) {
-            Vector<Scalar> p = obj.get_parameters();
-            size_t n = p.size();
-            parameters.segment(index, n) = p;
-            index += n;
-        }
-        return parameters;
-    }
-
-    // Cast the configuration to a different underlying scalar type, creating
-    // the objects from the supplied parameter vector.
     template <typename T>
-    BoundedTrayBalanceConfiguration<T> cast_with_parameters(
-        const Vector<T>& parameters) const {
-        std::vector<BoundedBalancedObject<T>> objectsT;
-        size_t index = 0;
-        for (const auto& obj : objects) {
-            size_t n = obj.num_parameters();
-            auto objT = BoundedBalancedObject<T>::from_parameters(
-                parameters.segment(index, n));
-            objectsT.push_back(objT);
-            index += n;
-        }
-        return BoundedTrayBalanceConfiguration<T>(objectsT,
-                                                  gravity.template cast<T>());
-    }
-
-    template <typename T>
-    BoundedTrayBalanceConfiguration<T> cast() const {
+    BoundedBalancedObjects<T> cast() const {
         std::vector<BoundedBalancedObject<T>> objectsT;
         for (const auto& obj : objects) {
             objectsT.push_back(obj.template cast<T>());
         }
-        return BoundedTrayBalanceConfiguration<T>(
-            objectsT, gravity.template cast<T>(), enabled);
+        return BoundedBalancedObjects<T>(objectsT);
     }
 
     // Compute the nominal balancing constraints for this configuration.
-    Vector<Scalar> balancing_constraints(const Mat3<Scalar>& orientation,
-                                         const Vec3<Scalar>& angular_vel,
-                                         const Vec3<Scalar>& linear_acc,
-                                         const Vec3<Scalar>& angular_acc) {
+    Vector<Scalar> balancing_constraints(
+        const Vec3<Scalar>& gravity, const BalanceConstraintsEnabled& enabled,
+        const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
+        const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc) const {
         Vector<Scalar> constraints(num_constraints());
         size_t index = 0;
         for (const auto& object : objects) {
@@ -584,7 +544,5 @@ struct BoundedTrayBalanceConfiguration {
         return constraints;
     }
 
-    Vec3<Scalar> gravity;
     std::vector<BoundedBalancedObject<Scalar>> objects;
-    BalanceConstraintsEnabled enabled;
 };

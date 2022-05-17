@@ -38,13 +38,13 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("friction", &BalanceConstraintsEnabled::friction)
         .def_readwrite("zmp", &BalanceConstraintsEnabled::zmp);
 
-    pybind11::class_<TrayBalanceConfiguration<Scalar>>(
-        m, "TrayBalanceConfiguration")
-        .def(pybind11::init<>())
-        .def_readwrite("objects", &TrayBalanceConfiguration<Scalar>::objects)
-        .def_readwrite("enabled", &TrayBalanceConfiguration<Scalar>::enabled)
-        .def("num_constraints",
-             &TrayBalanceConfiguration<Scalar>::num_constraints);
+    // pybind11::class_<TrayBalanceConfiguration<Scalar>>(
+    //     m, "TrayBalanceConfiguration")
+    //     .def(pybind11::init<>())
+    //     .def_readwrite("objects", &TrayBalanceConfiguration<Scalar>::objects)
+    //     .def_readwrite("enabled", &TrayBalanceConfiguration<Scalar>::enabled)
+    //     .def("num_constraints",
+    //          &TrayBalanceConfiguration<Scalar>::num_constraints);
 
     pybind11::class_<PolygonSupportArea<Scalar>>(m, "PolygonSupportArea")
         .def(pybind11::init<const std::vector<Vec2<Scalar>>&>(),
@@ -111,15 +111,11 @@ PYBIND11_MODULE(bindings, m) {
         .def_readonly("r_tau_min", &BoundedBalancedObject<Scalar>::r_tau_min)
         .def_readonly("mu_min", &BoundedBalancedObject<Scalar>::mu_min);
 
-    pybind11::class_<BoundedTrayBalanceConfiguration<Scalar>>(
-        m, "BoundedTrayBalanceConfiguration")
+    pybind11::class_<BoundedBalancedObjects<Scalar>>(
+        m, "BoundedBalancedObjects")
         .def(pybind11::init<>())
         .def_readwrite("objects",
-                       &BoundedTrayBalanceConfiguration<Scalar>::objects)
-        .def_readwrite("gravity",
-                       &BoundedTrayBalanceConfiguration<Scalar>::gravity)
-        .def_readwrite("enabled",
-                       &BoundedTrayBalanceConfiguration<Scalar>::enabled)
+                       &BoundedBalancedObjects<Scalar>::objects)
         .def("num_constraints",
-             &BoundedTrayBalanceConfiguration<Scalar>::num_constraints);
+             &BoundedBalancedObjects<Scalar>::num_constraints);
 }

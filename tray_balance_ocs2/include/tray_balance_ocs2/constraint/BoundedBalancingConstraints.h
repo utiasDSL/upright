@@ -10,28 +10,36 @@
 
 #include <tray_balance_constraints/bounded.h>
 
+#include <tray_balance_ocs2/types.h>
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
+#include <tray_balance_ocs2/constraint/ConstraintType.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
+struct TrayBalanceSettings {
+    bool enabled = false;
+    BalanceConstraintsEnabled constraints_enabled;
+    BoundedBalancedObjects<scalar_t> objects;
+
+    ConstraintType constraint_type = ConstraintType::Soft;
+    scalar_t mu = 1e-2;
+    scalar_t delta = 1e-3;
+};
+
+// TODO: this can be split into a .cpp file, too
 class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
    public:
-    using ad_quaternion_t =
-        PinocchioEndEffectorKinematicsCppAd::ad_quaternion_t;
-    using ad_rotmat_t = PinocchioEndEffectorKinematicsCppAd::ad_rotmat_t;
-
-    using ad_vec2_t = Eigen::Matrix<ad_scalar_t, 2, 1>;
-    using ad_vec3_t = Eigen::Matrix<ad_scalar_t, 3, 1>;
-    using ad_mat3_t = Eigen::Matrix<ad_scalar_t, 3, 3>;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     BoundedTrayBalanceConstraints(
         const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-        const BoundedTrayBalanceConfiguration<scalar_t>& config,
+        const TrayBalanceSettings& settings, const Vec3d& gravity,
         const RobotDimensions& dims, bool recompileLibraries)
         : StateInputConstraintCppAd(ConstraintOrder::Linear),
           pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
-          config_(config),
+          gravity_(gravity),
+          settings_(settings),
           dims_(dims) {
         if (pinocchioEEKinematics.getIds().size() != 1) {
             throw std::runtime_error(
@@ -47,12 +55,12 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
     BoundedTrayBalanceConstraints* clone() const override {
         // Always pass recompileLibraries = false to avoid recompiling the same
         // library just because this object is cloned.
-        return new BoundedTrayBalanceConstraints(*pinocchioEEKinPtr_, config_,
-                                                 dims_, false);
+        return new BoundedTrayBalanceConstraints(*pinocchioEEKinPtr_, settings_,
+                                                 gravity_, dims_, false);
     }
 
     size_t getNumConstraints(scalar_t time) const override {
-        return config_.num_constraints();
+        return settings_.objects.num_constraints();
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
@@ -65,20 +73,24 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
 
    protected:
     ad_vector_t constraintFunction(
-        ad_scalar_t time, const ad_vector_t& state, const ad_vector_t& input,
-        const ad_vector_t& parameters) const override {
-        ad_rotmat_t C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
-        ad_vector_t angular_vel =
+        ad_scalar_t time, const VecXad& state, const VecXad& input,
+        const VecXad& parameters) const override {
+        Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
+        Vec3ad angular_vel =
             pinocchioEEKinPtr_->getAngularVelocityCppAd(state, input);
-        ad_vector_t angular_acc =
+        Vec3ad angular_acc =
             pinocchioEEKinPtr_->getAngularAccelerationCppAd(state, input);
-        ad_vector_t linear_acc =
+        Vec3ad linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        // auto config = config_.cast_with_parameters<ad_scalar_t>(parameters);
-        auto config = config_.cast<ad_scalar_t>();
-        return config.balancing_constraints(C_we, angular_vel, linear_acc,
-                                            angular_acc);
+        // Cast to AD scalar type
+        Vec3ad ad_gravity = gravity_.template cast<ad_scalar_t>();
+        BoundedBalancedObjects<ad_scalar_t> ad_objects =
+            settings_.objects.template cast<ad_scalar_t>();
+
+        return ad_objects.balancing_constraints(
+            ad_gravity, settings_.constraints_enabled, C_we, angular_vel,
+            linear_acc, angular_acc);
     }
 
    private:
@@ -86,8 +98,9 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
         default;
 
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
-    BoundedTrayBalanceConfiguration<scalar_t> config_;
+    TrayBalanceSettings settings_;
     RobotDimensions dims_;
+    Vec3d gravity_;
     // vector_t params_;  // TODO unused
 };
 

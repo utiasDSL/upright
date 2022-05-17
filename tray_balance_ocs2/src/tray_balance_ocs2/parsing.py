@@ -98,7 +98,7 @@ class ControllerConfigWrapper:
         )
 
         # gravity
-        settings.set_gravity(ctrl_config["gravity"])
+        settings.gravity = ctrl_config["gravity"]
 
         # dimensions
         settings.dims.q = ctrl_config["robot"]["dims"]["q"]
@@ -164,9 +164,6 @@ class ControllerConfigWrapper:
 
         # tray balance settings
         settings.tray_balance_settings.enabled = ctrl_config["balancing"]["enabled"]
-        settings.tray_balance_settings.bounded = ctrl_config["balancing"][
-            "use_bounded_constraints"
-        ]
         settings.tray_balance_settings.constraint_type = bindings.ConstraintType.Soft
         settings.tray_balance_settings.mu = core.parsing.parse_number(
             ctrl_config["balancing"]["mu"]
@@ -176,14 +173,15 @@ class ControllerConfigWrapper:
         )
 
         ctrl_objects = core.parsing.parse_control_objects(ctrl_config)
-        settings.tray_balance_settings.bounded_config.objects = ctrl_objects
-        settings.tray_balance_settings.bounded_config.enabled.normal = ctrl_config[
+        settings.tray_balance_settings.objects.objects = ctrl_objects  # TODO: confusing
+
+        settings.tray_balance_settings.constraints_enabled.normal = ctrl_config[
             "balancing"
         ]["enable_normal_constraint"]
-        settings.tray_balance_settings.bounded_config.enabled.friction = ctrl_config[
+        settings.tray_balance_settings.constraints_enabled.friction = ctrl_config[
             "balancing"
         ]["enable_friction_constraint"]
-        settings.tray_balance_settings.bounded_config.enabled.zmp = ctrl_config[
+        settings.tray_balance_settings.constraints_enabled.zmp = ctrl_config[
             "balancing"
         ]["enable_zmp_constraint"]
 
@@ -281,7 +279,7 @@ class ControllerConfigWrapper:
 
     def get_num_balance_constraints(self):
         if self.settings.tray_balance_settings.bounded:
-            return self.settings.tray_balance_settings.bounded_config.num_constraints()
+            return self.settings.tray_balance_settings.objects.num_constraints()
         return self.settings.tray_balance_settings.config.num_constraints()
 
     def get_num_collision_avoidance_constraints(self):
@@ -295,7 +293,7 @@ class ControllerConfigWrapper:
         return 0
 
     def objects(self):
-        return self.settings.tray_balance_settings.bounded_config.objects
+        return self.settings.tray_balance_settings.objects.objects
 
     # TODO ideally I would compute r_ew_w and Q_we based on a Pinocchio model
     # of the robot included in this repo

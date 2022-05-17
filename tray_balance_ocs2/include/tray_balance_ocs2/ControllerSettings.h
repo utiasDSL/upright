@@ -7,24 +7,22 @@
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
-#include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
+#include "tray_balance_ocs2/constraint/BoundedBalancingConstraints.h"
 
 namespace ocs2 {
 namespace mobile_manipulator {
 
 struct ControllerSettings {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
     enum class Method {
         DDP,
         SQP,
     };
 
-    void set_gravity(const Vec3<scalar_t>& gravity) {
-        tray_balance_settings.bounded_config.gravity = gravity;
-        inertial_alignment_settings.gravity = gravity;
-    }
-
     Method method = Method::DDP;
     vector_t initial_state;
+    vector3_t gravity;
 
     // Weights
     matrix_t input_weight;
@@ -45,6 +43,7 @@ struct ControllerSettings {
     // We can linearize around a set of operating points instead of just using
     // a stationary trajectory.
     bool use_operating_points = false;
+    // TODO this should be wrapped in a TargetTrajectories class
     scalar_array_t operating_times;
     vector_array_t operating_states;
     vector_array_t operating_inputs;

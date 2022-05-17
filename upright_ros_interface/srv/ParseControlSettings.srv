@@ -1,0 +1,50 @@
+string config_path  # path to yaml file
+---
+# TODO solver type
+
+float64[] initial_state
+
+geometry_msgs/Vector3 gravity
+
+# weights
+float64[] input_weight
+float64[] state_weight
+float64[] end_effector_weight
+
+# input limits
+float64[] input_limit_lower
+float64[] input_limit_upper
+float64 input_limit_mu
+float64 input_limit_delta
+
+# state limits
+float64[] state_limit_lower
+float64[] state_limit_upper
+float64 state_limit_mu
+float64 state_limit_delta
+
+# operating trajectory
+bool use_operating_points
+float64[] operating_times
+float64[] operating_states
+float64[] operating_inputs
+
+# URDF paths
+string robot_urdf_path
+string obstacle_urdf_path
+
+# OCS2 settings
+string ocs2_config_path
+string lib_folder
+
+# robot settings
+string robot_base_type
+uint32 nq
+uint32 nv
+uint32 nx
+uint32 nu
+string end_effector_link_name
+
+# TODO remaining settings
+upright_msgs/TrayBalanceSettings tray_balance_settings
+upright_msgs/InertialAlignmentSettings inertial_alignment_settings

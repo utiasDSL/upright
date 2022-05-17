@@ -12,10 +12,10 @@
 
 #include "tray_balance_ocs2/ControllerSettings.h"
 #include "tray_balance_ocs2/MobileManipulatorPythonInterface.h"
+#include "tray_balance_ocs2/constraint/BoundedBalancingConstraints.h"
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ConstraintType.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
-#include "tray_balance_ocs2/constraint/balancing/BalancingSettings.h"
 #include "tray_balance_ocs2/dynamics/BaseType.h"
 #include "tray_balance_ocs2/dynamics/Dimensions.h"
 #include "tray_balance_ocs2/dynamics/FixedBasePinocchioMapping.h"
@@ -78,12 +78,11 @@ PYBIND11_MODULE(bindings, m) {
     pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
         .def(pybind11::init<>())
         .def_readwrite("enabled", &TrayBalanceSettings::enabled)
-        .def_readwrite("bounded", &TrayBalanceSettings::bounded)
+        .def_readwrite("constraints_enabled", &TrayBalanceSettings::constraints_enabled)
+        .def_readwrite("objects", &TrayBalanceSettings::objects)
         .def_readwrite("constraint_type", &TrayBalanceSettings::constraint_type)
         .def_readwrite("mu", &TrayBalanceSettings::mu)
-        .def_readwrite("delta", &TrayBalanceSettings::delta)
-        .def_readwrite("nominal_config", &TrayBalanceSettings::nominal_config)
-        .def_readwrite("bounded_config", &TrayBalanceSettings::bounded_config);
+        .def_readwrite("delta", &TrayBalanceSettings::delta);
 
     /// Other stuff
     pybind11::enum_<ConstraintType>(m, "ConstraintType")
@@ -147,7 +146,7 @@ PYBIND11_MODULE(bindings, m) {
 
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
     ctrl_settings.def(pybind11::init<>())
-        .def("set_gravity", &ControllerSettings::set_gravity, "gravity"_a)
+        .def_readwrite("gravity", &ControllerSettings::gravity)
         .def_readwrite("method", &ControllerSettings::method)
         .def_readwrite("dynamic_obstacle_settings",
                        &ControllerSettings::dynamic_obstacle_settings)

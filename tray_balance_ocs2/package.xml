@@ -29,7 +29,6 @@
   <depend>ocs2_self_collision_visualization</depend>
   <depend>pinocchio</depend>
   <depend>tray_balance_constraints</depend>
-  <depend>tray_balance_msgs</depend>
   <depend>ocs2_python_interface</depend>
 
 </package>

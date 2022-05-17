@@ -1,0 +1,5 @@
+<!-- Launch the gripper. -->
+<launch>
+  <node name="robotiq3FGripper" pkg="robotiq_3f_gripper_control" type="Robotiq3FGripperTcpNode.py" respawn="true" args="192.168.131.18" output="screen">
+  </node>
+</launch>
