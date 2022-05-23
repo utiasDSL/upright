@@ -58,14 +58,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
-#include <tray_balance_ocs2/constraint/InertialAlignmentConstraint.h>
 #include <tray_balance_ocs2/constraint/JointStateInputLimits.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
 #include <tray_balance_ocs2/cost/AntiStaticCost.h>
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
 #include <tray_balance_ocs2/cost/InertialAlignmentCost.h>
 #include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
-#include <tray_balance_ocs2/cost/ZMPCost.h>
 #include <tray_balance_ocs2/dynamics/BaseType.h>
 #include <tray_balance_ocs2/dynamics/FixedBaseDynamics.h>
 #include <tray_balance_ocs2/dynamics/FixedBasePinocchioMapping.h>

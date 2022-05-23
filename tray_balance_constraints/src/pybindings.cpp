@@ -104,6 +104,7 @@ PYBIND11_MODULE(bindings, m) {
                            const PolygonSupportArea<Scalar>&, Scalar, Scalar>(),
             "body"_a, "com_height"_a, "support_area_min"_a, "r_tau_min"_a,
             "mu_min"_a)
+        .def("get_parameters", &BoundedBalancedObject<Scalar>::get_parameters)
         .def_readonly("body", &BoundedBalancedObject<Scalar>::body)
         .def_readonly("com_height", &BoundedBalancedObject<Scalar>::com_height)
         .def_readonly("support_area_min",
@@ -111,11 +112,12 @@ PYBIND11_MODULE(bindings, m) {
         .def_readonly("r_tau_min", &BoundedBalancedObject<Scalar>::r_tau_min)
         .def_readonly("mu_min", &BoundedBalancedObject<Scalar>::mu_min);
 
-    pybind11::class_<BoundedBalancedObjects<Scalar>>(
-        m, "BoundedBalancedObjects")
-        .def(pybind11::init<>())
-        .def_readwrite("objects",
-                       &BoundedBalancedObjects<Scalar>::objects)
-        .def("num_constraints",
-             &BoundedBalancedObjects<Scalar>::num_constraints);
+    // TODO this is confusing
+    // pybind11::class_<BoundedBalancedObjects<Scalar>>(
+    //     m, "BoundedBalancedObjects")
+    //     .def(pybind11::init<>())
+    //     .def_readwrite("objects",
+    //                    &BoundedBalancedObjects<Scalar>::objects)
+    //     .def("num_constraints",
+    //          &BoundedBalancedObjects<Scalar>::num_constraints);
 }

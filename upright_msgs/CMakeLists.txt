@@ -51,8 +51,9 @@ add_message_files(
   FILES
   RobotDimensions.msg
   BoundedBalancedObject.msg
-  RobotDimensions.msg
   TrayBalanceSettings.msg
+  InertialAlignmentSettings.msg
+  FloatArray.msg
 )
 
 ## Generate services in the 'srv' folder

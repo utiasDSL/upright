@@ -71,20 +71,6 @@ class ReferenceTrajectory:
         return r, Q
 
 
-def base_type_from_string(s):
-    s = s.lower()
-    if s == "fixed":
-        return bindings.RobotBaseType.Fixed
-    elif s == "nonholonomic":
-        return bindings.RobotBaseType.Nonholonomic
-    elif s == "omnidirectional":
-        return bindings.RobotBaseType.Omnidirectional
-    elif s == "floating":
-        return bindings.RobotBaseType.Floating
-    else:
-        raise ValueError(f"Cannot create base type from string {s}.")
-
-
 class ControllerConfigWrapper:
     def __init__(self, ctrl_config, x0=None):
         self.config = ctrl_config
@@ -93,7 +79,7 @@ class ControllerConfigWrapper:
         settings.method = bindings.ControllerSettings.Method.DDP
 
         settings.end_effector_link_name = ctrl_config["robot"]["tool_link_name"]
-        settings.robot_base_type = base_type_from_string(
+        settings.robot_base_type = bindings.robot_base_type_from_string(
             ctrl_config["robot"]["base_type"]
         )
 
@@ -173,7 +159,7 @@ class ControllerConfigWrapper:
         )
 
         ctrl_objects = core.parsing.parse_control_objects(ctrl_config)
-        settings.tray_balance_settings.objects.objects = ctrl_objects  # TODO: confusing
+        settings.tray_balance_settings.objects = ctrl_objects
 
         settings.tray_balance_settings.constraints_enabled.normal = ctrl_config[
             "balancing"
@@ -188,9 +174,15 @@ class ControllerConfigWrapper:
         # alternative inertial alignment objective
         # tries to keep tray/EE normal aligned with the negative acceleration
         # vector
-        settings.inertial_alignment_settings.enabled = ctrl_config["inertial_alignment"]["enabled"]
-        settings.inertial_alignment_settings.use_angular_acceleration = ctrl_config["inertial_alignment"]["use_angular_acceleration"]
-        settings.inertial_alignment_settings.weight = ctrl_config["inertial_alignment"]["weight"]
+        settings.inertial_alignment_settings.enabled = ctrl_config[
+            "inertial_alignment"
+        ]["enabled"]
+        settings.inertial_alignment_settings.use_angular_acceleration = ctrl_config[
+            "inertial_alignment"
+        ]["use_angular_acceleration"]
+        settings.inertial_alignment_settings.weight = ctrl_config["inertial_alignment"][
+            "weight"
+        ]
         settings.inertial_alignment_settings.r_oe_e = ctrl_objects[
             -1
         ].body.com_ellipsoid.center()  # TODO could specify index in config
@@ -293,7 +285,7 @@ class ControllerConfigWrapper:
         return 0
 
     def objects(self):
-        return self.settings.tray_balance_settings.objects.objects
+        return self.settings.tray_balance_settings.objects
 
     # TODO ideally I would compute r_ew_w and Q_we based on a Pinocchio model
     # of the robot included in this repo

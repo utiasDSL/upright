@@ -489,60 +489,91 @@ Vector<Scalar> bounded_balancing_constraints_single(
 }
 
 // Convenience wrapper around a list of balanced objects
+// template <typename Scalar>
+// struct BoundedBalancedObjects {
+//     BoundedBalancedObjects() {}
+//
+//     BoundedBalancedObjects(
+//         const std::vector<BoundedBalancedObject<Scalar>>& objects)
+//         : objects(objects) {}
+//
+//     BoundedBalancedObjects(
+//         const BoundedBalancedObjects& other) : objects(other.objects) {}
+//
+//     // Number of balancing constraints.
+//     size_t num_constraints() const {
+//         size_t n = 0;
+//         for (const auto& obj : objects) {
+//             n += obj.num_constraints();
+//         }
+//         return n;
+//     }
+//
+//     // Size of parameter vector.
+//     size_t num_parameters() const {
+//         size_t n = 0;
+//         for (const auto& obj : objects) {
+//             n += obj.num_parameters();
+//         }
+//         return n;
+//     }
+//
+//     template <typename T>
+//     BoundedBalancedObjects<T> cast() const {
+//         std::vector<BoundedBalancedObject<T>> objectsT;
+//         for (const auto& obj : objects) {
+//             objectsT.push_back(obj.template cast<T>());
+//         }
+//         return BoundedBalancedObjects<T>(objectsT);
+//     }
+//
+//     // Compute the nominal balancing constraints for this configuration.
+//     Vector<Scalar> balancing_constraints(
+//         const Vec3<Scalar>& gravity, const BalanceConstraintsEnabled& enabled,
+//         const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
+//         const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc) const {
+//         Vector<Scalar> constraints(num_constraints());
+//         size_t index = 0;
+//         for (const auto& object : objects) {
+//             Vector<Scalar> v = bounded_balancing_constraints_single(
+//                 orientation, angular_vel, linear_acc, angular_acc, object,
+//                 gravity, enabled);
+//             constraints.segment(index, v.rows()) = v;
+//             index += v.rows();
+//         }
+//         return constraints;
+//     }
+//
+//     std::vector<BoundedBalancedObject<Scalar>> objects;
+// };
+//
 template <typename Scalar>
-struct BoundedBalancedObjects {
-    BoundedBalancedObjects() {}
-
-    BoundedBalancedObjects(
-        const std::vector<BoundedBalancedObject<Scalar>>& objects)
-        : objects(objects) {}
-
-    BoundedBalancedObjects(
-        const BoundedBalancedObjects& other) : objects(other.objects) {}
-
-    // Number of balancing constraints.
-    size_t num_constraints() const {
-        size_t n = 0;
-        for (const auto& obj : objects) {
-            n += obj.num_constraints();
-        }
-        return n;
+size_t num_balancing_constraints(
+    const std::vector<BoundedBalancedObject<Scalar>> objects) {
+    size_t num_constraints = 0;
+    for (const auto& obj : objects) {
+        num_constraints += obj.num_constraints();
     }
+    return num_constraints;
+}
 
-    // Size of parameter vector.
-    size_t num_parameters() const {
-        size_t n = 0;
-        for (const auto& obj : objects) {
-            n += obj.num_parameters();
-        }
-        return n;
+
+template <typename Scalar>
+Vector<Scalar> balancing_constraints(
+    const std::vector<BoundedBalancedObject<Scalar>> objects,
+    const Vec3<Scalar>& gravity, const BalanceConstraintsEnabled& enabled,
+    const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
+    const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc) {
+
+    Vector<Scalar> constraints(num_balancing_constraints(objects));
+
+    size_t index = 0;
+    for (const auto& object : objects) {
+        Vector<Scalar> v = bounded_balancing_constraints_single(
+            orientation, angular_vel, linear_acc, angular_acc, object,
+            gravity, enabled);
+        constraints.segment(index, v.rows()) = v;
+        index += v.rows();
     }
-
-    template <typename T>
-    BoundedBalancedObjects<T> cast() const {
-        std::vector<BoundedBalancedObject<T>> objectsT;
-        for (const auto& obj : objects) {
-            objectsT.push_back(obj.template cast<T>());
-        }
-        return BoundedBalancedObjects<T>(objectsT);
-    }
-
-    // Compute the nominal balancing constraints for this configuration.
-    Vector<Scalar> balancing_constraints(
-        const Vec3<Scalar>& gravity, const BalanceConstraintsEnabled& enabled,
-        const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
-        const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc) const {
-        Vector<Scalar> constraints(num_constraints());
-        size_t index = 0;
-        for (const auto& object : objects) {
-            Vector<Scalar> v = bounded_balancing_constraints_single(
-                orientation, angular_vel, linear_acc, angular_acc, object,
-                gravity, enabled);
-            constraints.segment(index, v.rows()) = v;
-            index += v.rows();
-        }
-        return constraints;
-    }
-
-    std::vector<BoundedBalancedObject<Scalar>> objects;
-};
+    return constraints;
+}

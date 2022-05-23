@@ -1,4 +1,4 @@
-uint8 nq  # generalized positions
-uint8 nv  # generalized velocities
-uint8 nx  # state
-uint8 nu  # input
+uint8 q  # generalized positions
+uint8 v  # generalized velocities
+uint8 x  # state
+uint8 u  # input

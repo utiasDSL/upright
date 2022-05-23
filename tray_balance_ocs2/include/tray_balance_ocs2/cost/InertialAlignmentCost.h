@@ -7,8 +7,8 @@
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
 #include <tray_balance_constraints/bounded.h>
-#include <tray_balance_ocs2/types.h>
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
+#include <tray_balance_ocs2/types.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
@@ -23,6 +23,16 @@ struct InertialAlignmentSettings {
     scalar_t weight = 1.0;
     Vec3d r_oe_e;  // center of mass
 };
+
+inline std::ostream& operator<<(std::ostream& out,
+                                const InertialAlignmentSettings& settings) {
+    out << "enabled = " << settings.enabled << std::endl
+        << "use_angular_acceleration = " << settings.use_angular_acceleration
+        << std::endl
+        << "weight = " << settings.weight << std::endl
+        << "r_oe_e = " << settings.r_oe_e.transpose() << std::endl;
+    return out;
+}
 
 class InertialAlignmentCost final : public StateInputCostCppAd {
    public:

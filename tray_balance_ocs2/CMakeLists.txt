@@ -90,6 +90,7 @@ add_library(${PROJECT_NAME}
   src/dynamics/MobileManipulatorDynamics.cpp
   src/dynamics/FixedBaseDynamics.cpp
   src/MobileManipulatorInterface.cpp
+  src/constraint/BoundedBalancingConstraints.cpp
 )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}

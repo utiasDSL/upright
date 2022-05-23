@@ -7,9 +7,9 @@ float64[] initial_state
 geometry_msgs/Vector3 gravity
 
 # weights
-float64[] input_weight
-float64[] state_weight
-float64[] end_effector_weight
+upright_msgs/FloatArray input_weight
+upright_msgs/FloatArray state_weight
+upright_msgs/FloatArray end_effector_weight
 
 # input limits
 float64[] input_limit_lower
@@ -25,9 +25,10 @@ float64 state_limit_delta
 
 # operating trajectory
 bool use_operating_points
+# ocs2_msgs/mpc_target_trajectories operating_trajectory
 float64[] operating_times
-float64[] operating_states
-float64[] operating_inputs
+upright_msgs/FloatArray operating_states
+upright_msgs/FloatArray operating_inputs
 
 # URDF paths
 string robot_urdf_path
@@ -39,11 +40,8 @@ string lib_folder
 
 # robot settings
 string robot_base_type
-uint32 nq
-uint32 nv
-uint32 nx
-uint32 nu
 string end_effector_link_name
+upright_msgs/RobotDimensions dims
 
 # TODO remaining settings
 upright_msgs/TrayBalanceSettings tray_balance_settings

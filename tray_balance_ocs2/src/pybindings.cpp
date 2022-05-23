@@ -136,6 +136,9 @@ PYBIND11_MODULE(bindings, m) {
         .value("Omnidirectional", RobotBaseType::Omnidirectional)
         .value("Floating", RobotBaseType::Floating);
 
+    m.def("robot_base_type_from_string", &robot_base_type_from_string);
+    m.def("robot_base_type_to_string", &robot_base_type_to_string);
+
     pybind11::class_<InertialAlignmentSettings>(m, "InertialAlignmentSettings")
         .def(pybind11::init<>())
         .def_readwrite("enabled", &InertialAlignmentSettings::enabled)
@@ -163,10 +166,18 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::input_limit_lower)
         .def_readwrite("input_limit_upper",
                        &ControllerSettings::input_limit_upper)
+        .def_readwrite("input_limit_mu",
+                       &ControllerSettings::input_limit_mu)
+        .def_readwrite("input_limit_delta",
+                       &ControllerSettings::input_limit_delta)
         .def_readwrite("state_limit_lower",
                        &ControllerSettings::state_limit_lower)
         .def_readwrite("state_limit_upper",
                        &ControllerSettings::state_limit_upper)
+        .def_readwrite("state_limit_mu",
+                       &ControllerSettings::state_limit_mu)
+        .def_readwrite("state_limit_delta",
+                       &ControllerSettings::state_limit_delta)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
         .def_readwrite("obstacle_urdf_path",
                        &ControllerSettings::obstacle_urdf_path)
@@ -231,9 +242,9 @@ PYBIND11_MODULE(bindings, m) {
         .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
                             ocs2::vector_array_t>());
 
-    pybind11::class_<ocs2::OperatingPoints>(m, "OperatingPoints")
-        .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
-                            ocs2::vector_array_t>());
+    // pybind11::class_<ocs2::OperatingPoints>(m, "OperatingPoints")
+    //     .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
+    //                         ocs2::vector_array_t>());
 
     pybind11::class_<ocs2::LinearController>(m, "LinearController")
         .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
