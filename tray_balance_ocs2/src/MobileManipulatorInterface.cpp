@@ -60,7 +60,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/JointStateInputLimits.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
-#include <tray_balance_ocs2/cost/AntiStaticCost.h>
 #include <tray_balance_ocs2/cost/EndEffectorCost.h>
 #include <tray_balance_ocs2/cost/InertialAlignmentCost.h>
 #include <tray_balance_ocs2/cost/QuadraticJointStateInputCost.h>
@@ -214,17 +213,14 @@ void MobileManipulatorInterface::loadSettings() {
     problem_.stateCostPtr->add("endEffector",
                                getEndEffectorCost(end_effector_kinematics));
 
-    // std::unique_ptr<StateCost> anti_static_cost(new AntiStaticCost(
-    //     end_effector_kinematics, settings_.dims));
-    // problem_.stateCostPtr->add("anti_static_cost",
-    // std::move(anti_static_cost));
-
-    std::unique_ptr<StateInputCost> inertial_alignment_cost(
-        new InertialAlignmentCost(end_effector_kinematics,
-                                  settings_.inertial_alignment_settings,
-                                  settings_.gravity, settings_.dims, true));
-    problem_.costPtr->add("inertial_alignment_cost",
-                          std::move(inertial_alignment_cost));
+    if (settings_.inertial_alignment_settings.enabled) {
+        std::unique_ptr<StateInputCost> inertial_alignment_cost(
+            new InertialAlignmentCost(end_effector_kinematics,
+                                      settings_.inertial_alignment_settings,
+                                      settings_.gravity, settings_.dims, true));
+        problem_.costPtr->add("inertial_alignment_cost",
+                              std::move(inertial_alignment_cost));
+    }
 
     // std::unique_ptr<StateConstraint> inertial_alignment_constraint(
     //     new InertialAlignmentConstraint(end_effector_kinematics,
@@ -274,8 +270,8 @@ void MobileManipulatorInterface::loadSettings() {
                                              recompileLibraries));
 
         } else {
-            // TODO: hard inequality constraints do not appear to be
-            // implemented by OCS2
+            // TODO: hard inequality constraints not currently implemented by
+            // OCS2
             std::cerr << "Hard tray balance constraints enabled." << std::endl;
             problem_.inequalityConstraintPtr->add(
                 "trayBalance", getTrayBalanceConstraint(end_effector_kinematics,
@@ -433,7 +429,7 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
     bool recompileLibraries) {
     // TODO precomputation is not implemented
     return std::unique_ptr<StateInputConstraint>(
-        new BoundedTrayBalanceConstraints(
+        new BoundedBalancingConstraints(
             end_effector_kinematics, settings_.tray_balance_settings,
             settings_.gravity, settings_.dims, recompileLibraries));
 }

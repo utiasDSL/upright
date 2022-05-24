@@ -1,7 +1,5 @@
 #pragma once
 
-#include <memory>
-
 #include <ocs2_core/constraint/StateInputConstraintCppAd.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
@@ -29,20 +27,19 @@ struct TrayBalanceSettings {
 std::ostream& operator<<(std::ostream& out,
                          const TrayBalanceSettings& settings);
 
-// TODO: this can be split into a .cpp file, too
-class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
+class BoundedBalancingConstraints final : public StateInputConstraintCppAd {
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    BoundedTrayBalanceConstraints(
+    BoundedBalancingConstraints(
         const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const TrayBalanceSettings& settings, const Vec3d& gravity,
         const RobotDimensions& dims, bool recompileLibraries);
 
-    BoundedTrayBalanceConstraints* clone() const override {
+    BoundedBalancingConstraints* clone() const override {
         // Always pass recompileLibraries = false to avoid recompiling the same
         // library just because this object is cloned.
-        return new BoundedTrayBalanceConstraints(*pinocchioEEKinPtr_, settings_,
+        return new BoundedBalancingConstraints(*pinocchioEEKinPtr_, settings_,
                                                  gravity_, dims_, false);
     }
 
@@ -63,7 +60,7 @@ class BoundedTrayBalanceConstraints final : public StateInputConstraintCppAd {
                                    const VecXad& parameters) const override;
 
    private:
-    BoundedTrayBalanceConstraints(const BoundedTrayBalanceConstraints& other) =
+    BoundedBalancingConstraints(const BoundedBalancingConstraints& other) =
         default;
 
     std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;

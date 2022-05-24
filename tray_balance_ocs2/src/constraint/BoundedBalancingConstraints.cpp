@@ -5,7 +5,7 @@
 namespace ocs2 {
 namespace mobile_manipulator {
 
-BoundedTrayBalanceConstraints::BoundedTrayBalanceConstraints(
+BoundedBalancingConstraints::BoundedBalancingConstraints(
     const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
     const TrayBalanceSettings& settings, const Vec3d& gravity,
     const RobotDimensions& dims, bool recompileLibraries)
@@ -27,7 +27,7 @@ BoundedTrayBalanceConstraints::BoundedTrayBalanceConstraints(
     num_constraints_ = num_balancing_constraints(settings_.objects);
 }
 
-ad_vector_t BoundedTrayBalanceConstraints::constraintFunction(
+ad_vector_t BoundedBalancingConstraints::constraintFunction(
     ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
     Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
