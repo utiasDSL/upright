@@ -4,6 +4,7 @@
 #include <pybind11/stl_bind.h>
 
 #include <ocs2_core/Types.h>
+#include <ocs2_core/control/FeedforwardController.h>
 #include <ocs2_core/control/LinearController.h>
 #include <ocs2_python_interface/PybindMacros.h>
 #include <tray_balance_constraints/dynamics.h>
@@ -78,7 +79,8 @@ PYBIND11_MODULE(bindings, m) {
     pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
         .def(pybind11::init<>())
         .def_readwrite("enabled", &TrayBalanceSettings::enabled)
-        .def_readwrite("constraints_enabled", &TrayBalanceSettings::constraints_enabled)
+        .def_readwrite("constraints_enabled",
+                       &TrayBalanceSettings::constraints_enabled)
         .def_readwrite("objects", &TrayBalanceSettings::objects)
         .def_readwrite("constraint_type", &TrayBalanceSettings::constraint_type)
         .def_readwrite("mu", &TrayBalanceSettings::mu)
@@ -166,16 +168,14 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::input_limit_lower)
         .def_readwrite("input_limit_upper",
                        &ControllerSettings::input_limit_upper)
-        .def_readwrite("input_limit_mu",
-                       &ControllerSettings::input_limit_mu)
+        .def_readwrite("input_limit_mu", &ControllerSettings::input_limit_mu)
         .def_readwrite("input_limit_delta",
                        &ControllerSettings::input_limit_delta)
         .def_readwrite("state_limit_lower",
                        &ControllerSettings::state_limit_lower)
         .def_readwrite("state_limit_upper",
                        &ControllerSettings::state_limit_upper)
-        .def_readwrite("state_limit_mu",
-                       &ControllerSettings::state_limit_mu)
+        .def_readwrite("state_limit_mu", &ControllerSettings::state_limit_mu)
         .def_readwrite("state_limit_delta",
                        &ControllerSettings::state_limit_delta)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
@@ -252,6 +252,21 @@ PYBIND11_MODULE(bindings, m) {
              "times"_a, "biases"_a, "gains"_a)
         .def("computeInput", &ocs2::LinearController::computeInput, "t"_a,
              "x"_a)
+        // We need an intermediate function to ensure the data is copied
+        // correctly; otherwise the vector of pointers misbehaves.
+        .def_static(
+            "unflatten",
+            [](const size_array_t &stateDim, const size_array_t &inputDim,
+               const scalar_array_t &timeArray,
+               const std::vector<std::vector<float>> &data) {
+                std::vector<std::vector<float> const *> data_ptr_array(
+                    data.size(), nullptr);
+                for (int i = 0; i < data.size(); i++) {
+                    data_ptr_array[i] = &(data[i]);
+                }
+                return LinearController::unFlatten(stateDim, inputDim,
+                                                   timeArray, data_ptr_array);
+            })
         .def(pybind11::pickle(
             [](const ocs2::LinearController &c) {
                 /* Return a tuple that fully encodes the state of the object */
@@ -268,6 +283,23 @@ PYBIND11_MODULE(bindings, m) {
                                          t[2].cast<ocs2::matrix_array_t>());
                 return c;
             }));
+
+    pybind11::class_<ocs2::FeedforwardController>(m, "FeedforwardController")
+        .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t>(),
+             "times"_a, "inputs"_a)
+        .def("computeInput", &ocs2::FeedforwardController::computeInput, "t"_a,
+             "x"_a)
+        .def_static("unflatten",
+                    [](const scalar_array_t &timeArray,
+                       const std::vector<std::vector<float>> &data) {
+                        std::vector<std::vector<float> const *> data_ptr_array(
+                            data.size(), nullptr);
+                        for (int i = 0; i < data.size(); i++) {
+                            data_ptr_array[i] = &(data[i]);
+                        }
+                        return FeedforwardController::unFlatten(timeArray,
+                                                                data_ptr_array);
+                    });
 
     /* bind the actual mpc interface */
     pybind11::class_<MobileManipulatorPythonInterface>(m, "ControllerInterface")

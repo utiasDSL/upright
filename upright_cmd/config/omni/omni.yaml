@@ -55,8 +55,8 @@ controller:
       diag: [0rep9, 10rep9, 1rep9]
     end_effector:
       scale: 1
-      # diag: [1, 1, 1, 0, 0, 1]
-      diag: [0, 0, 0, 1, 1, 1]
+      diag: [1, 1, 1, 0, 0, 1]
+      # diag: [0, 0, 0, 1, 1, 1]
 
   # state and input limits
   limits:

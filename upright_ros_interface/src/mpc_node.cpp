@@ -146,18 +146,6 @@ ControllerSettings parse_control_settings(
     return settings;
 }
 
-// void print_controller_settings(const ControllerSettings& settings) {
-//     std::cout << "gravity = " << settings.gravity.transpose() << std::endl
-//               << "x0 = " << settings.initial_state.transpose() << std::endl
-//               << "input_weight = " << settings.input_weight << std::endl
-//               << "state_weight = " << settings.state_weight << std::endl
-//               << "end_effector_weight = " << settings.end_effector_weight << std::endl
-//               << "input_limit_lower = " << settings.input_limit_lower.transpose() << std::endl
-//               << "input_limit_upper = " << settings.input_limit_upper.transpose() << std::endl
-//               << "input_limit_mu = " << settings.input_limit_mu << std::endl
-//               << "input_limit_delta = " << settings.input_limit_delta << std::endl;
-// }
-
 int main(int argc, char** argv) {
     const std::string robotName = "mobile_manipulator";
 
@@ -188,6 +176,7 @@ int main(int argc, char** argv) {
     rosReferenceManagerPtr->subscribe(nodeHandle);
 
     // MPC
+    // TODO this can be wrapped up more nicely like in the Python interface
     ocs2::MPC_DDP mpc(interface.mpcSettings(), interface.ddpSettings(),
                       interface.getRollout(),
                       interface.getOptimalControlProblem(),

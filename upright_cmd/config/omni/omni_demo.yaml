@@ -27,4 +27,4 @@ controller:
     -
       millis: 0
       position: [2.0, 0.0, 0.0]
-      orientation: [0, 0.707, 0, 0.707]
+      orientation: [0, 0, 0, 1]
