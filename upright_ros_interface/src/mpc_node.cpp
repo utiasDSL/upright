@@ -31,14 +31,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <geometry_msgs/Vector3.h>
 #include <ros/ros.h>
-#include <upright_msgs/FloatArray.h>
+#include <trajectory_msgs/JointTrajectory.h>
+#include <trajectory_msgs/JointTrajectoryPoint.h>
 
+#include <ocs2_mpc/MPC_BASE.h>
 #include <ocs2_mpc/MPC_DDP.h>
+#include <ocs2_msgs/mpc_flattened_controller.h>
+#include <ocs2_msgs/reset.h>
+#include <ocs2_ros_interfaces/common/RosMsgConversions.h>
 #include <ocs2_ros_interfaces/mpc/MPC_ROS_Interface.h>
 #include <ocs2_ros_interfaces/synchronized_module/RosReferenceManager.h>
 
 #include <tray_balance_ocs2/ControllerSettings.h>
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
+#include <tray_balance_ocs2/dynamics/Dimensions.h>
+#include <upright_msgs/FloatArray.h>
 
 #include <upright_ros_interface/ParseControlSettings.h>
 
@@ -146,6 +153,182 @@ ControllerSettings parse_control_settings(
     return settings;
 }
 
+// TODO goal is to publish JointTrajectory in addition to (or perhaps instead
+// of) the standard topics - this makes it compatible with ros_control
+class Upright_MPC_ROS_Interface : public MPC_ROS_Interface {
+   public:
+    Upright_MPC_ROS_Interface(MPC_BASE& mpc, std::string topicPrefix,
+                              const RobotDimensions& dims)
+        : dims_(dims), MPC_ROS_Interface(mpc, topicPrefix) {}
+
+    void launchNodes(ros::NodeHandle& nodeHandle) {
+        ROS_INFO_STREAM("MPC node is setting up ...");
+
+        // Observation subscriber
+        mpcObservationSubscriber_ = nodeHandle.subscribe(
+            topicPrefix_ + "_mpc_observation", 1,
+            &Upright_MPC_ROS_Interface::mpcObservationCallback, this,
+            ::ros::TransportHints().tcpNoDelay());
+
+        // MPC publisher
+        mpcPolicyPublisher_ =
+            nodeHandle.advertise<ocs2_msgs::mpc_flattened_controller>(
+                topicPrefix_ + "_mpc_policy", 1, true);
+
+        // Joint trajectory publisher
+        jointTrajectoryPublisher_ =
+            nodeHandle.advertise<trajectory_msgs::JointTrajectory>(
+                topicPrefix_ + "_joint_trajectory", 1, true);
+
+        // MPC reset service server
+        mpcResetServiceServer_ =
+            nodeHandle.advertiseService<Upright_MPC_ROS_Interface,
+                                        ocs2_msgs::reset::Request,
+                                        ocs2_msgs::reset::Response>(
+                topicPrefix_ + "_mpc_reset",
+                &Upright_MPC_ROS_Interface::resetMpcCallback, this);
+
+        // display
+#ifdef PUBLISH_THREAD
+        ROS_INFO_STREAM("Publishing SLQ-MPC messages on a separate thread.");
+#endif
+
+        ROS_INFO_STREAM("MPC node is ready.");
+
+        // spin
+        spin();
+    }
+
+    void mpcObservationCallback(
+        const ocs2_msgs::mpc_observation::ConstPtr& msg) {
+        std::lock_guard<std::mutex> resetLock(resetMutex_);
+
+        if (!resetRequestedEver_.load()) {
+            ROS_WARN_STREAM(
+                "MPC should be reset first. Either call "
+                "MPC_ROS_Interface::reset() or use the reset service.");
+            return;
+        }
+
+        // current time, state, input, and subsystem
+        const auto currentObservation =
+            ros_msg_conversions::readObservationMsg(*msg);
+
+        // measure the delay in running MPC
+        mpcTimer_.startTimer();
+
+        // run MPC
+        bool controllerIsUpdated =
+            mpc_.run(currentObservation.time, currentObservation.state);
+        if (!controllerIsUpdated) {
+            return;
+        }
+        copyToBuffer(currentObservation);
+
+        // measure the delay for sending ROS messages
+        mpcTimer_.endTimer();
+
+        // check MPC delay and solution window compatibility
+        scalar_t timeWindow = mpc_.settings().solutionTimeWindow_;
+        if (mpc_.settings().solutionTimeWindow_ < 0) {
+            timeWindow =
+                mpc_.getSolverPtr()->getFinalTime() - currentObservation.time;
+        }
+        if (timeWindow < 2.0 * mpcTimer_.getAverageInMilliseconds() * 1e-3) {
+            std::cerr << "WARNING: The solution time window might be shorter "
+                         "than the MPC delay!\n";
+        }
+
+        // display
+        if (mpc_.settings().debugPrint_) {
+            std::cerr << '\n';
+            std::cerr << "\n### MPC_ROS Benchmarking";
+            std::cerr << "\n###   Maximum : "
+                      << mpcTimer_.getMaxIntervalInMilliseconds() << "[ms].";
+            std::cerr << "\n###   Average : "
+                      << mpcTimer_.getAverageInMilliseconds() << "[ms].";
+            std::cerr << "\n###   Latest  : "
+                      << mpcTimer_.getLastIntervalInMilliseconds() << "[ms]."
+                      << std::endl;
+        }
+
+#ifdef PUBLISH_THREAD
+        std::unique_lock<std::mutex> lk(publisherMutex_);
+        readyToPublish_ = true;
+        lk.unlock();
+        msgReady_.notify_one();
+
+#else
+        ocs2_msgs::mpc_flattened_controller mpcPolicyMsg =
+            createMpcPolicyMsg(*bufferPrimalSolutionPtr_, *bufferCommandPtr_,
+                               *bufferPerformanceIndicesPtr_);
+        mpcPolicyPublisher_.publish(mpcPolicyMsg);
+#endif
+
+        trajectory_msgs::JointTrajectory joint_trajectory_msg =
+            create_joint_trajectory_msg(*bufferPrimalSolutionPtr_);
+        jointTrajectoryPublisher_.publish(joint_trajectory_msg);
+    }
+
+    void shutdownNode() {
+#ifdef PUBLISH_THREAD
+        ROS_INFO_STREAM("Shutting down workers ...");
+
+        std::unique_lock<std::mutex> lk(publisherMutex_);
+        terminateThread_ = true;
+        lk.unlock();
+
+        msgReady_.notify_all();
+
+        if (publisherWorker_.joinable()) {
+            publisherWorker_.join();
+        }
+
+        ROS_INFO_STREAM("All workers are shut down.");
+#endif
+
+        // shutdown publishers
+        mpcPolicyPublisher_.shutdown();
+        jointTrajectoryPublisher_.shutdown();
+    }
+
+    trajectory_msgs::JointTrajectory create_joint_trajectory_msg(
+        const PrimalSolution& primalSolution) {
+        trajectory_msgs::JointTrajectory msg;
+
+        // TODO msg.joint_names
+        msg.header.stamp = ros::Time::now();
+
+        for (int i = 0; i < primalSolution.timeTrajectory_.size(); ++i) {
+            scalar_t t = primalSolution.timeTrajectory_[i];
+            vector_t x = primalSolution.stateTrajectory_[i];
+            vector_t u = primalSolution.inputTrajectory_[i];
+
+            vector_t q = x.head(dims_.q);
+            vector_t v = x.segment(dims_.q, dims_.v);
+            vector_t a = x.tail(dims_.v);
+
+            trajectory_msgs::JointTrajectoryPoint point;
+            point.time_from_start = ros::Duration(t);
+            point.positions =
+                std::vector<double>(q.data(), q.data() + q.size());
+            point.velocities =
+                std::vector<double>(v.data(), v.data() + v.size());
+            point.accelerations =
+                std::vector<double>(a.data(), a.data() + a.size());
+            point.effort = std::vector<double>(
+                u.data(), u.data() + u.size());  // jerk (input)
+            msg.points.push_back(point);
+        }
+
+        return msg;
+    }
+
+   protected:
+    ::ros::Publisher jointTrajectoryPublisher_;
+    RobotDimensions dims_;
+};
+
 int main(int argc, char** argv) {
     const std::string robotName = "mobile_manipulator";
 
@@ -177,14 +360,15 @@ int main(int argc, char** argv) {
 
     // MPC
     // TODO this can be wrapped up more nicely like in the Python interface
-    ocs2::MPC_DDP mpc(interface.mpcSettings(), interface.ddpSettings(),
-                      interface.getRollout(),
-                      interface.getOptimalControlProblem(),
-                      interface.getInitializer());
-    mpc.getSolverPtr()->setReferenceManager(rosReferenceManagerPtr);
+    // ocs2::MPC_DDP mpc(interface.mpcSettings(), interface.ddpSettings(),
+    //                   interface.getRollout(),
+    //                   interface.getOptimalControlProblem(),
+    //                   interface.getInitializer());
+    std::unique_ptr<MPC_BASE> mpcPtr = interface.getMpc();
+    mpcPtr->getSolverPtr()->setReferenceManager(rosReferenceManagerPtr);
 
     // Launch MPC ROS node
-    MPC_ROS_Interface mpcNode(mpc, robotName);
+    Upright_MPC_ROS_Interface mpcNode(*mpcPtr, robotName, settings.dims);
     mpcNode.launchNodes(nodeHandle);
 
     // Successful exit

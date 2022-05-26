@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import pybullet as pyb
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
+from trajectory_msgs.msg import JointTrajectory
 
 from tray_balance_sim import util, camera, simulation
-
 from tray_balance_constraints.logging import DataLogger, DataPlotter
 import tray_balance_constraints as core
 import tray_balance_ocs2 as ctrl
@@ -35,8 +35,71 @@ from ocs2_msgs.srv import resetRequest as mpc_reset_request
 import IPython
 
 
+class QuinticInterpolator:
+    def __init__(self, duration, q1, q2, v1, v2, a1, a2):
+        T = duration
+        A = np.array(
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, T, T ** 2, T ** 3, T ** 4, T ** 5],
+                [0, 1, 0, 0, 0, 0],
+                [0, 1, 2 * T, 3 * T ** 2, 4 * T ** 3, 5 * T ** 4],
+                [0, 0, 2, 0, 0, 0],
+                [0, 0, 2, 6 * T, 12 * T ** 2, 20 * T ** 3],
+            ]
+        )
+        b = np.array([q1, q2, v1, v2, a1, a2])
+        self.coeffs = np.linalg.solve(A, b)
+
+    def eval(self, t):
+        q = self.coeffs.dot([1, t, t ** 2, t ** 3, t ** 4, t ** 5])
+        v = self.coeffs[1:].dot(
+            [1, 2 * t, 3 * t ** 2, 4 * t ** 3, 5 * t ** 4]
+        )
+        a = self.coeffs[2:].dot(
+            [2, 6 * t, 12 * t ** 2, 20 * t ** 3]
+        )
+        return q, v, a
+
+
+def decompose_state(x, nq, nv):
+    q = x[: nq]
+    v = x[nq : nq + nv]
+    a = x[nq + nv : nq + 2 * nv]
+    return q, v, a
+
+
+def interpolate(t_opt, x_opt, t, nq, nv):
+    if t <= t_opt[0]:
+        return decompose_state(x_opt[0], nq, nv)
+    elif t >= t_opt[-1]:
+        return decompose_state(x_opt[-1], nq, nv)
+    else:
+        for i in range(len(t_opt) - 1):
+            if t_opt[i] <= t <= t_opt[i + 1]:
+                break
+
+    t1 = t_opt[i]
+    t2 = t_opt[i + 1]
+    Δt = t2 - t1
+
+    # if the timestep between the states is really small, then we don't need to
+    # bother interpolating
+    if Δt <= 1e-3:
+        return decompose_state(x_opt[i], nq, nv)
+
+    q1, v1, a1 = decompose_state(x_opt[i], nq, nv)
+    q2, v2, a2 = decompose_state(x_opt[i + 1], nq, nv)
+    q = np.zeros(nq)
+    v = np.zeros(nv)
+    a = np.zeros(nv)
+    for j in range(nq):
+        q[j], v[j], a[j] = QuinticInterpolator(Δt, q1[j], q2[j], v1[j], v2[j], a1[j], a2[j]).eval(t - t1)
+    return q, v, a
+
+
 class ROSInterface:
-    def __init__(self):
+    def __init__(self, topic_prefix):
         rospy.init_node("pyb_interface")
 
         self.policy = None
@@ -46,12 +109,16 @@ class ROSInterface:
         self.u_opt = None
 
         self.policy_lock = Lock()
+        self.trajectory_lock = Lock()
 
         self.policy_sub = rospy.Subscriber(
-            "/mobile_manipulator_mpc_policy", mpc_flattened_controller, self._policy_cb
+            topic_prefix + "_mpc_policy", mpc_flattened_controller, self._policy_cb
+        )
+        self.trajectory_sub = rospy.Subscriber(
+            topic_prefix + "_joint_trajectory", JointTrajectory, self._trajectory_cb
         )
         self.observation_pub = rospy.Publisher(
-            "/mobile_manipulator_mpc_observation", mpc_observation, queue_size=1
+            topic_prefix + "_mpc_observation", mpc_observation, queue_size=1
         )
 
         # wait for everything to be setup
@@ -95,6 +162,25 @@ class ROSInterface:
         msg.input.value = u
         self.observation_pub.publish(msg)
 
+    def _trajectory_cb(self, msg):
+        t_opt = []
+        x_opt = []
+        u_opt = []
+        for i in range(len(msg.points)):
+            t_opt.append(msg.points[i].time_from_start.to_sec())
+
+            q = msg.points[i].positions
+            v = msg.points[i].velocities
+            a = msg.points[i].accelerations
+            x_opt.append(q + v + a)
+
+            u_opt.append(msg.points[i].effort)
+
+        with self.trajectory_lock:
+            self.t_opt = np.array(t_opt)
+            self.x_opt = np.array(x_opt)
+            self.u_opt = np.array(u_opt)
+
     def _policy_cb(self, msg):
         # info to reconstruct the linear controller
         time_array = ctrl.bindings.scalar_array()
@@ -108,21 +194,22 @@ class ROSInterface:
             data.append(msg.data[i].data)
 
         # optimal trajectory
-        t_opt = []
-        x_opt = []
-        u_opt = []
-        for i in range(len(msg.timeTrajectory)):
-            t_opt.append(msg.timeTrajectory[i])
-            x_opt.append(msg.stateTrajectory[i].value)
-            u_opt.append(msg.inputTrajectory[i].value)
+        # t_opt = []
+        # x_opt = []
+        # u_opt = []
+        # for i in range(len(msg.timeTrajectory)):
+        #     t_opt.append(msg.timeTrajectory[i])
+        #     x_opt.append(msg.stateTrajectory[i].value)
+        #     u_opt.append(msg.inputTrajectory[i].value)
+        #
+        # with self.trajectory_lock:
+        #     self.t_opt = np.array(t_opt)
+        #     self.x_opt = np.array(x_opt)
+        #     self.u_opt = np.array(u_opt)
 
         # TODO better is to keep another controller for use if the current one
         # is locked?
         with self.policy_lock:
-            self.t_opt = np.array(t_opt)
-            self.x_opt = np.array(x_opt)
-            self.u_opt = np.array(u_opt)
-
             if msg.controllerType == mpc_flattened_controller.CONTROLLER_FEEDFORWARD:
                 self.policy = ctrl.bindings.FeedforwardController.unflatten(
                     time_array, data
@@ -216,14 +303,17 @@ def main():
     static_stable = True
 
     # setup the ROS interface
-    ros_interface = ROSInterface()
+    ros_interface = ROSInterface("mobile_manipulator")
     ros_interface.reset_mpc(ref)
     ros_interface.publish_observation(t, x, u)
+
+    # custom PD controller
+    K = 1 * np.eye(robot.nq)
 
     # wait for an initial policy to be computed
     rate = rospy.Rate(1.0 / timestep_secs)
     # rate = rospy.Rate(10)
-    while ros_interface.policy is None and not rospy.is_shutdown():
+    while (ros_interface.policy is None or ros_interface.x_opt is None) and not rospy.is_shutdown():
         rate.sleep()
 
     # simulation loop
@@ -245,20 +335,27 @@ def main():
             ros_interface.publish_observation(t, x, u)
 
         # compute the input using the current controller
-        with ros_interface.policy_lock:
-            u = ros_interface.policy.computeInput(t, x)
-        a = np.copy(robot.cmd_acc)
-        robot.command_jerk(u)
+        # with ros_interface.policy_lock:
+        #     u = ros_interface.policy.computeInput(t, x)
+        # a = np.copy(robot.cmd_acc)
+        # robot.command_jerk(u)
 
-        # IPython.embed()
+        with ros_interface.trajectory_lock:
+            t_opt = np.copy(ros_interface.t_opt)
+            x_opt = np.copy(ros_interface.x_opt)
+        qd, vd, a = interpolate(t_opt, x_opt, t, robot.nq, robot.nv)
+        v_cmd = K @ (qd - q) + vd
+        robot.command_velocity(v_cmd)
 
-        sim.step(step_robot=True)
+        sim.step(step_robot=False)
         t += timestep_secs
         rate.sleep()
 
         # if we have multiple targets, step through them
         if t >= ref.times[target_idx] and target_idx < len(ref.times) - 1:
             target_idx += 1
+
+    IPython.embed()
 
 
 if __name__ == "__main__":
