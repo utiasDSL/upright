@@ -1,0 +1,71 @@
+simulation:
+  robot:
+    home: [0, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
+    # home: [0, -0.75pi, -0.5pi, -0.75pi, -0.5pi, 0.5pi]  # standard
+    dims:
+      q: 6  # generalized position
+      v: 6  # generalized velocity
+      x: 18 # state
+      u: 6  # input
+    noise:
+      measurement:
+        q_std_dev: 0
+        v_std_dev: 0
+      process:
+        v_std_dev: 0
+    joint_names:
+      - "ur10_arm_shoulder_pan_joint"
+      - "ur10_arm_shoulder_lift_joint"
+      - "ur10_arm_elbow_joint"
+      - "ur10_arm_wrist_1_joint"
+      - "ur10_arm_wrist_2_joint"
+      - "ur10_arm_wrist_3_joint"
+    tool_joint_name: "tool0_tcp_fixed_joint"
+    base_type: fixed
+    urdf:
+      package: "tray_balance_assets"
+      path: "urdf/mm_pyb.urdf"
+      # path: "urdf/mm_pyb_static_obs.urdf"
+
+controller:
+  # robot parameters
+  robot:
+    dims:
+      q: 6  # generalized position
+      v: 6  # generalized velocity
+      x: 18 # state
+      u: 6  # input
+    x0: [0, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0rep6, 0rep6]
+    urdf:
+      package: "tray_balance_assets"
+      path: "urdf/mm_ocs2.urdf"
+    tool_link_name: "thing_tool"
+    base_type: fixed
+
+  # weights on state, input, and end effector pose
+  weights:
+    input:
+      scale: 0.0001
+      diag: [1rep6]
+    state:
+      scale: 0.001
+      diag: [0rep6, 10rep6, 1rep6]
+    end_effector:
+      scale: 1
+      diag: [1, 1, 1, 0, 0, 1]
+      # diag: [0, 0, 0, 1, 1, 1]
+
+  # state and input limits
+  limits:
+    input:
+      lower: [-80, -80, -80, -80, -80, -80]
+      upper: [80, 80, 80, 80, 80, 80]
+    # TODO: real arm velocity limits are higher
+    # accelerations likely are as well
+    state:
+      lower: [-2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
+              -2, -2, -2, -2, -2, -2,
+              -8, -8, -8, -8, -8, -8]
+      upper: [2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
+              2, 2, 2, 2, 2, 2,
+              8, 8, 8, 8, 8, 8]

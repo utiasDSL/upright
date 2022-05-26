@@ -1,0 +1,30 @@
+include:
+  -
+    key: simulation
+    package: upright_cmd
+    path: config/simulation.yaml
+  -
+    key: controller
+    package: upright_cmd
+    path: config/controller.yaml
+  -
+    package: upright_cmd
+    path: config/ur10/ur10.yaml
+
+logging:
+  timestep: 10
+  log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
+
+simulation:
+  duration: 10000
+  arrangement: tray_cube
+
+controller:
+  balancing:
+    arrangement: tray_cube
+
+  waypoints:
+    -
+      millis: 0
+      position: [-0.5, -0.5, 0.0]
+      orientation: [0, 0, 0, 1]
