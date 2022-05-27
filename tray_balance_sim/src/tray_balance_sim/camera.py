@@ -82,6 +82,7 @@ class VideoManager:
                 frames_dir.mkdir()
 
         self.frame_count = 0
+        self.last_record_time = -np.infty
 
     @classmethod
     def from_config_dict(cls, video_name, config, timestamp, r_ew_w=None):
@@ -118,8 +119,7 @@ class VideoManager:
         if not self.save:
             return
 
-        # TODO make more robust
-        if int(t) % self.timestep != 0:
+        if t + self.timestep < self.last_record_time:
             return
 
         for frames_dir, recorder in zip(self.frames_dirs, self.recorders):
@@ -131,3 +131,4 @@ class VideoManager:
                 recorder.camera.save_frame(path, rgba=rgba)
 
         self.frame_count += 1
+        self.last_record_time = t

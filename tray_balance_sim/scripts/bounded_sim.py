@@ -50,24 +50,21 @@ def main():
     log_config = config["logging"]
 
     # timing
-    duration_millis = sim_config["duration"]
-    timestep_millis = sim_config["timestep"]
-    timestep_secs = core.parsing.millis_to_secs(timestep_millis)
-    duration_secs = core.parsing.millis_to_secs(duration_millis)
-    num_timesteps = int(duration_millis / timestep_millis)
-    ctrl_period = ctrl_config["control_period"]
+    duration = sim_config["duration"]
+    timestep = sim_config["timestep"]
 
     # start the simulation
     sim = simulation.MobileManipulatorSimulation(sim_config)
     robot = sim.robot
-    model = ctrl.robot.PinocchioRobot(ctrl_config["robot"])
 
     # setup sim objects
+    # TODO put in the sim
     r_ew_w, Q_we = robot.link_pose()
     sim_objects = simulation.sim_object_setup(r_ew_w, sim_config)
     num_objects = len(sim_objects)
 
     # mark frame at the initial position
+    # TODO put in the sim
     debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
 
     # initial time, state, input
@@ -78,13 +75,14 @@ def main():
     u = np.zeros(robot.nu)
 
     # video recording
+    # TODO clean up and put in the sim
     now = datetime.datetime.now()
     video_manager = camera.VideoManager.from_config_dict(
         video_name=cli_args.video, config=sim_config, timestamp=now, r_ew_w=r_ew_w
     )
 
-    ctrl_manager = ctrl.parsing.ControllerManager(ctrl_config, x0=x)
-    ctrl_objects = ctrl_manager.objects
+    ctrl_manager = ctrl.manager.ControllerManager(ctrl_config, x0=x)
+    ctrl_objects = ctrl_manager.settings.objects
 
     # use_operating_points(ctrl_manager)
 
@@ -96,7 +94,7 @@ def main():
 
     logger.add("sim_timestep", timestep_secs)
     logger.add("duration", duration_secs)
-    logger.add("control_period", ctrl_period)
+    logger.add("control_period", ctrl_manager.period)
     logger.add("object_names", [str(name) for name in sim_objects.keys()])
 
     logger.add("nq", ctrl_config["robot"]["dims"]["q"])
@@ -104,84 +102,34 @@ def main():
     logger.add("nx", ctrl_config["robot"]["dims"]["x"])
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
-    # create reference trajectory and controller
-    # ref = ctrl_manager.reference_trajectory(r_ew_w, Q_we)
-    # mpc = ctrl_manager.controller(ref)
-
-    ref = ctrl_manager.ref
-    mpc = ctrl_manager.mpc
-
     # frames and ghost (i.e., pure visual) objects
     ghosts = []
-    for r_ew_w_d, Q_we_d in ref.poses():
+    for r_ew_w_d, Q_we_d in ctrl_manager.ref.poses():
         # ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
-    target_idx = 0
-    x_opt = np.copy(x)
-
     static_stable = True
 
+    ctrl_manager.warmstart()
+
     # simulation loop
-    for i in range(num_timesteps):
-        q, v = robot.joint_states()
+    # for i in range(num_timesteps):
+    while t <= duration:
+        q, v = robot.joint_states(add_noise=True)
         x = np.concatenate((q, v, a))
 
-        # add noise to state variables
-        q_noisy, v_noisy = robot.joint_states(add_noise=True)
-        x_noisy = np.concatenate((q_noisy, v_noisy, a))
+        try:
+            x_opt, u = ctrl_manager.step(t, x)
+        except RuntimeError as e:
+            print(e)
+            print("exit the interpreter to proceed to plots")
+            IPython.embed()
+            break
 
-        # by using x_opt, we're basically just doing pure open-loop planning,
-        # since the state never deviates from the optimal trajectory (at least
-        # due to noise)
-        # this does have the benefit of smoothing out the state used for
-        # computation, which is important for constraint handling
-        if ctrl_config["use_noisy_state_to_plan"]:
-            mpc.setObservation(t, x_noisy, u)
-        else:
-            mpc.setObservation(t, x_opt, u)
-
-        # this should be set to reflect the MPC time step
-        # we can increase it if the MPC rate is faster
-        if i % ctrl_period == 0:
-            try:
-                t0 = time.time()
-                mpc.advanceMpc()
-                t1 = time.time()
-            except RuntimeError as e:
-                print(e)
-                print("exit the interpreter to proceed to plots")
-                IPython.embed()
-                # i -= 1  # for the recorder
-                break
-            # recorder.control_durations[i // ctrl_period] = t1 - t0
-            logger.append("control_durations", t1 - t0)
-
-        # As far as I can tell, evaluateMpcSolution actually computes the input
-        # for the particular time and state (the input is often at least
-        # state-varying in DDP, with linear feedback on state error). OTOH,
-        # getMpcSolution just gives the current MPC policy trajectory over the
-        # entire time horizon, without accounting for the given state. So it is
-        # like doing feedforward input only, which is bad.
-        mpc.evaluateMpcSolution(t, x_noisy, x_opt, u)
         a = np.copy(x_opt[-robot.nv :])
-        # robot.command_acceleration(u)
         robot.command_jerk(u)
 
-        if i % log_dt == 0:
-            if ctrl_manager.settings.tray_balance_settings.enabled:
-                if (
-                    ctrl_manager.settings.tray_balance_settings.constraint_type
-                    == ctrl.bindings.ConstraintType.Hard
-                ):
-                    balance_cons = mpc.stateInputInequalityConstraint(
-                        "trayBalance", t, x, u
-                    )
-                else:
-                    balance_cons = mpc.softStateInputInequalityConstraint(
-                        "trayBalance", t, x, u
-                    )
-                logger.append("ineq_cons", balance_cons)
+        if i % log_dt == 0:  # TODO
             # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
             #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
             #         "dynamicObstacleAvoidance", t, x
@@ -193,12 +141,11 @@ def main():
 
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
-            r_ew_w_d, Q_we_d = ref.get_desired_pose(t)
+            r_ew_w_d, Q_we_d = ctrl_manager.ref.get_desired_pose(t)
 
             logger.append("ts", t)
             logger.append("us", u)
             logger.append("xs", x)
-            logger.append("xs_noisy", x_noisy)
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("r_ew_ws", r_ew_w)
             logger.append("Q_wes", Q_we)
@@ -207,37 +154,8 @@ def main():
             logger.append("ω_ew_ws", ω_ew_w)
             logger.append("cmd_vels", robot.cmd_vel.copy())
 
-            # compute distance outside of support area
-            # TODO use sim objects here?
-            if len(ctrl_objects) > 0:
-                d = core.util.support_area_distance(ctrl_objects[-1], Q_we)
-                logger.append("ds", d)
-
-                # if d > 0:
-                #     if static_stable:
-                #         sim_objects["box"].change_color((1, 0, 0, 1))
-                #     static_stable = False
-                # else:
-                #     if not static_stable:
-                #         sim_objects["box"].change_color((0, 1, 0, 1))
-                #     static_stable = True
-
-            # compute angle between vectors
-            model.forward(x, u)
-            _, ω_ew_w = model.link_velocity()
-            a_ew_w, α_ew_w = model.link_acceleration()
-            C_we = core.util.quaternion_to_matrix(Q_we)
-            z_w = C_we @ np.array([0, 0, 1])
-            total_acc = a_ew_w - ctrl_config["gravity"]
-            total_acc_dir = total_acc / np.linalg.norm(total_acc)
-            angle = np.arccos(z_w @ total_acc_dir)
-            logger.append("orn_err", angle)
-
             ddC_we = (core.math.skew3(α_ew_w) + core.math.skew3(ω_ew_w) @ core.math.skew3(ω_ew_w)) @ C_we
             logger.append("ddC_we_norm", np.linalg.norm(ddC_we, ord=2))
-
-            # IPython.embed()
-            # break
 
             r_ow_ws = np.zeros((num_objects, 3))
             Q_wos = np.zeros((num_objects, 4))
@@ -251,18 +169,16 @@ def main():
             obstacle.step()
         for ghost in ghosts:
             ghost.update()
-        t += timestep_secs
+        t += timestep
 
-        # if we have multiple targets, step through them
-        if t >= ref.ts[target_idx] and target_idx < len(ref.ts) - 1:
-            target_idx += 1
-
-        video_manager.record(i)
+        video_manager.record(t)
 
     try:
         print(f"Min constraint value = {np.min(logger.data['ineq_cons'])}")
     except:
         pass
+
+    logger.add("control_durations", ctrl_manager.replanning_durations)
 
     # save logged data
     if cli_args.log is not None:
@@ -280,7 +196,7 @@ def main():
         plotter.plot_object_error(j)
 
     plotter.plot_value_vs_time(
-        "ineq_cons",
+        "balancing_constraints",
         legend_prefix="g",
         ylabel="Constraint Value",
         title="Balancing Inequality Constraints vs. Time",
