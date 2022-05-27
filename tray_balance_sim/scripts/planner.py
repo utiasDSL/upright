@@ -67,8 +67,12 @@ def main():
         video_name=cli_args.video, config=sim_config, timestamp=now, r_ew_w=r_ew_w
     )
 
-    ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config, x0=x)
-    ctrl_objects = ctrl_wrapper.objects()
+    # TODO basically want to extend this object
+    ctrl_manager = ctrl.parsing.ControllerManager(ctrl_config, x0=x)
+    ctrl_objects = ctrl_manager.objects()
+
+    # TODO:
+    # trajectory = ctrl_manager.rollout(...)
 
     # data logging
     log_dir = Path(log_config["log_dir"])
@@ -86,8 +90,8 @@ def main():
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
     # create reference trajectory and controller
-    ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
-    mpc = ctrl_wrapper.controller(ref)
+    ref = ctrl_manager.reference_trajectory(r_ew_w, Q_we)
+    mpc = ctrl_manager.controller(ref)
 
     # frames and ghost (i.e., pure visual) objects
     ghosts = []
@@ -102,45 +106,55 @@ def main():
 
     static_stable = True
 
-    # rollout the controller, effectively using it as a planner
-    x_opts = np.zeros((num_timesteps, robot.nx))
-    us = np.zeros((num_timesteps, robot.nu))
-    ts = timestep_secs * np.arange(num_timesteps)
-    for i in range(num_timesteps):
-        if i % ctrl_period == 0:
-            mpc.setObservation(t, x_opt, u)
-            mpc.advanceMpc()
-        mpc.evaluateMpcSolution(t, x_opt, x_opt, u)
-        x_opts[i, :] = x_opt
-        us[i, :] = u
-        t += timestep_secs
+    plan = Plan.plan(
+        x0=x,
+        robot=robot,
+        mpc=mpc,
+        timestep=timestep_secs,
+        total_steps=num_timesteps,
+        replan_steps=ctrl_period,
+    )
+    plan.save("trajectory.npz")
 
-    print("Finished planning.")
-
-    # save the plan
-    np.savez_compressed("trajectory.npz", ts=ts, xs=x_opts, us=us)
-
-    # load the plan
-    with np.load("trajectory.npz") as data:
-        x_opts = data["xs"]
+    # # rollout the controller, effectively using it as a planner
+    # x_opts = np.zeros((num_timesteps, robot.nx))
+    # us = np.zeros((num_timesteps, robot.nu))
+    # ts = timestep_secs * np.arange(num_timesteps)
+    # for i in range(num_timesteps):
+    #     if i % ctrl_period == 0:
+    #         mpc.setObservation(t, x_opt, u)
+    #         mpc.advanceMpc()
+    #     mpc.evaluateMpcSolution(t, x_opt, x_opt, u)
+    #     x_opts[i, :] = x_opt
+    #     us[i, :] = u
+    #     t += timestep_secs
+    #
+    # print("Finished planning.")
+    #
+    # # save the plan
+    # np.savez_compressed("trajectory.npz", ts=ts, xs=x_opts, us=us)
+    #
+    # # load the plan
+    # with np.load("trajectory.npz") as data:
+    #     x_opts = data["xs"]
 
     # simulation loop
     t = 0
     for i in range(num_timesteps):
         q, v = robot.joint_states()
-        a = x_opts[i, -robot.nv:]
+        a = plan.xs[i, -robot.nv :]
         x = np.concatenate((q, v, a))
 
         # velocity joint controller
-        qd = x_opts[i, :robot.nq]
-        vd = x_opts[i, robot.nq:robot.nq+robot.nv]
+        qd = plan.xs[i, : robot.nq]
+        vd = plan.xs[i, robot.nq : robot.nq + robot.nv]
         cmd_vel = K @ (qd - q) + vd
         robot.command_velocity(cmd_vel)
 
         if i % log_dt == 0:
-            if ctrl_wrapper.settings.tray_balance_settings.enabled:
+            if ctrl_manager.settings.tray_balance_settings.enabled:
                 if (
-                    ctrl_wrapper.settings.tray_balance_settings.constraint_type
+                    ctrl_manager.settings.tray_balance_settings.constraint_type
                     == ctrl.bindings.ConstraintType.Hard
                 ):
                     balance_cons = mpc.stateInputInequalityConstraint(
@@ -151,14 +165,6 @@ def main():
                         "trayBalance", t, x, u
                     )
                 logger.append("ineq_cons", balance_cons)
-            # if ctrl_wrapper.settings.dynamic_obstacle_settings.enabled:
-            #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
-            #         "dynamicObstacleAvoidance", t, x
-            #     )
-            # if ctrl_wrapper.settings.collision_avoidance_settings.enabled:
-            #     recorder.collision_pair_distance[
-            #         idx, :
-            #     ] = mpc.stateInequalityConstraint("collisionAvoidance", t, x)
 
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
@@ -198,7 +204,7 @@ def main():
             logger.append("Q_wos", Q_wos)
 
         sim.step(step_robot=False)
-        if ctrl_wrapper.settings.dynamic_obstacle_settings.enabled:
+        if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
             obstacle.step()
         for ghost in ghosts:
             ghost.update()

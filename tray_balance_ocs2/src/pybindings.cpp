@@ -240,7 +240,12 @@ PYBIND11_MODULE(bindings, m) {
     /* bind TargetTrajectories class */
     pybind11::class_<ocs2::TargetTrajectories>(m, "TargetTrajectories")
         .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
-                            ocs2::vector_array_t>());
+                            ocs2::vector_array_t>())
+        .def("get_desired_state", &ocs2::TargetTrajectories::getDesiredState, "t"_a)
+        .def("get_desired_input", &ocs2::TargetTrajectories::getDesiredInput, "t"_a)
+        .def_readonly("ts", &ocs2::TargetTrajectories::timeTrajectory)
+        .def_readonly("xs", &ocs2::TargetTrajectories::stateTrajectory)
+        .def_readonly("us", &ocs2::TargetTrajectories::inputTrajectory);
 
     // pybind11::class_<ocs2::OperatingPoints>(m, "OperatingPoints")
     //     .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,

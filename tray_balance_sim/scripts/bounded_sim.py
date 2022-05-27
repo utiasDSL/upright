@@ -23,19 +23,19 @@ import upright_cmd as cmd
 import IPython
 
 
-def use_operating_points(ctrl_wrapper):
-    with np.load("short_box_trajectory.npz") as data:
-        ts_op = data["ts"]
-        xs_op = data["xs"]
-        us_op = data["us"]
-
-    step = 1
-    for i in range(0, ts_op.shape[0], step):
-        ctrl_wrapper.settings.operating_times.push_back(ts_op[i])
-        ctrl_wrapper.settings.operating_states.push_back(xs_op[i, :])
-        ctrl_wrapper.settings.operating_inputs.push_back(us_op[i, :])
-
-    ctrl_wrapper.settings.use_operating_points = True
+# def use_operating_points(ctrl_manager):
+#     with np.load("short_box_trajectory.npz") as data:
+#         ts_op = data["ts"]
+#         xs_op = data["xs"]
+#         us_op = data["us"]
+#
+#     step = 1
+#     for i in range(0, ts_op.shape[0], step):
+#         ctrl_manager.settings.operating_times.push_back(ts_op[i])
+#         ctrl_manager.settings.operating_states.push_back(xs_op[i, :])
+#         ctrl_manager.settings.operating_inputs.push_back(us_op[i, :])
+#
+#     ctrl_manager.settings.use_operating_points = True
 
 
 def main():
@@ -83,12 +83,13 @@ def main():
         video_name=cli_args.video, config=sim_config, timestamp=now, r_ew_w=r_ew_w
     )
 
-    ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config, x0=x)
-    ctrl_objects = ctrl_wrapper.objects()
+    ctrl_manager = ctrl.parsing.ControllerManager(ctrl_config, x0=x)
+    ctrl_objects = ctrl_manager.objects
 
-    # use_operating_points(ctrl_wrapper)
+    # use_operating_points(ctrl_manager)
 
     # data logging
+    # TODO put this into the logger itself
     log_dir = Path(log_config["log_dir"])
     log_dt = log_config["timestep"]
     logger = DataLogger(config)
@@ -104,13 +105,15 @@ def main():
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
     # create reference trajectory and controller
-    ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
-    mpc = ctrl_wrapper.controller(ref)
+    # ref = ctrl_manager.reference_trajectory(r_ew_w, Q_we)
+    # mpc = ctrl_manager.controller(ref)
+
+    ref = ctrl_manager.ref
+    mpc = ctrl_manager.mpc
 
     # frames and ghost (i.e., pure visual) objects
     ghosts = []
-    for state in ref.states:
-        r_ew_w_d, Q_we_d = ref.pose(state)
+    for r_ew_w_d, Q_we_d in ref.poses():
         # ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
@@ -166,9 +169,9 @@ def main():
         robot.command_jerk(u)
 
         if i % log_dt == 0:
-            if ctrl_wrapper.settings.tray_balance_settings.enabled:
+            if ctrl_manager.settings.tray_balance_settings.enabled:
                 if (
-                    ctrl_wrapper.settings.tray_balance_settings.constraint_type
+                    ctrl_manager.settings.tray_balance_settings.constraint_type
                     == ctrl.bindings.ConstraintType.Hard
                 ):
                     balance_cons = mpc.stateInputInequalityConstraint(
@@ -179,18 +182,18 @@ def main():
                         "trayBalance", t, x, u
                     )
                 logger.append("ineq_cons", balance_cons)
-            # if ctrl_wrapper.settings.dynamic_obstacle_settings.enabled:
+            # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
             #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
             #         "dynamicObstacleAvoidance", t, x
             #     )
-            # if ctrl_wrapper.settings.collision_avoidance_settings.enabled:
+            # if ctrl_manager.settings.collision_avoidance_settings.enabled:
             #     recorder.collision_pair_distance[
             #         idx, :
             #     ] = mpc.stateInequalityConstraint("collisionAvoidance", t, x)
 
             r_ew_w, Q_we = robot.link_pose()
             v_ew_w, ω_ew_w = robot.link_velocity()
-            r_ew_w_d, Q_we_d = ref.pose(ref.states[target_idx])
+            r_ew_w_d, Q_we_d = ref.get_desired_pose(t)
 
             logger.append("ts", t)
             logger.append("us", u)
@@ -244,14 +247,14 @@ def main():
             logger.append("Q_wos", Q_wos)
 
         sim.step(step_robot=True)
-        if ctrl_wrapper.settings.dynamic_obstacle_settings.enabled:
+        if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
             obstacle.step()
         for ghost in ghosts:
             ghost.update()
         t += timestep_secs
 
         # if we have multiple targets, step through them
-        if t >= ref.times[target_idx] and target_idx < len(ref.times) - 1:
+        if t >= ref.ts[target_idx] and target_idx < len(ref.ts) - 1:
             target_idx += 1
 
         video_manager.record(i)
