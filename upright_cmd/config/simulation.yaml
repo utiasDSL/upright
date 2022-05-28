@@ -6,16 +6,16 @@ include:
     package: upright_cmd
     path: config/cameras.yaml
 
-# all times are in (an integer value of) milliseconds
-timestep: 1
-duration: 10000
+# all times are in seconds
+timestep: 0.001
+duration: 5.0
 gravity: [0, 0, -9.81]
 arrangement: nothing
 
 video:
   save_frames: true
   dir: "/media/adam/Data/PhD/Videos/tray-balance/"
-  timestep: 40
+  timestep: 0.040
   views:
     -
       camera: pose_to_pose1

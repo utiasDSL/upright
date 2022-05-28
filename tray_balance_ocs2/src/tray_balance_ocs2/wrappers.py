@@ -26,7 +26,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
         xs = []
         us = []
         for waypoint in config["waypoints"]:
-            t = core.parsing.millis_to_secs(waypoint["millis"])
+            t = waypoint["time"]
 
             r_ew_w_d = r_ew_w + waypoint["position"]
             Q_we_d = core.math.quat_multiply(Q_we, waypoint["orientation"])

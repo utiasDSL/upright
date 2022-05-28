@@ -3,8 +3,8 @@ include:
     package: upright_cmd
     path: config/arrangements.yaml
 
-# compute a new control policy even `control_period` milliseconds
-control_period: 25
+# compute a new control policy even `control_period` seconds
+control_period: 0.025
 use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
 

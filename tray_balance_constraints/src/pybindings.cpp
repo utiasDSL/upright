@@ -2,9 +2,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "tray_balance_constraints/nominal.h"
 #include "tray_balance_constraints/bounded.h"
 #include "tray_balance_constraints/ellipsoid.h"
+#include "tray_balance_constraints/nominal.h"
 #include "tray_balance_constraints/support_area.h"
 #include "tray_balance_constraints/types.h"
 
@@ -18,18 +18,18 @@ PYBIND11_MODULE(bindings, m) {
     using Scalar = double;
 
     pybind11::class_<RigidBody<Scalar>>(m, "RigidBody")
-        .def(pybind11::init<const Scalar, const Mat3<Scalar> &,
-                            const Vec3<Scalar> &>(),
+        .def(pybind11::init<const Scalar, const Mat3<Scalar>&,
+                            const Vec3<Scalar>&>(),
              "mass"_a, "inertia"_a, "com"_a)
         .def_readwrite("mass", &RigidBody<Scalar>::mass)
         .def_readwrite("inertia", &RigidBody<Scalar>::inertia)
         .def_readwrite("com", &RigidBody<Scalar>::com);
 
     pybind11::class_<BalancedObject<Scalar>>(m, "BalancedObject")
-        .def(pybind11::init<const RigidBody<Scalar> &, Scalar,
-                            const PolygonSupportArea<Scalar> &, Scalar,
-                            Scalar>(),
-             "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
+        .def(
+            pybind11::init<const RigidBody<Scalar>&, Scalar,
+                           const PolygonSupportArea<Scalar>&, Scalar, Scalar>(),
+            "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
         .def_static("compose", &BalancedObject<Scalar>::compose, "objects"_a);
 
     pybind11::class_<BalanceConstraintsEnabled>(m, "BalanceConstraintsEnabled")
@@ -47,11 +47,11 @@ PYBIND11_MODULE(bindings, m) {
     //          &TrayBalanceConfiguration<Scalar>::num_constraints);
 
     pybind11::class_<PolygonSupportArea<Scalar>>(m, "PolygonSupportArea")
-        .def(pybind11::init<const std::vector<Vec2<Scalar>>&>(),
-             "vertices"_a)
+        .def(pybind11::init<const std::vector<Vec2<Scalar>>&>(), "vertices"_a)
         .def_readonly("vertices", &PolygonSupportArea<Scalar>::vertices)
         .def("offset", &PolygonSupportArea<Scalar>::offset, "offset"_a)
-        .def("distance_outside", &PolygonSupportArea<Scalar>::distance_outside, "point"_a)
+        .def("distance_outside", &PolygonSupportArea<Scalar>::distance_outside,
+             "point"_a)
         .def_static("circle", &PolygonSupportArea<Scalar>::circle, "radius"_a)
         .def_static("equilateral_triangle",
                     &PolygonSupportArea<Scalar>::equilateral_triangle,
@@ -112,12 +112,15 @@ PYBIND11_MODULE(bindings, m) {
         .def_readonly("r_tau_min", &BoundedBalancedObject<Scalar>::r_tau_min)
         .def_readonly("mu_min", &BoundedBalancedObject<Scalar>::mu_min);
 
-    // TODO this is confusing
-    // pybind11::class_<BoundedBalancedObjects<Scalar>>(
-    //     m, "BoundedBalancedObjects")
-    //     .def(pybind11::init<>())
-    //     .def_readwrite("objects",
-    //                    &BoundedBalancedObjects<Scalar>::objects)
-    //     .def("num_constraints",
-    //          &BoundedBalancedObjects<Scalar>::num_constraints);
+    // Compute balancing constraints for the list of objects given
+    m.def("balancing_constraints",
+          [](const std::vector<BoundedBalancedObject<Scalar>> objects,
+             const Vec3<Scalar>& gravity, const Mat3<Scalar>& orientation,
+             const Vec3<Scalar>& angular_vel, const Vec3<Scalar>& linear_acc,
+             const Vec3<Scalar>& angular_acc) {
+              BalanceConstraintsEnabled enabled;  // default: all enabled
+              return balancing_constraints(objects, gravity, enabled,
+                                           orientation, angular_vel, linear_acc,
+                                           angular_acc);
+          });
 }

@@ -22,7 +22,7 @@ import upright_cmd as cmd
 
 import IPython
 
-
+# TODO add operating points to config as a trajectory to load from a file
 # def use_operating_points(ctrl_manager):
 #     with np.load("short_box_trajectory.npz") as data:
 #         ts_op = data["ts"]
@@ -49,53 +49,35 @@ def main():
     ctrl_config = config["controller"]
     log_config = config["logging"]
 
-    # timing
-    duration = sim_config["duration"]
-    timestep = sim_config["timestep"]
-
     # start the simulation
-    sim = simulation.MobileManipulatorSimulation(sim_config)
-    robot = sim.robot
+    timestamp = datetime.datetime.now()
+    sim = simulation.MobileManipulatorSimulation(
+        config=sim_config, timestamp=timestamp, cli_args=cli_args
+    )
 
     # setup sim objects
-    # TODO put in the sim
-    r_ew_w, Q_we = robot.link_pose()
-    sim_objects = simulation.sim_object_setup(r_ew_w, sim_config)
-    num_objects = len(sim_objects)
-
-    # mark frame at the initial position
-    # TODO put in the sim
-    debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
+    r_ew_w, Q_we = sim.robot.link_pose()
+    num_objects = len(sim.objects)
 
     # initial time, state, input
     t = 0.0
-    q, v = robot.joint_states()
-    a = np.zeros(robot.nv)
+    q, v = sim.robot.joint_states()
+    a = np.zeros(sim.robot.nv)
     x = np.concatenate((q, v, a))
-    u = np.zeros(robot.nu)
+    u = np.zeros(sim.robot.nu)
 
-    # video recording
-    # TODO clean up and put in the sim
-    now = datetime.datetime.now()
-    video_manager = camera.VideoManager.from_config_dict(
-        video_name=cli_args.video, config=sim_config, timestamp=now, r_ew_w=r_ew_w
-    )
-
+    # controller
     ctrl_manager = ctrl.manager.ControllerManager(ctrl_config, x0=x)
-    ctrl_objects = ctrl_manager.settings.objects
 
     # use_operating_points(ctrl_manager)
 
     # data logging
-    # TODO put this into the logger itself
-    log_dir = Path(log_config["log_dir"])
-    log_dt = log_config["timestep"]
     logger = DataLogger(config)
 
-    logger.add("sim_timestep", timestep_secs)
-    logger.add("duration", duration_secs)
-    logger.add("control_period", ctrl_manager.period)
-    logger.add("object_names", [str(name) for name in sim_objects.keys()])
+    logger.add("sim_timestep", sim.timestep)
+    logger.add("duration", sim.duration)
+    logger.add("ctrl_timestep", ctrl_manager.period)
+    logger.add("object_names", [str(name) for name in sim.objects.keys()])
 
     logger.add("nq", ctrl_config["robot"]["dims"]["q"])
     logger.add("nv", ctrl_config["robot"]["dims"]["v"])
@@ -103,9 +85,8 @@ def main():
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
     # frames and ghost (i.e., pure visual) objects
-    ghosts = []
     for r_ew_w_d, Q_we_d in ctrl_manager.ref.poses():
-        # ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
+        # sim.ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
     static_stable = True
@@ -113,9 +94,8 @@ def main():
     ctrl_manager.warmstart()
 
     # simulation loop
-    # for i in range(num_timesteps):
-    while t <= duration:
-        q, v = robot.joint_states(add_noise=True)
+    while t <= sim.duration:
+        q, v = sim.robot.joint_states(add_noise=True)
         x = np.concatenate((q, v, a))
 
         try:
@@ -126,10 +106,10 @@ def main():
             IPython.embed()
             break
 
-        a = np.copy(x_opt[-robot.nv :])
-        robot.command_jerk(u)
+        a = np.copy(x_opt[-sim.robot.nv :])
+        sim.robot.command_jerk(u)
 
-        if i % log_dt == 0:  # TODO
+        if logger.ready(t):
             # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
             #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
             #         "dynamicObstacleAvoidance", t, x
@@ -139,39 +119,41 @@ def main():
             #         idx, :
             #     ] = mpc.stateInequalityConstraint("collisionAvoidance", t, x)
 
-            r_ew_w, Q_we = robot.link_pose()
-            v_ew_w, ω_ew_w = robot.link_velocity()
-            r_ew_w_d, Q_we_d = ctrl_manager.ref.get_desired_pose(t)
+            # TODO
+            ctrl_manager.log(logger)
 
+            # TODO this could be a ref.log_desired_pose()
+            # log controller stuff
+            r_ew_w_d, Q_we_d = ctrl_manager.ref.get_desired_pose(t)
+            logger.append("r_ew_w_ds", r_ew_w_d)
+            logger.append("Q_we_ds", Q_we_d)
+
+            # log sim stuff
+            r_ew_w, Q_we = sim.robot.link_pose()
+            v_ew_w, ω_ew_w = sim.robot.link_velocity()
+            r_ow_ws, Q_wos = sim.object_poses()
             logger.append("ts", t)
             logger.append("us", u)
             logger.append("xs", x)
-            logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("r_ew_ws", r_ew_w)
             logger.append("Q_wes", Q_we)
-            logger.append("Q_we_ds", Q_we_d)
             logger.append("v_ew_ws", v_ew_w)
             logger.append("ω_ew_ws", ω_ew_w)
-            logger.append("cmd_vels", robot.cmd_vel.copy())
-
-            ddC_we = (core.math.skew3(α_ew_w) + core.math.skew3(ω_ew_w) @ core.math.skew3(ω_ew_w)) @ C_we
-            logger.append("ddC_we_norm", np.linalg.norm(ddC_we, ord=2))
-
-            r_ow_ws = np.zeros((num_objects, 3))
-            Q_wos = np.zeros((num_objects, 4))
-            for j, obj in enumerate(sim_objects.values()):
-                r_ow_ws[j, :], Q_wos[j, :] = obj.get_pose()
+            logger.append("cmd_vels", sim.robot.cmd_vel.copy())
             logger.append("r_ow_ws", r_ow_ws)
             logger.append("Q_wos", Q_wos)
 
-        sim.step(step_robot=True)
-        if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
-            obstacle.step()
-        for ghost in ghosts:
-            ghost.update()
-        t += timestep
+            # TODO put this computation in a function
+            ddC_we = (
+                core.math.skew3(α_ew_w)
+                + core.math.skew3(ω_ew_w) @ core.math.skew3(ω_ew_w)
+            ) @ C_we
+            logger.append("ddC_we_norm", np.linalg.norm(ddC_we, ord=2))
 
-        video_manager.record(t)
+
+        t = sim.step(t, step_robot=True)
+        # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
+        #     obstacle.step()
 
     try:
         print(f"Min constraint value = {np.min(logger.data['ineq_cons'])}")
@@ -182,7 +164,7 @@ def main():
 
     # save logged data
     if cli_args.log is not None:
-        logger.save(log_dir, now, name=cli_args.log)
+        logger.save(timestamp, name=cli_args.log)
 
     if video_manager.save:
         print(f"Saved video to {video_manager.path}")
@@ -203,7 +185,7 @@ def main():
     )
     plotter.plot_value_vs_time(
         "us",
-        indices=range(robot.nu),
+        indices=range(sim.robot.nu),
         legend_prefix="u",
         ylabel="Commanded Input",
         title="Commanded Inputs vs. Time",
@@ -214,14 +196,14 @@ def main():
 
     plotter.plot_value_vs_time(
         "xs",
-        indices=range(robot.nq),
+        indices=range(sim.robot.nq),
         legend_prefix="q",
         ylabel="Joint Position",
         title="Joint Positions vs. Time",
     )
     plotter.plot_value_vs_time(
         "xs",
-        indices=range(robot.nq + robot.nv, robot.nq + 2 * robot.nv),
+        indices=range(sim.robot.nq + sim.robot.nv, sim.robot.nq + 2 * sim.robot.nv),
         legend_prefix="a",
         ylabel="Joint Acceleration",
         title="Joint Accelerations vs. Time",

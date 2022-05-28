@@ -11,23 +11,59 @@ import IPython
 
 
 # TODO somewhere we can add a method to convert a plan to JointTrajectory
-# TODO does it make sense to include interpolation functionality?
-# class TrackingController:
-#     # tracks a plan
-#     def __init__(self, trajectory):
-#         pass
-#
-# class ClosedLoopController:
-#     pass
 
 
 # TODO: make a jerk input version, too (we can use better integration then)
 class JointVelocityController:
-    pass
+    def __init__(self, Kp):
+        self.Kp = Kp
+
+    def compute(self, q, v):
+        # TODO need qd---interpolate desired?
+        pass
 
 
-class JointTrajectory:
-    pass
+class DoubleIntegrator:
+    def __init__(self):
+        pass
+
+
+class StateInputTrajectory:
+    """Generic state-input trajectory."""
+    def __init__(self, ts, xs, us):
+        assert len(ts) == len(xs) == len(us)
+
+        self.ts = ts
+        self.xs = xs
+        self.us = us
+
+    @classmethod
+    def load(cls, filename):
+        with np.load(filename) as data:
+            ts = data["ts"]
+            xs = data["xs"]
+            us = data["us"]
+        return cls(ts=ts, xs=xs, us=us)
+
+    def save(self, filename):
+        np.savez_compressed(filename, ts=self.ts, xs=self.xs, us=self.us)
+
+    def __len__(self):
+        return len(self.ts)
+
+
+class ControllerModel:
+    """Contains system model: robot and objects."""
+    def __init__(self, settings, robot):
+        self.objects = settings.objects
+        self.robot = robot
+
+    @classmethod
+    def from_config(cls, config, x0=None):
+        settings = ControllerSettings(config=config, x0=x0)
+        robot = PinocchioRobot(config=config["robot"])
+        return cls(settings, robot)
+
 
 
 class ControllerManager:
@@ -35,11 +71,9 @@ class ControllerManager:
     - rollout MPC to generate plans
     - generate low-level controllers to execute in simulation"""
 
-    def __init__(self, config, x0=None, operating_trajectory=None, logger=None):
-        self.config = config
+    def __init__(self, config, x0=None, operating_trajectory=None):
         self.settings = ControllerSettings(config, x0, operating_trajectory)
         self.robot = PinocchioRobot(config["robot"])
-        self.logger = logger
 
         # control should be done every ctrl_period timesteps
         self.period = config["control_period"]
@@ -50,7 +84,7 @@ class ControllerManager:
 
         # reference pose trajectory
         self.ref = TargetTrajectories.from_config(
-            self.config, r_ew_w, Q_we, np.zeros(self.settings.dims.u)
+            config, r_ew_w, Q_we, np.zeros(self.settings.dims.u)
         )
 
         # MPC
@@ -88,25 +122,26 @@ class ControllerManager:
         # evaluate the current solution
         self.mpc.evaluateMpcSolution(t, x, self.x_opt, self.u_opt)
 
-        # TODO check if time to log now
-        if self.logger is not None:
-            self.robot.forward(x, self.u_opt)
-
-            if self.settings.tray_balance_settings.enabled:
-                self.logger.append(
-                    "balancing_constraints", self.balancing_constraints(t, x)
-                )
-
-            self.logger.append("sa_dists", self.support_area_distances())
-            self.logger.append("orn_err", self.angle_between_acc_and_normal())
-
         return self.x_opt, self.u_opt
+
+    # TODO: not sure where this logging should really go
+    def log(self, x, logger):
+        self.robot.forward(x, self.u_opt)
+
+        if self.settings.tray_balance_settings.enabled:
+            self.logger.append(
+                "balancing_constraints", self.balancing_constraints(t, x)
+            )
+
+        self.logger.append("sa_dists", self.support_area_distances())
+        self.logger.append("orn_err", self.angle_between_acc_and_normal())
 
     def plan(self, timestep, duration):
         """Construct a new plan by rolling out the MPC.
 
         Parameters:
-            timestep: timestep of the planning loop
+            timestep: timestep of the planning loop---not the same as the MPC
+                      timestep (the rate at which a new trajectory is optimized)
             duration: duration of the plan
 
         Returns: the plan (a full state-input trajectory)
@@ -123,25 +158,7 @@ class ControllerManager:
             us.append(self.u_opt.copy())
             t += timestep
 
-        return JointTrajectory(ts, xs, us)
-
-        # ts = timestep * np.arange(total_steps)
-        # xs = np.zeros((total_steps, self.robot.dims.x))
-        # us = np.zeros((total_steps, self.robot.dims.u))
-        #
-        # t = 0
-        # x = x0
-        # u = np.zeros(self.robot.dims.u)
-        # for i in range(total_steps):
-        #     if i % replan_steps == 0:
-        #         self.mpc.setObservation(t, x, u)
-        #         self.mpc.advanceMpc()
-        #     self.mpc.evaluateMpcSolution(t, x, x, u)
-        #     xs[i, :] = x
-        #     us[i, :] = u
-        #     t += timestep
-        #
-        # return core.trajectory.Trajectory(ts=ts, xs=xs, us=us)
+        return StateInputTrajectory(ts, xs, us)
 
     def balancing_constraints(self, t, x):
         """Evaluate the balancing constraints at time t and state x."""
@@ -152,6 +169,7 @@ class ControllerManager:
             return self.mpc.stateInputInequalityConstraint("trayBalance", t, x, u_opt)
         return self.mpc.softStateInputInequalityConstraint("trayBalance", t, x, u_opt)
 
+    # TODO this and below probably don't belong in this class
     def support_area_distances(self):
         """Compute shortest distance of intersection of gravity vector with
         support plane from support area for each object.

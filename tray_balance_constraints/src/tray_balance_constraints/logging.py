@@ -13,8 +13,19 @@ class DataLogger:
     """Log data for later saving and viewing."""
 
     def __init__(self, config):
+        self.directory = Path(config["logging"]["log_dir"])
+        self.timestep = config["logging"]["timestep"]
+        self.last_log_time = -np.infty
+
         self.config = config
         self.data = {}
+
+    # TODO it may bite me that this is stateful
+    def ready(self, t):
+        if t >= self.last_log_time + self.timestep:
+            self.last_log_time = t
+            return True
+        return False
 
     def add(self, key, value):
         """Add a single value named `key`."""
@@ -37,12 +48,12 @@ class DataLogger:
         else:
             self.data[key] = [a]
 
-    def save(self, log_dir, timestamp, name=None):
+    def save(self, timestamp, name=None):
         """Save the data and configuration to a timestamped directory."""
         dir_name = timestamp.strftime("%Y-%m-%d_%H-%M-%S")
         if name is not None:
             dir_name = name + "_" + dir_name
-        dir_path = log_dir / dir_name
+        dir_path = self.directory / dir_name
         dir_path.mkdir()
 
         data_path = dir_path / "data.npz"

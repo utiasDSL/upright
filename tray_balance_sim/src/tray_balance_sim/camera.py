@@ -85,7 +85,7 @@ class VideoManager:
         self.last_record_time = -np.infty
 
     @classmethod
-    def from_config_dict(cls, video_name, config, timestamp, r_ew_w=None):
+    def from_config(cls, video_name, config, timestamp, r_ew_w=None):
         """Parse the video recording settings from the config.
 
         Multiple viewpoints can be recorded at the same time.

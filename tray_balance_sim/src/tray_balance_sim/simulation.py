@@ -3,9 +3,11 @@ from collections import deque
 import numpy as np
 import pybullet as pyb
 import pybullet_data
+from pyb_utils.frame import debug_frame_world
 
 from tray_balance_constraints import parsing, math
 from tray_balance_sim.robot import SimulatedRobot
+from tray_balance_sim.camera import VideoManager
 
 import IPython
 
@@ -201,11 +203,12 @@ class DynamicObstacle:
 class BulletSimulation:
     def __init__(self, sim_config):
         # convert milliseconds to seconds
-        self.dt = 0.001 * sim_config["timestep"]
+        self.timestep = sim_config["timestep"]
+        self.duration = sim_config["duration"]
 
         pyb.connect(pyb.GUI, options="--width=1280 --height=720")
         pyb.setGravity(*sim_config["gravity"])
-        pyb.setTimeStep(self.dt)
+        pyb.setTimeStep(self.timestep)
 
         pyb.resetDebugVisualizerCamera(
             cameraDistance=4,
@@ -236,13 +239,21 @@ class BulletSimulation:
         t = 0
         while t < 1.0:
             pyb.stepSimulation()
-            t += self.dt
+            t += self.timestep
 
-    def step(self, step_robot=True):
+    def step(self, t, step_robot=True):
         """Step the simulation forward one timestep."""
         if step_robot:
-            self.robot.step(secs=self.dt)
+            self.robot.step(secs=self.timestep)
+
+        for ghost in ghosts:
+            ghost.update()
+
+        self.video_manager.record(t)
+
         pyb.stepSimulation()
+
+        return t + self.timestep
 
 
 def sim_object_setup(r_ew_w, config):
@@ -285,16 +296,38 @@ def sim_object_setup(r_ew_w, config):
 
 
 class MobileManipulatorSimulation(BulletSimulation):
-    def __init__(self, sim_config):
-        super().__init__(sim_config)
+    def __init__(self, config, timestamp, cli_args):
+        super().__init__(config)
 
-        self.robot = SimulatedRobot(sim_config)
+        self.robot = SimulatedRobot(config)
         self.robot.reset_joint_configuration(self.robot.home)
 
         # simulate briefly to let the robot settle down after being positioned
         self.settle(1.0)
 
-        # arm gets bumped by the above settling, so we reset it again
-        # self.robot.reset_arm_joints(self.robot.arm_home)
-        #
-        # self.settle(1.0)
+        # setup balanced objects
+        r_ew_w, Q_we = self.robot.link_pose()
+        self.objects = sim_object_setup(r_ew_w, config)
+
+        # mark frame at the initial position
+        debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
+
+        # video recording
+        self.video_manager = VideoManager.from_config(
+            video_name=cli_args.video, config=config, timestamp=timestamp, r_ew_w=r_ew_w
+        )
+
+        # ghost objects
+        self.ghosts = []
+
+    def object_poses(self):
+        """Get the pose (position and orientation) of every balanced object at
+        the current instant.
+
+        Useful for logging purposes."""
+        n = len(self.objects)
+        r_ow_ws = np.zeros((n, 3))
+        Q_wos = np.zeros((n, 4))
+        for i, obj in enumerate(self.objects.values()):
+            r_ow_ws[j, :], Q_wos[j, :] = obj.get_pose()
+        return r_ow_ws, Q_wos

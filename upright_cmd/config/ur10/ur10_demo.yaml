@@ -12,11 +12,11 @@ include:
     path: config/ur10/ur10.yaml
 
 logging:
-  timestep: 10
+  timestep: 0.010
   log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
 
 simulation:
-  duration: 10000
+  duration: 5.0
   arrangement: tray_cube
 
 controller:
@@ -25,6 +25,6 @@ controller:
 
   waypoints:
     -
-      millis: 0
+      time: 0
       position: [-0.5, -0.5, 0.0]
       orientation: [0, 0, 0, 1]
