@@ -4,6 +4,7 @@ import numpy as np
 
 import tray_balance_constraints as core
 from tray_balance_ocs2 import bindings
+from tray_balance_ocs2.trajectory import StateInputTrajectory
 
 import IPython
 
@@ -130,8 +131,9 @@ class ControllerSettings(bindings.ControllerSettings):
         self.lib_folder = "/tmp/ocs2"
 
         # operating points
-        if operating_trajectory is not None:
-            self.use_operating_points = True
+        if config["operating_points"]["enabled"]:
+            operating_path = core.parsing.parse_ros_path(config["operating_points"])
+            operating_trajectory = StateInputTrajectory.load(operating_path)
             for i in range(len(operating_trajectory)):
                 self.operating_times.push_back(operating_trajectory.ts[i])
                 self.operating_states.push_back(operating_trajectory.xs[i, :])

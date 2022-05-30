@@ -200,62 +200,6 @@ class DynamicObstacle:
         pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
 
 
-class BulletSimulation:
-    def __init__(self, sim_config):
-        # convert milliseconds to seconds
-        self.timestep = sim_config["timestep"]
-        self.duration = sim_config["duration"]
-
-        pyb.connect(pyb.GUI, options="--width=1280 --height=720")
-        pyb.setGravity(*sim_config["gravity"])
-        pyb.setTimeStep(self.timestep)
-
-        pyb.resetDebugVisualizerCamera(
-            cameraDistance=4,
-            cameraYaw=42,
-            cameraPitch=-35.8,
-            cameraTargetPosition=[1.28, 0.045, 0.647],
-        )
-
-        # get rid of extra parts of the GUI
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
-
-        # setup ground plane
-        pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
-        pyb.loadURDF("plane.urdf", [0, 0, 0])
-
-        # setup obstacles
-        if sim_config["static_obstacles"]["enabled"]:
-            obstacles_uid = pyb.loadURDF(
-                parsing.parse_ros_path(sim_config["urdf"]["obstacles"])
-            )
-            pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
-
-    def settle(self, duration):
-        """Run simulation while doing nothing.
-
-        Useful to let objects settle to rest before applying control.
-        """
-        t = 0
-        while t < 1.0:
-            pyb.stepSimulation()
-            t += self.timestep
-
-    def step(self, t, step_robot=True):
-        """Step the simulation forward one timestep."""
-        if step_robot:
-            self.robot.step(secs=self.timestep)
-
-        for ghost in ghosts:
-            ghost.update()
-
-        self.video_manager.record(t)
-
-        pyb.stepSimulation()
-
-        return t + self.timestep
-
-
 def sim_object_setup(r_ew_w, config):
     arrangement_name = config["arrangement"]
     arrangement = config["arrangements"][arrangement_name]
@@ -295,9 +239,36 @@ def sim_object_setup(r_ew_w, config):
     return objects
 
 
-class MobileManipulatorSimulation(BulletSimulation):
+class BulletSimulation:
     def __init__(self, config, timestamp, cli_args):
-        super().__init__(config)
+        # convert milliseconds to seconds
+        self.timestep = config["timestep"]
+        self.duration = config["duration"]
+
+        pyb.connect(pyb.GUI, options="--width=1280 --height=720")
+        pyb.setGravity(*config["gravity"])
+        pyb.setTimeStep(self.timestep)
+
+        pyb.resetDebugVisualizerCamera(
+            cameraDistance=4,
+            cameraYaw=42,
+            cameraPitch=-35.8,
+            cameraTargetPosition=[1.28, 0.045, 0.647],
+        )
+
+        # get rid of extra parts of the GUI
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
+
+        # setup ground plane
+        pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
+        pyb.loadURDF("plane.urdf", [0, 0, 0])
+
+        # setup obstacles
+        if config["static_obstacles"]["enabled"]:
+            obstacles_uid = pyb.loadURDF(
+                parsing.parse_ros_path(config["urdf"]["obstacles"])
+            )
+            pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
 
         self.robot = SimulatedRobot(config)
         self.robot.reset_joint_configuration(self.robot.home)
@@ -320,6 +291,9 @@ class MobileManipulatorSimulation(BulletSimulation):
         # ghost objects
         self.ghosts = []
 
+        # used to change color when object goes non-statically stable
+        self.static_stable = True
+
     def object_poses(self):
         """Get the pose (position and orientation) of every balanced object at
         the current instant.
@@ -329,5 +303,29 @@ class MobileManipulatorSimulation(BulletSimulation):
         r_ow_ws = np.zeros((n, 3))
         Q_wos = np.zeros((n, 4))
         for i, obj in enumerate(self.objects.values()):
-            r_ow_ws[j, :], Q_wos[j, :] = obj.get_pose()
+            r_ow_ws[i, :], Q_wos[i, :] = obj.get_pose()
         return r_ow_ws, Q_wos
+
+    def settle(self, duration):
+        """Run simulation while doing nothing.
+
+        Useful to let objects settle to rest before applying control.
+        """
+        t = 0
+        while t < 1.0:
+            pyb.stepSimulation()
+            t += self.timestep
+
+    def step(self, t, step_robot=True):
+        """Step the simulation forward one timestep."""
+        if step_robot:
+            self.robot.step(secs=self.timestep)
+
+        for ghost in self.ghosts:
+            ghost.update()
+
+        self.video_manager.record(t)
+
+        pyb.stepSimulation()
+
+        return t + self.timestep

@@ -28,3 +28,8 @@ controller:
       time: 0
       position: [-0.5, -0.5, 0.0]
       orientation: [0, 0, 0, 1]
+
+  operating_points:
+    enabled: false
+    package: tray_balance_sim
+    path: trajectories/unconstrained_trajectory.npz

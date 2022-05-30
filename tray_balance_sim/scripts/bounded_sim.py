@@ -22,21 +22,6 @@ import upright_cmd as cmd
 
 import IPython
 
-# TODO add operating points to config as a trajectory to load from a file
-# def use_operating_points(ctrl_manager):
-#     with np.load("short_box_trajectory.npz") as data:
-#         ts_op = data["ts"]
-#         xs_op = data["xs"]
-#         us_op = data["us"]
-#
-#     step = 1
-#     for i in range(0, ts_op.shape[0], step):
-#         ctrl_manager.settings.operating_times.push_back(ts_op[i])
-#         ctrl_manager.settings.operating_states.push_back(xs_op[i, :])
-#         ctrl_manager.settings.operating_inputs.push_back(us_op[i, :])
-#
-#     ctrl_manager.settings.use_operating_points = True
-
 
 def main():
     np.set_printoptions(precision=3, suppress=True)
@@ -51,13 +36,9 @@ def main():
 
     # start the simulation
     timestamp = datetime.datetime.now()
-    sim = simulation.MobileManipulatorSimulation(
+    sim = simulation.BulletSimulation(
         config=sim_config, timestamp=timestamp, cli_args=cli_args
     )
-
-    # setup sim objects
-    r_ew_w, Q_we = sim.robot.link_pose()
-    num_objects = len(sim.objects)
 
     # initial time, state, input
     t = 0.0
@@ -67,16 +48,14 @@ def main():
     u = np.zeros(sim.robot.nu)
 
     # controller
-    ctrl_manager = ctrl.manager.ControllerManager(ctrl_config, x0=x)
-
-    # use_operating_points(ctrl_manager)
+    ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
 
     # data logging
     logger = DataLogger(config)
 
     logger.add("sim_timestep", sim.timestep)
     logger.add("duration", sim.duration)
-    logger.add("ctrl_timestep", ctrl_manager.period)
+    logger.add("ctrl_timestep", ctrl_manager.timestep)
     logger.add("object_names", [str(name) for name in sim.objects.keys()])
 
     logger.add("nq", ctrl_config["robot"]["dims"]["q"])
@@ -88,8 +67,6 @@ def main():
     for r_ew_w_d, Q_we_d in ctrl_manager.ref.poses():
         # sim.ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
-
-    static_stable = True
 
     ctrl_manager.warmstart()
 
@@ -109,6 +86,7 @@ def main():
         a = np.copy(x_opt[-sim.robot.nv :])
         sim.robot.command_jerk(u)
 
+        # TODO more logger reforms to come
         if logger.ready(t):
             # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
             #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
@@ -118,15 +96,6 @@ def main():
             #     recorder.collision_pair_distance[
             #         idx, :
             #     ] = mpc.stateInequalityConstraint("collisionAvoidance", t, x)
-
-            # TODO
-            ctrl_manager.log(logger)
-
-            # TODO this could be a ref.log_desired_pose()
-            # log controller stuff
-            r_ew_w_d, Q_we_d = ctrl_manager.ref.get_desired_pose(t)
-            logger.append("r_ew_w_ds", r_ew_w_d)
-            logger.append("Q_we_ds", Q_we_d)
 
             # log sim stuff
             r_ew_w, Q_we = sim.robot.link_pose()
@@ -143,13 +112,16 @@ def main():
             logger.append("r_ow_ws", r_ow_ws)
             logger.append("Q_wos", Q_wos)
 
-            # TODO put this computation in a function
-            ddC_we = (
-                core.math.skew3(α_ew_w)
-                + core.math.skew3(ω_ew_w) @ core.math.skew3(ω_ew_w)
-            ) @ C_we
-            logger.append("ddC_we_norm", np.linalg.norm(ddC_we, ord=2))
+            # log controller stuff
+            r_ew_w_d, Q_we_d = ctrl_manager.ref.get_desired_pose(t)
+            logger.append("r_ew_w_ds", r_ew_w_d)
+            logger.append("Q_we_ds", Q_we_d)
 
+            ctrl_manager.model.update(x, u)
+            logger.append("ddC_we_norm", ctrl_manager.model.ddC_we_norm())
+            logger.append("balancing_constraints", ctrl_manager.model.balancing_constraints())
+            logger.append("sa_dists", ctrl_manager.model.support_area_distances())
+            logger.append("orn_err", ctrl_manager.model.angle_between_acc_and_normal())
 
         t = sim.step(t, step_robot=True)
         # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
@@ -166,65 +138,11 @@ def main():
     if cli_args.log is not None:
         logger.save(timestamp, name=cli_args.log)
 
-    if video_manager.save:
-        print(f"Saved video to {video_manager.path}")
+    if sim.video_manager.save:
+        print(f"Saved video to {sim.video_manager.path}")
 
     # visualize data
-    plotter = DataPlotter(logger)
-    plotter.plot_ee_position()
-    plotter.plot_ee_orientation()
-    plotter.plot_ee_velocity()
-    for j in range(num_objects):
-        plotter.plot_object_error(j)
-
-    plotter.plot_value_vs_time(
-        "balancing_constraints",
-        legend_prefix="g",
-        ylabel="Constraint Value",
-        title="Balancing Inequality Constraints vs. Time",
-    )
-    plotter.plot_value_vs_time(
-        "us",
-        indices=range(sim.robot.nu),
-        legend_prefix="u",
-        ylabel="Commanded Input",
-        title="Commanded Inputs vs. Time",
-    )
-
-    plotter.plot_control_durations()
-    plotter.plot_cmd_vs_real_vel()
-
-    plotter.plot_value_vs_time(
-        "xs",
-        indices=range(sim.robot.nq),
-        legend_prefix="q",
-        ylabel="Joint Position",
-        title="Joint Positions vs. Time",
-    )
-    plotter.plot_value_vs_time(
-        "xs",
-        indices=range(sim.robot.nq + sim.robot.nv, sim.robot.nq + 2 * sim.robot.nv),
-        legend_prefix="a",
-        ylabel="Joint Acceleration",
-        title="Joint Accelerations vs. Time",
-    )
-    ax = plotter.plot_value_vs_time(
-        "ds",
-        ylabel="Distance (m)",
-        title="Distance Outside of SA vs. Time",
-    )
-    plotter.plot_value_vs_time(
-        "orn_err",
-        ylabel="Angle error (rad)",
-        title="Angle between tray normal and total acceleration",
-    )
-    plotter.plot_value_vs_time(
-        "ddC_we_norm",
-        ylabel="ddC_we norm",
-        title="ddC_we norm",
-    )
-
-    plt.show()
+    DataPlotter(logger).plot_all(show=True)
 
 
 if __name__ == "__main__":

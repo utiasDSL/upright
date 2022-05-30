@@ -182,7 +182,7 @@ class DataPlotter:
         # the controller runs at a different rate than the simulation
         control_times = (
             np.arange(durations.shape[0])
-            * self.data["control_period"]
+            * self.data["ctrl_timestep"]
             * self.data["sim_timestep"]
         )
 
@@ -281,3 +281,80 @@ class DataPlotter:
 
         ax = plt.gca()
         return ax
+
+    def plot_all(self, show=False):
+        if "r_ew_ws" in self.data:
+            self.plot_ee_position()
+
+        if "Q_wes" in self.data:
+            self.plot_ee_orientation()
+
+        if "v_ew_ws" in self.data:
+            self.plot_ee_velocity()
+
+        if "r_ow_ws" in self.data:
+            for i in range(self.data["r_ow_ws"].shape[1]):
+                self.plot_object_error(i)
+
+        if "balancing_constraints" in self.data:
+            self.plot_value_vs_time(
+                "balancing_constraints",
+                legend_prefix="g",
+                ylabel="Constraint Value",
+                title="Balancing Inequality Constraints vs. Time",
+            )
+
+        if "us" in self.data:
+            self.plot_value_vs_time(
+                "us",
+                indices=range(self.data["nu"]),
+                legend_prefix="u",
+                ylabel="Commanded Input",
+                title="Commanded Inputs vs. Time",
+            )
+
+        if "control_durations" in self.data:
+            self.plot_control_durations()
+
+        if "cmd_vels" in self.data:
+            self.plot_cmd_vs_real_vel()
+
+        if "xs" in self.data:
+            self.plot_value_vs_time(
+                "xs",
+                indices=range(self.data["nq"]),
+                legend_prefix="q",
+                ylabel="Joint Position",
+                title="Joint Positions vs. Time",
+            )
+            self.plot_value_vs_time(
+                "xs",
+                indices=range(self.data["nq"] + self.data["nv"], self.data["nq"] + 2 * self.data["nv"]),
+                legend_prefix="a",
+                ylabel="Joint Acceleration",
+                title="Joint Accelerations vs. Time",
+            )
+
+        if "sa_dists" in self.data:
+            self.plot_value_vs_time(
+                "sa_dists",
+                ylabel="Distance (m)",
+                title="Distance Outside of SA vs. Time",
+            )
+
+        if "orn_err" in self.data:
+            self.plot_value_vs_time(
+                "orn_err",
+                ylabel="Angle error (rad)",
+                title="Angle between tray normal and total acceleration",
+            )
+
+        if "ddC_we_norm" in self.data:
+            self.plot_value_vs_time(
+                "ddC_we_norm",
+                ylabel="ddC_we norm",
+                title="ddC_we norm",
+            )
+
+        if show:
+            plt.show()

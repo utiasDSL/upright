@@ -6,11 +6,12 @@ import tray_balance_constraints as core
 from tray_balance_ocs2 import bindings
 from tray_balance_ocs2.robot import PinocchioRobot
 from tray_balance_ocs2.wrappers import TargetTrajectories, ControllerSettings
+from tray_balance_ocs2.trajectory import StateInputTrajectory
 
 import IPython
 
 
-# TODO somewhere we can add a method to convert a plan to JointTrajectory
+# TODO somewhere we can add a method to convert a plan to JointTrajectory msg
 
 
 # TODO: make a jerk input version, too (we can use better integration then)
@@ -28,34 +29,10 @@ class DoubleIntegrator:
         pass
 
 
-class StateInputTrajectory:
-    """Generic state-input trajectory."""
-    def __init__(self, ts, xs, us):
-        assert len(ts) == len(xs) == len(us)
-
-        self.ts = ts
-        self.xs = xs
-        self.us = us
-
-    @classmethod
-    def load(cls, filename):
-        with np.load(filename) as data:
-            ts = data["ts"]
-            xs = data["xs"]
-            us = data["us"]
-        return cls(ts=ts, xs=xs, us=us)
-
-    def save(self, filename):
-        np.savez_compressed(filename, ts=self.ts, xs=self.xs, us=self.us)
-
-    def __len__(self):
-        return len(self.ts)
-
-
 class ControllerModel:
-    """Contains system model: robot and objects."""
+    """Contains system model: robot, objects, and other settings."""
     def __init__(self, settings, robot):
-        self.objects = settings.objects
+        self.settings = settings
         self.robot = robot
 
     @classmethod
@@ -64,6 +41,67 @@ class ControllerModel:
         robot = PinocchioRobot(config=config["robot"])
         return cls(settings, robot)
 
+    def update(self, x, u=None):
+        """Update model with state x and input u. Required before calling other methods."""
+        self.robot.forward(x, u)
+
+    def balancing_constraints(self):
+        """Evaluate the balancing constraints at time t and state x."""
+        _, Q_we = self.robot.link_pose()
+        _, ω_ew_w = self.robot.link_velocity()
+        a_ew_w, α_ew_w = self.robot.link_acceleration()
+        C_we = core.util.quaternion_to_matrix(Q_we)
+        return core.bindings.balancing_constraints(self.settings.objects,
+                self.settings.gravity, C_we, ω_ew_w, a_ew_w, α_ew_w)
+
+    def support_area_distances(self):
+        """Compute shortest distance of intersection of gravity vector with
+        support plane from support area for each object.
+
+        A negative distance indicates that the intersection is inside the
+        support area.
+
+        `update` must have been called first.
+        """
+        _, Q_we = self.robot.link_pose()
+        dists = []
+        for obj in self.settings.objects:
+            dists.append(core.util.support_area_distance(obj, Q_we))
+        return np.array(dists)
+
+    def angle_between_acc_and_normal(self):
+        """Compute the angle between the total acceleration vector and EE normal vector.
+
+        `update` must have been called first.
+        """
+
+        _, Q_we = self.robot.link_pose()
+        _, ω_ew_w = self.robot.link_velocity()
+        a_ew_w, α_ew_w = self.robot.link_acceleration()
+        C_we = core.util.quaternion_to_matrix(Q_we)
+
+        # find EE normal vector in the world frame
+        z_e = np.array([0, 0, 1])
+        z_w = C_we @ z_e
+
+        # compute direction (unit vector) of total acceleration (inertial + gravity)
+        total_acc = a_ew_w - self.settings.gravity
+        total_acc_direction = total_acc / np.linalg.norm(total_acc)
+
+        # compute the angle between the two
+        angle = np.arccos(z_w @ total_acc_direction)
+        return angle
+
+    def ddC_we_norm(self):
+        _, Q_we = self.robot.link_pose()
+        C_we = core.util.quaternion_to_matrix(Q_we)
+        _, ω_ew_w = self.robot.link_velocity()
+        _, α_ew_w = self.robot.link_acceleration()
+
+        Sα = core.math.skew3(α_ew_w)
+        Sω = core.math.skew3(ω_ew_w)
+        ddC_we = (Sα + Sω @ Sω) @ C_we
+        return np.linalg.norm(ddC_we, ord=2)
 
 
 class ControllerManager:
@@ -71,36 +109,43 @@ class ControllerManager:
     - rollout MPC to generate plans
     - generate low-level controllers to execute in simulation"""
 
-    def __init__(self, config, x0=None, operating_trajectory=None):
-        self.settings = ControllerSettings(config, x0, operating_trajectory)
-        self.robot = PinocchioRobot(config["robot"])
-
-        # control should be done every ctrl_period timesteps
-        self.period = config["control_period"]
-
-        # compute EE pose
-        self.robot.forward(self.settings.initial_state)
-        r_ew_w, Q_we = self.robot.link_pose()
-
-        # reference pose trajectory
-        self.ref = TargetTrajectories.from_config(
-            config, r_ew_w, Q_we, np.zeros(self.settings.dims.u)
-        )
+    def __init__(self, model, ref_trajectory, timestep):
+        self.model = model
+        self.ref = ref_trajectory
+        self.timestep = timestep
 
         # MPC
-        self.mpc = bindings.ControllerInterface(self.settings)
+        self.mpc = bindings.ControllerInterface(self.model.settings)
         self.mpc.reset(self.ref)
 
         self.last_planning_time = -np.infty
-        self.x_opt = np.zeros(self.settings.dims.x)
-        self.u_opt = np.zeros(self.settings.dims.u)
+        self.x_opt = np.zeros(self.model.settings.dims.x)
+        self.u_opt = np.zeros(self.model.settings.dims.u)
 
+        # TODO can I log this directly?
         self.replanning_durations = []
+
+    @classmethod
+    def from_config(cls, config, x0=None):
+        model = ControllerModel.from_config(config, x0=x0)
+
+        # control should be done every timestep
+        timestep = config["timestep"]
+
+        # compute EE pose
+        model.update(x=model.settings.initial_state)
+        r_ew_w, Q_we = model.robot.link_pose()
+
+        # reference pose trajectory
+        ref_trajectory = TargetTrajectories.from_config(
+            config, r_ew_w, Q_we, np.zeros(model.settings.dims.u)
+        )
+        return cls(model, ref_trajectory, timestep)
 
     def warmstart(self):
         """Do the first optimize to get things warmed up."""
-        x0 = self.settings.initial_state
-        u0 = np.zeros(self.settings.dims.u)
+        x0 = self.model.settings.initial_state
+        u0 = np.zeros(self.model.settings.dims.u)
         self.mpc.setObservation(0, x0, u0)
 
         self.mpc.advanceMpc()
@@ -110,8 +155,8 @@ class ControllerManager:
         """Evaluate MPC at a single timestep, replanning if needed."""
         self.mpc.setObservation(t, x, self.u_opt)
 
-        # replan if `period` has elapsed since the last time
-        if t >= self.last_planning_time + self.period:
+        # replan if `timestep` has elapsed since the last time
+        if t >= self.last_planning_time + self.timestep:
             t0 = time.time()
             self.mpc.advanceMpc()
             t1 = time.time()
@@ -123,18 +168,6 @@ class ControllerManager:
         self.mpc.evaluateMpcSolution(t, x, self.x_opt, self.u_opt)
 
         return self.x_opt, self.u_opt
-
-    # TODO: not sure where this logging should really go
-    def log(self, x, logger):
-        self.robot.forward(x, self.u_opt)
-
-        if self.settings.tray_balance_settings.enabled:
-            self.logger.append(
-                "balancing_constraints", self.balancing_constraints(t, x)
-            )
-
-        self.logger.append("sa_dists", self.support_area_distances())
-        self.logger.append("orn_err", self.angle_between_acc_and_normal())
 
     def plan(self, timestep, duration):
         """Construct a new plan by rolling out the MPC.
@@ -160,50 +193,3 @@ class ControllerManager:
 
         return StateInputTrajectory(ts, xs, us)
 
-    def balancing_constraints(self, t, x):
-        """Evaluate the balancing constraints at time t and state x."""
-        if (
-            self.settings.tray_balance_settings.constraint_type
-            == bindings.ConstraintType.Hard
-        ):
-            return self.mpc.stateInputInequalityConstraint("trayBalance", t, x, u_opt)
-        return self.mpc.softStateInputInequalityConstraint("trayBalance", t, x, u_opt)
-
-    # TODO this and below probably don't belong in this class
-    def support_area_distances(self):
-        """Compute shortest distance of intersection of gravity vector with
-        support plane from support area for each object.
-
-        A negative distance indicates that the intersection is inside the
-        support area.
-
-        self.robot.forward(x, u) must have been called first.
-        """
-        _, Q_we = self.robot.link_pose()
-        dists = []
-        for obj in self.settings.objects:
-            dists.append(core.util.support_area_distance(obj, Q_we))
-        return np.array(dists)
-
-    def angle_between_acc_and_normal(self):
-        """Compute the angle between the total acceleration vector and EE normal vector.
-
-        self.robot.forward(x, u) must have been called first.
-        """
-
-        _, Q_we = self.robot.link_pose()
-        _, ω_ew_w = self.robot.link_velocity()
-        a_ew_w, α_ew_w = self.robot.link_acceleration()
-        C_we = core.util.quaternion_to_matrix(Q_we)
-
-        # find EE normal vector in the world frame
-        z_e = np.array([0, 0, 1])
-        z_w = C_we @ z_e
-
-        # compute direction (unit vector) of total acceleration (inertial + gravity)
-        total_acc = a_ew_w - self.settings.gravity
-        total_acc_direction = total_acc / np.linalg.norm(total_acc)
-
-        # compute the angle between the two
-        angle = np.arccos(z_w @ total_acc_direction)
-        return angle
