@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
 """PyBullet simulation using the bounded balancing constraints"""
-import argparse
-import time
 import datetime
-import sys
-import os
-from pathlib import Path
 
 import numpy as np
-import matplotlib.pyplot as plt
 import pybullet as pyb
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
-from tray_balance_sim import util, camera, simulation
-
+from tray_balance_sim import simulation
 from tray_balance_constraints.logging import DataLogger, DataPlotter
 import tray_balance_constraints as core
 import tray_balance_ocs2 as ctrl

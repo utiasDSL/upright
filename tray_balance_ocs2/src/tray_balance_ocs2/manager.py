@@ -165,7 +165,10 @@ class ControllerManager:
             self.replanning_durations.append(t1 - t0)
 
         # evaluate the current solution
-        self.mpc.evaluateMpcSolution(t, x, self.x_opt, self.u_opt)
+        try:
+            self.mpc.evaluateMpcSolution(t, x, self.x_opt, self.u_opt)
+        except:
+            IPython.embed()
 
         return self.x_opt, self.u_opt
 
@@ -183,12 +186,13 @@ class ControllerManager:
         xs = []
         us = []
 
-        t = 0
+        t = 0.0
+        x = self.model.settings.initial_state
         while t <= duration:
-            self.mpc.step(t, self.x_opt)
+            x, u = self.step(t, x)
             ts.append(t)
-            xs.append(self.x_opt.copy())
-            us.append(self.u_opt.copy())
+            xs.append(x.copy())
+            us.append(u.copy())
             t += timestep
 
         return StateInputTrajectory(ts, xs, us)
