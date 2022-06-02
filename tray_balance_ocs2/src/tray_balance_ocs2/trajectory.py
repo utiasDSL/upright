@@ -21,5 +21,8 @@ class StateInputTrajectory:
     def save(self, filename):
         np.savez_compressed(filename, ts=self.ts, xs=self.xs, us=self.us)
 
+    def __getitem__(self, idx):
+        return self.ts[idx], self.xs[idx], self.us[idx]
+
     def __len__(self):
         return len(self.ts)

@@ -14,16 +14,120 @@ import IPython
 # TODO somewhere we can add a method to convert a plan to JointTrajectory msg
 
 
-# TODO: make a jerk input version, too (we can use better integration then)
+class StateInputMapping:
+    def __init__(self, dims):
+        self.dims = dims
+
+    def xu2qva(self, x, u=None):
+        q = x[: self.dims.q]
+        v = x[self.dims.q : self.dims.q + self.dims.v]
+        a = x[self.dims.q + self.dims.v : self.dims.q + 2 * self.dims.v]
+        return q, v, a
+
+    def qva2xu(self, q, v, a):
+        x = np.concatenate((q, v, a))
+        return x, None
+
+
+class QuinticPoint:
+    def __init__(self, t, q, v, a):
+        self.t = t
+        self.q = q
+        self.v = v
+        self.a = a
+
+
+class QuinticInterpolator:
+    def __init__(self, p1, p2):
+        self.t0 = p1.t
+        T = p2.t - p1.t
+        A = np.array(
+            [
+                [1, 0, 0, 0, 0, 0],
+                [1, T, T ** 2, T ** 3, T ** 4, T ** 5],
+                [0, 1, 0, 0, 0, 0],
+                [0, 1, 2 * T, 3 * T ** 2, 4 * T ** 3, 5 * T ** 4],
+                [0, 0, 2, 0, 0, 0],
+                [0, 0, 2, 6 * T, 12 * T ** 2, 20 * T ** 3],
+            ]
+        )
+        b = np.array([p1.q, p2.q, p1.v, p2.v, p1.a, p2.a])
+        self.coeffs = np.linalg.solve(A, b)
+
+    def eval(self, t):
+        t = np.array(t) - self.t0  # normalize time
+
+        zs = np.zeros_like(t)
+        os = np.ones_like(t)
+
+        w = np.array([os, t, t ** 2, t ** 3, t ** 4, t ** 5])
+        dw = np.array([zs, os, 2 * t, 3 * t ** 2, 4 * t ** 3, 5 * t ** 4])
+        ddw = np.array([zs, zs, 2 * os, 6 * t, 12 * t ** 2, 20 * t ** 3])
+
+        q = w.T @ self.coeffs
+        v = dw.T @ self.coeffs
+        a = ddw.T @ self.coeffs
+
+        return q, v, a
+
+
 class JointVelocityController:
-    def __init__(self, Kp):
+    def __init__(self, Kp, mapping, trajectory):
         self.Kp = Kp
+        self.mapping = mapping
+        self.interpolator = None
+        self.update(trajectory)
 
-    def compute(self, q, v):
-        # TODO need qd---interpolate desired?
-        pass
+    def compute_desired(self, t):
+        # make sure we are in the correct time range
+        if t < self.trajectory.ts[self.traj_idx]:
+            raise ValueError(
+                f"We are going back in time with t = {t} but our trajectory at t = {self.trajectory.ts[self.traj_idx]}"
+            )
+        if t > self.trajectory.ts[-1]:
+            raise ValueError(
+                f"We are at t = {t} but our trajectory only goes to t = {self.trajectory.ts[-1]}"
+            )
+
+        # find the new point in the trajectory
+        for i in range(self.traj_idx, len(self.trajectory) - 1):
+            if self.trajectory.ts[i] <= t <= self.trajectory.ts[i + 1]:
+                break
+
+        # TODO could short-circuit if the timestep is small
+
+        # update the interpolator
+        if self.traj_idx != i or self.interpolator is None:
+            t1, x1, u1 = self.trajectory[i]
+            q1, v1, a1 = self.mapping.xu2qva(x1, u1)
+            p1 = QuinticPoint(t=t1, q=q1, v=v1, a=a1)
+
+            t2, x2, u2 = self.trajectory[i + 1]
+            q2, v2, a2 = self.mapping.xu2qva(x2, u2)
+            p2 = QuinticPoint(t=t2, q=q2, v=v2, a=a2)
+
+            self.traj_idx = i
+            self.interpolator = QuinticInterpolator(p1, p2)
+
+        # do interpolation
+        qd, vd, ad = self.interpolator.eval(t)
+        return self.mapping.qva2xu(qd, vd, ad)[0]
+
+    def compute_input(self, t, x):
+        xd = self.compute_desired(t)
+
+        qd, vd, _ = self.mapping.xu2qva(xd)
+        q, _, _ = self.mapping.xu2qva(x)
+
+        return self.Kp @ (qd - q) + vd
+
+    # update optimal trajectory
+    def update(self, trajectory):
+        self.trajectory = trajectory
+        self.traj_idx = 0
 
 
+# TODO is this actually useful? why not just use the above?
 class DoubleIntegrator:
     def __init__(self):
         pass
@@ -31,6 +135,7 @@ class DoubleIntegrator:
 
 class ControllerModel:
     """Contains system model: robot, objects, and other settings."""
+
     def __init__(self, settings, robot):
         self.settings = settings
         self.robot = robot
@@ -51,8 +156,9 @@ class ControllerModel:
         _, ω_ew_w = self.robot.link_velocity()
         a_ew_w, α_ew_w = self.robot.link_acceleration()
         C_we = core.util.quaternion_to_matrix(Q_we)
-        return core.bindings.balancing_constraints(self.settings.objects,
-                self.settings.gravity, C_we, ω_ew_w, a_ew_w, α_ew_w)
+        return core.bindings.balancing_constraints(
+            self.settings.objects, self.settings.gravity, C_we, ω_ew_w, a_ew_w, α_ew_w
+        )
 
     def support_area_distances(self):
         """Compute shortest distance of intersection of gravity vector with
@@ -196,4 +302,3 @@ class ControllerManager:
             t += timestep
 
         return StateInputTrajectory(ts, xs, us)
-
