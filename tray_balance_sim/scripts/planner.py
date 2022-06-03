@@ -13,7 +13,7 @@ def main():
     np.set_printoptions(precision=3, suppress=True)
 
     argparser = cmd.cli.basic_arg_parser()
-    argparser.add_argument("outfile", help="NPZ file to save the trajectory to.")
+    argparser.add_argument("trajectory_file", help="NPZ file to save the trajectory to.")
     cli_args = argparser.parse_args()
 
     # load configuration
@@ -27,7 +27,7 @@ def main():
     # rollout the controller to generate a trajectory
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config)
     trajectory = ctrl_manager.plan(timestep, duration)
-    trajectory.save(cli_args.outfile)
+    trajectory.save(cli_args.trajectory_file)
 
     print(f"Saved trajectory to {cli_args.outfile}.")
 

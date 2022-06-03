@@ -120,11 +120,10 @@ def parse_control_settings_cb(req):
     print("Received request.")
 
     # parse the config file
-    config = core.parsing.load_config(req.config_path)
-    ctrl_config = config["controller"]
-    ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config)
+    config = core.parsing.load_config(req.config_path)["controller"]
+    settings = ctrl.wrappers.ControllerSettings(config)
 
-    return control_settings_to_response(ctrl_wrapper.settings)
+    return control_settings_to_response(settings)
 
 
 def main():

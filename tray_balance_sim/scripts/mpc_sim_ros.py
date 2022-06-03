@@ -49,21 +49,20 @@ class QuinticInterpolator:
             ]
         )
         b = np.array([q1, q2, v1, v2, a1, a2])
+        t0 = time.time()
         self.coeffs = np.linalg.solve(A, b)
+        t1 = time.time()
+        print(f"first time = {t1 - t0}")
 
     def eval(self, t):
         q = self.coeffs.dot([1, t, t ** 2, t ** 3, t ** 4, t ** 5])
-        v = self.coeffs[1:].dot(
-            [1, 2 * t, 3 * t ** 2, 4 * t ** 3, 5 * t ** 4]
-        )
-        a = self.coeffs[2:].dot(
-            [2, 6 * t, 12 * t ** 2, 20 * t ** 3]
-        )
+        v = self.coeffs[1:].dot([1, 2 * t, 3 * t ** 2, 4 * t ** 3, 5 * t ** 4])
+        a = self.coeffs[2:].dot([2, 6 * t, 12 * t ** 2, 20 * t ** 3])
         return q, v, a
 
 
 def decompose_state(x, nq, nv):
-    q = x[: nq]
+    q = x[:nq]
     v = x[nq : nq + nv]
     a = x[nq + nv : nq + 2 * nv]
     return q, v, a
@@ -94,22 +93,24 @@ def interpolate(t_opt, x_opt, t, nq, nv):
     v = np.zeros(nv)
     a = np.zeros(nv)
     for j in range(nq):
-        q[j], v[j], a[j] = QuinticInterpolator(Δt, q1[j], q2[j], v1[j], v2[j], a1[j], a2[j]).eval(t - t1)
+        q[j], v[j], a[j] = QuinticInterpolator(
+            Δt, q1[j], q2[j], v1[j], v2[j], a1[j], a2[j]
+        ).eval(t - t1)
     return q, v, a
 
 
 class ROSInterface:
-    def __init__(self, topic_prefix):
+    def __init__(self, topic_prefix, interpolator):
         rospy.init_node("pyb_interface")
 
-        self.policy = None
-
-        self.t_opt = None
-        self.x_opt = None
-        self.u_opt = None
-
-        self.policy_lock = Lock()
+        # optimal trajectory
+        self.trajectory = None
         self.trajectory_lock = Lock()
+        self.interpolator = interpolator
+
+        # optimal policy
+        self.policy = None
+        self.policy_lock = Lock()
 
         self.policy_sub = rospy.Subscriber(
             topic_prefix + "_mpc_policy", mpc_flattened_controller, self._policy_cb
@@ -136,14 +137,14 @@ class ROSInterface:
 
         req = mpc_reset_request()
         req.reset = True
-        req.targetTrajectories.timeTrajectory = ref.times
-        for state in ref.states:
+        req.targetTrajectories.timeTrajectory = ref.ts
+        for x in ref.xs:
             msg = mpc_state()
-            msg.value = state
+            msg.value = x
             req.targetTrajectories.stateTrajectory.append(msg)
-        for inp in ref.inputs:
+        for u in ref.us:
             msg = mpc_input()
-            msg.value = inp
+            msg.value = u
             req.targetTrajectories.inputTrajectory.append(msg)
 
         try:
@@ -177,9 +178,10 @@ class ROSInterface:
             u_opt.append(msg.points[i].effort)
 
         with self.trajectory_lock:
-            self.t_opt = np.array(t_opt)
-            self.x_opt = np.array(x_opt)
-            self.u_opt = np.array(u_opt)
+            self.trajectory = ctrl.trajectory.StateInputTrajectory(
+                np.array(t_opt), np.array(x_opt), np.array(u_opt)
+            )
+            self.interpolator.update(self.trajectory)
 
     def _policy_cb(self, msg):
         # info to reconstruct the linear controller
@@ -192,20 +194,6 @@ class ROSInterface:
             state_dims.append(len(msg.stateTrajectory[i].value))
             input_dims.append(len(msg.inputTrajectory[i].value))
             data.append(msg.data[i].data)
-
-        # optimal trajectory
-        # t_opt = []
-        # x_opt = []
-        # u_opt = []
-        # for i in range(len(msg.timeTrajectory)):
-        #     t_opt.append(msg.timeTrajectory[i])
-        #     x_opt.append(msg.stateTrajectory[i].value)
-        #     u_opt.append(msg.inputTrajectory[i].value)
-        #
-        # with self.trajectory_lock:
-        #     self.t_opt = np.array(t_opt)
-        #     self.x_opt = np.array(x_opt)
-        #     self.u_opt = np.array(u_opt)
 
         # TODO better is to keep another controller for use if the current one
         # is locked?
@@ -233,127 +221,72 @@ def main():
     ctrl_config = config["controller"]
     log_config = config["logging"]
 
-    # timing
-    duration_millis = sim_config["duration"]
-    timestep_millis = sim_config["timestep"]
-    timestep_secs = core.parsing.millis_to_secs(timestep_millis)
-    duration_secs = core.parsing.millis_to_secs(duration_millis)
-    num_timesteps = int(duration_millis / timestep_millis)
-    ctrl_period = ctrl_config["control_period"]
-
     # start the simulation
-    sim = simulation.MobileManipulatorSimulation(sim_config)
-    robot = sim.robot
-
-    # setup sim objects
-    r_ew_w, Q_we = robot.link_pose()
-    sim_objects = simulation.sim_object_setup(r_ew_w, sim_config)
-    num_objects = len(sim_objects)
-
-    # mark frame at the initial position
-    debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
+    timestamp = datetime.datetime.now()
+    sim = simulation.BulletSimulation(
+        config=sim_config, timestamp=timestamp, cli_args=cli_args
+    )
 
     # initial time, state, input
     t = 0.0
-    q, v = robot.joint_states()
-    a = np.zeros(robot.nv)
+    q, v = sim.robot.joint_states()
+    a = np.zeros(sim.robot.nv)
     x = np.concatenate((q, v, a))
-    u = np.zeros(robot.nu)
-
-    # video recording
-    now = datetime.datetime.now()
-    video_manager = camera.VideoManager.from_config_dict(
-        video_name=cli_args.video, config=sim_config, timestamp=now, r_ew_w=r_ew_w
-    )
-
-    ctrl_wrapper = ctrl.parsing.ControllerConfigWrapper(ctrl_config, x0=x)
-    ctrl_objects = ctrl_wrapper.objects()
+    u = np.zeros(sim.robot.nu)
 
     # data logging
-    log_dir = Path(log_config["log_dir"])
-    log_dt = log_config["timestep"]
     logger = DataLogger(config)
 
-    logger.add("sim_timestep", timestep_secs)
-    logger.add("duration", duration_secs)
-    logger.add("control_period", ctrl_period)
-    logger.add("object_names", [str(name) for name in sim_objects.keys()])
+    logger.add("sim_timestep", sim.timestep)
+    logger.add("duration", sim.duration)
+    logger.add("object_names", [str(name) for name in sim.objects.keys()])
 
     logger.add("nq", ctrl_config["robot"]["dims"]["q"])
     logger.add("nv", ctrl_config["robot"]["dims"]["v"])
     logger.add("nx", ctrl_config["robot"]["dims"]["x"])
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
-    # create reference trajectory and controller
-    ref = ctrl_wrapper.reference_trajectory(r_ew_w, Q_we)
+    model = ctrl.manager.ControllerModel.from_config(ctrl_config)
+    mapping = ctrl.manager.StateInputMapping(model.settings.dims)
+    Kp = np.eye(model.settings.dims.q)
+    interpolator = ctrl.manager.TrajectoryInterpolator(mapping, None)
 
-    # TODO this is only used to easily compute constraint values
-    # would be better to separate out that functionality to avoid having to
-    # create a whole other object (which requires autodiff compilation, etc.)
-    mpc_inner = ctrl_wrapper.controller(ref)
+    # reference pose trajectory
+    model.update(x=model.settings.initial_state)
+    r_ew_w, Q_we = model.robot.link_pose()
+    ref = ctrl.wrappers.TargetTrajectories.from_config(ctrl_config, r_ew_w, Q_we, u)
 
     # frames and ghost (i.e., pure visual) objects
-    ghosts = []
-    for state in ref.states:
-        r_ew_w_d, Q_we_d = ref.pose(state)
-        # ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
+    for r_ew_w_d, Q_we_d in ref.poses():
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
-    target_idx = 0
-    static_stable = True
-
     # setup the ROS interface
-    ros_interface = ROSInterface("mobile_manipulator")
+    ros_interface = ROSInterface("mobile_manipulator", interpolator)
     ros_interface.reset_mpc(ref)
     ros_interface.publish_observation(t, x, u)
 
-    # custom PD controller
-    K = 1 * np.eye(robot.nq)
-
     # wait for an initial policy to be computed
-    rate = rospy.Rate(1.0 / timestep_secs)
+    rate = rospy.Rate(1.0 / sim.timestep)
     # rate = rospy.Rate(10)
-    while (ros_interface.policy is None or ros_interface.x_opt is None) and not rospy.is_shutdown():
+    while (
+        ros_interface.policy is None or ros_interface.trajectory is None
+    ) and not rospy.is_shutdown():
         rate.sleep()
 
     # simulation loop
-    # this loop sets the MPC observation and computes the control input at a
-    # faster rate than the outer loop MPC optimization problem
-    # TODO: ideally we'd seperate this cleanly into its own function
-    for i in range(num_timesteps):
-        q, v = robot.joint_states()
+    while t <= sim.duration:
+        q, v = sim.robot.joint_states(add_noise=True)
         x = np.concatenate((q, v, a))
-
-        # add noise to state variables
-        q_noisy, v_noisy = robot.joint_states(add_noise=True)
-        x_noisy = np.concatenate((q_noisy, v_noisy, a))
-
-        # publish latest observation
-        if ctrl_config["use_noisy_state_to_plan"]:
-            ros_interface.publish_observation(t, x_noisy, u)
-        else:
-            ros_interface.publish_observation(t, x, u)
-
-        # compute the input using the current controller
-        # with ros_interface.policy_lock:
-        #     u = ros_interface.policy.computeInput(t, x)
-        # a = np.copy(robot.cmd_acc)
-        # robot.command_jerk(u)
+        ros_interface.publish_observation(t, x, u)
 
         with ros_interface.trajectory_lock:
-            t_opt = np.copy(ros_interface.t_opt)
-            x_opt = np.copy(ros_interface.x_opt)
-        qd, vd, a = interpolate(t_opt, x_opt, t, robot.nq, robot.nv)
-        v_cmd = K @ (qd - q) + vd
-        robot.command_velocity(v_cmd)
+            xd = interpolator.interpolate(t)
+            qd, vd, a = mapping.xu2qva(xd)
 
-        sim.step(step_robot=False)
-        t += timestep_secs
-        rate.sleep()
+        v_cmd = Kp @ (qd - q) + vd
+        sim.robot.command_velocity(v_cmd)
 
-        # if we have multiple targets, step through them
-        if t >= ref.times[target_idx] and target_idx < len(ref.times) - 1:
-            target_idx += 1
+        t = sim.step(t, step_robot=False)
 
     IPython.embed()
 

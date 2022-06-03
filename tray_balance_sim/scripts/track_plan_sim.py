@@ -19,7 +19,9 @@ import IPython
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    cli_args = cmd.cli.sim_arg_parser().parse_args()
+    argparser = cmd.cli.basic_arg_parser()
+    argparser.add_argument("trajectory_file", help="NPZ file to save the trajectory to.")
+    cli_args = argparser.parse_args()
 
     # load configuration
     config = core.parsing.load_config(cli_args.config)
@@ -38,10 +40,9 @@ def main():
     q, v = sim.robot.joint_states()
     a = np.zeros(sim.robot.nv)
     x = np.concatenate((q, v, a))
-    u = np.zeros(sim.robot.nu)
 
     # controller
-    ref = ctrl.trajectory.StateInputTrajectory.load("traj.npz")
+    ref = ctrl.trajectory.StateInputTrajectory.load(cli_args.trajectory_file)
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
     mapping = ctrl.manager.StateInputMapping(model.settings.dims)
     Kp = np.eye(model.settings.dims.q)

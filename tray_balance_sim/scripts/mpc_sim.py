@@ -76,6 +76,7 @@ def main():
             IPython.embed()
             break
 
+        # TODO use the joint velocity controller like others
         a = np.copy(x_opt[-sim.robot.nv :])
         sim.robot.command_jerk(u)
 

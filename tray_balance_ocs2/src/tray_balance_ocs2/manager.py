@@ -52,7 +52,12 @@ class QuinticInterpolator:
             ]
         )
         b = np.array([p1.q, p2.q, p1.v, p2.v, p1.a, p2.a])
-        self.coeffs = np.linalg.solve(A, b)
+
+        # it is actually much faster to loop and solve the vector systems
+        # rather than one big matrix system
+        self.coeffs = np.zeros_like(b)
+        for i in range(b.shape[1]):
+            self.coeffs[:, i] = np.linalg.solve(A, b[:, i])
 
     def eval(self, t):
         t = np.array(t) - self.t0  # normalize time
@@ -71,60 +76,91 @@ class QuinticInterpolator:
         return q, v, a
 
 
-class JointVelocityController:
-    def __init__(self, Kp, mapping, trajectory):
-        self.Kp = Kp
+class LinearInterpolator:
+    def __init__(self, t1, q1, t2, q2):
+        self.t0 = t1
+
+        Δt = t2 - t1
+        A = np.array([[1, 0], [1, Δt]])
+        b = np.array([q1, q2])
+        self.coeffs = np.linalg.solve(A, b)
+
+    def eval(self, t):
+        t = np.array(t) - self.t0  # normalize time
+        w = np.array([np.ones_like(t), t])
+        q = w.T @ self.coeffs
+        return q
+
+
+class TrajectoryInterpolator:
+    def __init__(self, mapping, trajectory):
         self.mapping = mapping
-        self.interpolator = None
+        # self.waypoint_interpolator = None
         self.update(trajectory)
 
-    def compute_desired(self, t):
+    def update(self, trajectory):
+        self.trajectory = trajectory
+        # self.traj_idx = 0
+
+    def interpolate(self, t):
         # make sure we are in the correct time range
-        if t < self.trajectory.ts[self.traj_idx]:
-            raise ValueError(
-                f"We are going back in time with t = {t} but our trajectory at t = {self.trajectory.ts[self.traj_idx]}"
-            )
+        # if t < self.trajectory.ts[self.traj_idx]:
+        #     raise ValueError(
+        #         f"We are going back in time with t = {t} but our trajectory is at t = {self.trajectory.ts[self.traj_idx]}"
+        #     )
         if t > self.trajectory.ts[-1]:
             raise ValueError(
                 f"We are at t = {t} but our trajectory only goes to t = {self.trajectory.ts[-1]}"
             )
 
+        # if we are before the trajectory, then just return the first element
+        # (we shouldn't be much before it)
+        if t <= self.trajectory.ts[0]:
+            _, x, u = self.trajectory[0]
+            return x
+
         # find the new point in the trajectory
-        for i in range(self.traj_idx, len(self.trajectory) - 1):
+        for i in range(len(self.trajectory) - 1):
             if self.trajectory.ts[i] <= t <= self.trajectory.ts[i + 1]:
                 break
 
-        # TODO could short-circuit if the timestep is small
+        # TODO we could only update the interpolator if we are between new
+        # waypoints, but this is more complex
 
-        # update the interpolator
-        if self.traj_idx != i or self.interpolator is None:
-            t1, x1, u1 = self.trajectory[i]
-            q1, v1, a1 = self.mapping.xu2qva(x1, u1)
-            p1 = QuinticPoint(t=t1, q=q1, v=v1, a=a1)
+        t1, x1, u1 = self.trajectory[i]
+        t2, x2, u2 = self.trajectory[i + 1]
 
-            t2, x2, u2 = self.trajectory[i + 1]
-            q2, v2, a2 = self.mapping.xu2qva(x2, u2)
-            p2 = QuinticPoint(t=t2, q=q2, v=v2, a=a2)
+        # if the timestep is small, just steer toward the end waypoint
+        if t2 - t1 <= 1e-3:
+            return x2
 
-            self.traj_idx = i
-            self.interpolator = QuinticInterpolator(p1, p2)
+        # if we need to do interpolation, and we're between two new waypoints
+        # in the trajectory, then update the interpolator
+        q1, v1, a1 = self.mapping.xu2qva(x1, u1)
+        p1 = QuinticPoint(t=t1, q=q1, v=v1, a=a1)
+
+        q2, v2, a2 = self.mapping.xu2qva(x2, u2)
+        p2 = QuinticPoint(t=t2, q=q2, v=v2, a=a2)
 
         # do interpolation
-        qd, vd, ad = self.interpolator.eval(t)
-        return self.mapping.qva2xu(qd, vd, ad)[0]
+        qd, vd, ad = QuinticInterpolator(p1, p2).eval(t)
+        xd = self.mapping.qva2xu(qd, vd, ad)[0]
+        return xd
+
+
+# TODO we hardly even need this to be its own object with the interpolation logic above
+class JointVelocityController:
+    def __init__(self, Kp, interpolator):
+        self.Kp = Kp
+        self.interpolator = interpolator
 
     def compute_input(self, t, x):
-        xd = self.compute_desired(t)
+        xd, ud = self.interpolator.interpolate(t)
 
-        qd, vd, _ = self.mapping.xu2qva(xd)
-        q, _, _ = self.mapping.xu2qva(x)
+        qd, vd, _ = self.interpolator.mapping.xu2qva(xd, ud)
+        q, _, _ = self.interpolator.mapping.xu2qva(x)
 
         return self.Kp @ (qd - q) + vd
-
-    # update optimal trajectory
-    def update(self, trajectory):
-        self.trajectory = trajectory
-        self.traj_idx = 0
 
 
 # TODO is this actually useful? why not just use the above?
@@ -210,6 +246,7 @@ class ControllerModel:
         return np.linalg.norm(ddC_we, ord=2)
 
 
+# TODO rename this to MPC I think... could also wrap the interface...
 class ControllerManager:
     """High-level control management:
     - rollout MPC to generate plans
