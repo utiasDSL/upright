@@ -44,9 +44,9 @@ def main():
     # controller
     ref = ctrl.trajectory.StateInputTrajectory.load(cli_args.trajectory_file)
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
-    mapping = ctrl.manager.StateInputMapping(model.settings.dims)
+    mapping = ctrl.trajectory.StateInputMapping(model.settings.dims)
     Kp = np.eye(model.settings.dims.q)
-    interpolator = ctrl.manager.TrajectoryInterpolator(mapping, ref)
+    interpolator = ctrl.trajectory.TrajectoryInterpolator(mapping, ref)
 
     # data logging
     logger = DataLogger(config)

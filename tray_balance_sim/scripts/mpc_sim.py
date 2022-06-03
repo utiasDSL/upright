@@ -44,6 +44,8 @@ def main():
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
     model = ctrl_manager.model
     ref = ctrl_manager.ref
+    Kp = np.eye(model.settings.dims.q)
+    mapping = ctrl.trajectory.StateInputMapping(model.settings.dims)
 
     # data logging
     logger = DataLogger(config)
@@ -70,17 +72,22 @@ def main():
         q, v = sim.robot.joint_states(add_noise=True)
         x = np.concatenate((q, v, a))
 
+        # optimize with the MPC - only done if the internal MPC timestep has
+        # been exceeded
         try:
-            x_opt, u = ctrl_manager.step(t, x)
+            xd, u = ctrl_manager.step(t, x)
         except RuntimeError as e:
             print(e)
             print("exit the interpreter to proceed to plots")
             IPython.embed()
             break
 
-        # TODO use the joint velocity controller like others
-        a = np.copy(x_opt[-sim.robot.nv :])
-        sim.robot.command_jerk(u)
+        # a = np.copy(x_opt[-sim.robot.nv :])
+        # sim.robot.command_jerk(u)
+
+        qd, vd, a = mapping.xu2qva(xd)
+        v_cmd = Kp @ (qd - q) + vd
+        sim.robot.command_velocity(v_cmd)
 
         # TODO more logger reforms to come
         if logger.ready(t):
@@ -119,7 +126,7 @@ def main():
             logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
 
-        t = sim.step(t, step_robot=True)
+        t = sim.step(t, step_robot=False)
         # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
         #     obstacle.step()
 

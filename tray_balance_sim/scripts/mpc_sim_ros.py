@@ -183,9 +183,9 @@ def main():
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
-    mapping = ctrl.manager.StateInputMapping(model.settings.dims)
+    mapping = ctrl.trajectory.StateInputMapping(model.settings.dims)
     Kp = np.eye(model.settings.dims.q)
-    interpolator = ctrl.manager.TrajectoryInterpolator(mapping, None)
+    interpolator = ctrl.trajectory.TrajectoryInterpolator(mapping, None)
 
     # reference pose trajectory
     model.update(x=model.settings.initial_state)
