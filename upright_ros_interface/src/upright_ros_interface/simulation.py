@@ -16,6 +16,7 @@ from ocs2_msgs.srv import resetRequest as mpc_reset_request
 
 
 class ROSSimulationInterface:
+    """Interface between the MPC node and the simulation."""
     def __init__(self, topic_prefix, interpolator):
         rospy.init_node("pyb_interface")
 
