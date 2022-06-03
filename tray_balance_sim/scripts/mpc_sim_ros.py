@@ -35,70 +35,6 @@ from ocs2_msgs.srv import resetRequest as mpc_reset_request
 import IPython
 
 
-class QuinticInterpolator:
-    def __init__(self, duration, q1, q2, v1, v2, a1, a2):
-        T = duration
-        A = np.array(
-            [
-                [1, 0, 0, 0, 0, 0],
-                [1, T, T ** 2, T ** 3, T ** 4, T ** 5],
-                [0, 1, 0, 0, 0, 0],
-                [0, 1, 2 * T, 3 * T ** 2, 4 * T ** 3, 5 * T ** 4],
-                [0, 0, 2, 0, 0, 0],
-                [0, 0, 2, 6 * T, 12 * T ** 2, 20 * T ** 3],
-            ]
-        )
-        b = np.array([q1, q2, v1, v2, a1, a2])
-        t0 = time.time()
-        self.coeffs = np.linalg.solve(A, b)
-        t1 = time.time()
-        print(f"first time = {t1 - t0}")
-
-    def eval(self, t):
-        q = self.coeffs.dot([1, t, t ** 2, t ** 3, t ** 4, t ** 5])
-        v = self.coeffs[1:].dot([1, 2 * t, 3 * t ** 2, 4 * t ** 3, 5 * t ** 4])
-        a = self.coeffs[2:].dot([2, 6 * t, 12 * t ** 2, 20 * t ** 3])
-        return q, v, a
-
-
-def decompose_state(x, nq, nv):
-    q = x[:nq]
-    v = x[nq : nq + nv]
-    a = x[nq + nv : nq + 2 * nv]
-    return q, v, a
-
-
-def interpolate(t_opt, x_opt, t, nq, nv):
-    if t <= t_opt[0]:
-        return decompose_state(x_opt[0], nq, nv)
-    elif t >= t_opt[-1]:
-        return decompose_state(x_opt[-1], nq, nv)
-    else:
-        for i in range(len(t_opt) - 1):
-            if t_opt[i] <= t <= t_opt[i + 1]:
-                break
-
-    t1 = t_opt[i]
-    t2 = t_opt[i + 1]
-    Δt = t2 - t1
-
-    # if the timestep between the states is really small, then we don't need to
-    # bother interpolating
-    if Δt <= 1e-3:
-        return decompose_state(x_opt[i], nq, nv)
-
-    q1, v1, a1 = decompose_state(x_opt[i], nq, nv)
-    q2, v2, a2 = decompose_state(x_opt[i + 1], nq, nv)
-    q = np.zeros(nq)
-    v = np.zeros(nv)
-    a = np.zeros(nv)
-    for j in range(nq):
-        q[j], v[j], a[j] = QuinticInterpolator(
-            Δt, q1[j], q2[j], v1[j], v2[j], a1[j], a2[j]
-        ).eval(t - t1)
-    return q, v, a
-
-
 class ROSInterface:
     def __init__(self, topic_prefix, interpolator):
         rospy.init_node("pyb_interface")
@@ -286,9 +222,48 @@ def main():
         v_cmd = Kp @ (qd - q) + vd
         sim.robot.command_velocity(v_cmd)
 
+        if logger.ready(t):
+            # log sim stuff
+            r_ew_w, Q_we = sim.robot.link_pose()
+            v_ew_w, ω_ew_w = sim.robot.link_velocity()
+            r_ow_ws, Q_wos = sim.object_poses()
+            logger.append("ts", t)
+            logger.append("us", u)
+            logger.append("xs", x)
+            logger.append("r_ew_ws", r_ew_w)
+            logger.append("Q_wes", Q_we)
+            logger.append("v_ew_ws", v_ew_w)
+            logger.append("ω_ew_ws", ω_ew_w)
+            logger.append("cmd_vels", sim.robot.cmd_vel.copy())
+            logger.append("r_ow_ws", r_ow_ws)
+            logger.append("Q_wos", Q_wos)
+
+            # log controller stuff
+            r_ew_w_d, Q_we_d = ref.get_desired_pose(t)
+            logger.append("r_ew_w_ds", r_ew_w_d)
+            logger.append("Q_we_ds", Q_we_d)
+
+            model.update(x, u)
+            logger.append("ddC_we_norm", model.ddC_we_norm())
+            logger.append("balancing_constraints", model.balancing_constraints())
+            logger.append("sa_dists", model.support_area_distances())
+            logger.append("orn_err", model.angle_between_acc_and_normal())
+
         t = sim.step(t, step_robot=False)
 
-    IPython.embed()
+    # TODO can I get control durations somehow?
+    # - could log frequency of message updates, though this would incur some
+    #   overhead
+    # - could somehow log and publish it separately
+
+    if cli_args.log is not None:
+        logger.save(timestamp, name=cli_args.log)
+
+    if sim.video_manager.save:
+        print(f"Saved video to {sim.video_manager.path}")
+
+    # visualize data
+    DataPlotter(logger).plot_all(show=True)
 
 
 if __name__ == "__main__":

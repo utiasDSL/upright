@@ -42,6 +42,8 @@ def main():
 
     # controller
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
+    model = ctrl_manager.model
+    ref = ctrl_manager.ref
 
     # data logging
     logger = DataLogger(config)
@@ -57,7 +59,7 @@ def main():
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
     # frames and ghost (i.e., pure visual) objects
-    for r_ew_w_d, Q_we_d in ctrl_manager.ref.poses():
+    for r_ew_w_d, Q_we_d in ref.poses():
         # sim.ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
@@ -112,10 +114,10 @@ def main():
             logger.append("Q_we_ds", Q_we_d)
 
             ctrl_manager.model.update(x, u)
-            logger.append("ddC_we_norm", ctrl_manager.model.ddC_we_norm())
-            logger.append("balancing_constraints", ctrl_manager.model.balancing_constraints())
-            logger.append("sa_dists", ctrl_manager.model.support_area_distances())
-            logger.append("orn_err", ctrl_manager.model.angle_between_acc_and_normal())
+            logger.append("ddC_we_norm", model.ddC_we_norm())
+            logger.append("balancing_constraints", model.balancing_constraints())
+            logger.append("sa_dists", model.support_area_distances())
+            logger.append("orn_err", model.angle_between_acc_and_normal())
 
         t = sim.step(t, step_robot=True)
         # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:

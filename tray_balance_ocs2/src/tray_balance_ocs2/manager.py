@@ -268,6 +268,8 @@ class ControllerManager:
         # TODO can I log this directly?
         self.replanning_durations = []
 
+    # TODO need to ability to update the reference trajectory
+
     @classmethod
     def from_config(cls, config, x0=None):
         model = ControllerModel.from_config(config, x0=x0)
