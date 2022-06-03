@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 
-from tray_balance_sim import geometry
+from upright_sim import geometry
 
 import IPython
 

@@ -9,7 +9,7 @@ import pybullet as pyb
 import pybullet_data
 import liegroups
 
-from tray_balance_sim import geometry, bodies, util
+from upright_sim import geometry, bodies, util
 
 import IPython
 

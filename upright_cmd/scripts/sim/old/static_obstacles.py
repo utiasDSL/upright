@@ -8,8 +8,8 @@ import pybullet as pyb
 import pybullet_data
 from pyb_utils.ghost import GhostSphere
 
-from tray_balance_sim import util, ocs2_util, robustness
-from tray_balance_sim.simulation import MobileManipulatorSimulation
+from upright_sim import util, ocs2_util, robustness
+from upright_sim.simulation import MobileManipulatorSimulation
 import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
 
 import IPython

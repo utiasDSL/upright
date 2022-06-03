@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>tray_balance_sim</name>
+  <name>upright_sim</name>
   <version>0.0.0</version>
   <description>
     Pybullet simulation for mobile manipulator.

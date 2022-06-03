@@ -14,9 +14,9 @@ import rospkg
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
-from tray_balance_sim import util, ocs2_util, robustness, cameras
-from tray_balance_sim.simulation import MobileManipulatorSimulation, DynamicObstacle
-from tray_balance_sim.recording import Recorder, VideoRecorder
+from upright_sim import util, ocs2_util, robustness, cameras
+from upright_sim.simulation import MobileManipulatorSimulation, DynamicObstacle
+from upright_sim.recording import Recorder, VideoRecorder
 
 import IPython
 

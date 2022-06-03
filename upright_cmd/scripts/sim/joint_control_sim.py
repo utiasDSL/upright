@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pybullet as pyb
 
-from tray_balance_sim import util, simulation
+from upright_sim import util, simulation
 
 import tray_balance_constraints as core
 

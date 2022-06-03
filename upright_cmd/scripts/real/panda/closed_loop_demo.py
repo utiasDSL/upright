@@ -12,7 +12,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from tray_balance_sim import util, camera, simulation
+from upright_sim import util, camera, simulation
 
 from tray_balance_constraints.logging import DataLogger, DataPlotter
 import tray_balance_constraints as core

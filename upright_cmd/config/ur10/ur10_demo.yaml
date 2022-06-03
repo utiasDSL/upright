@@ -31,5 +31,5 @@ controller:
 
   operating_points:
     enabled: false
-    package: tray_balance_sim
+    package: upright_sim
     path: trajectories/unconstrained_trajectory.npz

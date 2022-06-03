@@ -6,8 +6,8 @@ import pybullet_data
 from pyb_utils.frame import debug_frame_world
 
 from tray_balance_constraints import parsing, math
-from tray_balance_sim.robot import SimulatedRobot
-from tray_balance_sim.camera import VideoManager
+from upright_sim.robot import SimulatedRobot
+from upright_sim.camera import VideoManager
 
 import IPython
 
