@@ -8,6 +8,7 @@ from sensor_msgs.msg import JointState
 import tray_balance_constraints as core
 
 
+# TODO not immediately useful
 class ThingRobot:
     def __init__(self, config):
         # dimensions
