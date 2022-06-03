@@ -20,7 +20,7 @@ def main():
     np.set_printoptions(precision=3, suppress=True)
 
     argparser = cmd.cli.sim_arg_parser()
-    argparser.add_argument("trajectory_file", help="NPZ file to save the trajectory to.")
+    argparser.add_argument("trajectory_file", help="NPZ file to load the trajectory from.")
     cli_args = argparser.parse_args()
 
     # load configuration
