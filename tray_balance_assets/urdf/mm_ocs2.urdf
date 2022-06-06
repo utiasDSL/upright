@@ -605,7 +605,7 @@
   <joint name="ur10_arm_base" type="fixed">
     <parent link="arch_link"/>
     <child link="ur10_arm_base_link"/>
-    <origin rpy="0.0 0.0 1.57079632679" xyz="0.01 -0.27 0.375"/>
+    <origin rpy="0.0 0.0 0.0" xyz="0.01 -0.27 0.375"/>
   </joint>
   <joint name="tool0_tcp_fixed_joint" type="fixed">
     <origin rpy="0.0 0.0 3.14159" xyz="0.0 0.0 0.290"/>

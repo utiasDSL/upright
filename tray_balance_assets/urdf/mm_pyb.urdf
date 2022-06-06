@@ -23,7 +23,7 @@
     <color rgba="0.15 0.15 0.15 1.0"/>
   </material>
   <material name="seethrough">
-    <color rgba="0 1 0 0.3"/>
+    <color rgba="0.0 0.0 0.0 0.25"/>
   </material>
   <link name="world_link">
     <inertial>
@@ -514,7 +514,8 @@
   <joint name="ur10_arm_base" type="fixed">
     <parent link="arch_link"/>
     <child link="ur10_arm_base_link"/>
-    <origin rpy="0.0 0.0 1.57079632679" xyz="0.01 -0.27 0.375"/>
+    <!-- <origin rpy="0.0 0.0 1.57079632679" xyz="0.01 -0.27 0.375"/> -->
+    <origin rpy="0.0 0.0 0.0" xyz="0.01 -0.27 0.375"/>
   </joint>
   <!-- s = 0.3 -->
   <!-- h = 0.08660254037844387 -->
@@ -621,11 +622,8 @@
   <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
   <!--   <parent link="thing_tool"/> -->
   <!--   <child link="balanced_object_collision_link"/> -->
-    <!-- </joint> -->
-
-  <!-- ### visualization of static collision spheres ###  -->
-
-  <!-- &#60;&#33;&#45;&#45; Collision sphere for the elbow &#45;&#45;&#62; -->
+  <!-- </joint> -->
+  <!-- Collision sphere for the elbow -->
   <!-- <link name="elbow_collision_link"> -->
   <!--   <visual> -->
   <!--     <origin rpy="0 0 0" xyz="0 0.06 0"/> -->
@@ -640,8 +638,7 @@
   <!--   <parent link="ur10_arm_forearm_link"/> -->
   <!--   <child link="elbow_collision_link"/> -->
   <!-- </joint> -->
-  <!--  -->
-  <!-- &#60;&#33;&#45;&#45; Collision cylinder for the forearm link &#45;&#45;&#62; -->
+  <!-- Collision cylinder for the forearm link -->
   <!-- <link name="forearm_collision_link"> -->
   <!--   <visual> -->
   <!--     <origin rpy="0 0 0" xyz="0 0 0.3"/> -->
@@ -656,8 +653,7 @@
   <!--   <parent link="ur10_arm_forearm_link"/> -->
   <!--   <child link="forearm_collision_link"/> -->
   <!-- </joint> -->
-  <!--  -->
-  <!-- &#60;&#33;&#45;&#45; Collision sphere for the wrist &#45;&#45;&#62; -->
+  <!-- Collision sphere for the wrist -->
   <!-- <link name="wrist_collision_link"> -->
   <!--   <visual> -->
   <!--     <origin rpy="0 0 0" xyz="0 0 0"/> -->
@@ -672,7 +668,6 @@
   <!--   <parent link="ur10_arm_wrist_3_link"/> -->
   <!--   <child link="wrist_collision_link"/> -->
   <!-- </joint> -->
-  <!--  -->
   <!-- <link name="base_collision_link"> -->
   <!--   <visual> -->
   <!--     <origin rpy="0 0 0" xyz="0 0 0.15"/> -->
@@ -687,28 +682,7 @@
   <!--   <parent link="base_link"/> -->
   <!--   <child link="base_collision_link"/> -->
   <!-- </joint> -->
-  <!--  -->
-  <!-- &#60;&#33;&#45;&#45; Collision sphere for the shoulder &#45;&#45;&#62; -->
-  <!-- <link name="shoulder_collision_link"> -->
-  <!--   <visual> -->
-  <!--     <origin rpy="0 0 0" xyz="0 0 0"/> -->
-  <!--     <geometry> -->
-  <!--       <sphere radius="0.15"/> -->
-  <!--     </geometry> -->
-  <!--     <material name="seethrough"/> -->
-  <!--   </visual> -->
-  <!-- </link> -->
-  <!-- <joint name="shoulder_collision_joint" type="fixed"> -->
-  <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
-  <!--   <parent link="ur10_arm_upper_arm_link"/> -->
-  <!--   <child link="shoulder_collision_link"/> -->
-  <!-- </joint> -->
-
-  <!-- ### end visualization of static collision spheres ###  -->
-
-
   <!-- Extra collision spheres for the dynamic obstacle task -->
-  <!-- TODO deprecated - now built and rendered programmatically -->
   <!-- <link name="balanced_object_collision_sphere_link"> -->
   <!--   <visual> -->
   <!--     <origin rpy="0 0 0" xyz="0 0 0"/> -->
