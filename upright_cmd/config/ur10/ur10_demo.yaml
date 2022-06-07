@@ -17,11 +17,11 @@ logging:
 
 simulation:
   duration: 5.0
-  arrangement: tray_cube
+  arrangement: one_box
 
 controller:
   balancing:
-    arrangement: tray_cube
+    arrangement: one_box
 
   waypoints:
     -

@@ -71,7 +71,7 @@ arrangements:
   one_box:
     -
       name: box1
-      type: tall_box
+      type: cube
   boxes_stack:
     -
       name: tray

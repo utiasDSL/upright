@@ -1,7 +1,7 @@
 simulation:
   robot:
-    home: [0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
-    # home: [0, -0.75pi, -0.5pi, -0.75pi, -0.5pi, 0.5pi]  # standard
+    # home: [0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
+    home: [0.5pi, -0.75pi, -0.5pi, -0.75pi, -0.5pi, 0.5pi]  # standard
     dims:
       q: 6  # generalized position
       v: 6  # generalized velocity
@@ -24,8 +24,9 @@ simulation:
     base_type: fixed
     urdf:
       package: "tray_balance_assets"
-      path: "urdf/mm_pyb.urdf"
+      # path: "urdf/mm_pyb.urdf"
       # path: "urdf/mm_pyb_static_obs.urdf"
+      path: "thing/urdf/mm_pyb_tray.urdf"
 
 controller:
   # robot parameters
@@ -35,10 +36,11 @@ controller:
       v: 6  # generalized velocity
       x: 18 # state
       u: 6  # input
-    x0: [0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0rep6, 0rep6]
+    # x0: [0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0rep6, 0rep6]  # upright
+    x0: [0.5pi, -0.75pi, -0.5pi, -0.75pi, -0.5pi, 0.5pi, 0rep6, 0rep6]  # standard
     urdf:
       package: "tray_balance_assets"
-      path: "urdf/mm_ocs2.urdf"
+      path: "thing/urdf/mm_ocs2_tray.urdf"
     tool_link_name: "thing_tool"
     base_type: fixed
 

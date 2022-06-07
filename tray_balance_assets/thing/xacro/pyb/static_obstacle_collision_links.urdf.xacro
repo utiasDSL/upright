@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="static_obstacle_collision_links">
+  <material name="collision_color">
+    <color rgba="0.0 1.0 0.0 0.3"/>
+  </material>
+
+  <!-- Extra collision objects for the static obstacle task. -->
+  <!-- These are visual-only objects, for viewing in PyBullet. -->
+
+  <!-- Collision sphere for the elbow -->
+  <link name="elbow_collision_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0.06 0"/>
+      <geometry>
+        <sphere radius="0.15"/>
+      </geometry>
+      <material name="collision_color"/>
+    </visual>
+  </link>
+  <joint name="elbow_collision_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="ur10_arm_forearm_link"/>
+    <child link="elbow_collision_link"/>
+  </joint>
+
+  <!-- Collision cylinder for the forearm link -->
+  <link name="forearm_collision_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0.3"/>
+      <geometry>
+        <cylinder length="0.6" radius="0.06"/>
+      </geometry>
+      <material name="collision_color"/>
+    </visual>
+  </link>
+  <joint name="forearm_collision_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="ur10_arm_forearm_link"/>
+    <child link="forearm_collision_link"/>
+  </joint>
+
+  <!-- Collision sphere for the wrist -->
+  <link name="wrist_collision_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.15"/>
+      </geometry>
+      <material name="collision_color"/>
+    </visual>
+  </link>
+  <joint name="wrist_collision_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="ur10_arm_wrist_3_link"/>
+    <child link="wrist_collision_link"/>
+  </joint>
+
+  <link name="base_collision_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0.15"/>
+      <geometry>
+        <box size="1.0 0.8 0.3"/>
+      </geometry>
+      <material name="collision_color"/>
+    </visual>
+  </link>
+  <joint name="base_collision_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0.01"/>
+    <parent link="base_link"/>
+    <child link="base_collision_link"/>
+  </joint>
+
+  <!-- Collision sphere for the shoulder -->
+  <link name="shoulder_collision_link">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.15"/>
+      </geometry>
+      <material name="collision_color"/>
+    </visual>
+  </link>
+  <joint name="shoulder_collision_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <parent link="ur10_arm_upper_arm_link"/>
+    <child link="shoulder_collision_link"/>
+  </joint>
+
+</robot>

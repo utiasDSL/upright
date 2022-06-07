@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="end_effector_fingers">
+  <joint name="tool0_tcp_fixed_joint" type="fixed">
+    <origin rpy="0.0 0.0 3.14159" xyz="0.0 0.0 0.290"/>
+    <parent link="ur10_arm_tool0"/>
+    <child link="thing_tool"/>
+  </joint>
+
+  <!-- s = 0.3 -->
+  <!-- h = 0.08660254037844387 -->
+  <!-- r = 0.17320508075688773 -->
+
+  <!-- s = 0.2 -->
+  <!-- h = 0.0577 -->
+  <!-- r = 0.1155 -->
+
+  <!-- Custom tool for tray balancing -->
+  <!-- When oriented forward, the frame has: z forward, x down, y left -->
+  <!-- When oriented up (i.e. for balancing): z up, x forward, y left -->
+  <link name="thing_tool">
+    <visual>
+      <origin rpy="0 0 0" xyz="0.1155 0 0"/>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0 1 0 1"/>
+      </material>
+    </visual>
+
+    <visual>
+      <origin rpy="0 0 0" xyz="-0.0577 0.1 0"/>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+
+    <visual>
+      <origin rpy="0 0 0" xyz="-0.0577 -0.1 0"/>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+
+    <collision>
+      <origin rpy="0 0 0" xyz="0.1155 0 0"/>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+    </collision>
+
+    <collision>
+      <origin rpy="0 0 0" xyz="-0.0577 0.1 0"/>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+    </collision>
+
+    <collision>
+      <origin rpy="0 0 0" xyz="-0.0577 -0.1 0"/>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+    </collision>
+
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0.1"/>
+      <!-- not accurate, but pybullet recomputes this by default -->
+      <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+  </link>
+</robot>
