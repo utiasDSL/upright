@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="config"/>
+  <node pkg="upright_ros_interface" type="parsing_server.py" name="parsing_server_node" output="screen" required="True" />
+  <node pkg="upright_ros_interface" type="mpc_node" name="mpc_node" output="screen" required="True" args="$(arg config)" />
+</launch>
