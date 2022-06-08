@@ -29,7 +29,7 @@ def main():
     trajectory = ctrl_manager.plan(timestep, duration)
     trajectory.save(cli_args.trajectory_file)
 
-    print(f"Saved trajectory to {cli_args.outfile}.")
+    print(f"Saved trajectory to {cli_args.trajectory_file}.")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 simulation:
   robot:
     # home: [0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
-    home: [0.5pi, -0.75pi, -0.5pi, -0.75pi, -0.5pi, 0.5pi]  # standard
+    home: [0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi]  # standard
     dims:
       q: 6  # generalized position
       v: 6  # generalized velocity
@@ -37,7 +37,7 @@ controller:
       x: 18 # state
       u: 6  # input
     # x0: [0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0rep6, 0rep6]  # upright
-    x0: [0.5pi, -0.75pi, -0.5pi, -0.75pi, -0.5pi, 0.5pi, 0rep6, 0rep6]  # standard
+    x0: [0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi, 0rep6, 0rep6]  # standard
     urdf:
       package: "tray_balance_assets"
       path: "thing/urdf/mm_ocs2_tray.urdf"

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+
+<!-- Get the factory calibration information from the robot. -->
+<!-- This only needs to be done once for a given robot. -->
+<launch>
+  <include file="$(find ur_calibration)/launch/calibration_correction.launch" >
+    <arg name="robot_ip" default="192.168.131.40"/>
+    <arg name="target_filename" default="~/.ros/ur10_calibration.yaml"/>
+  </include>
+</launch>
