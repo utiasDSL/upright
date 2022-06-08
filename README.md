@@ -1,4 +1,4 @@
-# Mobile Manipulator Object Balancing
+# Upright: Mobile Manipulator Object Balancing
 
 Simulation and testing code for a mobile manipulator balancing objects on its
 end effector. Simulator is Pybullet.
@@ -22,6 +22,19 @@ natively.
 * `upright_ros_interface`: Tools for ROS communication. These can be useful in
   simulation for multi-processing, or to support real hardware.
 * `upright_sim/`: Simulation environments for balancing objects.
+
+## Setup and Installation
+
+First, clone the repo and required dependencies into a catkin workspace. Build
+the workspace:
+```
+catkin build
+```
+Generate the required URDFs:
+```
+cd tray_balance_assets/thing
+./compile_xacro.sh
+```
 
 ## Simulation
 

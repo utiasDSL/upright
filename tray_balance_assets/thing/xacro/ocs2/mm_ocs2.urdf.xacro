@@ -575,26 +575,7 @@
     </collision>
   </link>
 
-  <!-- ROS base_link to UR 'Base' Coordinates transform -->
-  <link name="ur10_arm_base"/>
-  <joint name="ur10_arm_base_link-base_fixed_joint" type="fixed">
-    <!-- NOTE: this rotation is only needed as long as base_link itself is
-                 not corrected wrt the real robot (ie: rotated over 180
-                 degrees)
-      -->
-    <origin rpy="0 0 -3.14159265359" xyz="0 0 0"/>
-    <parent link="ur10_arm_base_link"/>
-    <child link="ur10_arm_base"/>
-  </joint>
-
-  <joint name="ur10_arm_wrist_3_link-tool0_fixed_joint" type="fixed">
-    <origin rpy="-1.57079632679 0 0" xyz="0 0.0922 0"/>
-    <parent link="ur10_arm_wrist_3_link"/>
-    <child link="ur10_arm_tool0"/>
-  </joint>
-
   <!-- Frame coincident with all-zeros TCP on UR controller -->
-  <!-- <link name="ur10_arm_tool0"/> -->
   <link name="ur10_arm_tool0">
     <visual>
       <!-- start halfway along the cylinder -->
@@ -611,6 +592,12 @@
       </geometry>
     </collision>
   </link>
+
+  <joint name="ur10_arm_wrist_3_link-tool0_fixed_joint" type="fixed">
+    <origin rpy="-1.57079632679 0.2617993877991494 0" xyz="0 0.0922 0"/>
+    <parent link="ur10_arm_wrist_3_link"/>
+    <child link="ur10_arm_tool0"/>
+  </joint>
 
   <!-- Join arm -->
   <joint name="ur10_arm_base" type="fixed">
