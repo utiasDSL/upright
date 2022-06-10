@@ -1,6 +1,5 @@
 import numpy as np
 import pinocchio
-import liegroups
 
 import tray_balance_constraints as core
 from tray_balance_ocs2 import bindings
@@ -98,7 +97,7 @@ class PinocchioRobot:
             link_idx = self.tool_idx
         pose = self.data.oMf[link_idx]
         r = pose.translation
-        Q = liegroups.SO3(pose.rotation).to_quaternion(ordering="xyzw")
+        Q = core.math.rot_to_quat(pose.rotation)
         return r.copy(), Q.copy()
 
     def link_velocity(self, link_idx=None):

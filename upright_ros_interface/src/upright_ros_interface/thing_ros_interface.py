@@ -52,7 +52,7 @@ class ThingRobot:
         This is just the rotation about the z-axis by the yaw angle.
         """
         yaw = self.q_base[2]
-        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        C_wb = core.math.rotz(yaw)
         return C_wb
 
     def _pub_base_vel_cmd(self, cmd_vel_base):

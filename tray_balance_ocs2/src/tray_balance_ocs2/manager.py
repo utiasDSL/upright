@@ -33,7 +33,7 @@ class ControllerModel:
         _, Q_we = self.robot.link_pose()
         _, ω_ew_w = self.robot.link_velocity()
         a_ew_w, α_ew_w = self.robot.link_acceleration()
-        C_we = core.util.quaternion_to_matrix(Q_we)
+        C_we = core.math.quat_to_rot(Q_we)
         return core.bindings.balancing_constraints(
             self.settings.objects, self.settings.gravity, C_we, ω_ew_w, a_ew_w, α_ew_w
         )
@@ -62,7 +62,7 @@ class ControllerModel:
         _, Q_we = self.robot.link_pose()
         _, ω_ew_w = self.robot.link_velocity()
         a_ew_w, α_ew_w = self.robot.link_acceleration()
-        C_we = core.util.quaternion_to_matrix(Q_we)
+        C_we = core.math.quat_to_rot(Q_we)
 
         # find EE normal vector in the world frame
         z_e = np.array([0, 0, 1])
@@ -78,7 +78,7 @@ class ControllerModel:
 
     def ddC_we_norm(self):
         _, Q_we = self.robot.link_pose()
-        C_we = core.util.quaternion_to_matrix(Q_we)
+        C_we = core.math.quat_to_rot(Q_we)
         _, ω_ew_w = self.robot.link_velocity()
         _, α_ew_w = self.robot.link_acceleration()
 

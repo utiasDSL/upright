@@ -4,4 +4,3 @@ numpy==1.21.3
 Pillow==9.0.0
 pybullet==3.2.1
 scipy==1.7.3
--e git+https://github.com/utiasSTARS/liegroups

@@ -1,5 +1,8 @@
 import numpy as np
-import liegroups
+from spatialmath.base import q2r, r2q, qunit, rotz
+
+
+QUAT_ORDER = "xyzs"
 
 
 def skew3(v):
@@ -45,17 +48,39 @@ def equilateral_triangle_r_tau(side_length):
     return h ** 3 * (tan * sec + np.log(tan + sec)) / area
 
 
+def quat_to_rot(q):
+    """Convert quaternion q to rotation matrix."""
+    return q2r(q, order=QUAT_ORDER)
+
+
+def rot_to_quat(C):
+    """Convert rotation matrix C to quaternion."""
+    return r2q(C, order=QUAT_ORDER)
+
+
 def quat_multiply(q0, q1, normalize=True):
     """Hamilton product of two quaternions."""
+    order = "xyzs"
     if normalize:
-        q0 = q0 / np.linalg.norm(q0)
-        q1 = q1 / np.linalg.norm(q1)
-    C0 = liegroups.SO3.from_quaternion(q0, ordering="xyzw")
-    C1 = liegroups.SO3.from_quaternion(q1, ordering="xyzw")
-    return C0.dot(C1).to_quaternion(ordering="xyzw")
+        q0 = qunit(q0)
+        q1 = qunit(q1)
+    C0 = quat_to_rot(q0)
+    C1 = quat_to_rot(q1)
+    return rot_to_quat(C0 @ C1)
 
 
-def quat_error(q):
+def quat_rotate(q, r):
+    """Rotate point r by rotation represented by quaternion q."""
+    return quat_to_rot(q) @ r
+
+
+def quat_transform(r_ba_a, q_ab, r_cb_b):
+    """Transform point r_cb_b by rotating by q_ab and translating by r_ba_a."""
+    return quat_rotate(q_ab, r_cb_b) + r_ba_a
+
+
+def quat_angle(q):
+    """Get the scalar angle represented by a quaternion."""
     xyz = q[:3]
     w = q[3]
     # this is just the angle part of an axis-angle

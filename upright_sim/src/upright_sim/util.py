@@ -2,7 +2,6 @@ import argparse
 
 import pybullet as pyb
 import numpy as np
-import liegroups
 from scipy.linalg import expm
 import yaml
 

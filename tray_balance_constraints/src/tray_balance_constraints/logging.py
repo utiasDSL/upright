@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
-from liegroups import SO3
 import yaml
 
 import tray_balance_constraints as core
@@ -141,7 +140,7 @@ class DataPlotter:
         # object position error
         r_oe_es = np.zeros_like(r_ow_ws)
         for i in range(r_oe_es.shape[0]):
-            C_ew = SO3.from_quaternion(Q_wes[i, :], ordering="xyzw").inv()
+            C_ew = core.math.quat_to_rot(core.math.quat_inverse(Q_wes[i, :]))
             r_oe_w = r_ow_ws[i, :] - r_ew_ws[i, :]
             r_oe_es[i, :] = C_ew.dot(r_oe_w)
         r_oe_e_err = r_oe_es - r_oe_es[0, :]
@@ -162,7 +161,7 @@ class DataPlotter:
                 Q_ew = core.math.quat_inverse(Q_wes[i, :])
                 Q_eo = core.math.quat_multiply(Q_ew, Q_wos[i, :])
                 Q_eo_err[i, :] = core.math.quat_multiply(Q_oe0, Q_eo)
-                angles[i] = core.math.quat_error(Q_eo_err[i, :])
+                angles[i] = core.math.quat_angle(Q_eo_err[i, :])
             except ValueError as e:
                 IPython.embed()
 

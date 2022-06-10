@@ -2,9 +2,8 @@ import os
 
 import numpy as np
 import pybullet as pyb
-import liegroups
 
-from tray_balance_constraints import parsing
+import tray_balance_constraints as core
 
 import IPython
 
@@ -23,7 +22,7 @@ class NonholonomicBaseMapping:
     @staticmethod
     def forward(q, v):
         yaw = q[2]
-        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        C_wb = core.math.rotz(yaw)
         v_pyb = np.copy(v)
         v_pyb[1] = 0  # nonholonomic constraint: cannot move sideways
         v_pyb[:3] = C_wb @ v[:3]
@@ -32,7 +31,7 @@ class NonholonomicBaseMapping:
     @staticmethod
     def inverse(q_pyb, v_pyb):
         yaw = q_pyb[2]
-        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        C_wb = core.math.rotz(yaw)
         v = np.copy(v_pyb)
         v[:3] = C_wb.T @ v_pyb[:3]
         v[1] = 0
@@ -43,7 +42,7 @@ class OmnidirectionalBaseMapping:
     @staticmethod
     def forward(q, v):
         yaw = q[2]
-        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        C_wb = core.math.rotz(yaw)
         v_pyb = np.copy(v)
         v_pyb[:3] = C_wb @ v[:3]
         return q.copy(), v_pyb
@@ -51,7 +50,7 @@ class OmnidirectionalBaseMapping:
     @staticmethod
     def inverse(q_pyb, v_pyb):
         yaw = q_pyb[2]
-        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        C_wb = core.math.rotz(yaw)
         v = np.copy(v_pyb)
         v[:3] = C_wb.T @ v_pyb[:3]
         return q_pyb.copy(), v
@@ -85,11 +84,11 @@ class SimulatedRobot:
         # but messes up the origins of the merged links, so this is not
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
-        urdf_path = parsing.parse_ros_path(config["robot"]["urdf"])
+        urdf_path = core.parsing.parse_ros_path(config["robot"]["urdf"])
         self.uid = pyb.loadURDF(urdf_path, position, orientation, useFixedBase=True)
 
         # home position
-        self.home = parsing.parse_array(config["robot"]["home"])
+        self.home = core.parsing.parse_array(config["robot"]["home"])
 
         # map from (q, v) to PyBullet input
         self.pyb_mapping = PyBulletInputMapping.from_string(
@@ -153,7 +152,7 @@ class SimulatedRobot:
         """
         state = pyb.getJointState(self.uid, self.robot_joint_indices[2])
         yaw = state[0]
-        C_wb = liegroups.SO3.rotz(yaw).as_matrix()
+        C_wb = core.math.rotz(yaw)
         return C_wb
 
     def command_velocity(self, cmd_vel):
