@@ -58,7 +58,7 @@ class TrajectoryClient:
         if joint_trajectory_controller is not None:
             self.switch_controller(joint_trajectory_controller)
 
-    def send_joint_trajectory(self, trajectory):
+    def send_joint_trajectory(self, trajectory, feedback_cb=None):
         """Creates a trajectory and sends it using the selected action server"""
         trajectory_client = actionlib.SimpleActionClient(
             "{}/follow_joint_trajectory".format(self.joint_trajectory_controller),
@@ -76,7 +76,7 @@ class TrajectoryClient:
 
         rospy.loginfo("Executing trajectory...")
 
-        trajectory_client.send_goal(goal, feedback_cb=None)  # TODO
+        trajectory_client.send_goal(goal, feedback_cb=feedback_cb)
         trajectory_client.wait_for_result()
 
         result = trajectory_client.get_result()
