@@ -10,6 +10,8 @@ import tray_balance_ocs2 as ctrl
 
 
 if __name__ == "__main__":
+    rospy.init_node("home")
+
     argparser = cmd.cli.basic_arg_parser()
     argparser.add_argument(
         "duration", type=float, help="Duration of homing trajectory."

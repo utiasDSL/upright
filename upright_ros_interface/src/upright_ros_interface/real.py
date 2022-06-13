@@ -1,7 +1,7 @@
 import rospy
 import numpy as np
 import tray_balance_ocs2 as ctrl
-from upright_ros_interface import TrajectoryClient
+from upright_ros_interface import TrajectoryClient, UR10_JOINT_NAMES
 
 from trajectory_msgs.msg import JointTrajectory
 from ocs2_msgs.msg import (
@@ -21,7 +21,7 @@ class ROSRealInterface:
     """Interface between the MPC node and the simulation."""
 
     def __init__(self, topic_prefix, ctrl_name):
-        rospy.init_node("real_interface")  # TODO better name
+        rospy.init_node("real_thing_interface")
 
         # client for interfacing with the real robot
         self.client = TrajectoryClient(ctrl_name)
@@ -77,18 +77,34 @@ class ROSRealInterface:
         self.observation_pub.publish(msg)
 
     def _feedback_cb(self, msg):
-        # msg is FollowJointTrajectoryActionFeedback
-        q = msg.feedback.actual.positions
-        v = msg.feedback.actual.velocities
+        # msg is FollowJointTrajectoryFeedback
+        q = msg.actual.positions
+        v = msg.actual.velocities
+
+        # TODO try using desired velocities to see if it is a velocity noise
+        # issue
+        # v = msg.desired.velocities
 
         # we don't get actual feedback on the accelerations, so we assume it is
         # tracking desired
-        a = msg.feedback.desired.accelerations
+        a = msg.desired.accelerations
 
-        t = msg.header.stamp.to_sec()  # TODO I guess we'll use walltime?
+        t = msg.header.stamp.to_sec()
         x = np.concatenate((q, v, a))
         u = []  # I think we don't need to care about this; it isn't used
         self.publish_observation(t, x, u)
 
     def _trajectory_cb(self, msg):
+        # TODO do this on MPC side
+        msg.joint_names = UR10_JOINT_NAMES
+
+        # remove points with non-unique timestamps
+        # TODO this is handled on the MPC side now
+        # new_points = []
+        # for i in range(len(msg.points) - 1):
+        #     if msg.points[i].time_from_start >= msg.points[i + 1].time_from_start:
+        #         continue
+        #     new_points.append(msg.points[i])
+        # msg.points = new_points
+
         self.client.send_joint_trajectory(msg, self._feedback_cb)

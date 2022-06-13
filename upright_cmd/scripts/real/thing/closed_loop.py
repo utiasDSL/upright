@@ -27,20 +27,20 @@ def main():
     ctrl_config = config["controller"]
 
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
+    x0 = model.settings.initial_state
+    u0 = np.zeros(model.robot.dims.u)
 
     # reference pose trajectory
     model.update(x=model.settings.initial_state)
     r_ew_w, Q_we = model.robot.link_pose()
-    ref = ctrl.wrappers.TargetTrajectories.from_config(ctrl_config, r_ew_w, Q_we, u)
+    ref = ctrl.wrappers.TargetTrajectories.from_config(ctrl_config, r_ew_w, Q_we, u0)
 
     # setup the ROS interface
     ros_interface = ROSRealInterface("mobile_manipulator", "scaled_vel_joint_traj_controller")
     ros_interface.reset_mpc(ref)
 
-    # give initial time, state, input
+    # give the MPC the initial conditions
     t0 = rospy.Time.now().to_sec()
-    x0 = model.settings.initial_state
-    u0 = np.zeros(model.robot.dims.u)
     ros_interface.publish_observation(t0, x0, u0)
 
     rospy.spin()

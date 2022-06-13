@@ -25,14 +25,14 @@ controller:
     enabled: false
 
   waypoints:
-    # -
-    #   time: 0
-    #   position: [0, 0.5, 0.0]
-    #   orientation: [0, 0, 0, 1]
     -
       time: 0
-      position: [0, 0, 0]
+      position: [0, 0.0, 0.0]
       orientation: [0, 0, 0, 1]
+    # -
+    #   time: 0
+    #   position: [0, 0, 0]
+    #   orientation: [0, 0, 0, 1]
 
   operating_points:
     enabled: false

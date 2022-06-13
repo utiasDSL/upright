@@ -298,9 +298,19 @@ class Upright_MPC_ROS_Interface : public MPC_ROS_Interface {
 
         // TODO msg.joint_names
         msg.header.stamp = ros::Time::now();
+        scalar_t t0 = msg.header.stamp.toSec();
 
-        for (int i = 0; i < primalSolution.timeTrajectory_.size(); ++i) {
+        size_t N = primalSolution.timeTrajectory_.size();
+        for (int i = 0; i < N; ++i) {
             scalar_t t = primalSolution.timeTrajectory_[i];
+
+            // Don't include multiple points with the same timestamp. This also
+            // filters out points where the time actually decreases, but this
+            // should not happen.
+            if ((i < N - 1) && (t >= primalSolution.timeTrajectory_[i+1])) {
+                continue;
+            }
+
             vector_t x = primalSolution.stateTrajectory_[i];
             vector_t u = primalSolution.inputTrajectory_[i];
 
@@ -309,7 +319,8 @@ class Upright_MPC_ROS_Interface : public MPC_ROS_Interface {
             vector_t a = x.tail(dims_.v);
 
             trajectory_msgs::JointTrajectoryPoint point;
-            point.time_from_start = ros::Duration(t);
+            // relative to the header timestamp
+            point.time_from_start = ros::Duration(t - t0);
             point.positions =
                 std::vector<double>(q.data(), q.data() + q.size());
             point.velocities =

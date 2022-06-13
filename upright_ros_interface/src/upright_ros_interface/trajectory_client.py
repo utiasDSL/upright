@@ -38,8 +38,6 @@ class TrajectoryClient:
     """Small trajectory client to test a joint trajectory"""
 
     def __init__(self, joint_trajectory_controller=None):
-        rospy.init_node("test_move")
-
         timeout = rospy.Duration(5)
         self.switch_srv = rospy.ServiceProxy(
             "controller_manager/switch_controller", SwitchController
@@ -71,14 +69,13 @@ class TrajectoryClient:
     def send_joint_trajectory(self, trajectory, feedback_cb=None):
         """Creates a trajectory and sends it using the selected action server"""
         # Create and fill trajectory goal
+        rospy.loginfo("Executing trajectory...")
         goal = FollowJointTrajectoryGoal()
         goal.trajectory = trajectory
-
-        rospy.loginfo("Executing trajectory...")
-
         self.client.send_goal(goal, feedback_cb=feedback_cb)
-        self.client.wait_for_result()
 
+    def wait_for_result(self):
+        self.client.wait_for_result()
         result = self.client.get_result()
         rospy.loginfo(
             "Trajectory execution finished in state {}".format(result.error_code)
@@ -87,7 +84,6 @@ class TrajectoryClient:
     def switch_controller(self, target_controller):
         """Activates the desired controller and stops all others from the predefined list above"""
         other_controllers = JOINT_TRAJECTORY_CONTROLLERS + CONFLICTING_CONTROLLERS
-
         other_controllers.remove(target_controller)
 
         # load the desired controller
