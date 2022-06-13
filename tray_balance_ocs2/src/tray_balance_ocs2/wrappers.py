@@ -168,15 +168,16 @@ class ControllerSettings(bindings.ControllerSettings):
         self.inertial_alignment_settings.enabled = config[
             "inertial_alignment"
         ]["enabled"]
-        self.inertial_alignment_settings.use_angular_acceleration = config[
-            "inertial_alignment"
-        ]["use_angular_acceleration"]
-        self.inertial_alignment_settings.weight = config["inertial_alignment"][
-            "weight"
-        ]
-        self.inertial_alignment_settings.r_oe_e = ctrl_objects[
-            -1
-        ].body.com_ellipsoid.center()  # TODO could specify index in config
+        if self.inertial_alignment_settings.enabled:
+            self.inertial_alignment_settings.use_angular_acceleration = config[
+                "inertial_alignment"
+            ]["use_angular_acceleration"]
+            self.inertial_alignment_settings.weight = config["inertial_alignment"][
+                "weight"
+            ]
+            self.inertial_alignment_settings.r_oe_e = ctrl_objects[
+                -1
+            ].body.com_ellipsoid.center()  # TODO could specify index in config
 
         # collision avoidance settings
         self.collision_avoidance_settings.enabled = False

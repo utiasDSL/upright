@@ -2,9 +2,10 @@
 
 <!-- Launch UR10 driver. -->
 <launch>
+  <remap from="/joint_states" to="/ur10_joint_states" />
   <include file="$(find ur_robot_driver)/launch/ur10_bringup.launch" >
     <arg name="robot_ip" default="192.168.131.40"/>
-    <arg name="kinematics_config" default="~/.ros/ur10_calibration.yaml"/>
+    <arg name="kinematics_config" default="$(optenv HOME)/.ros/ur10_calibration.yaml"/>
   </include>
   <!-- <arg name="robot_ip" default="192.168.131.40"/> -->
   <!-- <arg name="limited" default="false"/> -->

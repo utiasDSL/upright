@@ -1,2 +1,1 @@
-from upright_ros_interface.thing_ros_interface import ThingRobot
 from upright_ros_interface.trajectory_client import UR10_JOINT_NAMES, TrajectoryClient

@@ -55,31 +55,31 @@ class TrajectoryClient:
             )
             sys.exit(-1)
 
+        # TODO should never allow None
         if joint_trajectory_controller is not None:
             self.switch_controller(joint_trajectory_controller)
 
-    def send_joint_trajectory(self, trajectory, feedback_cb=None):
-        """Creates a trajectory and sends it using the selected action server"""
-        trajectory_client = actionlib.SimpleActionClient(
-            "{}/follow_joint_trajectory".format(self.joint_trajectory_controller),
+        self.client = actionlib.SimpleActionClient(
+            "{}/follow_joint_trajectory".format(joint_trajectory_controller),
             FollowJointTrajectoryAction,
         )
 
-        timeout = rospy.Duration(5)
-        if not trajectory_client.wait_for_server(timeout):
+        if not self.client.wait_for_server(timeout):
             rospy.logerr("Could not reach controller action server.")
             sys.exit(-1)
 
+    def send_joint_trajectory(self, trajectory, feedback_cb=None):
+        """Creates a trajectory and sends it using the selected action server"""
         # Create and fill trajectory goal
         goal = FollowJointTrajectoryGoal()
         goal.trajectory = trajectory
 
         rospy.loginfo("Executing trajectory...")
 
-        trajectory_client.send_goal(goal, feedback_cb=feedback_cb)
-        trajectory_client.wait_for_result()
+        self.client.send_goal(goal, feedback_cb=feedback_cb)
+        self.client.wait_for_result()
 
-        result = trajectory_client.get_result()
+        result = self.client.get_result()
         rospy.loginfo(
             "Trajectory execution finished in state {}".format(result.error_code)
         )

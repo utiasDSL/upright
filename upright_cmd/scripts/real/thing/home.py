@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import rospy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
@@ -17,7 +18,7 @@ if __name__ == "__main__":
 
     if cli_args.duration < 3.0:
         print("Home trajectory duration should be at least 3 seconds.")
-        return 1
+        sys.exit(1)
 
     config = core.parsing.load_config(cli_args.config)
     settings = ctrl.wrappers.ControllerSettings(config["controller"])
@@ -25,6 +26,7 @@ if __name__ == "__main__":
 
     q0, _, _ = mapping.xu2qva(settings.initial_state)
 
+    trajectory = JointTrajectory()
     trajectory.joint_names = UR10_JOINT_NAMES
     point = JointTrajectoryPoint()
     point.time_from_start = rospy.Duration(cli_args.duration)

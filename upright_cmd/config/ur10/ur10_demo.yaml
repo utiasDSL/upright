@@ -17,16 +17,21 @@ logging:
 
 simulation:
   duration: 5.0
-  arrangement: one_box
+  arrangement: nothing
 
 controller:
   balancing:
-    arrangement: one_box
+    arrangement: nothing
+    enabled: false
 
   waypoints:
+    # -
+    #   time: 0
+    #   position: [0, 0.5, 0.0]
+    #   orientation: [0, 0, 0, 1]
     -
       time: 0
-      position: [0, 0.5, 0.0]
+      position: [0, 0, 0]
       orientation: [0, 0, 0, 1]
 
   operating_points:

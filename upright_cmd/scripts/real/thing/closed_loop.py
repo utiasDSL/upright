@@ -41,7 +41,7 @@ def main():
     t0 = rospy.Time.now().to_sec()
     x0 = model.settings.initial_state
     u0 = np.zeros(model.robot.dims.u)
-    ros_interface.publish_observation(t, x, u)
+    ros_interface.publish_observation(t0, x0, u0)
 
     rospy.spin()
 

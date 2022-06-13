@@ -47,16 +47,16 @@ controller:
   # weights on state, input, and end effector pose
   weights:
     input:
-      scale: 0.0001
+      scale: 0.001
       diag: [1rep6]
     state:
-      scale: 0.001
+      scale: 0.01
       diag: [0rep6, 10rep6, 1rep6]
     end_effector:
       scale: 1
       diag: [1, 1, 1, 0, 0, 1]
       # diag: [0, 0, 0, 1, 1, 1]
-
+      #
   # state and input limits
   limits:
     input:
@@ -66,8 +66,23 @@ controller:
     # accelerations likely are as well
     state:
       lower: [-2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
-              -2, -2, -2, -2, -2, -2,
-              -8, -8, -8, -8, -8, -8]
+              -0.5rep6,
+              -2rep6]
       upper: [2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
-              2, 2, 2, 2, 2, 2,
-              8, 8, 8, 8, 8, 8]
+              0.5rep6,
+              2rep6]
+
+  # # state and input limits
+  # limits:
+  #   input:
+  #     lower: [-80, -80, -80, -80, -80, -80]
+  #     upper: [80, 80, 80, 80, 80, 80]
+  #   # TODO: real arm velocity limits are higher
+  #   # accelerations likely are as well
+  #   state:
+  #     lower: [-2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
+  #             -2, -2, -2, -2, -2, -2,
+  #             -8, -8, -8, -8, -8, -8]
+  #     upper: [2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
+  #             2, 2, 2, 2, 2, 2,
+  #             8, 8, 8, 8, 8, 8]
