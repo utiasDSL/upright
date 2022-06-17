@@ -77,7 +77,7 @@ rollout
 mpc
 {
   timeHorizon                    1.0
-  numPartitions                  10
+  numPartitions                  4
 
   runtimeMaxNumIterations        3
   initMaxNumIterations           100

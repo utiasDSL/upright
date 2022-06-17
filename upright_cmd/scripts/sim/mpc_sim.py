@@ -122,7 +122,7 @@ def main():
 
             ctrl_manager.model.update(x, u)
             logger.append("ddC_we_norm", model.ddC_we_norm())
-            logger.append("balancing_constraints", model.balancing_constraints())
+            logger.append("balancing_constraints", model.balancing_constraints()[0])
             logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
 

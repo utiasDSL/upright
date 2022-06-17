@@ -153,8 +153,6 @@ ControllerSettings parse_control_settings(
     return settings;
 }
 
-// TODO goal is to publish JointTrajectory in addition to (or perhaps instead
-// of) the standard topics - this makes it compatible with ros_control
 class Upright_MPC_ROS_Interface : public MPC_ROS_Interface {
    public:
     Upright_MPC_ROS_Interface(MPC_BASE& mpc, std::string topicPrefix,
@@ -265,8 +263,11 @@ class Upright_MPC_ROS_Interface : public MPC_ROS_Interface {
         mpcPolicyPublisher_.publish(mpcPolicyMsg);
 #endif
 
+        // TODO this may be more accurate if the currentObservation time is
+        // used, so that the controller can account for lag
+        ros::Time stamp(currentObservation.time);
         trajectory_msgs::JointTrajectory joint_trajectory_msg =
-            create_joint_trajectory_msg(*bufferPrimalSolutionPtr_);
+            create_joint_trajectory_msg(stamp, *bufferPrimalSolutionPtr_);
         jointTrajectoryPublisher_.publish(joint_trajectory_msg);
     }
 
@@ -293,11 +294,12 @@ class Upright_MPC_ROS_Interface : public MPC_ROS_Interface {
     }
 
     trajectory_msgs::JointTrajectory create_joint_trajectory_msg(
+        const ros::Time& stamp,
         const PrimalSolution& primalSolution) {
         trajectory_msgs::JointTrajectory msg;
 
         // TODO msg.joint_names
-        msg.header.stamp = ros::Time::now();
+        msg.header.stamp = stamp;
         scalar_t t0 = msg.header.stamp.toSec();
 
         size_t N = primalSolution.timeTrajectory_.size();
@@ -370,11 +372,6 @@ int main(int argc, char** argv) {
     rosReferenceManagerPtr->subscribe(nodeHandle);
 
     // MPC
-    // TODO this can be wrapped up more nicely like in the Python interface
-    // ocs2::MPC_DDP mpc(interface.mpcSettings(), interface.ddpSettings(),
-    //                   interface.getRollout(),
-    //                   interface.getOptimalControlProblem(),
-    //                   interface.getInitializer());
     std::unique_ptr<MPC_BASE> mpcPtr = interface.getMpc();
     mpcPtr->getSolverPtr()->setReferenceManager(rosReferenceManagerPtr);
 

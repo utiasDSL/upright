@@ -113,7 +113,7 @@ objects:
       min: 1.0
       max: 1.0
     com:
-      height: 0.025
+      height: 0.0
       half_lengths: [0.0, 0.0, 0.0]
     radii_of_gyration:
       use_exact:

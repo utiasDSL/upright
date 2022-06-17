@@ -43,7 +43,12 @@ def main():
     t0 = rospy.Time.now().to_sec()
     ros_interface.publish_observation(t0, x0, u0)
 
-    rospy.spin()
+    rate = rospy.Rate(5)
+    while not rospy.is_shutdown():
+        ros_interface.send_trajectory()
+        rate.sleep()
+
+    # rospy.spin()
 
 
 if __name__ == "__main__":

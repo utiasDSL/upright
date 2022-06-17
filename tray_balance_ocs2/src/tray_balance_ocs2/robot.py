@@ -134,7 +134,14 @@ class PinocchioRobot:
         return A.linear, A.angular
 
     def jacobian(self, q):
-        return pinocchio.computeFrameJacobian(self.model, self.data, q, self.tool_idx)
+        # TODO is it correct to do it in this frame?
+        return pinocchio.computeFrameJacobian(
+            self.model,
+            self.data,
+            q,
+            self.tool_idx,
+            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
+        )
 
     def link_velocity_derivatives(self, link_idx=None):
         """Compute derivative of link velocity with respect to q and v."""
@@ -148,9 +155,27 @@ class PinocchioRobot:
         )
         return dVdq, dVdv
 
+    def link_acceleration_derivatives(self, link_idx=None):
+        """Compute derivative of link classical acceleration with respect to q, v, a."""
+        dr, ω = self.link_velocity(link_idx=link_idx)
+        dVdq, dVdv = self.link_velocity_derivatives(link_idx=link_idx)
+        dAdq, dAdv, dAda = self.link_spatial_acceleration_derivatives(link_idx=link_idx)
+
+        # derivative of the coriolis term
+        ddrdq, dwdq = dVdq[:3, :], dVdq[3:, :]
+        ddrdv, dwdv = dVdv[:3, :], dVdv[3:, :]
+        dcdq = (np.cross(dwdq.T, dr) + np.cross(ω, ddrdq.T)).T
+        dcdv = (np.cross(dwdv.T, dr) + np.cross(ω, ddrdv.T)).T
+
+        # add the coriolis term to the spatial acceleration
+        dAs_dq = dAdq + np.vstack((dcdq, np.zeros((3, self.dims.q))))
+        dAs_dv = dAdv + np.vstack((dcdv, np.zeros((3, self.dims.v))))
+        dAs_da = dAda
+
+        return dAs_dq, dAs_dv, dAs_da
+
     def link_spatial_acceleration_derivatives(self, link_idx=None):
         """Compute derivative of link spatial acceleration with respect to q, v, a."""
-        # TODO how to transform this to the classical version?
         if link_idx is None:
             link_idx = self.tool_idx
         _, dAdq, dAdv, dAda = pinocchio.getFrameAccelerationDerivatives(

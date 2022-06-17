@@ -48,6 +48,7 @@ def main():
     Δvs = np.array([msg.feedback.error.velocities for msg in feedback_msgs])
 
     nq = qs.shape[1]
+    nv = vs.shape[1]
 
     plt.figure()
     plt.grid()
@@ -60,12 +61,31 @@ def main():
 
     plt.figure()
     plt.grid()
-    for i in range(nq):
+    for i in range(nv):
         plt.plot(ts, Δvs[:, i], label=f"Δv_{i}")
     plt.xlabel("Time (s)")
     plt.ylabel("Velocity error (rad/s)")
     plt.legend()
     plt.title("Joint velocity error")
+
+    plt.figure()
+    plt.grid()
+    for i in range(nq):
+        plt.plot(ts, qds[:, i], label=f"qd_{i}")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Desired position (rad)")
+    plt.legend()
+    plt.title("Desired joint position")
+
+    plt.figure()
+    plt.grid()
+    for i in range(nv):
+        plt.plot(ts, vds[:, i], label=f"vd_{i}")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Desired velocity (rad/s)")
+    plt.legend()
+    plt.title("Desired joint velocity")
+
     plt.show()
 
 

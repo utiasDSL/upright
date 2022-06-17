@@ -17,7 +17,7 @@ config = core.parsing.load_config(config_path)["controller"]["robot"]
 
 robot = PinocchioRobot(config)
 
-q = np.array([0, -0.7854, 0, -1.5708, 0, 2.3562, -0.7854])
+q = np.array([-0.7854, 0, -1.5708, 0, 2.3562, -0.7854])
 #v = np.zeros(robot.dims.v)
 v = np.random.random(robot.dims.v) - 0.5
 a = np.zeros(robot.dims.v)
@@ -28,7 +28,7 @@ u = np.zeros(robot.dims.u)
 robot.forward(x, u)
 
 r, Q = robot.link_pose()
-dr, w = robot.link_velocity()
+dr, ω = robot.link_velocity()
 ddr, α = robot.link_acceleration()
 ddr_spatial, _ = robot.link_spatial_acceleration()
 J = robot.jacobian(q)
@@ -36,7 +36,10 @@ J = robot.jacobian(q)
 robot.forward_derivatives(x, u)
 
 dVdq, dVdv = robot.link_velocity_derivatives()
-dAdq, dAdv, dAda = robot.link_acceleration_derivatives()
+dAdq, dAdv, dAda = robot.link_spatial_acceleration_derivatives()
+dAs_dq, dAs_dv, _ = robot.link_acceleration_derivatives()
+
+IPython.embed()
 
 # J == dVdv == dAda
 np.testing.assert_allclose(J, dVdv, atol=1e-5)

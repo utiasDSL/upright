@@ -23,6 +23,11 @@ class ROSRealInterface:
     def __init__(self, topic_prefix, ctrl_name):
         rospy.init_node("real_thing_interface")
 
+        # self.trajectory = None
+        # self.trajectory_lock = Lock()
+        # self.interpolator = interpolator
+        self.trajectory_msg = None
+
         # client for interfacing with the real robot
         self.client = TrajectoryClient(ctrl_name)
 
@@ -83,6 +88,7 @@ class ROSRealInterface:
 
         # TODO try using desired velocities to see if it is a velocity noise
         # issue
+        # q = msg.desired.positions
         # v = msg.desired.velocities
 
         # we don't get actual feedback on the accelerations, so we assume it is
@@ -95,16 +101,15 @@ class ROSRealInterface:
         self.publish_observation(t, x, u)
 
     def _trajectory_cb(self, msg):
-        # TODO do this on MPC side
-        msg.joint_names = UR10_JOINT_NAMES
+        self.trajectory_msg = msg
 
-        # remove points with non-unique timestamps
-        # TODO this is handled on the MPC side now
-        # new_points = []
-        # for i in range(len(msg.points) - 1):
-        #     if msg.points[i].time_from_start >= msg.points[i + 1].time_from_start:
-        #         continue
-        #     new_points.append(msg.points[i])
-        # msg.points = new_points
+    def send_trajectory(self):
+        if self.trajectory_msg is not None:
+            msg = self.trajectory_msg
+            # TODO do this on MPC side
+            msg.joint_names = UR10_JOINT_NAMES
+            self.client.send_joint_trajectory(msg, self._feedback_cb)
 
-        self.client.send_joint_trajectory(msg, self._feedback_cb)
+            # set to None so we don't publish the same message twice (no harm
+            # in it but also no benefit)
+            self.trajectory_msg = None
