@@ -10,7 +10,7 @@
 
 // we include this directly here rather than from ellipsoid.h because other
 // compilation units complain about the C++14 features imported there
-// #include "tray_balance_constraints/impl/bounding_ellipsoid.tpp"
+#include "tray_balance_constraints/impl/bounding_ellipsoid.tpp"
 
 using namespace pybind11::literals;
 

@@ -22,6 +22,8 @@
 #include "tray_balance_ocs2/dynamics/FixedBasePinocchioMapping.h"
 #include "tray_balance_ocs2/dynamics/MobileManipulatorPinocchioMapping.h"
 
+#include "tray_balance_ocs2/constraint/BalancingConstraintWrapper.h"
+
 using namespace ocs2;
 using namespace mobile_manipulator;
 
@@ -237,12 +239,21 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("dfduu",
                        &ocs2::ScalarFunctionQuadraticApproximation::dfduu);
 
+    pybind11::class_<BalancingConstraintWrapper>(m,
+                                                 "BalancingConstraintWrapper")
+        .def(pybind11::init<const ControllerSettings &>(), "settings"_a)
+        .def("getLinearApproximation",
+             &BalancingConstraintWrapper::getLinearApproximation, "t"_a, "x"_a,
+             "u"_a);
+
     /* bind TargetTrajectories class */
     pybind11::class_<ocs2::TargetTrajectories>(m, "TargetTrajectories")
         .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
                             ocs2::vector_array_t>())
-        .def("get_desired_state", &ocs2::TargetTrajectories::getDesiredState, "t"_a)
-        .def("get_desired_input", &ocs2::TargetTrajectories::getDesiredInput, "t"_a)
+        .def("get_desired_state", &ocs2::TargetTrajectories::getDesiredState,
+             "t"_a)
+        .def("get_desired_input", &ocs2::TargetTrajectories::getDesiredInput,
+             "t"_a)
         .def_readonly("ts", &ocs2::TargetTrajectories::timeTrajectory)
         .def_readonly("xs", &ocs2::TargetTrajectories::stateTrajectory)
         .def_readonly("us", &ocs2::TargetTrajectories::inputTrajectory);

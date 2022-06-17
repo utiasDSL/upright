@@ -221,4 +221,4 @@ struct Ellipsoid {
     size_t rank_;
 };
 
-#include "impl/bounding_ellipsoid.tpp"
+// #include "impl/bounding_ellipsoid.tpp"
