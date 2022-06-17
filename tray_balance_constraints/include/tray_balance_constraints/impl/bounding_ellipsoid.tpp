@@ -6,6 +6,8 @@
 #include <CGAL/MP_Float.h>
 #include <CGAL/point_generators_d.h>
 
+namespace upright {
+
 // Compute rank and orthogonal basis vectors for the set of points.
 template <typename Scalar>
 std::tuple<size_t, Matrix<Scalar>> points_basis(
@@ -91,3 +93,5 @@ Ellipsoid<Scalar> Ellipsoid<Scalar>::bounding(
 
     return Ellipsoid<Scalar>(center, half_lengths_vec, directions_vec);
 }
+
+}  // namespace upright

@@ -7,6 +7,8 @@
 #include "tray_balance_constraints/types.h"
 #include "tray_balance_constraints/util.h"
 
+namespace upright {
+
 template <typename Scalar>
 size_t BalancedObject<Scalar>::num_constraints(
     const BalanceConstraintsEnabled& enabled) const {
@@ -82,7 +84,8 @@ BalancedObject<Scalar> BalancedObject<Scalar>::compose(
     // std::unique_ptr<SupportAreaBase<Scalar>> support_area_ptr(
     //     objects[0].support_area_ptr->clone());
     // support_area_ptr->offset = delta.head(2);
-    PolygonSupportArea<Scalar> support_area = objects[0].support_area.offset(delta.head(2));
+    PolygonSupportArea<Scalar> support_area =
+        objects[0].support_area.offset(delta.head(2));
 
     BalancedObject<Scalar> composite(body, com_height, support_area,
                                      objects[0].r_tau, objects[0].mu);
@@ -305,3 +308,5 @@ Vector<Scalar> TrayBalanceConfiguration<Scalar>::balancing_constraints(
 
     return constraints;
 }
+
+}  // namespace upright

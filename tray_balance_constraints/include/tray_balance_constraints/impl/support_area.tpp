@@ -5,6 +5,8 @@
 #include "tray_balance_constraints/types.h"
 #include "tray_balance_constraints/util.h"
 
+namespace upright {
+
 template <typename Scalar>
 std::vector<Vec2<Scalar>> cuboid_support_vertices(Scalar sx, Scalar sy) {
     Scalar rx = 0.5 * sx;
@@ -160,3 +162,5 @@ Scalar PolygonSupportArea<Scalar>::edge_zmp_constraint(
 //     // TODO margin should be scaled up for scaled version
 //     return -(az_zmp - az * v1).dot(normal) - this->margin;
 // }
+
+}  // namespace upright

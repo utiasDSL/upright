@@ -1,5 +1,7 @@
 #pragma once
 
+namespace upright {
+
 template <typename Scalar>
 Scalar circle_r_tau(Scalar radius) {
     return Scalar(2.0) * radius / Scalar(3.0);
@@ -91,3 +93,4 @@ Vector<Scalar> RigidBody<Scalar>::get_parameters() const {
     return p;
 }
 
+}  // namespace upright

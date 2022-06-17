@@ -6,6 +6,7 @@
 #include "tray_balance_constraints/support_area.h"
 #include "tray_balance_constraints/types.h"
 
+namespace upright {
 
 template <typename Scalar>
 struct BalancedObject {
@@ -103,5 +104,7 @@ struct TrayBalanceConfiguration {
     std::vector<BalancedObject<Scalar>> objects;
     BalanceConstraintsEnabled enabled;
 };
+
+}  // namespace upright
 
 #include "impl/nominal.h"

@@ -5,6 +5,8 @@
 #include "tray_balance_constraints/types.h"
 #include "tray_balance_constraints/util.h"
 
+namespace upright {
+
 template <typename Scalar>
 std::vector<Vec2<Scalar>> cuboid_support_vertices(Scalar sx, Scalar sy);
 
@@ -137,5 +139,7 @@ struct PolygonSupportArea {
     //                                   const Vec2<Scalar>& v2, Scalar& az)
     //                                   const;
 };
+
+}  // namespace upright
 
 #include "impl/support_area.tpp"

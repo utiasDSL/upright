@@ -13,6 +13,7 @@
 #include "tray_balance_constraints/impl/bounding_ellipsoid.tpp"
 
 using namespace pybind11::literals;
+using namespace upright;
 
 PYBIND11_MODULE(bindings, m) {
     using Scalar = double;
@@ -37,14 +38,6 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("normal", &BalanceConstraintsEnabled::normal)
         .def_readwrite("friction", &BalanceConstraintsEnabled::friction)
         .def_readwrite("zmp", &BalanceConstraintsEnabled::zmp);
-
-    // pybind11::class_<TrayBalanceConfiguration<Scalar>>(
-    //     m, "TrayBalanceConfiguration")
-    //     .def(pybind11::init<>())
-    //     .def_readwrite("objects", &TrayBalanceConfiguration<Scalar>::objects)
-    //     .def_readwrite("enabled", &TrayBalanceConfiguration<Scalar>::enabled)
-    //     .def("num_constraints",
-    //          &TrayBalanceConfiguration<Scalar>::num_constraints);
 
     pybind11::class_<PolygonSupportArea<Scalar>>(m, "PolygonSupportArea")
         .def(pybind11::init<const std::vector<Vec2<Scalar>>&>(), "vertices"_a)

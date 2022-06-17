@@ -4,6 +4,8 @@
 
 #include "tray_balance_constraints/types.h"
 
+namespace upright {
+
 template <typename Scalar>
 Scalar squared(Scalar x) {
     return x * x;
@@ -44,3 +46,5 @@ template <typename Scalar>
 bool near_zero(Scalar x) {
     return abs(x) < Scalar(1e-6);
 }
+
+}  // namespace upright

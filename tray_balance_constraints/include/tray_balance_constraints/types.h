@@ -2,6 +2,8 @@
 
 #include <Eigen/Eigen>
 
+namespace upright {
+
 struct BalanceConstraintsEnabled {
     bool normal = true;
     bool friction = true;
@@ -34,3 +36,6 @@ template <typename Scalar>
 using Mat3 = Eigen::Matrix<Scalar, 3, 3>;
 
 const double NEAR_ZERO = 1e-8;
+
+}  // namespace upright
+

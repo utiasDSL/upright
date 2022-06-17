@@ -7,6 +7,8 @@
 #include "tray_balance_constraints/types.h"
 #include "tray_balance_constraints/util.h"
 
+namespace upright {
+
 template <typename Scalar>
 struct Ellipsoid {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -32,7 +34,8 @@ struct Ellipsoid {
             if (near_zero(hl)) {
                 break;
             } else if (hl < Scalar(0)) {
-                throw std::runtime_error("Ellipsoid half lengths must be non-negative.");
+                throw std::runtime_error(
+                    "Ellipsoid half lengths must be non-negative.");
             }
             half_lengths_(i) = hl;
             directions_.col(i) = directions_vec[indices[i]];
@@ -221,4 +224,7 @@ struct Ellipsoid {
     size_t rank_;
 };
 
+}  // namespace upright
+
 // #include "impl/bounding_ellipsoid.tpp"
+

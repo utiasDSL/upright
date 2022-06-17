@@ -5,6 +5,8 @@
 #include "tray_balance_constraints/types.h"
 #include "tray_balance_constraints/util.h"
 
+namespace upright {
+
 template <typename Scalar>
 Scalar circle_r_tau(Scalar radius);
 
@@ -39,10 +41,10 @@ struct RigidBody {
     Vector<Scalar> get_parameters() const;
 
     Scalar mass;
-
-    // TODO: together, inertia and com define an ellipsoid
     Mat3<Scalar> inertia;
     Vec3<Scalar> com;
 };
+
+}  // namespace upright
 
 #include "impl/dynamics.tpp"
