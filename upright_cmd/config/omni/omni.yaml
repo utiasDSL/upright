@@ -26,7 +26,7 @@ simulation:
     tool_joint_name: "tool0_tcp_fixed_joint"
     base_type: omnidirectional
     urdf:
-      package: "tray_balance_assets"
+      package: "upright_assets"
       path: "urdf/mm_pyb.urdf"
       # path: "urdf/mm_pyb_static_obs.urdf"
 
@@ -40,7 +40,7 @@ controller:
       u: 9  # input
     x0: [0, 0, 0, 0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0rep9, 0rep9]
     urdf:
-      package: "tray_balance_assets"
+      package: "upright_assets"
       path: "urdf/mm_ocs2.urdf"
     tool_link_name: "thing_tool"
     base_type: omnidirectional

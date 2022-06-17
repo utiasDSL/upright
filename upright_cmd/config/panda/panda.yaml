@@ -28,7 +28,7 @@ simulation:
     tool_joint_name: "tray_joint"
     base_type: fixed
     urdf:
-      package: "tray_balance_assets"
+      package: "upright_assets"
       path: "franka_panda/panda_tray.urdf"
 
 controller:
@@ -41,7 +41,7 @@ controller:
     base_type: fixed
     x0: [0rep7, 0rep7, 0rep7]
     urdf:
-      package: "tray_balance_assets"
+      package: "upright_assets"
       path: "franka_panda/panda_tray.urdf"
     tool_link_name: "tray_link"
 

@@ -10,7 +10,7 @@ natively.
 ## Contents
 * `docker/`: Dockerfile and utility scripts to install and run things under ROS
   Noetic on Ubuntu 20.04.
-* `tray_balance_assets/`: URDF and mesh files.
+* `upright_assets/`: URDF and mesh files.
 * `tray_balance_constraints/`: Core API for computing motion constraints required to
   balance objects. To be renamed to `upright_core`.
 * `tray_balance_ocs2/`: Model predictive controller using the
@@ -32,7 +32,7 @@ catkin build
 ```
 Generate the required URDFs:
 ```
-cd tray_balance_assets/thing
+cd upright_assets/thing
 ./compile_xacro.sh
 ```
 

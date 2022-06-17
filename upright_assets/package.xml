@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>tray_balance_assets</name>
+  <name>upright_assets</name>
   <version>0.0.0</version>
   <description>Assets (URDFs and meshes) for the tray balancing mobile manipulator.</description>
   <maintainer email="adam.heins@robotics.utias.utoronto.ca">Adam Heins</maintainer>

@@ -24,7 +24,7 @@ video:
 static_obstacles:
   enabled: false
   urdf:
-    package: "tray_balance_assets"
+    package: "upright_assets"
     path: "urdf/obstacles.urdf"
 
 dynamic_obstacles:
