@@ -2,6 +2,8 @@
 
 #include <string>
 
+namespace upright {
+
 enum class RobotBaseType {
     Fixed,
     Nonholonomic,
@@ -32,5 +34,8 @@ inline std::string robot_base_type_to_string(const RobotBaseType& type) {
     } else if (type == RobotBaseType::Floating) {
         return "floating";
     }
-    throw std::runtime_error("No string for RobotBaseType - this should not happen.");
+    throw std::runtime_error(
+        "No string for RobotBaseType - this should not happen.");
 }
+
+}  // namespace upright

@@ -1,7 +1,9 @@
 #pragma once
 
-#include <ostream>
 #include <cstddef>
+#include <ostream>
+
+namespace upright {
 
 struct RobotDimensions {
     size_t q;
@@ -10,10 +12,13 @@ struct RobotDimensions {
     size_t u;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const RobotDimensions& dims) {
+inline std::ostream& operator<<(std::ostream& out,
+                                const RobotDimensions& dims) {
     out << "nq = " << dims.q << std::endl
         << "nv = " << dims.v << std::endl
         << "nx = " << dims.x << std::endl
         << "nu = " << dims.u << std::endl;
     return out;
 }
+
+}  // namespace upright

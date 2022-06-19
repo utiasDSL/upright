@@ -2,14 +2,13 @@
 
 #include "tray_balance_ocs2/constraint/BoundedBalancingConstraints.h"
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
 BoundedBalancingConstraints::BoundedBalancingConstraints(
-    const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
+    const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
     const TrayBalanceSettings& settings, const Vec3d& gravity,
     const RobotDimensions& dims, bool recompileLibraries)
-    : StateInputConstraintCppAd(ConstraintOrder::Linear),
+    : ocs2::StateInputConstraintCppAd(ocs2::ConstraintOrder::Linear),
       pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
       gravity_(gravity),
       settings_(settings),
@@ -27,8 +26,8 @@ BoundedBalancingConstraints::BoundedBalancingConstraints(
     num_constraints_ = num_balancing_constraints(settings_.objects);
 }
 
-ad_vector_t BoundedBalancingConstraints::constraintFunction(
-    ad_scalar_t time, const VecXad& state, const VecXad& input,
+VecXad BoundedBalancingConstraints::constraintFunction(
+    ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
     Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
     Vec3ad angular_vel =
@@ -38,10 +37,10 @@ ad_vector_t BoundedBalancingConstraints::constraintFunction(
     Vec3ad linear_acc = pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
     // Cast to AD scalar type
-    Vec3ad ad_gravity = gravity_.template cast<ad_scalar_t>();
-    std::vector<BoundedBalancedObject<ad_scalar_t>> ad_objects;
+    Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
+    std::vector<BoundedBalancedObject<ocs2::ad_scalar_t>> ad_objects;
     for (const auto& obj : settings_.objects) {
-        ad_objects.push_back(obj.cast<ad_scalar_t>());
+        ad_objects.push_back(obj.cast<ocs2::ad_scalar_t>());
     }
 
     return balancing_constraints(ad_objects, ad_gravity,
@@ -63,5 +62,4 @@ std::ostream& operator<<(std::ostream& out,
     return out;
 }
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

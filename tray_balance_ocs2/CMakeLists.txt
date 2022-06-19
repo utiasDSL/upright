@@ -86,7 +86,6 @@ link_directories(
 
 # mobile maniulator interface library
 add_library(${PROJECT_NAME}
-  src/MobileManipulatorPreComputation.cpp
   src/dynamics/MobileManipulatorDynamics.cpp
   src/dynamics/FixedBaseDynamics.cpp
   src/MobileManipulatorInterface.cpp

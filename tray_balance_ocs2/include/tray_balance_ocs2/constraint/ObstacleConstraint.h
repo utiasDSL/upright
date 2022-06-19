@@ -39,15 +39,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/MobileManipulatorReferenceTrajectory.h>
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
 struct DynamicObstacleSettings {
     bool enabled = false;
-    std::vector<CollisionSphere<scalar_t>> collision_spheres;
-    scalar_t obstacle_radius = 0.1;
-    scalar_t mu = 1e-3;
-    scalar_t delta = 1e-3;
+    std::vector<CollisionSphere<ocs2::scalar_t>> collision_spheres;
+    ocs2::scalar_t obstacle_radius = 0.1;
+    ocs2::scalar_t mu = 1e-3;
+    ocs2::scalar_t delta = 1e-3;
 
     std::vector<std::string> get_collision_frame_names() const {
         std::vector<std::string> frame_names;
@@ -58,16 +57,13 @@ struct DynamicObstacleSettings {
     }
 };
 
-class DynamicObstacleConstraint final : public StateConstraint {
+class DynamicObstacleConstraint final : public ocs2::StateConstraint {
    public:
-    using vector3_t = Eigen::Matrix<scalar_t, 3, 1>;
-    using quaternion_t = Eigen::Quaternion<scalar_t>;
-
-    DynamicObstacleConstraint(
-        const EndEffectorKinematics<scalar_t>& endEffectorKinematics,
-        const ReferenceManager& referenceManager,
-        const DynamicObstacleSettings& settings)
-        : StateConstraint(ConstraintOrder::Linear),
+    DynamicObstacleConstraint(const ocs2::EndEffectorKinematics<ocs2::scalar_t>&
+                                  endEffectorKinematics,
+                              const ocs2::ReferenceManager& referenceManager,
+                              const DynamicObstacleSettings& settings)
+        : StateConstraint(ocs2::ConstraintOrder::Linear),
           endEffectorKinematicsPtr_(endEffectorKinematics.clone()),
           referenceManagerPtr_(&referenceManager),
           settings_(settings) {
@@ -77,8 +73,9 @@ class DynamicObstacleConstraint final : public StateConstraint {
         //         "[DynamicObstacleConstraint] Number of collision sphere radii
         //         " "must match number of end effector IDs.");
         // }
-        pinocchioEEKinPtr_ = dynamic_cast<PinocchioEndEffectorKinematics*>(
-            endEffectorKinematicsPtr_.get());
+        pinocchioEEKinPtr_ =
+            dynamic_cast<ocs2::PinocchioEndEffectorKinematics*>(
+                endEffectorKinematicsPtr_.get());
     }
 
     ~DynamicObstacleConstraint() override = default;
@@ -88,34 +85,33 @@ class DynamicObstacleConstraint final : public StateConstraint {
                                              *referenceManagerPtr_, settings_);
     }
 
-    size_t getNumConstraints(scalar_t time) const override {
+    size_t getNumConstraints(ocs2::scalar_t time) const override {
         return settings_.collision_spheres.size() + 1;
     }
 
-    vector_t getValue(scalar_t time, const vector_t& state,
-                      const PreComputation& preComputation) const override {
+    VecXd getValue(ocs2::scalar_t time, const VecXd& state,
+                   const ocs2::PreComputation& preComputation) const override {
         const auto& targetTrajectories =
             referenceManagerPtr_->getTargetTrajectories();
-        vector3_t r_ow_w =
-            interpolate_obstacle_position(time, targetTrajectories);
+        Vec3d r_ow_w = interpolate_obstacle_position(time, targetTrajectories);
 
-        std::vector<vector3_t> frame_positions =
+        std::vector<Vec3d> frame_positions =
             endEffectorKinematicsPtr_->getPosition(state);
-        // std::vector<quaternion_t> frame_orientations =
+        // std::vector<Quatd> frame_orientations =
         //     endEffectorKinematicsPtr_->getOrientation(state);
 
-        vector_t constraints(getNumConstraints(time));
+        VecXd constraints(getNumConstraints(time));
         for (int i = 0; i < frame_positions.size(); ++i) {
-            vector3_t r_sw_w = frame_positions[i];
-            // quaternion_t Q_wf = frame_orientations[i];
+            Vec3d r_sw_w = frame_positions[i];
+            // Quatd Q_wf = frame_orientations[i];
             // pinocchio::SE3 T_wf(Q_wf, r_fw_w);
 
-            // vector3_t r_sf_f = settings_.collision_spheres[i].offset;
-            // vector3_t r_sw_w = T_wf * r_sf_f;
+            // Vec3d r_sf_f = settings_.collision_spheres[i].offset;
+            // Vec3d r_sw_w = T_wf * r_sf_f;
 
-            vector3_t r_so_w = r_sw_w - r_ow_w;
-            scalar_t r = settings_.collision_spheres[i].radius +
-                         settings_.obstacle_radius;
+            Vec3d r_so_w = r_sw_w - r_ow_w;
+            ocs2::scalar_t r = settings_.collision_spheres[i].radius +
+                               settings_.obstacle_radius;
             // Controller seems to require less compute when use this smooth
             // version of the constraint
             constraints(i) = r_so_w.dot(r_so_w) - r * r;
@@ -124,24 +120,24 @@ class DynamicObstacleConstraint final : public StateConstraint {
 
         // Extra hard-coded hack to do self-collision avoidance between
         // balanced objects and the forearm.
-        vector3_t vec = frame_positions[4] - frame_positions[1];
-        scalar_t r = settings_.collision_spheres[1].radius +
-                     settings_.collision_spheres[4].radius;
+        Vec3d vec = frame_positions[4] - frame_positions[1];
+        ocs2::scalar_t r = settings_.collision_spheres[1].radius +
+                           settings_.collision_spheres[4].radius;
         constraints(frame_positions.size()) = vec.dot(vec) - r * r;
 
         return constraints;
     }
 
-    VectorFunctionLinearApproximation getLinearApproximation(
-        scalar_t time, const vector_t& state,
-        const PreComputation& preComputation) const override {
-        auto approximation = VectorFunctionLinearApproximation(
+    ocs2::VectorFunctionLinearApproximation getLinearApproximation(
+        ocs2::scalar_t time, const VecXd& state,
+        const ocs2::PreComputation& preComputation) const override {
+        auto approximation = ocs2::VectorFunctionLinearApproximation(
             getNumConstraints(time), state.rows(), 0);
         approximation.setZero(getNumConstraints(time), state.rows(), 0);
 
         const auto& targetTrajectories =
             referenceManagerPtr_->getTargetTrajectories();
-        vector3_t obstacle_pos =
+        Vec3d obstacle_pos =
             interpolate_obstacle_position(time, targetTrajectories);
 
         // the .f part is just the value
@@ -151,14 +147,14 @@ class DynamicObstacleConstraint final : public StateConstraint {
             endEffectorKinematicsPtr_->getPositionLinearApproximation(state);
 
         for (int i = 0; i < ee_positions.size(); ++i) {
-            vector3_t vec = ee_positions[i].f - obstacle_pos;
+            Vec3d vec = ee_positions[i].f - obstacle_pos;
             approximation.dfdx.row(i) =
                 2 * vec.transpose() * ee_positions[i].dfdx;
             // approximation.dfdx.row(i) =
             //     vec.transpose() * ee_positions[i].dfdx / vec.norm();
         }
 
-        vector3_t vec = ee_positions[4].f - ee_positions[1].f;
+        Vec3d vec = ee_positions[4].f - ee_positions[1].f;
         approximation.dfdx.row(ee_positions.size()) =
             2 * vec.transpose() * ee_positions[4].dfdx -
             2 * vec.transpose() * ee_positions[1].dfdx;
@@ -171,15 +167,15 @@ class DynamicObstacleConstraint final : public StateConstraint {
 
     /** Cached pointer to the pinocchio end effector kinematics. Is set to
      * nullptr if not used. */
-    PinocchioEndEffectorKinematics* pinocchioEEKinPtr_ = nullptr;
+    ocs2::PinocchioEndEffectorKinematics* pinocchioEEKinPtr_ = nullptr;
 
-    vector3_t eeDesiredPosition_;
-    quaternion_t eeDesiredOrientation_;
-    std::unique_ptr<EndEffectorKinematics<scalar_t>> endEffectorKinematicsPtr_;
-    const ReferenceManager* referenceManagerPtr_;
+    Vec3d eeDesiredPosition_;
+    Quatd eeDesiredOrientation_;
+    std::unique_ptr<ocs2::EndEffectorKinematics<ocs2::scalar_t>>
+        endEffectorKinematicsPtr_;
+    const ocs2::ReferenceManager* referenceManagerPtr_;
 
     DynamicObstacleSettings settings_;
 };  // class DynamicObstacleConstraint
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

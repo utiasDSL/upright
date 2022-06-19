@@ -30,20 +30,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <ocs2_core/dynamics/SystemDynamicsBaseAD.h>
-#include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
+#include <tray_balance_ocs2/types.h>
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
-class MobileManipulatorDynamics final : public SystemDynamicsBaseAD {
+class MobileManipulatorDynamics final : public ocs2::SystemDynamicsBaseAD {
    public:
-    using Base = SystemDynamicsBaseAD;
-
     explicit MobileManipulatorDynamics(
-        const std::string& modelName,
-        const RobotDimensions& dims,
+        const std::string& modelName, const RobotDimensions& dims,
         const std::string& modelFolder = "/tmp/ocs2",
         bool recompileLibraries = true, bool verbose = true);
 
@@ -53,9 +49,9 @@ class MobileManipulatorDynamics final : public SystemDynamicsBaseAD {
         return new MobileManipulatorDynamics(*this);
     }
 
-    ad_vector_t systemFlowMap(ad_scalar_t time, const ad_vector_t& state,
-                              const ad_vector_t& input,
-                              const ad_vector_t& parameters) const override;
+    VecXad systemFlowMap(ocs2::ad_scalar_t time, const VecXad& state,
+                         const VecXad& input,
+                         const VecXad& parameters) const override;
 
    private:
     MobileManipulatorDynamics(const MobileManipulatorDynamics& rhs) = default;
@@ -63,5 +59,4 @@ class MobileManipulatorDynamics final : public SystemDynamicsBaseAD {
     RobotDimensions dims_;
 };
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

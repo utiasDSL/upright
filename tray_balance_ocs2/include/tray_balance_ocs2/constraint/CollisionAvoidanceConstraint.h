@@ -29,13 +29,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <memory>
-
 #include <ocs2_self_collision/SelfCollisionConstraint.h>
-#include <tray_balance_ocs2/MobileManipulatorPreComputation.h>
+#include <tray_balance_ocs2/types.h>
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
 template <typename Scalar>
 struct CollisionSphere {
@@ -45,7 +42,7 @@ struct CollisionSphere {
     CollisionSphere() {
         name = "";
         parent_frame_name = "";
-        offset = Eigen::Matrix<Scalar, 3, 1>::Zero();
+        offset = Vec3<Scalar>::Zero();
         radius = 0;
     }
 
@@ -65,7 +62,7 @@ struct CollisionSphere {
     std::string parent_frame_name;
 
     // Offset from that joint (in the joint's frame).
-    Eigen::Matrix<Scalar, 3, 1> offset;
+    Vec3<Scalar> offset;
 
     // Radius of this collision sphere.
     Scalar radius;
@@ -78,40 +75,42 @@ struct CollisionAvoidanceSettings {
     std::vector<std::pair<std::string, std::string>> collision_link_pairs;
 
     // Minimum distance allowed between collision objects
-    scalar_t minimum_distance = 0;
+    ocs2::scalar_t minimum_distance = 0;
 
     // Relaxed barrier function parameters
-    scalar_t mu = 1e-2;
-    scalar_t delta = 1e-3;
+    ocs2::scalar_t mu = 1e-2;
+    ocs2::scalar_t delta = 1e-3;
 
     // Extra collision spheres to attach to the robot body for collision
     // avoidance.
-    std::vector<CollisionSphere<scalar_t>> extra_spheres;
+    std::vector<CollisionSphere<ocs2::scalar_t>> extra_spheres;
 };
 
+// class CollisionAvoidanceConstraint final
+//     : public ocs2::SelfCollisionConstraint {
+//    public:
+//     CollisionAvoidanceConstraint(
+//         const ocs2::PinocchioStateInputMapping<ocs2::scalar_t>& mapping,
+//         ocs2::PinocchioGeometryInterface pinocchioGeometryInterface,
+//         ocs2::scalar_t minimumDistance)
+//         : SelfCollisionConstraint(
+//               mapping, std::move(pinocchioGeometryInterface), minimumDistance) {
+//     }
+//
+//     ~CollisionAvoidanceConstraint() override = default;
+//
+//     CollisionAvoidanceConstraint(const CollisionAvoidanceConstraint& other) =
+//         default;
+//
+//     CollisionAvoidanceConstraint* clone() const {
+//         return new CollisionAvoidanceConstraint(*this);
+//     }
+//
+//     const ocs2::PinocchioInterface& getPinocchioInterface(
+//         const ocs2::PreComputation& preComputation) const override {
+//         return ocs2::cast<ocs2::MobileManipulatorPreComputation>(preComputation)
+//             .getPinocchioInterface();
+//     }
+// };
 
-class CollisionAvoidanceConstraint final : public SelfCollisionConstraint {
-   public:
-    CollisionAvoidanceConstraint(
-        const PinocchioStateInputMapping<scalar_t>& mapping,
-        PinocchioGeometryInterface pinocchioGeometryInterface,
-        scalar_t minimumDistance)
-        : SelfCollisionConstraint(
-              mapping, std::move(pinocchioGeometryInterface), minimumDistance) {
-    }
-    ~CollisionAvoidanceConstraint() override = default;
-    CollisionAvoidanceConstraint(const CollisionAvoidanceConstraint& other) =
-        default;
-    CollisionAvoidanceConstraint* clone() const {
-        return new CollisionAvoidanceConstraint(*this);
-    }
-
-    const PinocchioInterface& getPinocchioInterface(
-        const PreComputation& preComputation) const override {
-        return cast<MobileManipulatorPreComputation>(preComputation)
-            .getPinocchioInterface();
-    }
-};
-
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

@@ -4,22 +4,20 @@
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <tray_balance_ocs2/ControllerSettings.h>
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
-class MobileManipulatorPythonInterface final : public PythonInterface {
+class MobileManipulatorPythonInterface final : public ocs2::PythonInterface {
    public:
     explicit MobileManipulatorPythonInterface(const ControllerSettings& settings) {
         MobileManipulatorInterface control_interface(settings);
 
         // Set the reference manager -- otherwise there are problems with the
         // EndEffectorCost
-        std::unique_ptr<MPC_BASE> mpcPtr = control_interface.getMpc();
+        std::unique_ptr<ocs2::MPC_BASE> mpcPtr = control_interface.getMpc();
         mpcPtr->getSolverPtr()->setReferenceManager(
             control_interface.getReferenceManagerPtr());
-        PythonInterface::init(control_interface, std::move(mpcPtr));
+        ocs2::PythonInterface::init(control_interface, std::move(mpcPtr));
     }
 };
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

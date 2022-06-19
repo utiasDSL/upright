@@ -48,54 +48,53 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h>
 #include <tray_balance_ocs2/constraint/ObstacleConstraint.h>
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
 /**
  * Mobile Manipulator Robot Interface class
  */
-class MobileManipulatorInterface final : public RobotInterface {
+class MobileManipulatorInterface final : public ocs2::RobotInterface {
    public:
     /**
      * Constructor
      */
     explicit MobileManipulatorInterface(const ControllerSettings& settings);
 
-    const vector_t& getInitialState() { return initialState_; }
+    const VecXd& getInitialState() { return initialState_; }
 
-    ddp::Settings& ddpSettings() { return ddpSettings_; }
+    ocs2::ddp::Settings& ddpSettings() { return ddpSettings_; }
 
-    mpc::Settings& mpcSettings() { return mpcSettings_; }
+    ocs2::mpc::Settings& mpcSettings() { return mpcSettings_; }
 
-    std::unique_ptr<MPC_BASE> getMpc();
+    std::unique_ptr<ocs2::MPC_BASE> getMpc();
 
-    const OptimalControlProblem& getOptimalControlProblem() const override {
+    const ocs2::OptimalControlProblem& getOptimalControlProblem() const override {
         return problem_;
     }
 
-    const Initializer& getInitializer() const override {
+    const ocs2::Initializer& getInitializer() const override {
         return *initializerPtr_;
     }
 
-    std::shared_ptr<ReferenceManagerInterface> getReferenceManagerPtr()
+    std::shared_ptr<ocs2::ReferenceManagerInterface> getReferenceManagerPtr()
         const override {
         return referenceManagerPtr_;
     }
 
-    const RolloutBase& getRollout() const { return *rolloutPtr_; }
+    const ocs2::RolloutBase& getRollout() const { return *rolloutPtr_; }
 
-    const PinocchioInterface& getPinocchioInterface() const {
+    const ocs2::PinocchioInterface& getPinocchioInterface() const {
         return *pinocchioInterfacePtr_;
     }
 
-    PinocchioInterface buildPinocchioInterface(
+    ocs2::PinocchioInterface buildPinocchioInterface(
         const std::string& urdfPath, const std::string& obstacle_urdfPath);
 
     static pinocchio::GeometryModel build_geometry_model(
         const std::string& urdf_path);
 
    private:
-    std::unique_ptr<StateInputCost> getQuadraticStateInputCost(
+    std::unique_ptr<ocs2::StateInputCost> getQuadraticStateInputCost(
         const std::string& taskFile);
 
     // std::unique_ptr<StateCost> getEndEffectorCost(
@@ -103,57 +102,49 @@ class MobileManipulatorInterface final : public RobotInterface {
     //     const std::string& prefix, bool useCaching,
     //     const std::string& libraryFolder, bool recompileLibraries);
 
-    std::unique_ptr<StateCost> getEndEffectorCost(
-        const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics);
+    std::unique_ptr<ocs2::StateCost> getEndEffectorCost(
+        const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics);
 
-    std::unique_ptr<StateCost> getCollisionAvoidanceConstraint(
-        PinocchioInterface pinocchioInterface,
+    std::unique_ptr<ocs2::StateCost> getCollisionAvoidanceConstraint(
+        ocs2::PinocchioInterface pinocchioInterface,
         const CollisionAvoidanceSettings& settings,
         const std::string& obstacle_urdf_path, bool useCaching,
         const std::string& libraryFolder, bool recompileLibraries);
 
-    std::unique_ptr<StateInputCost> getJointStateInputLimitConstraint(
+    std::unique_ptr<ocs2::StateInputCost> getJointStateInputLimitConstraint(
         const std::string& taskFile);
 
-    std::unique_ptr<StateInputConstraint> getTrayBalanceConstraint(
-        const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
+    std::unique_ptr<ocs2::StateInputConstraint> getTrayBalanceConstraint(
+        const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
         bool recompileLibraries);
 
     // Soft version of the above (i.e. formulated as a cost via penalty
     // functions)
-    std::unique_ptr<StateInputCost> getTrayBalanceSoftConstraint(
-        const PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
+    std::unique_ptr<ocs2::StateInputCost> getTrayBalanceSoftConstraint(
+        const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
         bool recompileLibraries);
 
-    std::unique_ptr<StateCost> getDynamicObstacleConstraint(
-        PinocchioInterface pinocchioInterface,
+    std::unique_ptr<ocs2::StateCost> getDynamicObstacleConstraint(
+        ocs2::PinocchioInterface pinocchioInterface,
         const DynamicObstacleSettings& settings, bool usePreComputation,
         const std::string& libraryFolder, bool recompileLibraries);
 
-    // std::unique_ptr<StateInputCost> get_zmp_cost(
-    //     PinocchioInterface pinocchioInterface, const std::string& taskFile,
-    //     const std::string& prefix, bool usePreComputation,
-    //     const std::string& libraryFolder, bool recompileLibraries);
-
-    std::unique_ptr<StateConstraint> getNonHolonomicConstraint();
-
     void loadSettings();
 
-    ddp::Settings ddpSettings_;
-    mpc::Settings mpcSettings_;
-    multiple_shooting::Settings sqpSettings_;
+    ocs2::ddp::Settings ddpSettings_;
+    ocs2::mpc::Settings mpcSettings_;
+    ocs2::multiple_shooting::Settings sqpSettings_;
 
     ControllerSettings settings_;
 
-    OptimalControlProblem problem_;
-    std::unique_ptr<RolloutBase> rolloutPtr_;
-    std::unique_ptr<Initializer> initializerPtr_;
-    std::shared_ptr<ReferenceManager> referenceManagerPtr_;
+    ocs2::OptimalControlProblem problem_;
+    std::unique_ptr<ocs2::RolloutBase> rolloutPtr_;
+    std::unique_ptr<ocs2::Initializer> initializerPtr_;
+    std::shared_ptr<ocs2::ReferenceManager> referenceManagerPtr_;
 
-    std::unique_ptr<PinocchioInterface> pinocchioInterfacePtr_;
+    std::unique_ptr<ocs2::PinocchioInterface> pinocchioInterfacePtr_;
 
-    vector_t initialState_;
+    VecXd initialState_;
 };
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

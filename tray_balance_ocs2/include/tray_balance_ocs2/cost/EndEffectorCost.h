@@ -29,27 +29,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <memory>
-
 #include <ocs2_core/cost/StateCost.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
 #include <tray_balance_ocs2/MobileManipulatorReferenceTrajectory.h>
+#include <tray_balance_ocs2/types.h>
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
-class EndEffectorCost final : public StateCost {
+class EndEffectorCost final : public ocs2::StateCost {
    public:
-    using vector3_t = Eigen::Matrix<scalar_t, 3, 1>;
-    using quaternion_t = Eigen::Quaternion<scalar_t>;
-
-    EndEffectorCost(
-        const matrix_t W,  // note not reference
-        const EndEffectorKinematics<scalar_t>& endEffectorKinematics,
-        const ReferenceManager& referenceManager)
+    EndEffectorCost(const MatXd W,  // note not reference
+                    const ocs2::EndEffectorKinematics<ocs2::scalar_t>&
+                        endEffectorKinematics,
+                    const ocs2::ReferenceManager& referenceManager)
         : W_(std::move(W)),
           endEffectorKinematicsPtr_(endEffectorKinematics.clone()),
           referenceManagerPtr_(&referenceManager) {
@@ -59,10 +54,9 @@ class EndEffectorCost final : public StateCost {
                 "number of "
                 "end effector IDs.");
         }
-        pinocchioEEKinPtr_ = dynamic_cast<PinocchioEndEffectorKinematics*>(
-            endEffectorKinematicsPtr_.get());
-        target_time_lower = 2.0;
-        target_time_upper = 2.5;
+        pinocchioEEKinPtr_ =
+            dynamic_cast<ocs2::PinocchioEndEffectorKinematics*>(
+                endEffectorKinematicsPtr_.get());
     }
 
     ~EndEffectorCost() override = default;
@@ -72,57 +66,35 @@ class EndEffectorCost final : public StateCost {
                                    *referenceManagerPtr_);
     }
 
-    scalar_t getValue(scalar_t time, const vector_t& state,
-                      const TargetTrajectories& targetTrajectories,
-                      const PreComputation& preComp) const override {
-        // precomp stuff
-        // NOTE: this caused the controller to go unstable when I tried it
-        // previously
-        // if (pinocchioEEKinPtr_ != nullptr) {
-        //     const auto& preCompMM =
-        //         cast<MobileManipulatorPreComputation>(preComp);
-        //     pinocchioEEKinPtr_->setPinocchioInterface(
-        //         preCompMM.getPinocchioInterface());
-        // }
-
+    ocs2::scalar_t getValue(
+        ocs2::scalar_t time, const VecXd& state,
+        const ocs2::TargetTrajectories& targetTrajectories,
+        const ocs2::PreComputation& preComp) const override {
         const auto desiredPositionOrientation =
             interpolateEndEffectorPose(time, targetTrajectories);
 
-        vector_t err = vector_t::Zero(6);
+        VecXd err = VecXd::Zero(6);
         err.head<3>() = endEffectorKinematicsPtr_->getPosition(state).front() -
                         desiredPositionOrientation.first;
         err.tail<3>() = endEffectorKinematicsPtr_
                             ->getOrientationError(
                                 state, {desiredPositionOrientation.second})
                             .front();
-        // std::cerr << "orn des = " << desiredPositionOrientation.second.coeffs() << std::endl;
-        // std::cerr << "orn err = " << err.tail<3>() << std::endl;
-        // if (time < target_time_lower || time > target_time_upper) {
-        //     return 0.0;
-        // }
 
         return 0.5 * err.transpose() * W_ * err;
     }
 
-    ScalarFunctionQuadraticApproximation getQuadraticApproximation(
-        scalar_t time, const vector_t& state,
-        const TargetTrajectories& targetTrajectories,
-        const PreComputation& preComp) const override {
-        // precomp stuff
-        // if (pinocchioEEKinPtr_ != nullptr) {
-        //     const auto& preCompMM =
-        //         cast<MobileManipulatorPreComputation>(preComp);
-        //     pinocchioEEKinPtr_->setPinocchioInterface(
-        //         preCompMM.getPinocchioInterface());
-        // }
-
+    ocs2::ScalarFunctionQuadraticApproximation getQuadraticApproximation(
+        ocs2::scalar_t time, const VecXd& state,
+        const ocs2::TargetTrajectories& targetTrajectories,
+        const ocs2::PreComputation& preComp) const override {
         const auto desiredPositionOrientation =
             interpolateEndEffectorPose(time, targetTrajectories);
 
         // NOTE: input is not used in this state cost, so we give it a
         // dimension of zero.
         auto approximation =
-            ScalarFunctionQuadraticApproximation(state.rows(), 0);
+            ocs2::ScalarFunctionQuadraticApproximation(state.rows(), 0);
         approximation.setZero(state.rows(), 0);
 
         // Linear approximations of position and orientation error
@@ -136,13 +108,13 @@ class EndEffectorCost final : public StateCost {
                 .front();
 
         // Function value
-        vector_t e = vector_t::Zero(6);
+        VecXd e = VecXd::Zero(6);
         e << eePosition.f - desiredPositionOrientation.first,
             eeOrientationError.f;
         approximation.f = 0.5 * e.transpose() * W_ * e;
 
         // Jacobian
-        matrix_t dedx(6, state.rows());
+        MatXd dedx(6, state.rows());
         dedx.setZero();
         dedx << eePosition.dfdx, eeOrientationError.dfdx;
         approximation.dfdx = e.transpose() * W_ * dedx;
@@ -150,31 +122,23 @@ class EndEffectorCost final : public StateCost {
         // Hessian (Gauss-Newton approximation)
         approximation.dfdxx = dedx.transpose() * W_ * dedx;
 
-        // if (time < target_time_lower || time > target_time_upper) {
-        //     approximation.f = 0;
-        //     approximation.dfdx.setZero();
-        //     approximation.dfdxx.setZero();
-        // }
-
         return approximation;
     }
 
    private:
     EndEffectorCost(const EndEffectorCost& other) = default;
 
-    matrix_t W_;  // weight matrix
-    scalar_t target_time_lower;
-    scalar_t target_time_upper;
+    MatXd W_;  // weight matrix
 
     /** Cached pointer to the pinocchio end effector kinematics. Is set to
      * nullptr if not used. */
-    PinocchioEndEffectorKinematics* pinocchioEEKinPtr_ = nullptr;
+    ocs2::PinocchioEndEffectorKinematics* pinocchioEEKinPtr_ = nullptr;
 
-    vector3_t eeDesiredPosition_;
-    quaternion_t eeDesiredOrientation_;
-    std::unique_ptr<EndEffectorKinematics<scalar_t>> endEffectorKinematicsPtr_;
-    const ReferenceManager* referenceManagerPtr_;
+    Vec3d eeDesiredPosition_;
+    Quatd eeDesiredOrientation_;
+    std::unique_ptr<ocs2::EndEffectorKinematics<ocs2::scalar_t>>
+        endEffectorKinematicsPtr_;
+    const ocs2::ReferenceManager* referenceManagerPtr_;
 };
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

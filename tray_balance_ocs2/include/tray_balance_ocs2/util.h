@@ -1,16 +1,10 @@
 #pragma once
 
-#include <string>
-
 #include <Eigen/Eigen>
-#include <ros/package.h>
 
-#include <ocs2_core/misc/LoadData.h>
+namespace upright {
 
-namespace ocs2 {
-namespace mobile_manipulator {
-
-    // TODO probably move directly to dynamics
+// TODO probably move directly to dynamics
 template <typename Scalar>
 Eigen::Matrix<Scalar, 2, 2> base_rotation_matrix(
     const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& state) {
@@ -23,5 +17,4 @@ Eigen::Matrix<Scalar, 2, 2> base_rotation_matrix(
     return C_wb;
 }
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

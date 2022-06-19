@@ -10,8 +10,7 @@
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
 #include <tray_balance_ocs2/types.h>
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
 struct InertialAlignmentSettings {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -20,7 +19,7 @@ struct InertialAlignmentSettings {
 
     bool enabled = false;
     bool use_angular_acceleration = false;
-    scalar_t weight = 1.0;
+    ocs2::scalar_t weight = 1.0;
     Vec3d r_oe_e;  // center of mass
 };
 
@@ -34,12 +33,12 @@ inline std::ostream& operator<<(std::ostream& out,
     return out;
 }
 
-class InertialAlignmentCost final : public StateInputCostCppAd {
+class InertialAlignmentCost final : public ocs2::StateInputCostCppAd {
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     InertialAlignmentCost(
-        const PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
+        const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const InertialAlignmentSettings& settings, const Vec3d& gravity,
         const RobotDimensions& dims, bool recompileLibraries)
         : pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
@@ -56,14 +55,14 @@ class InertialAlignmentCost final : public StateInputCostCppAd {
     }
 
    protected:
-    ad_scalar_t costFunction(ad_scalar_t time, const VecXad& state,
-                             const VecXad& input,
-                             const VecXad& parameters) const {
+    ocs2::ad_scalar_t costFunction(ocs2::ad_scalar_t time, const VecXad& state,
+                                   const VecXad& input,
+                                   const VecXad& parameters) const {
         Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
         Vec3ad linear_acc =
             pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-        Vec3ad gravity = gravity_.cast<ad_scalar_t>();
+        Vec3ad gravity = gravity_.cast<ocs2::ad_scalar_t>();
         Vec3ad total_acc = linear_acc - gravity;
 
         if (settings_.use_angular_acceleration) {
@@ -72,9 +71,10 @@ class InertialAlignmentCost final : public StateInputCostCppAd {
             Vec3ad angular_acc =
                 pinocchioEEKinPtr_->getAngularAccelerationCppAd(state, input);
 
-            Mat3ad ddC_we = rotation_matrix_second_derivative<ad_scalar_t>(
-                C_we, angular_vel, angular_acc);
-            Vec3ad r_oe_e = settings_.r_oe_e.cast<ad_scalar_t>();
+            Mat3ad ddC_we =
+                rotation_matrix_second_derivative<ocs2::ad_scalar_t>(
+                    C_we, angular_vel, angular_acc);
+            Vec3ad r_oe_e = settings_.r_oe_e.cast<ocs2::ad_scalar_t>();
 
             total_acc += ddC_we * r_oe_e;
         }
@@ -89,11 +89,11 @@ class InertialAlignmentCost final : public StateInputCostCppAd {
    private:
     InertialAlignmentCost(const InertialAlignmentCost& other) = default;
 
-    std::unique_ptr<PinocchioEndEffectorKinematicsCppAd> pinocchioEEKinPtr_;
+    std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>
+        pinocchioEEKinPtr_;
     InertialAlignmentSettings settings_;
     Vec3d gravity_;
     RobotDimensions dims_;
 };
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

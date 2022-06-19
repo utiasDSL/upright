@@ -7,9 +7,6 @@
 #include <ocs2_core/control/FeedforwardController.h>
 #include <ocs2_core/control/LinearController.h>
 #include <ocs2_python_interface/PybindMacros.h>
-#include <tray_balance_constraints/dynamics.h>
-#include <tray_balance_constraints/nominal.h>
-#include <tray_balance_constraints/types.h>
 
 #include "tray_balance_ocs2/ControllerSettings.h"
 #include "tray_balance_ocs2/MobileManipulatorPythonInterface.h"
@@ -24,8 +21,8 @@
 
 #include "tray_balance_ocs2/constraint/BalancingConstraintWrapper.h"
 
-using namespace ocs2;
-using namespace mobile_manipulator;
+using namespace upright;
+using namespace ocs2;  // TODO
 
 /* make vector types opaque so they are not converted to python lists */
 PYBIND11_MAKE_OPAQUE(ocs2::scalar_array_t)

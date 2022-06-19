@@ -11,8 +11,7 @@
 #include "tray_balance_ocs2/constraint/CollisionAvoidanceConstraint.h"
 #include "tray_balance_ocs2/constraint/ObstacleConstraint.h"
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
 struct ControllerSettings {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -23,33 +22,33 @@ struct ControllerSettings {
     };
 
     Method method = Method::DDP;
-    vector_t initial_state;
-    vector3_t gravity;
+    VecXd initial_state;
+    Vec3d gravity;
 
     // Weights
-    matrix_t input_weight;
-    matrix_t state_weight;
-    matrix_t end_effector_weight;
+    MatXd input_weight;
+    MatXd state_weight;
+    MatXd end_effector_weight;
 
     // Limits
-    vector_t input_limit_lower;
-    vector_t input_limit_upper;
-    scalar_t input_limit_mu = 1e-2;
-    scalar_t input_limit_delta = 1e-3;
+    VecXd input_limit_lower;
+    VecXd input_limit_upper;
+    ocs2::scalar_t input_limit_mu = 1e-2;
+    ocs2::scalar_t input_limit_delta = 1e-3;
 
-    vector_t state_limit_lower;
-    vector_t state_limit_upper;
-    scalar_t state_limit_mu = 1e-2;
-    scalar_t state_limit_delta = 1e-3;
+    VecXd state_limit_lower;
+    VecXd state_limit_upper;
+    ocs2::scalar_t state_limit_mu = 1e-2;
+    ocs2::scalar_t state_limit_delta = 1e-3;
 
     // We can linearize around a set of operating points instead of just using
     // a stationary trajectory.
     bool use_operating_points = false;
     // TODO this should be wrapped in a TargetTrajectories class
     // TargetTrajectories operating_trajectory;
-    scalar_array_t operating_times;
-    vector_array_t operating_states;
-    vector_array_t operating_inputs;
+    ocs2::scalar_array_t operating_times;
+    ocs2::vector_array_t operating_states;
+    ocs2::vector_array_t operating_inputs;
 
     // URDFs
     std::string robot_urdf_path;
@@ -106,5 +105,4 @@ std::ostream& operator<<(std::ostream& out,
     return out;
 }
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

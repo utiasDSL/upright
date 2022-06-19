@@ -45,34 +45,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tray_balance_ocs2/ControllerSettings.h>
 #include <tray_balance_ocs2/MobileManipulatorInterface.h>
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
+#include <tray_balance_ocs2/types.h>
 #include <upright_msgs/FloatArray.h>
 
 #include <upright_ros_interface/ParseControlSettings.h>
 
-#include "upright_ros_interface/mpc_node.h"
+using namespace upright;
 
-using namespace ocs2;
-using namespace mobile_manipulator;
-
-Eigen::Vector3d parse_vec3(const geometry_msgs::Vector3& vec) {
-    return Eigen::Vector3d(vec.x, vec.y, vec.z);
+Vec3d parse_vec3(const geometry_msgs::Vector3& vec) {
+    return Vec3d(vec.x, vec.y, vec.z);
 }
 
-Eigen::VectorXd parse_vector(std::vector<double>& vec) {
-    return Eigen::Map<Eigen::VectorXd>(vec.data(), vec.size(), 1);
+VecXd parse_vector(std::vector<double>& vec) {
+    return Eigen::Map<VecXd>(vec.data(), vec.size(), 1);
 }
 
-Eigen::MatrixXd parse_matrix(upright_msgs::FloatArray& msg) {
-    return Eigen::Map<Eigen::MatrixXd>(msg.data.data(), msg.shape[0],
-                                       msg.shape[1]);
+MatXd parse_matrix(upright_msgs::FloatArray& msg) {
+    return Eigen::Map<MatXd>(msg.data.data(), msg.shape[0], msg.shape[1]);
 }
 
-vector_array_t parse_vector_array(upright_msgs::FloatArray& msg) {
-    vector_array_t vec_array;
+ocs2::vector_array_t parse_vector_array(upright_msgs::FloatArray& msg) {
+    ocs2::vector_array_t vec_array;
     size_t n = msg.shape[1];
     for (int i = 0; i < msg.shape[0]; ++i) {
-        vec_array.push_back(
-            Eigen::Map<Eigen::VectorXd>(&msg.data[i * n], n, 1));
+        vec_array.push_back(Eigen::Map<VecXd>(&msg.data[i * n], n, 1));
     }
     return vec_array;
 }
@@ -132,7 +128,7 @@ ControllerSettings parse_control_settings(
     settings.tray_balance_settings.constraints_enabled.zmp =
         resp.tray_balance_settings.zmp_constraints_enabled;
     for (auto& obj_msg : resp.tray_balance_settings.objects) {
-        Eigen::VectorXd parameters = parse_vector(obj_msg.parameters);
+        VecXd parameters = parse_vector(obj_msg.parameters);
         BoundedBalancedObject<double> obj =
             BoundedBalancedObject<double>::from_parameters(parameters);
         settings.tray_balance_settings.objects.push_back(obj);
@@ -153,11 +149,11 @@ ControllerSettings parse_control_settings(
     return settings;
 }
 
-class Upright_MPC_ROS_Interface : public MPC_ROS_Interface {
+class Upright_MPC_ROS_Interface : public ocs2::MPC_ROS_Interface {
    public:
-    Upright_MPC_ROS_Interface(MPC_BASE& mpc, std::string topicPrefix,
+    Upright_MPC_ROS_Interface(ocs2::MPC_BASE& mpc, std::string topicPrefix,
                               const RobotDimensions& dims)
-        : dims_(dims), MPC_ROS_Interface(mpc, topicPrefix) {}
+        : dims_(dims), ocs2::MPC_ROS_Interface(mpc, topicPrefix) {}
 
     void launchNodes(ros::NodeHandle& nodeHandle) {
         ROS_INFO_STREAM("MPC node is setting up ...");
@@ -210,7 +206,7 @@ class Upright_MPC_ROS_Interface : public MPC_ROS_Interface {
 
         // current time, state, input, and subsystem
         const auto currentObservation =
-            ros_msg_conversions::readObservationMsg(*msg);
+            ocs2::ros_msg_conversions::readObservationMsg(*msg);
 
         // measure the delay in running MPC
         mpcTimer_.startTimer();
@@ -227,7 +223,7 @@ class Upright_MPC_ROS_Interface : public MPC_ROS_Interface {
         mpcTimer_.endTimer();
 
         // check MPC delay and solution window compatibility
-        scalar_t timeWindow = mpc_.settings().solutionTimeWindow_;
+        ocs2::scalar_t timeWindow = mpc_.settings().solutionTimeWindow_;
         if (mpc_.settings().solutionTimeWindow_ < 0) {
             timeWindow =
                 mpc_.getSolverPtr()->getFinalTime() - currentObservation.time;
@@ -294,31 +290,30 @@ class Upright_MPC_ROS_Interface : public MPC_ROS_Interface {
     }
 
     trajectory_msgs::JointTrajectory create_joint_trajectory_msg(
-        const ros::Time& stamp,
-        const PrimalSolution& primalSolution) {
+        const ros::Time& stamp, const ocs2::PrimalSolution& primalSolution) {
         trajectory_msgs::JointTrajectory msg;
 
         // TODO msg.joint_names
         msg.header.stamp = stamp;
-        scalar_t t0 = msg.header.stamp.toSec();
+        ocs2::scalar_t t0 = msg.header.stamp.toSec();
 
         size_t N = primalSolution.timeTrajectory_.size();
         for (int i = 0; i < N; ++i) {
-            scalar_t t = primalSolution.timeTrajectory_[i];
+            ocs2::scalar_t t = primalSolution.timeTrajectory_[i];
 
             // Don't include multiple points with the same timestamp. This also
             // filters out points where the time actually decreases, but this
             // should not happen.
-            if ((i < N - 1) && (t >= primalSolution.timeTrajectory_[i+1])) {
+            if ((i < N - 1) && (t >= primalSolution.timeTrajectory_[i + 1])) {
                 continue;
             }
 
-            vector_t x = primalSolution.stateTrajectory_[i];
-            vector_t u = primalSolution.inputTrajectory_[i];
+            VecXd x = primalSolution.stateTrajectory_[i];
+            VecXd u = primalSolution.inputTrajectory_[i];
 
-            vector_t q = x.head(dims_.q);
-            vector_t v = x.segment(dims_.q, dims_.v);
-            vector_t a = x.tail(dims_.v);
+            VecXd q = x.head(dims_.q);
+            VecXd v = x.segment(dims_.q, dims_.v);
+            VecXd a = x.tail(dims_.v);
 
             trajectory_msgs::JointTrajectoryPoint point;
             // relative to the header timestamp
@@ -372,7 +367,7 @@ int main(int argc, char** argv) {
     rosReferenceManagerPtr->subscribe(nodeHandle);
 
     // MPC
-    std::unique_ptr<MPC_BASE> mpcPtr = interface.getMpc();
+    std::unique_ptr<ocs2::MPC_BASE> mpcPtr = interface.getMpc();
     mpcPtr->getSolverPtr()->setReferenceManager(rosReferenceManagerPtr);
 
     // Launch MPC ROS node

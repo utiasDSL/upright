@@ -7,7 +7,6 @@ add_compile_options(-std=c++14)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  pybind11_catkin
   tray_balance_ocs2
   message_generation
   std_msgs
@@ -129,10 +128,6 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
 )
-
-# pybind11_add_module(bindings SHARED
-#   src/pybindings.cpp
-# )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

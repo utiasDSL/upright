@@ -10,30 +10,29 @@
 #include <tray_balance_ocs2/util.h>
 #include <pinocchio/multibody/model.hpp>
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
 // Wrapper to enable access to constraint Jacobian through bindings.
 class BalancingConstraintWrapper {
    public:
     BalancingConstraintWrapper(const ControllerSettings& settings) {
-        PinocchioInterface interface(buildPinocchioInterface(
+        ocs2::PinocchioInterface interface(buildPinocchioInterface(
             settings, settings.robot_urdf_path, settings.obstacle_urdf_path));
 
-        std::unique_ptr<PinocchioStateInputMapping<ad_scalar_t>>
+        std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::ad_scalar_t>>
             pinocchio_mapping_ptr;
         if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
             pinocchio_mapping_ptr.reset(
-                new MobileManipulatorPinocchioMapping<ad_scalar_t>(
+                new MobileManipulatorPinocchioMapping<ocs2::ad_scalar_t>(
                     settings.dims));
         } else {
             pinocchio_mapping_ptr.reset(
-                new FixedBasePinocchioMapping<ad_scalar_t>(settings.dims));
+                new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(settings.dims));
         }
 
         bool recompileLibraries = true;
 
-        PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
+        ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
             interface, *pinocchio_mapping_ptr,
             {settings.end_effector_link_name}, settings.dims.x, settings.dims.u,
             "end_effector_kinematics", settings.lib_folder, recompileLibraries,
@@ -44,7 +43,7 @@ class BalancingConstraintWrapper {
             settings.gravity, settings.dims, recompileLibraries));
     }
 
-    PinocchioInterface buildPinocchioInterface(
+    ocs2::PinocchioInterface buildPinocchioInterface(
         const ControllerSettings& settings, const std::string& urdfPath,
         const std::string& obstacle_urdfPath) {
         if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
@@ -54,22 +53,21 @@ class BalancingConstraintWrapper {
             rootJoint.addJoint(pinocchio::JointModelPY());
             rootJoint.addJoint(pinocchio::JointModelRZ());
 
-            return getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);
+            return ocs2::getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);
         }
         // Fixed base
-        return getPinocchioInterfaceFromUrdfFile(urdfPath);
+        return ocs2::getPinocchioInterfaceFromUrdfFile(urdfPath);
     }
 
-    VectorFunctionLinearApproximation getLinearApproximation(
-        scalar_t time, const vector_t& state, const vector_t& input) {
+    ocs2::VectorFunctionLinearApproximation getLinearApproximation(
+        ocs2::scalar_t time, const VecXd& state, const VecXd& input) {
         return constraints_->getLinearApproximation(time, state, input,
                                                     precomputation_);
     }
 
    private:
     std::unique_ptr<BoundedBalancingConstraints> constraints_;
-    PreComputation precomputation_;
+    ocs2::PreComputation precomputation_;
 };
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

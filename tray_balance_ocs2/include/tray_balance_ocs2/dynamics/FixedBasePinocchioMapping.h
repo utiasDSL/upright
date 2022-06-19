@@ -1,51 +1,19 @@
-/******************************************************************************
-Copyright (c) 2021, Farbod Farshidian. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-* Neither the name of the copyright holder nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-******************************************************************************/
-
 #pragma once
-
-#include <iostream>
 
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
 #include <tray_balance_ocs2/util.h>
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
 template <typename Scalar>
 class FixedBasePinocchioMapping final
-    : public PinocchioStateInputMapping<Scalar> {
+    : public ocs2::PinocchioStateInputMapping<Scalar> {
    public:
-    using Base = PinocchioStateInputMapping<Scalar>;
-    using typename Base::matrix_t;
-    using typename Base::vector_t;
+    using Base = ocs2::PinocchioStateInputMapping<Scalar>;
+    using VecXd = typename Base::vector_t;
+    using MatXd = typename Base::matrix_t;
 
     FixedBasePinocchioMapping(const RobotDimensions& dims) : dims_(dims) {}
 
@@ -55,17 +23,17 @@ class FixedBasePinocchioMapping final
         return new FixedBasePinocchioMapping<Scalar>(*this);
     }
 
-    vector_t getPinocchioJointPosition(const vector_t& state) const override {
+    VecXd getPinocchioJointPosition(const VecXd& state) const override {
         return state.head(dims_.q);
     }
 
-    vector_t getPinocchioJointVelocity(const vector_t& state,
-                                       const vector_t& input) const override {
+    VecXd getPinocchioJointVelocity(const VecXd& state,
+                                    const VecXd& input) const override {
         return state.segment(dims_.q, dims_.v);
     }
 
-    vector_t getPinocchioJointAcceleration(
-        const vector_t& state, const vector_t& input) const override {
+    VecXd getPinocchioJointAcceleration(const VecXd& state,
+                                        const VecXd& input) const override {
         return state.tail(dims_.v);
     }
 
@@ -73,17 +41,15 @@ class FixedBasePinocchioMapping final
     // (generalized positions and velocities), as provided by Pinocchio as Jq
     // and Jv, to the Jacobian of the state dfdx and Jacobian of the input
     // dfdu.
-    std::pair<matrix_t, matrix_t> getOcs2Jacobian(
-        const vector_t& state, const matrix_t& Jq,
-        const matrix_t& Jv) const override {
-
+    std::pair<MatXd, MatXd> getOcs2Jacobian(const VecXd& state, const MatXd& Jq,
+                                            const MatXd& Jv) const override {
         const auto output_dim = Jq.rows();
-        matrix_t dfdx(output_dim, Jq.cols() + Jv.cols() + dims_.v);
-        dfdx << Jq, Jv, matrix_t::Zero(output_dim, dims_.v);
+        MatXd dfdx(output_dim, Jq.cols() + Jv.cols() + dims_.v);
+        dfdx << Jq, Jv, MatXd::Zero(output_dim, dims_.v);
 
         // NOTE: this isn't used for collision avoidance (which is the only
         // place this method is called)
-        matrix_t dfdu(output_dim, dims_.u);
+        MatXd dfdu(output_dim, dims_.u);
         dfdu.setZero();
 
         return {dfdx, dfdu};
@@ -93,5 +59,4 @@ class FixedBasePinocchioMapping final
     RobotDimensions dims_;
 };
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright

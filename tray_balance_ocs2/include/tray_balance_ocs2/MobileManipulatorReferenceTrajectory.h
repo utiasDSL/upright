@@ -30,65 +30,61 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <ocs2_core/misc/LinearInterpolation.h>
+#include <ocs2_core/reference/TargetTrajectories.h>
+#include <tray_balance_ocs2/types.h>
 
-namespace ocs2 {
-namespace mobile_manipulator {
+namespace upright {
 
-using vector3_t = Eigen::Matrix<scalar_t, 3, 1>;
-using quaternion_t = Eigen::Quaternion<scalar_t>;
-
-inline vector_t make_target(const vector3_t& ee_position,
-                            const quaternion_t& ee_orientation,
-                            const vector3_t& obs_position) {
-    vector_t target(10);
+inline VecXd make_target(const Vec3d& ee_position, const Quatd& ee_orientation,
+                         const Vec3d& obs_position) {
+    VecXd target(10);
     target << ee_position, ee_orientation.coeffs(), obs_position;
     return target;
 }
 
-inline void set_target_position(vector_t& target, const vector3_t& position) {
+inline void set_target_position(VecXd& target, const Vec3d& position) {
     target.head<3>() = position;
 }
 
-inline vector3_t get_target_position(const vector_t& target) {
+inline Vec3d get_target_position(const VecXd& target) {
     return target.head<3>();
 }
 
-inline void set_target_orientation(vector_t& target,
-                                   const quaternion_t& orientation) {
+inline void set_target_orientation(VecXd& target, const Quatd& orientation) {
     target.segment<4>(3) = orientation.coeffs();
 }
 
-inline quaternion_t get_target_orientation(const vector_t& target) {
-    return quaternion_t(target.segment<4>(3));
+inline Quatd get_target_orientation(const VecXd& target) {
+    return Quatd(target.segment<4>(3));
 }
 
-inline void set_obstacle_position(vector_t& target, const vector3_t& position) {
+inline void set_obstacle_position(VecXd& target, const Vec3d& position) {
     target.segment<3>(7) = position;
 }
 
-inline vector3_t get_obstacle_position(const vector_t& target) {
+inline Vec3d get_obstacle_position(const VecXd& target) {
     return target.segment<3>(7);
 }
 
-inline std::pair<vector_t, quaternion_t> interpolateEndEffectorPose(
-    scalar_t time, const TargetTrajectories& targetTrajectories) {
+inline std::pair<VecXd, Quatd> interpolateEndEffectorPose(
+    ocs2::scalar_t time, const ocs2::TargetTrajectories& targetTrajectories) {
     const auto& timeTrajectory = targetTrajectories.timeTrajectory;
     const auto& stateTrajectory = targetTrajectories.stateTrajectory;
 
-    vector_t position;
-    quaternion_t orientation;
+    VecXd position;
+    Quatd orientation;
 
     if (stateTrajectory.size() > 1) {
         // Normal interpolation case
         int index;
-        scalar_t alpha;
+        ocs2::scalar_t alpha;
         std::tie(index, alpha) =
-            LinearInterpolation::timeSegment(time, timeTrajectory);
+            ocs2::LinearInterpolation::timeSegment(time, timeTrajectory);
 
         const auto& lhs = stateTrajectory[index];
         const auto& rhs = stateTrajectory[index + 1];
-        const quaternion_t q_lhs = get_target_orientation(lhs);
-        const quaternion_t q_rhs = get_target_orientation(rhs);
+        const Quatd q_lhs = get_target_orientation(lhs);
+        const Quatd q_rhs = get_target_orientation(rhs);
 
         position = alpha * get_target_position(lhs) +
                    (1.0 - alpha) * get_target_position(rhs);
@@ -102,19 +98,19 @@ inline std::pair<vector_t, quaternion_t> interpolateEndEffectorPose(
 }
 
 // Interpolate position of obstacle over time.
-inline vector3_t interpolate_obstacle_position(
-    scalar_t time, const TargetTrajectories& targetTrajectories) {
+inline Vec3d interpolate_obstacle_position(
+    ocs2::scalar_t time, const ocs2::TargetTrajectories& targetTrajectories) {
     const auto& timeTrajectory = targetTrajectories.timeTrajectory;
     const auto& stateTrajectory = targetTrajectories.stateTrajectory;
 
-    vector3_t position;
+    Vec3d position;
 
     if (stateTrajectory.size() > 1) {
         // Normal interpolation case
         int index;
-        scalar_t alpha;
+        ocs2::scalar_t alpha;
         std::tie(index, alpha) =
-            LinearInterpolation::timeSegment(time, timeTrajectory);
+            ocs2::LinearInterpolation::timeSegment(time, timeTrajectory);
 
         const auto& lhs = stateTrajectory[index];
         const auto& rhs = stateTrajectory[index + 1];
@@ -128,5 +124,4 @@ inline vector3_t interpolate_obstacle_position(
     return position;
 }
 
-}  // namespace mobile_manipulator
-}  // namespace ocs2
+}  // namespace upright
