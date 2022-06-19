@@ -5,7 +5,7 @@ import numpy as np
 from scipy.linalg import expm
 import yaml
 
-import tray_balance_constraints as core
+import upright_core as core
 
 import IPython
 

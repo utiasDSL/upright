@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-import tray_balance_constraints as core
+import upright_core as core
 from tray_balance_ocs2 import bindings
 from tray_balance_ocs2.trajectory import StateInputTrajectory
 

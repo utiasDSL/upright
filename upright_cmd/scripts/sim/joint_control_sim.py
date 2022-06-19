@@ -7,7 +7,7 @@ import pybullet as pyb
 
 from upright_sim import util, simulation
 
-import tray_balance_constraints as core
+import upright_core as core
 
 import IPython
 

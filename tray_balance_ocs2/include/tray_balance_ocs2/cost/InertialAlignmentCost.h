@@ -6,7 +6,7 @@
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
-#include <tray_balance_constraints/bounded.h>
+#include <upright_core/bounded.h>
 #include <tray_balance_ocs2/dynamics/Dimensions.h>
 #include <tray_balance_ocs2/types.h>
 

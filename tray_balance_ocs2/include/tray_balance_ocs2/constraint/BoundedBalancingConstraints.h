@@ -3,7 +3,7 @@
 #include <ocs2_core/constraint/StateInputConstraintCppAd.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 
-#include <tray_balance_constraints/bounded.h>
+#include <upright_core/bounded.h>
 
 #include <tray_balance_ocs2/constraint/ConstraintType.h>
 #include <tray_balance_ocs2/dynamics/Dimensions.h>

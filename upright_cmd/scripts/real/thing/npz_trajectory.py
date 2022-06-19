@@ -3,7 +3,7 @@ import rospy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 from upright_ros_interface import TrajectoryClient, UR10_JOINT_NAMES
-import tray_balance_constraints as core
+import upright_core as core
 import upright_cmd as cmd
 import tray_balance_ocs2 as ctrl
 

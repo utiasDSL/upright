@@ -3,8 +3,8 @@
 import rospy
 import numpy as np
 
-import tray_balance_constraints as core
-from tray_balance_constraints.logging import DataLogger, DataPlotter
+import upright_core as core
+from upright_core.logging import DataLogger, DataPlotter
 import upright_cmd as cmd
 from upright_ros_interface import ThingRobot
 

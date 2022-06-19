@@ -5,7 +5,7 @@ from geometry_msgs.msg import Twist
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from sensor_msgs.msg import JointState
 
-import tray_balance_constraints as core
+import upright_core as core
 
 
 # TODO not immediately useful

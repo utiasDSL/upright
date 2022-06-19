@@ -2,15 +2,15 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "tray_balance_constraints/bounded.h"
-#include "tray_balance_constraints/ellipsoid.h"
-#include "tray_balance_constraints/nominal.h"
-#include "tray_balance_constraints/support_area.h"
-#include "tray_balance_constraints/types.h"
+#include "upright_core/bounded.h"
+#include "upright_core/ellipsoid.h"
+#include "upright_core/nominal.h"
+#include "upright_core/support_area.h"
+#include "upright_core/types.h"
 
 // we include this directly here rather than from ellipsoid.h because other
 // compilation units complain about the C++14 features imported there
-#include "tray_balance_constraints/impl/bounding_ellipsoid.tpp"
+#include "upright_core/impl/bounding_ellipsoid.tpp"
 
 using namespace pybind11::literals;
 using namespace upright;

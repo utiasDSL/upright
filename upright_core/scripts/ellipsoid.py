@@ -2,7 +2,7 @@ import sys
 import numpy as np
 import scipy.linalg
 
-import tray_balance_constraints as con
+import upright_core as con
 
 import IPython
 

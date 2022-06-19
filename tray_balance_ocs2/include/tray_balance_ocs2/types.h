@@ -2,9 +2,9 @@
 
 #include <ocs2_core/Types.h>
 #include <ocs2_core/automatic_differentiation/Types.h>
-#include <tray_balance_constraints/types.h>
+#include <upright_core/types.h>
 
-// Specialize the template types from tray_balance_constraints with the scalars
+// Specialize the template types from upright_core with the scalars
 // from OCS2.
 
 namespace upright {

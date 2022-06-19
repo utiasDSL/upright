@@ -4,8 +4,8 @@
 
 #include <Eigen/Eigen>
 
-#include "tray_balance_constraints/types.h"
-#include "tray_balance_constraints/util.h"
+#include "upright_core/types.h"
+#include "upright_core/util.h"
 
 namespace upright {
 

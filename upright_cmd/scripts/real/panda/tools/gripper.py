@@ -3,7 +3,7 @@ import time
 
 from perls2.robots.real_panda_interface import RealPandaInterface
 
-import tray_balance_constraints as core
+import upright_core as core
 import upright_cmd as cmd
 
 

@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 
-import tray_balance_constraints as core
+import upright_core as core
 from tray_balance_ocs2 import bindings
 from tray_balance_ocs2.robot import PinocchioRobot
 from tray_balance_ocs2.wrappers import TargetTrajectories, ControllerSettings

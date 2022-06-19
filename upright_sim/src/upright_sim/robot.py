@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pybullet as pyb
 
-import tray_balance_constraints as core
+import upright_core as core
 
 import IPython
 

@@ -20,7 +20,7 @@ BoundedBalancingConstraints::BoundedBalancingConstraints(
     }
 
     // compile the CppAD library
-    initialize(dims.x, dims.u, 0, "bounded_tray_balance_constraints",
+    initialize(dims.x, dims.u, 0, "bounded_upright_core",
                "/tmp/ocs2", recompileLibraries, true);
 
     num_constraints_ = num_balancing_constraints(settings_.objects);

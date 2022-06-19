@@ -2,7 +2,7 @@
 """Generate and save a trajectory by rolling out the MPC."""
 import numpy as np
 
-import tray_balance_constraints as core
+import upright_core as core
 import tray_balance_ocs2 as ctrl
 import upright_cmd as cmd
 

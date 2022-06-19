@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-from tray_balance_constraints.util import Rate
+from upright_core.util import Rate
 
 import IPython
 

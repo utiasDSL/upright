@@ -1,7 +1,7 @@
 import numpy as np
 import pinocchio
 
-import tray_balance_constraints as core
+import upright_core as core
 from tray_balance_ocs2 import bindings
 
 

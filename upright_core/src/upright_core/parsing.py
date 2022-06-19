@@ -6,14 +6,14 @@ import rospkg
 import numpy as np
 import yaml
 
-from tray_balance_constraints.bindings import (
+from upright_core.bindings import (
     Ellipsoid,
     BoundedRigidBody,
     BoundedBalancedObject,
     PolygonSupportArea,
 )
-from tray_balance_constraints import math
-from tray_balance_constraints.composition import compose_bounded_objects
+from upright_core import math
+from upright_core.composition import compose_bounded_objects
 
 import IPython
 

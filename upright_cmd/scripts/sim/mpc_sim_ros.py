@@ -16,8 +16,8 @@ from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
 from upright_sim import simulation
-from tray_balance_constraints.logging import DataLogger, DataPlotter
-import tray_balance_constraints as core
+from upright_core.logging import DataLogger, DataPlotter
+import upright_core as core
 import tray_balance_ocs2 as ctrl
 import upright_cmd as cmd
 from upright_ros_interface.simulation import ROSSimulationInterface

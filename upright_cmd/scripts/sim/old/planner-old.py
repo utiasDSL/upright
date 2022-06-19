@@ -15,9 +15,9 @@ from pyb_utils.frame import debug_frame_world
 
 from upright_sim import util, camera, simulation
 
-from tray_balance_constraints.logging import DataLogger, DataPlotter
+from upright_core.logging import DataLogger, DataPlotter
 import upright_cmd as cmd
-import tray_balance_constraints as core
+import upright_core as core
 import tray_balance_ocs2 as ctrl
 
 import IPython

@@ -2,7 +2,7 @@
 import numpy as np
 import sys
 
-import tray_balance_constraints as core
+import upright_core as core
 import tray_balance_ocs2 as ctrl
 
 import IPython

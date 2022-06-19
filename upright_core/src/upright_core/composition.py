@@ -1,12 +1,12 @@
 import numpy as np
 from scipy.optimize import minimize
 
-from tray_balance_constraints.bindings import (
+from upright_core.bindings import (
     Ellipsoid,
     BoundedRigidBody,
     BoundedBalancedObject,
 )
-from tray_balance_constraints.math import skew3
+from upright_core.math import skew3
 
 import IPython
 

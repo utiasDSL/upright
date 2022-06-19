@@ -9,7 +9,7 @@
 #include <ocs2_core/cost/StateInputCostCppAd.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 
-#include <tray_balance_constraints/nominal.h>
+#include <upright_core/nominal.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {

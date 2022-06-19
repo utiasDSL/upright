@@ -2,9 +2,9 @@
 
 #include <Eigen/Eigen>
 
-#include "tray_balance_constraints/dynamics.h"
-#include "tray_balance_constraints/support_area.h"
-#include "tray_balance_constraints/types.h"
+#include "upright_core/dynamics.h"
+#include "upright_core/support_area.h"
+#include "upright_core/types.h"
 
 namespace upright {
 

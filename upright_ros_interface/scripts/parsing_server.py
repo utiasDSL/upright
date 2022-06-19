@@ -5,7 +5,7 @@ from ros_numpy.registry import converts_from_numpy
 import numpy as np
 
 import tray_balance_ocs2 as ctrl
-import tray_balance_constraints as core
+import upright_core as core
 
 import upright_ros_interface.srv
 from upright_msgs.msg import FloatArray, BoundedBalancedObject

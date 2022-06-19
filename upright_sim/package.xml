@@ -9,7 +9,7 @@
   <license>MIT</license>
 
   <depend>rospy</depend>
-  <depend>tray_balance_constraints</depend>
+  <depend>upright_core</depend>
 
   <!-- The *depend tags are used to specify dependencies -->
   <!-- Dependencies can be catkin packages or system dependencies -->

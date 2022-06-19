@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>tray_balance_constraints</name>
+  <name>upright_core</name>
   <version>0.0.0</version>
     <description>
       Implementation of the balancing constraints in C++ with bindings to Python for use in other packages (like controllers).

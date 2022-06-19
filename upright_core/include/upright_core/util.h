@@ -2,7 +2,7 @@
 
 #include <Eigen/Eigen>
 
-#include "tray_balance_constraints/types.h"
+#include "upright_core/types.h"
 
 namespace upright {
 

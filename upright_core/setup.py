@@ -5,7 +5,7 @@
 from distutils.core import setup
 from catkin_pkg.python_setup import generate_distutils_setup
 
-setup_args = generate_distutils_setup(packages=['tray_balance_constraints'],
+setup_args = generate_distutils_setup(packages=['upright_core'],
                                       package_dir={'': 'src'})
 
 setup(**setup_args)

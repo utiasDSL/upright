@@ -5,8 +5,8 @@ from pathlib import Path
 
 from perls2.robots.real_panda_interface import RealPandaInterface
 
-import tray_balance_constraints as core
-from tray_balance_constraints.logging import DataLogger, DataPlotter
+import upright_core as core
+from upright_core.logging import DataLogger, DataPlotter
 import upright_cmd as cmd
 
 import IPython

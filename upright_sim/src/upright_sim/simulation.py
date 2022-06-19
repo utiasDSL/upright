@@ -5,7 +5,7 @@ import pybullet as pyb
 import pybullet_data
 from pyb_utils.frame import debug_frame_world
 
-from tray_balance_constraints import parsing, math
+from upright_core import parsing, math
 from upright_sim.robot import SimulatedRobot
 from upright_sim.camera import VideoManager
 

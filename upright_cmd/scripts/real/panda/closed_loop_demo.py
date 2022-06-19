@@ -14,8 +14,8 @@ import matplotlib.pyplot as plt
 
 from upright_sim import util, camera, simulation
 
-from tray_balance_constraints.logging import DataLogger, DataPlotter
-import tray_balance_constraints as core
+from upright_core.logging import DataLogger, DataPlotter
+import upright_core as core
 import tray_balance_ocs2 as ctrl
 
 import IPython

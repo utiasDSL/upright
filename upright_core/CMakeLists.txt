@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(tray_balance_constraints)
+project(upright_core)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++14)

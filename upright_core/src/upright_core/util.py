@@ -1,7 +1,7 @@
 import time
 
 import numpy as np
-from tray_balance_constraints.math import quat_to_rot
+from upright_core.math import quat_to_rot
 
 
 def support_area_distance(ctrl_object, Q_we):
