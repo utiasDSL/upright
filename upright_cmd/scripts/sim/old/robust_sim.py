@@ -21,7 +21,7 @@ from upright_sim.recording import Recorder, VideoRecorder
 import IPython
 
 # hook into the bindings from the OCS2-based controller
-import tray_balance_ocs2.MobileManipulatorPythonInterface as ocs2
+import upright_control.MobileManipulatorPythonInterface as ocs2
 
 
 @enum.unique

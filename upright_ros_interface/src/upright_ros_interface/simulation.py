@@ -2,7 +2,7 @@ from threading import Lock
 
 import rospy
 import numpy as np
-import tray_balance_ocs2 as ctrl
+import upright_control as ctrl
 
 from trajectory_msgs.msg import JointTrajectory
 from ocs2_msgs.msg import (

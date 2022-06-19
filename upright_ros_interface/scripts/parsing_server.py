@@ -4,7 +4,7 @@ import ros_numpy
 from ros_numpy.registry import converts_from_numpy
 import numpy as np
 
-import tray_balance_ocs2 as ctrl
+import upright_control as ctrl
 import upright_core as core
 
 import upright_ros_interface.srv

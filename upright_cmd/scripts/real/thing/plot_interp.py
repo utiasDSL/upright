@@ -3,7 +3,7 @@ import sys
 import rosbag
 import matplotlib.pyplot as plt
 
-import tray_balance_ocs2 as ctrl
+import upright_control as ctrl
 
 import IPython
 

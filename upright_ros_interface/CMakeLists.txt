@@ -7,7 +7,7 @@ add_compile_options(-std=c++14)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  tray_balance_ocs2
+  upright_control
   message_generation
   std_msgs
   geometry_msgs

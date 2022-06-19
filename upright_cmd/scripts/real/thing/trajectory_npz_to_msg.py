@@ -1,7 +1,7 @@
 import rospy
 import upright_core as core
 import upright_cmd as cmd
-import tray_balance_ocs2 as ctrl
+import upright_control as ctrl
 
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 

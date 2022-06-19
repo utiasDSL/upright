@@ -9,7 +9,7 @@
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>upright_msgs</depend>
-  <depend>tray_balance_ocs2</depend>
+  <depend>upright_control</depend>
   <depend>controller_manager</depend>
   <depend>hardware_interface</depend>
   <buildtool_depend>catkin</buildtool_depend>

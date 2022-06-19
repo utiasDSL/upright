@@ -45,7 +45,7 @@ dynamic_obstacles:
   enabled: false
 
 infofile:
-  package: "tray_balance_ocs2"
+  package: "upright_control"
   path: "config/mpc/task.info"
 
 # TODO: ideally would be able to extend other objects for easy experimentation

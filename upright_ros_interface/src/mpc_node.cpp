@@ -42,10 +42,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_ros_interfaces/mpc/MPC_ROS_Interface.h>
 #include <ocs2_ros_interfaces/synchronized_module/RosReferenceManager.h>
 
-#include <tray_balance_ocs2/ControllerSettings.h>
-#include <tray_balance_ocs2/MobileManipulatorInterface.h>
-#include <tray_balance_ocs2/dynamics/Dimensions.h>
-#include <tray_balance_ocs2/types.h>
+#include <upright_control/ControllerSettings.h>
+#include <upright_control/MobileManipulatorInterface.h>
+#include <upright_control/dynamics/Dimensions.h>
+#include <upright_control/types.h>
 #include <upright_msgs/FloatArray.h>
 
 #include <upright_ros_interface/ParseControlSettings.h>

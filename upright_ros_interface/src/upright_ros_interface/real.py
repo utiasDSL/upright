@@ -1,6 +1,6 @@
 import rospy
 import numpy as np
-import tray_balance_ocs2 as ctrl
+import upright_control as ctrl
 from upright_ros_interface import TrajectoryClient, UR10_JOINT_NAMES
 
 from trajectory_msgs.msg import JointTrajectory

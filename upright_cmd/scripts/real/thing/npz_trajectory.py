@@ -5,7 +5,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from upright_ros_interface import TrajectoryClient, UR10_JOINT_NAMES
 import upright_core as core
 import upright_cmd as cmd
-import tray_balance_ocs2 as ctrl
+import upright_control as ctrl
 
 
 if __name__ == "__main__":

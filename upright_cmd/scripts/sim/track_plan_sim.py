@@ -10,7 +10,7 @@ from pyb_utils.frame import debug_frame_world
 from upright_sim import simulation
 from upright_core.logging import DataLogger, DataPlotter
 import upright_core as core
-import tray_balance_ocs2 as ctrl
+import upright_control as ctrl
 import upright_cmd as cmd
 
 import IPython

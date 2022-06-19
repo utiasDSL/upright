@@ -11,9 +11,9 @@ natively.
 * `docker/`: Dockerfile and utility scripts to install and run things under ROS
   Noetic on Ubuntu 20.04.
 * `upright_assets/`: URDF and mesh files.
-* `tray_balance_constraints/`: Core API for computing motion constraints required to
+* `upright_core/`: Core API for computing motion constraints required to
   balance objects. To be renamed to `upright_core`.
-* `tray_balance_ocs2/`: Model predictive controller using the
+* `upright_control/`: Model predictive controller using the
   [OCS2](https://github.com/leggedrobotics/ocs2) framework. To be renamed to
   `upright_ctrl`.
 * `upright_cmd`: Configuration and command scripts. Simulations and experiments
@@ -38,6 +38,8 @@ cd upright_assets/thing
 
 ## Simulation
 
+Simulation scripts are in `upright_cmd/scripts/sim`.
+
 ## Hardware
 
 ### UR10
@@ -53,6 +55,11 @@ roslaunch upright_ros_interface ur10.launch
 ```
 Finally, start the program on the Polyscope interface. The driver should print
 that it has connected to the robot. The robot is now ready to accept commands.
+
+Start the MPC node:
+```
+roslaunch upright_ros_interface mpc.launch
+```
 
 ### Robotiq Gripper
 ```bash
