@@ -2,7 +2,7 @@
 
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 
-#include <upright_control/dynamics/Dimensions.h>
+#include <upright_control/dynamics/dimensions.h>
 #include <upright_control/util.h>
 
 namespace upright {

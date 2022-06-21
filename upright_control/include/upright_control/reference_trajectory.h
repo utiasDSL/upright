@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_core/misc/LinearInterpolation.h>
 #include <ocs2_core/reference/TargetTrajectories.h>
+
 #include <upright_control/types.h>
 
 namespace upright {

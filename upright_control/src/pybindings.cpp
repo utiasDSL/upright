@@ -8,18 +8,17 @@
 #include <ocs2_core/control/LinearController.h>
 #include <ocs2_python_interface/PybindMacros.h>
 
-#include "upright_control/ControllerSettings.h"
-#include "upright_control/controller_python_interface.h"
-#include "upright_control/constraint/BoundedBalancingConstraints.h"
-#include "upright_control/constraint/CollisionAvoidanceConstraint.h"
-#include "upright_control/constraint/ConstraintType.h"
-#include "upright_control/constraint/ObstacleConstraint.h"
-#include "upright_control/dynamics/BaseType.h"
-#include "upright_control/dynamics/Dimensions.h"
-#include "upright_control/dynamics/FixedBasePinocchioMapping.h"
-#include "upright_control/dynamics/MobileManipulatorPinocchioMapping.h"
-
-#include "upright_control/constraint/BalancingConstraintWrapper.h"
+#include <upright_control/controller_settings.h>
+#include <upright_control/controller_python_interface.h>
+#include <upright_control/constraint/bounded_balancing_constraints.h>
+#include <upright_control/constraint/collision_avoidance_constraint.h>
+#include <upright_control/constraint/constraint_type.h>
+#include <upright_control/constraint/obstacle_constraint.h>
+#include <upright_control/dynamics/base_type.h>
+#include <upright_control/dynamics/dimensions.h>
+#include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
+#include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
+#include <upright_control/constraint/balancing_constraint_wrapper.h>
 
 using namespace upright;
 using namespace ocs2;  // TODO

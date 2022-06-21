@@ -4,9 +4,8 @@
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 
 #include <upright_core/bounded.h>
-
-#include <upright_control/constraint/ConstraintType.h>
-#include <upright_control/dynamics/Dimensions.h>
+#include <upright_control/constraint/constraint_type.h>
+#include <upright_control/dynamics/dimensions.h>
 #include <upright_control/types.h>
 
 namespace upright {

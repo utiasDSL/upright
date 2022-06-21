@@ -30,7 +30,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <ocs2_core/constraint/StateInputConstraint.h>
-#include <upright_control/dynamics/Dimensions.h>
+
+#include <upright_control/dynamics/dimensions.h>
+#include <upright_control/types.h>
 
 namespace upright {
 

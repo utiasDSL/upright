@@ -6,7 +6,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <ros/ros.h>
 
-#include <upright_control/ControllerSettings.h>
+#include <upright_control/controller_settings.h>
 #include <upright_control/types.h>
 #include <upright_msgs/FloatArray.h>
 #include <upright_ros_interface/ParseControlSettings.h>

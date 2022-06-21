@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 
+#include <pinocchio/parsers/urdf.hpp>
+
 #include <ocs2_core/Types.h>
 #include <ocs2_core/initialization/Initializer.h>
 #include <ocs2_mpc/MPC_BASE.h>
@@ -39,14 +41,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_robotic_tools/common/RobotInterface.h>
 #include <ocs2_sqp/MultipleShootingSettings.h>
-
-#include <pinocchio/parsers/urdf.hpp>
-
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
-#include <upright_control/ControllerSettings.h>
-#include <upright_control/constraint/CollisionAvoidanceConstraint.h>
-#include <upright_control/constraint/ObstacleConstraint.h>
+
+#include <upright_control/controller_settings.h>
+#include <upright_control/constraint/collision_avoidance_constraint.h>
+#include <upright_control/constraint/obstacle_constraint.h>
 
 namespace upright {
 

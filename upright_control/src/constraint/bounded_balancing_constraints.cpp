@@ -1,6 +1,6 @@
 #include <upright_control/types.h>
 
-#include "upright_control/constraint/BoundedBalancingConstraints.h"
+#include "upright_control/constraint/bounded_balancing_constraints.h"
 
 namespace upright {
 

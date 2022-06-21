@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <ocs2_self_collision/SelfCollisionConstraint.h>
+
 #include <upright_control/types.h>
 
 namespace upright {

@@ -4,12 +4,12 @@
 
 #include <ocs2_core/reference/TargetTrajectories.h>
 
-#include <upright_control/cost/InertialAlignmentCost.h>
-#include <upright_control/dynamics/BaseType.h>
-#include <upright_control/dynamics/Dimensions.h>
-#include "upright_control/constraint/BoundedBalancingConstraints.h"
-#include "upright_control/constraint/CollisionAvoidanceConstraint.h"
-#include "upright_control/constraint/ObstacleConstraint.h"
+#include <upright_control/cost/inertial_alignment_cost.h>
+#include <upright_control/dynamics/base_type.h>
+#include <upright_control/dynamics/dimensions.h>
+#include "upright_control/constraint/bounded_balancing_constraints.h"
+#include "upright_control/constraint/collision_avoidance_constraint.h"
+#include "upright_control/constraint/obstacle_constraint.h"
 
 namespace upright {
 

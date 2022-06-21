@@ -55,22 +55,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_sqp/MultipleShootingMpc.h>
 #include <ocs2_sqp/MultipleShootingSettings.h>
 
-#include <upright_control/controller_interface.h>
-#include <upright_control/constraint/JointStateInputLimits.h>
-#include <upright_control/constraint/ObstacleConstraint.h>
-#include <upright_control/cost/EndEffectorCost.h>
-#include <upright_control/cost/InertialAlignmentCost.h>
-#include <upright_control/cost/QuadraticJointStateInputCost.h>
-#include <upright_control/dynamics/BaseType.h>
-#include <upright_control/dynamics/FixedBaseDynamics.h>
-#include <upright_control/dynamics/FixedBasePinocchioMapping.h>
-#include <upright_control/dynamics/MobileManipulatorDynamics.h>
-#include <upright_control/dynamics/MobileManipulatorPinocchioMapping.h>
+#include <upright_control/constraint/joint_state_input_limits.h>
+#include <upright_control/constraint/obstacle_constraint.h>
+#include <upright_control/cost/end_effector_cost.h>
+#include <upright_control/cost/inertial_alignment_cost.h>
+#include <upright_control/cost/quadratic_joint_state_input_cost.h>
+#include <upright_control/dynamics/base_type.h>
+#include <upright_control/dynamics/fixed_base_dynamics.h>
+#include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
+#include <upright_control/dynamics/mobile_manipulator_dynamics.h>
+#include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
 #include <upright_control/util.h>
+#include <upright_control/constraint/bounded_balancing_constraints.h>
 
-#include <upright_control/constraint/BoundedBalancingConstraints.h>
-
-#include <ros/package.h>
+#include "upright_control/controller_interface.h"
 
 namespace upright {
 

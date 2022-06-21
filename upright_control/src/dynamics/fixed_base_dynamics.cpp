@@ -1,8 +1,8 @@
-#include <upright_control/dynamics/Dimensions.h>
+#include <upright_control/dynamics/dimensions.h>
 #include <upright_control/types.h>
 #include <upright_control/util.h>
 
-#include "upright_control/dynamics/FixedBaseDynamics.h"
+#include "upright_control/dynamics/fixed_base_dynamics.h"
 
 namespace upright {
 

@@ -86,10 +86,10 @@ link_directories(
 
 # mobile maniulator interface library
 add_library(${PROJECT_NAME}
-  src/dynamics/MobileManipulatorDynamics.cpp
-  src/dynamics/FixedBaseDynamics.cpp
+  src/dynamics/mobile_manipulator_dynamics.cpp
+  src/dynamics/fixed_base_dynamics.cpp
   src/controller_interface.cpp
-  src/constraint/BoundedBalancingConstraints.cpp
+  src/constraint/bounded_balancing_constraints.cpp
 )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
@@ -138,19 +138,4 @@ install(DIRECTORY config launch
 install(TARGETS bindings
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
-)
-
-############
-# Testing ##
-############
-
-catkin_add_gtest(SelfCollisionTests
-  test/testSelfCollision.cpp
-  test/testEndEffectorConstraint.cpp
-)
-target_link_libraries(SelfCollisionTests
-  gtest_main
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
 )

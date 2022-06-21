@@ -1,14 +1,16 @@
 #pragma once
 
+#include <pinocchio/multibody/model.hpp>
+
 #include <ocs2_core/PreComputation.h>
 #include <ocs2_core/Types.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_pinocchio_interface/urdf.h>
-#include <upright_control/constraint/BoundedBalancingConstraints.h>
-#include <upright_control/dynamics/FixedBasePinocchioMapping.h>
-#include <upright_control/dynamics/MobileManipulatorPinocchioMapping.h>
+
+#include <upright_control/constraint/bounded_balancing_constraints.h>
+#include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
+#include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
 #include <upright_control/util.h>
-#include <pinocchio/multibody/model.hpp>
 
 namespace upright {
 

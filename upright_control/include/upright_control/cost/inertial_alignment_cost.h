@@ -7,7 +7,7 @@
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
 #include <upright_core/bounded.h>
-#include <upright_control/dynamics/Dimensions.h>
+#include <upright_control/dynamics/dimensions.h>
 #include <upright_control/types.h>
 
 namespace upright {

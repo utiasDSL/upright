@@ -2,7 +2,7 @@
 
 #include <ocs2_core/dynamics/SystemDynamicsBaseAD.h>
 
-#include <upright_control/dynamics/Dimensions.h>
+#include <upright_control/dynamics/dimensions.h>
 #include <upright_control/types.h>
 
 namespace upright {

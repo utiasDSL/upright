@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
-#include <upright_control/MobileManipulatorReferenceTrajectory.h>
+#include <upright_control/reference_trajectory.h>
 #include <upright_control/types.h>
 
 namespace upright {

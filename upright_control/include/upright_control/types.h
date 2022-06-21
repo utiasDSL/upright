@@ -2,6 +2,7 @@
 
 #include <ocs2_core/Types.h>
 #include <ocs2_core/automatic_differentiation/Types.h>
+
 #include <upright_core/types.h>
 
 // Specialize the template types from upright_core with the scalars

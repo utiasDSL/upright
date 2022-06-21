@@ -3,7 +3,7 @@
 #include <ocs2_python_interface/PythonInterface.h>
 
 #include <upright_control/controller_interface.h>
-#include <upright_control/ControllerSettings.h>
+#include <upright_control/controller_settings.h>
 
 namespace upright {
 
