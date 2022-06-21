@@ -23,6 +23,7 @@ class RobotInterface {
         q = q0;
         v = v0;
 
+        // TODO avoid fixed names
         feedback_sub_ = nh.subscribe("/ur10_joint_states", 1,
                                      &RobotInterface::feedback_cb, this);
 
@@ -124,7 +125,7 @@ int main(int argc, char** argv) {
 
     std::cout << "Received first policy." << std::endl;
 
-
+    // TODO: make a parameter
     MatXd Kp = MatXd::Identity(settings.dims.q, settings.dims.q);
 
     VecXd x = x0;

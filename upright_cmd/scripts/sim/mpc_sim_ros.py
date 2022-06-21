@@ -62,9 +62,6 @@ def main():
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
-    mapping = ctrl.trajectory.StateInputMapping(model.settings.dims)
-    Kp = np.eye(model.settings.dims.q)
-    interpolator = ctrl.trajectory.TrajectoryInterpolator(mapping, None)
 
     # reference pose trajectory
     model.update(x=model.settings.initial_state)
@@ -76,30 +73,23 @@ def main():
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
     # setup the ROS interface
-    ros_interface = ROSSimulationInterface("mobile_manipulator", interpolator)
-    ros_interface.reset_mpc(ref)
-    ros_interface.publish_observation(t, x, u)
+    ros_interface = ROSSimulationInterface("mobile_manipulator")
+    # ros_interface.publish_time(t)
 
-    # wait for an initial policy to be computed
     rate = rospy.Rate(1.0 / sim.timestep)
-    # rate = rospy.Rate(10)
-    while (
-        ros_interface.policy is None or ros_interface.trajectory is None
-    ) and not rospy.is_shutdown():
+
+    # wait until a command has been received
+    print("Waiting for a command to be received...")
+    while not ros_interface.ready():
         rate.sleep()
+
+    print("Command received. Executing...")
 
     # simulation loop
     while t <= sim.duration:
         q, v = sim.robot.joint_states(add_noise=True)
-        x = np.concatenate((q, v, a))
-        ros_interface.publish_observation(t, x, u)
-
-        with ros_interface.trajectory_lock:
-            xd = interpolator.interpolate(t)
-            qd, vd, a = mapping.xu2qva(xd)
-
-        v_cmd = Kp @ (qd - q) + vd
-        sim.robot.command_velocity(v_cmd)
+        ros_interface.publish_feedback(t, q, v)
+        sim.robot.command_velocity(ros_interface.cmd_vel)
 
         if logger.ready(t):
             # log sim stuff
@@ -129,6 +119,7 @@ def main():
             logger.append("orn_err", model.angle_between_acc_and_normal())
 
         t = sim.step(t, step_robot=False)
+        # ros_interface.publish_time(t)
 
     # TODO can I get control durations somehow?
     # - could log frequency of message updates, though this would incur some
