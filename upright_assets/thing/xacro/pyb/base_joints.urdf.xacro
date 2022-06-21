@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PyBullet doesn't have a convenient way of adding on planar base joint like Pinocchio does, so we do it manually via the URDF here. -->
+<robot name="base_joints" xmlns:xacro="http://wiki.ros.org/xacro">
+  <link name="world_link">
+    <inertial>
+      <mass value="0"/>
+      <inertia ixx="0.2125" ixy="-0.005" ixz="0.0225" iyy="0.205" iyz="0.045" izz="0.0125"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </inertial>
+  </link>
+
+	<link name="x_prismatic_link">
+	 <inertial>
+     <mass value="0.01"/>
+     <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+     <origin rpy="0 0 0" xyz="0 0 0"/>
+    </inertial>
+  </link>
+
+	<joint name="x_to_world_joint" type="prismatic">
+    <parent link="world_link"/>
+    <child link="x_prismatic_link"/>
+    <axis xyz="1 0 0"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <limit effort="0.0" velocity="1000.0"/>
+  </joint>
+
+	<link name="y_prismatic_link">
+	 <inertial>
+     <mass value="0.01"/>
+     <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+     <origin rpy="0 0 0" xyz="0 0 0"/>
+    </inertial>
+  </link>
+
+	<joint name="y_to_x_joint" type="prismatic">
+    <parent link="x_prismatic_link"/>
+    <child link="y_prismatic_link"/>
+    <axis xyz="0 1 0"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <limit effort="0.0" velocity="1000.0"/>
+  </joint>
+
+  <!-- Note the z-offset to raise the base off the ground, to avoid collision issues. Without this, there are vibrations and other artifacts from resolving the ground collision that result in significant error in the balanced object. -->
+	<joint name="base_to_y_joint" type="continuous">
+    <parent link="y_prismatic_link"/>
+    <child link="base_link"/>
+    <axis xyz="0 0 1"/>
+    <origin rpy="0 0 0" xyz="0 0 0.01"/>
+  </joint>
+</robot>

@@ -1,5 +1,6 @@
 <?xml version="1.0" ?>
-<robot name="mm_pyb_tray" xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <xacro:include filename="mm_pyb.urdf.xacro" />
+<robot name="mm_pyb_fingers" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="base_joints.urdf.xacro" />
+  <xacro:include filename="../mm.urdf.xacro" />
   <xacro:include filename="../end_effector_fingers.urdf.xacro" />
 </robot>
