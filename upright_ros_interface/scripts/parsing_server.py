@@ -7,6 +7,7 @@ import numpy as np
 import upright_control as ctrl
 import upright_core as core
 
+from ocs2_msgs.msg import mpc_state, mpc_input
 import upright_ros_interface.srv
 from upright_msgs.msg import FloatArray, BoundedBalancedObject
 from geometry_msgs.msg import Vector3
@@ -117,7 +118,7 @@ def control_settings_to_response(settings):
 
 
 def parse_control_settings_cb(req):
-    print("Received request.")
+    print("Received control settings request.")
 
     # parse the config file
     config = core.parsing.load_config(req.config_path)["controller"]
@@ -126,15 +127,50 @@ def parse_control_settings_cb(req):
     return control_settings_to_response(settings)
 
 
+def parse_target_trajectory_cb(req):
+    print("Received target trajectory request.")
+
+    config = core.parsing.load_config(req.config_path)["controller"]
+    model = ctrl.manager.ControllerModel.from_config(config)
+
+    model.update(model.settings.initial_state)
+    r_ew_w, Q_we = model.robot.link_pose()
+    u = np.zeros(model.robot.dims.u)
+    reference = ctrl.wrappers.TargetTrajectories.from_config(config, r_ew_w, Q_we, u)
+
+    # IPython.embed()
+
+    resp = upright_ros_interface.srv.ParseTargetTrajectoryResponse()
+    for i in range(len(reference.ts)):
+        state = mpc_state()
+        state.value = reference.xs[i]
+
+        input_ = mpc_input()
+        input_.value = reference.us[i]
+
+        resp.target_trajectory.timeTrajectory.append(reference.ts[i])
+        resp.target_trajectory.stateTrajectory.append(state)
+        resp.target_trajectory.inputTrajectory.append(input_)
+    return resp
+
+
 def main():
     rospy.init_node("parsing_server")
-    service = rospy.Service(
+
+    control_parsing_service = rospy.Service(
         "parse_control_settings",
         upright_ros_interface.srv.ParseControlSettings,
         parse_control_settings_cb,
     )
-    print("Spinning service.")
-    service.spin()
+
+    target_parsing_service = rospy.Service(
+        "parse_target_trajectory",
+        upright_ros_interface.srv.ParseTargetTrajectory,
+        parse_target_trajectory_cb,
+    )
+
+    print("Spinning server.")
+    rospy.spin()
 
 
 if __name__ == "__main__":

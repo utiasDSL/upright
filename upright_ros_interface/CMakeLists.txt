@@ -62,6 +62,7 @@ catkin_python_setup()
 add_service_files(
   FILES
   ParseControlSettings.srv
+  ParseTargetTrajectory.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -77,6 +78,7 @@ generate_messages(
   std_msgs
   geometry_msgs
   upright_msgs
+  ocs2_msgs
 )
 
 ################################################
@@ -144,6 +146,11 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(mpc_node src/mpc_node.cpp)
 target_link_libraries(mpc_node
+  ${catkin_LIBRARIES}
+)
+
+add_executable(mrt_node src/mrt_node.cpp)
+target_link_libraries(mrt_node
   ${catkin_LIBRARIES}
 )
 

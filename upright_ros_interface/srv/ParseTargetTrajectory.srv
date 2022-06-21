@@ -1,0 +1,3 @@
+string config_path  # path to yaml file
+---
+ocs2_msgs/mpc_target_trajectories target_trajectory
