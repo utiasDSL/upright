@@ -30,7 +30,7 @@ controller:
   waypoints:
     -
       time: 0
-      position: [0, 0, 0]
+      position: [0, 0.5, 0]
       orientation: [0, 0, 0, 1]
 
   operating_points:

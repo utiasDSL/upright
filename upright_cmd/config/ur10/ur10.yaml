@@ -21,7 +21,7 @@ simulation:
       - "ur10_arm_wrist_1_joint"
       - "ur10_arm_wrist_2_joint"
       - "ur10_arm_wrist_3_joint"
-    tool_joint_name: "tool0_tcp_fixed_joint"
+    tool_joint_name: "gripper_tool_joint"
     base_type: fixed
     urdf:
       package: "upright_assets"

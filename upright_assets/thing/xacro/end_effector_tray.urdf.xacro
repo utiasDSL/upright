@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <robot name="end_effector_tray">
-  <joint name="tool0_tcp_fixed_joint" type="fixed">
+  <joint name="gripper_tool_joint" type="fixed">
     <origin rpy="0 -1.5708 3.14159" xyz="0.0 0.0 0.25"/>
-    <parent link="ur10_arm_tool0"/>
+    <parent link="gripper"/>
     <child link="thing_tool"/>
   </joint>
 
