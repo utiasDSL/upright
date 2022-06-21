@@ -11,6 +11,7 @@ import IPython
 
 class TargetTrajectories(bindings.TargetTrajectories):
     """Wrapper around bound TargetTrajectories."""
+
     def __init__(self, ts, xs, us):
         ts_ocs2 = bindings.scalar_array()
         xs_ocs2 = bindings.vector_array()
@@ -58,7 +59,10 @@ class ControllerSettings(bindings.ControllerSettings):
     def __init__(self, config, x0=None, operating_trajectory=None):
         super().__init__()
 
-        self.method = bindings.ControllerSettings.Method.DDP
+        # can be either DDP or SQP
+        self.solver_method = bindings.ControllerSettings.solver_method_from_string(
+            config["solver_method"].lower()
+        )
 
         self.end_effector_link_name = config["robot"]["tool_link_name"]
         self.robot_base_type = bindings.robot_base_type_from_string(
@@ -77,9 +81,7 @@ class ControllerSettings(bindings.ControllerSettings):
         # initial state can be passed in directly (for example to match exactly
         # a simulation) or parsed from the config
         if x0 is None:
-            self.initial_state = core.parsing.parse_array(
-                config["robot"]["x0"]
-            )
+            self.initial_state = core.parsing.parse_array(config["robot"]["x0"])
         else:
             self.initial_state = x0
         assert self.initial_state.shape == (self.dims.x,)
@@ -119,9 +121,7 @@ class ControllerSettings(bindings.ControllerSettings):
         assert self.state_limit_upper.shape == (self.dims.x,)
 
         # URDFs
-        self.robot_urdf_path = core.parsing.parse_ros_path(
-            config["robot"]["urdf"]
-        )
+        self.robot_urdf_path = core.parsing.parse_ros_path(config["robot"]["urdf"])
         self.obstacle_urdf_path = core.parsing.parse_ros_path(
             config["static_obstacles"]["urdf"]
         )
@@ -152,22 +152,22 @@ class ControllerSettings(bindings.ControllerSettings):
         ctrl_objects = core.parsing.parse_control_objects(config)
         self.tray_balance_settings.objects = ctrl_objects
 
-        self.tray_balance_settings.constraints_enabled.normal = config[
-            "balancing"
-        ]["enable_normal_constraint"]
-        self.tray_balance_settings.constraints_enabled.friction = config[
-            "balancing"
-        ]["enable_friction_constraint"]
-        self.tray_balance_settings.constraints_enabled.zmp = config[
-            "balancing"
-        ]["enable_zmp_constraint"]
+        self.tray_balance_settings.constraints_enabled.normal = config["balancing"][
+            "enable_normal_constraint"
+        ]
+        self.tray_balance_settings.constraints_enabled.friction = config["balancing"][
+            "enable_friction_constraint"
+        ]
+        self.tray_balance_settings.constraints_enabled.zmp = config["balancing"][
+            "enable_zmp_constraint"
+        ]
 
         # alternative inertial alignment objective
         # tries to keep tray/EE normal aligned with the negative acceleration
         # vector
-        self.inertial_alignment_settings.enabled = config[
-            "inertial_alignment"
-        ]["enabled"]
+        self.inertial_alignment_settings.enabled = config["inertial_alignment"][
+            "enabled"
+        ]
         if self.inertial_alignment_settings.enabled:
             self.inertial_alignment_settings.use_angular_acceleration = config[
                 "inertial_alignment"

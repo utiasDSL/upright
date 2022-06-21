@@ -130,7 +130,7 @@ void MobileManipulatorInterface::loadSettings() {
     /*
      * Model settings
      */
-    bool usePreComputation = true;
+    bool usePreComputation = false;
     bool recompileLibraries = true;
     std::cerr << "\n #### Model Settings:";
     std::cerr << "\n #### "
@@ -283,7 +283,7 @@ void MobileManipulatorInterface::loadSettings() {
 }
 
 std::unique_ptr<ocs2::MPC_BASE> MobileManipulatorInterface::getMpc() {
-    if (settings_.method == ControllerSettings::Method::DDP) {
+    if (settings_.solver_method == ControllerSettings::SolverMethod::DDP) {
         return std::unique_ptr<ocs2::MPC_BASE>(
             new ocs2::MPC_DDP(mpcSettings_, ddpSettings_, *rolloutPtr_,
                               problem_, *initializerPtr_));

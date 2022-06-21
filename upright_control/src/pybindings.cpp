@@ -151,7 +151,7 @@ PYBIND11_MODULE(bindings, m) {
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("gravity", &ControllerSettings::gravity)
-        .def_readwrite("method", &ControllerSettings::method)
+        .def_readwrite("solver_method", &ControllerSettings::solver_method)
         .def_readwrite("dynamic_obstacle_settings",
                        &ControllerSettings::dynamic_obstacle_settings)
         .def_readwrite("collision_avoidance_settings",
@@ -195,11 +195,13 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("operating_inputs",
                        &ControllerSettings::operating_inputs)
         .def_readwrite("inertial_alignment_settings",
-                       &ControllerSettings::inertial_alignment_settings);
+                       &ControllerSettings::inertial_alignment_settings)
+        .def("solver_method_from_string",
+             &ControllerSettings::solver_method_from_string);
 
-    pybind11::enum_<ControllerSettings::Method>(ctrl_settings, "Method")
-        .value("DDP", ControllerSettings::Method::DDP)
-        .value("SQP", ControllerSettings::Method::SQP);
+    pybind11::enum_<ControllerSettings::SolverMethod>(ctrl_settings, "SolverMethod")
+        .value("DDP", ControllerSettings::SolverMethod::DDP)
+        .value("SQP", ControllerSettings::SolverMethod::SQP);
 
     /* bind approximation classes */
     pybind11::class_<ocs2::VectorFunctionLinearApproximation>(

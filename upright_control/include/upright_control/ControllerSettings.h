@@ -16,12 +16,12 @@ namespace upright {
 struct ControllerSettings {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    enum class Method {
+    enum class SolverMethod {
         DDP,
         SQP,
     };
 
-    Method method = Method::DDP;
+    SolverMethod solver_method = SolverMethod::DDP;
     VecXd initial_state;
     Vec3d gravity;
 
@@ -68,7 +68,17 @@ struct ControllerSettings {
     InertialAlignmentSettings inertial_alignment_settings;
     DynamicObstacleSettings dynamic_obstacle_settings;
     CollisionAvoidanceSettings collision_avoidance_settings;
+
+    static ControllerSettings::SolverMethod solver_method_from_string(const std::string& s) {
+        if (s == "ddp") {
+            return ControllerSettings::SolverMethod::DDP;
+        } else if (s == "sqp") {
+            return ControllerSettings::SolverMethod::SQP;
+        }
+        throw std::runtime_error("Cannot parse SolverMethod from string.");
+    }
 };
+
 
 std::ostream& operator<<(std::ostream& out,
                          const ControllerSettings& settings) {
