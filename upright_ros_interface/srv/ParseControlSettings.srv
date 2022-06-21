@@ -23,6 +23,9 @@ float64[] state_limit_upper
 float64 state_limit_mu
 float64 state_limit_delta
 
+# tracking gain
+upright_msgs/FloatArray Kp
+
 # operating trajectory
 bool use_operating_points
 # ocs2_msgs/mpc_target_trajectories operating_trajectory

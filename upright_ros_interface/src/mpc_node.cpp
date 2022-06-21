@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_ros_interfaces/synchronized_module/RosReferenceManager.h>
 
 #include <upright_control/ControllerSettings.h>
-#include <upright_control/MobileManipulatorInterface.h>
+#include <upright_control/controller_interface.h>
 #include <upright_control/dynamics/Dimensions.h>
 #include <upright_control/types.h>
 #include <upright_msgs/FloatArray.h>
@@ -263,7 +263,7 @@ int main(int argc, char** argv) {
     // Robot interface
     ControllerSettings settings = parse_control_settings(settings_srv.response);
     std::cout << settings << std::endl;
-    MobileManipulatorInterface interface(settings);
+    ControllerInterface interface(settings);
 
     // ROS ReferenceManager
     std::shared_ptr<ocs2::RosReferenceManager> rosReferenceManagerPtr(

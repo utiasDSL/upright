@@ -120,6 +120,9 @@ class ControllerSettings(bindings.ControllerSettings):
         assert self.state_limit_lower.shape == (self.dims.x,)
         assert self.state_limit_upper.shape == (self.dims.x,)
 
+        self.Kp = core.parsing.parse_diag_matrix_dict(config["tracking"]["Kp"])
+        assert self.Kp.shape == (self.dims.q, self.dims.q)
+
         # URDFs
         self.robot_urdf_path = core.parsing.parse_ros_path(config["robot"]["urdf"])
         self.obstacle_urdf_path = core.parsing.parse_ros_path(

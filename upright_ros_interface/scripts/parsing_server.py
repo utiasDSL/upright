@@ -49,6 +49,9 @@ def control_settings_to_response(settings):
     resp.state_limit_mu = settings.state_limit_mu
     resp.state_limit_delta = settings.state_limit_delta
 
+    # tracking gain
+    resp.Kp = ros_numpy.msgify(FloatArray, settings.Kp)
+
     # operating points
     resp.use_operating_points = settings.use_operating_points
     operating_states = []

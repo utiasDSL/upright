@@ -41,6 +41,9 @@ struct ControllerSettings {
     ocs2::scalar_t state_limit_mu = 1e-2;
     ocs2::scalar_t state_limit_delta = 1e-3;
 
+    // Gain matrix for low-level tracking controller.
+    MatXd Kp;
+
     // We can linearize around a set of operating points instead of just using
     // a stationary trajectory.
     bool use_operating_points = false;
@@ -99,6 +102,7 @@ std::ostream& operator<<(std::ostream& out,
         << std::endl
         << "state_limit_mu = " << settings.state_limit_mu << std::endl
         << "state_limit_delta = " << settings.state_limit_delta << std::endl
+        << "Kp = " << settings.Kp << std::endl
         << "use_operating_points = " << settings.use_operating_points
         << std::endl
         << "robot_urdf_path = " << settings.robot_urdf_path << std::endl

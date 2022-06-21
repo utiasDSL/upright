@@ -44,7 +44,7 @@ def main():
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
     model = ctrl_manager.model
     ref = ctrl_manager.ref
-    Kp = np.eye(model.settings.dims.q)
+    Kp = model.settings.Kp
     mapping = ctrl.trajectory.StateInputMapping(model.settings.dims)
 
     # data logging

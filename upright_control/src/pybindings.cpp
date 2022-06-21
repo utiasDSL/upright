@@ -9,7 +9,7 @@
 #include <ocs2_python_interface/PybindMacros.h>
 
 #include "upright_control/ControllerSettings.h"
-#include "upright_control/MobileManipulatorPythonInterface.h"
+#include "upright_control/controller_python_interface.h"
 #include "upright_control/constraint/BoundedBalancingConstraints.h"
 #include "upright_control/constraint/CollisionAvoidanceConstraint.h"
 #include "upright_control/constraint/ConstraintType.h"
@@ -196,6 +196,7 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::operating_inputs)
         .def_readwrite("inertial_alignment_settings",
                        &ControllerSettings::inertial_alignment_settings)
+        .def_readwrite("Kp", &ControllerSettings::Kp)
         .def("solver_method_from_string",
              &ControllerSettings::solver_method_from_string);
 
@@ -317,71 +318,71 @@ PYBIND11_MODULE(bindings, m) {
                     });
 
     /* bind the actual mpc interface */
-    pybind11::class_<MobileManipulatorPythonInterface>(m, "ControllerInterface")
+    pybind11::class_<ControllerPythonInterface>(m, "ControllerInterface")
         .def(pybind11::init<const ControllerSettings &>(), "settings"_a)
-        .def("getStateDim", &MobileManipulatorPythonInterface::getStateDim)
-        .def("getInputDim", &MobileManipulatorPythonInterface::getInputDim)
+        .def("getStateDim", &ControllerPythonInterface::getStateDim)
+        .def("getInputDim", &ControllerPythonInterface::getInputDim)
         .def("setObservation",
-             &MobileManipulatorPythonInterface::setObservation, "t"_a,
+             &ControllerPythonInterface::setObservation, "t"_a,
              "x"_a.noconvert(), "u"_a.noconvert())
         .def("setTargetTrajectories",
-             &MobileManipulatorPythonInterface::setTargetTrajectories,
+             &ControllerPythonInterface::setTargetTrajectories,
              "targetTrajectories"_a)
-        .def("reset", &MobileManipulatorPythonInterface::reset,
+        .def("reset", &ControllerPythonInterface::reset,
              "targetTrajectories"_a)
-        .def("advanceMpc", &MobileManipulatorPythonInterface::advanceMpc)
+        .def("advanceMpc", &ControllerPythonInterface::advanceMpc)
         .def("getMpcSolution",
-             &MobileManipulatorPythonInterface::getMpcSolution,
+             &ControllerPythonInterface::getMpcSolution,
              "t"_a.noconvert(), "x"_a.noconvert(), "u"_a.noconvert())
         .def("evaluateMpcSolution",
-             &MobileManipulatorPythonInterface::evaluateMpcSolution,
+             &ControllerPythonInterface::evaluateMpcSolution,
              "current_time"_a.noconvert(), "current_state"_a.noconvert(),
              "opt_state"_a.noconvert(), "opt_input"_a.noconvert())
         .def("getLinearFeedbackGain",
-             &MobileManipulatorPythonInterface::getLinearFeedbackGain,
+             &ControllerPythonInterface::getLinearFeedbackGain,
              "t"_a.noconvert())
-        .def("getBias", &MobileManipulatorPythonInterface::getBias,
+        .def("getBias", &ControllerPythonInterface::getBias,
              "t"_a.noconvert())
         .def("getLinearController",
-             &MobileManipulatorPythonInterface::getLinearController)
-        .def("flowMap", &MobileManipulatorPythonInterface::flowMap, "t"_a,
+             &ControllerPythonInterface::getLinearController)
+        .def("flowMap", &ControllerPythonInterface::flowMap, "t"_a,
              "x"_a.noconvert(), "u"_a.noconvert())
         .def("flowMapLinearApproximation",
-             &MobileManipulatorPythonInterface::flowMapLinearApproximation,
+             &ControllerPythonInterface::flowMapLinearApproximation,
              "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
-        .def("cost", &MobileManipulatorPythonInterface::cost, "t"_a,
+        .def("cost", &ControllerPythonInterface::cost, "t"_a,
              "x"_a.noconvert(), "u"_a.noconvert())
         .def("costQuadraticApproximation",
-             &MobileManipulatorPythonInterface::costQuadraticApproximation,
+             &ControllerPythonInterface::costQuadraticApproximation,
              "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
-        .def("valueFunction", &MobileManipulatorPythonInterface::valueFunction,
+        .def("valueFunction", &ControllerPythonInterface::valueFunction,
              "t"_a, "x"_a.noconvert())
         .def("valueFunctionStateDerivative",
-             &MobileManipulatorPythonInterface::valueFunctionStateDerivative,
+             &ControllerPythonInterface::valueFunctionStateDerivative,
              "t"_a, "x"_a.noconvert())
         .def("stateInputEqualityConstraint",
-             &MobileManipulatorPythonInterface::stateInputEqualityConstraint,
+             &ControllerPythonInterface::stateInputEqualityConstraint,
              "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("stateInputEqualityConstraintLinearApproximation",
-             &MobileManipulatorPythonInterface::
+             &ControllerPythonInterface::
                  stateInputEqualityConstraintLinearApproximation,
              "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("stateInputEqualityConstraintLagrangian",
-             &MobileManipulatorPythonInterface::
+             &ControllerPythonInterface::
                  stateInputEqualityConstraintLagrangian,
              "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("stateInputInequalityConstraint",
-             &MobileManipulatorPythonInterface::stateInputInequalityConstraint,
+             &ControllerPythonInterface::stateInputInequalityConstraint,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("softStateInputInequalityConstraint",
-             &MobileManipulatorPythonInterface::
+             &ControllerPythonInterface::
                  softStateInputInequalityConstraint,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("stateInequalityConstraint",
-             &MobileManipulatorPythonInterface::stateInequalityConstraint,
+             &ControllerPythonInterface::stateInequalityConstraint,
              "name"_a, "t"_a, "x"_a.noconvert())
         .def("visualizeTrajectory",
-             &MobileManipulatorPythonInterface::visualizeTrajectory,
+             &ControllerPythonInterface::visualizeTrajectory,
              "t"_a.noconvert(), "x"_a.noconvert(), "u"_a.noconvert(),
              "speed"_a);
 }

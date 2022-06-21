@@ -53,12 +53,12 @@ namespace upright {
 /**
  * Mobile Manipulator Robot Interface class
  */
-class MobileManipulatorInterface final : public ocs2::RobotInterface {
+class ControllerInterface final : public ocs2::RobotInterface {
    public:
     /**
      * Constructor
      */
-    explicit MobileManipulatorInterface(const ControllerSettings& settings);
+    explicit ControllerInterface(const ControllerSettings& settings);
 
     const VecXd& getInitialState() { return initialState_; }
 

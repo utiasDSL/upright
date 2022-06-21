@@ -27,6 +27,11 @@ controller:
     enable_friction_constraint: true
     enable_zmp_constraint: true
 
+  tracking:
+    Kp:
+      scale: 1
+      diag: [1, 1, 1, 1, 1, 1]
+
   waypoints:
     -
       time: 0

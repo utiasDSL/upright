@@ -57,6 +57,9 @@ ControllerSettings parse_control_settings(
     settings.state_limit_mu = resp.state_limit_mu;
     settings.state_limit_delta = resp.state_limit_delta;
 
+    // tracking gain
+    settings.Kp = parse_matrix(resp.Kp);
+
     // operating points
     settings.use_operating_points = resp.use_operating_points;
     settings.operating_times = resp.operating_times;

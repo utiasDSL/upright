@@ -9,7 +9,7 @@
 #include <ocs2_ros_interfaces/common/RosMsgConversions.h>
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
 
-#include <upright_control/MobileManipulatorInterface.h>
+#include <upright_control/controller_interface.h>
 #include <upright_ros_interface/ParseControlSettings.h>
 #include <upright_ros_interface/ParseTargetTrajectory.h>
 #include <upright_ros_interface/parsing.h>
@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
     // controller interface
     ControllerSettings settings = parse_control_settings(settings_srv.response);
     std::cout << settings << std::endl;
-    MobileManipulatorInterface interface(settings);
+    ControllerInterface interface(settings);
 
     // MRT
     ocs2::MRT_ROS_Interface mrt(robotName);
@@ -125,8 +125,7 @@ int main(int argc, char** argv) {
 
     std::cout << "Received first policy." << std::endl;
 
-    // TODO: make a parameter
-    MatXd Kp = MatXd::Identity(settings.dims.q, settings.dims.q);
+    MatXd Kp = settings.Kp;
 
     VecXd x = x0;
     VecXd xd = VecXd::Zero(x.size());

@@ -1,15 +1,16 @@
 #pragma once
 
 #include <ocs2_python_interface/PythonInterface.h>
-#include <upright_control/MobileManipulatorInterface.h>
+
+#include <upright_control/controller_interface.h>
 #include <upright_control/ControllerSettings.h>
 
 namespace upright {
 
-class MobileManipulatorPythonInterface final : public ocs2::PythonInterface {
+class ControllerPythonInterface final : public ocs2::PythonInterface {
    public:
-    explicit MobileManipulatorPythonInterface(const ControllerSettings& settings) {
-        MobileManipulatorInterface control_interface(settings);
+    explicit ControllerPythonInterface(const ControllerSettings& settings) {
+        ControllerInterface control_interface(settings);
 
         // Set the reference manager -- otherwise there are problems with the
         // EndEffectorCost

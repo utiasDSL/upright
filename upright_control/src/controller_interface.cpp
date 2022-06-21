@@ -55,7 +55,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_sqp/MultipleShootingMpc.h>
 #include <ocs2_sqp/MultipleShootingSettings.h>
 
-#include <upright_control/MobileManipulatorInterface.h>
+#include <upright_control/controller_interface.h>
 #include <upright_control/constraint/JointStateInputLimits.h>
 #include <upright_control/constraint/ObstacleConstraint.h>
 #include <upright_control/cost/EndEffectorCost.h>
@@ -74,14 +74,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace upright {
 
-MobileManipulatorInterface::MobileManipulatorInterface(
+ControllerInterface::ControllerInterface(
     const ControllerSettings& settings)
     : settings_(settings) {
     // load setting from config file
     loadSettings();
 }
 
-ocs2::PinocchioInterface MobileManipulatorInterface::buildPinocchioInterface(
+ocs2::PinocchioInterface ControllerInterface::buildPinocchioInterface(
     const std::string& urdfPath, const std::string& obstacle_urdfPath) {
     if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
         // add 3 DOF for wheelbase
@@ -96,7 +96,7 @@ ocs2::PinocchioInterface MobileManipulatorInterface::buildPinocchioInterface(
     return ocs2::getPinocchioInterfaceFromUrdfFile(urdfPath);
 }
 
-pinocchio::GeometryModel MobileManipulatorInterface::build_geometry_model(
+pinocchio::GeometryModel ControllerInterface::build_geometry_model(
     const std::string& urdf_path) {
     ocs2::PinocchioInterface::Model model;
     pinocchio::urdf::buildModel(urdf_path, model);
@@ -106,7 +106,7 @@ pinocchio::GeometryModel MobileManipulatorInterface::build_geometry_model(
     return geom_model;
 }
 
-void MobileManipulatorInterface::loadSettings() {
+void ControllerInterface::loadSettings() {
     std::string taskFile = settings_.ocs2_config_path;
     std::string libraryFolder = settings_.lib_folder;
 
@@ -282,7 +282,7 @@ void MobileManipulatorInterface::loadSettings() {
     std::cerr << "Initial State:   " << initialState_.transpose() << std::endl;
 }
 
-std::unique_ptr<ocs2::MPC_BASE> MobileManipulatorInterface::getMpc() {
+std::unique_ptr<ocs2::MPC_BASE> ControllerInterface::getMpc() {
     if (settings_.solver_method == ControllerSettings::SolverMethod::DDP) {
         return std::unique_ptr<ocs2::MPC_BASE>(
             new ocs2::MPC_DDP(mpcSettings_, ddpSettings_, *rolloutPtr_,
@@ -294,7 +294,7 @@ std::unique_ptr<ocs2::MPC_BASE> MobileManipulatorInterface::getMpc() {
 }
 
 std::unique_ptr<ocs2::StateInputCost>
-MobileManipulatorInterface::getQuadraticStateInputCost(
+ControllerInterface::getQuadraticStateInputCost(
     const std::string& taskFile) {
     MatXd Q = settings_.state_weight;
     MatXd R = settings_.input_weight;
@@ -307,7 +307,7 @@ MobileManipulatorInterface::getQuadraticStateInputCost(
 }
 
 std::unique_ptr<ocs2::StateCost>
-MobileManipulatorInterface::getDynamicObstacleConstraint(
+ControllerInterface::getDynamicObstacleConstraint(
     ocs2::PinocchioInterface pinocchioInterface,
     const DynamicObstacleSettings& settings, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
@@ -366,7 +366,7 @@ MobileManipulatorInterface::getDynamicObstacleConstraint(
         std::move(constraint), std::move(penalty)));
 }
 
-std::unique_ptr<ocs2::StateCost> MobileManipulatorInterface::getEndEffectorCost(
+std::unique_ptr<ocs2::StateCost> ControllerInterface::getEndEffectorCost(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics) {
     MatXd W = settings_.end_effector_weight;
     std::cout << "W: " << W << std::endl;
@@ -376,7 +376,7 @@ std::unique_ptr<ocs2::StateCost> MobileManipulatorInterface::getEndEffectorCost(
 }
 
 std::unique_ptr<ocs2::StateInputConstraint>
-MobileManipulatorInterface::getTrayBalanceConstraint(
+ControllerInterface::getTrayBalanceConstraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
     bool recompileLibraries) {
     return std::unique_ptr<ocs2::StateInputConstraint>(
@@ -386,7 +386,7 @@ MobileManipulatorInterface::getTrayBalanceConstraint(
 }
 
 std::unique_ptr<ocs2::StateInputCost>
-MobileManipulatorInterface::getTrayBalanceSoftConstraint(
+ControllerInterface::getTrayBalanceSoftConstraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
     bool recompileLibraries) {
     // compute the hard constraint
@@ -410,7 +410,7 @@ MobileManipulatorInterface::getTrayBalanceSoftConstraint(
 }
 
 std::unique_ptr<ocs2::StateCost>
-MobileManipulatorInterface::getCollisionAvoidanceConstraint(
+ControllerInterface::getCollisionAvoidanceConstraint(
     ocs2::PinocchioInterface pinocchioInterface,
     const CollisionAvoidanceSettings& settings,
     const std::string& obstacle_urdf_path, bool usePreComputation,
@@ -494,7 +494,7 @@ MobileManipulatorInterface::getCollisionAvoidanceConstraint(
 }
 
 std::unique_ptr<ocs2::StateInputCost>
-MobileManipulatorInterface::getJointStateInputLimitConstraint(
+ControllerInterface::getJointStateInputLimitConstraint(
     const std::string& taskFile) {
     VecXd state_limit_lower = settings_.state_limit_lower;
     VecXd state_limit_upper = settings_.state_limit_upper;
