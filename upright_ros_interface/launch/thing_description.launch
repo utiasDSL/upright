@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+
+<!-- Launch UR10 driver. -->
+<launch>
+  <!-- We don't use kinematics_params but it is passed in by the UR driver infrastructure so we need to acknowledge it. -->
+  <arg name="kinematics_params" />
+  <param name="robot_description" command="$(find xacro)/xacro $(find upright_assets)/thing/urdf/mm_ocs2_tray.urdf" />
+</launch>

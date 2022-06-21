@@ -14,6 +14,8 @@ xacro xacro/obstacles.urdf.xacro -o urdf/obstacles.urdf
 # second run to resolve mesh paths
 xacro urdf/mm_pyb_tray.urdf -o urdf/mm_pyb_tray.urdf
 xacro urdf/mm_ocs2_tray.urdf -o urdf/mm_ocs2_tray.urdf
+xacro urdf/mm_pyb_fingers.urdf -o urdf/mm_pyb_fingers.urdf
+xacro urdf/mm_ocs2_fingers.urdf -o urdf/mm_ocs2_fingers.urdf
 
 # xacro mm_pyb_static_obs.urdf.xacro -o mm_pyb_static_obs.urdf
 # xacro mm_static_tray_pyb.urdf.xacro -o mm_static_tray_pyb.urdf
