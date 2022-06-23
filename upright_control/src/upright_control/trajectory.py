@@ -1,4 +1,37 @@
 import numpy as np
+from scipy.linalg import expm
+
+import IPython
+
+
+class DoubleIntegrator:
+    def __init__(self, n):
+        self.n = n
+
+        Z = np.zeros((n, n))
+        I = np.eye(n)
+        A = np.block([[Z, I], [Z, Z]])
+        B = np.vstack((Z, I))
+
+        self.M = np.block([[A, B], [np.zeros((n, 2*n)), Z]])
+
+    def integrate(self, v, a, u, dt):
+        # TODO for some reason this causes non-smooth behaviour
+        x = np.concatenate((v, a))
+        Md = expm(dt * self.M)
+        Ad = Md[:2*self.n, :2*self.n]
+        Bd = Md[:2*self.n, 2*self.n:]
+        x_new = Ad @ x + Bd @ u
+
+        v = x_new[:self.n]
+        a = x_new[self.n:]
+        return v, a
+
+    def integrate_approx(self, v, a, u, dt):
+        a_new = a + dt * u
+        v_new = v + dt * a_new
+        return v_new, a_new
+
 
 
 class StateInputTrajectory:
@@ -26,9 +59,6 @@ class StateInputTrajectory:
 
     def __len__(self):
         return len(self.ts)
-
-
-# TODO somewhere we can add a method to convert a plan to JointTrajectory msg
 
 
 class StateInputMapping:

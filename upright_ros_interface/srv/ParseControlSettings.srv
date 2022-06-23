@@ -1,9 +1,8 @@
 string config_path  # path to yaml file
 ---
-# TODO solver type
+string solver_method
 
 float64[] initial_state
-
 geometry_msgs/Vector3 gravity
 
 # weights
@@ -25,6 +24,9 @@ float64 state_limit_delta
 
 # tracking gain
 upright_msgs/FloatArray Kp
+
+# tracking rate
+float64 rate
 
 # operating trajectory
 bool use_operating_points

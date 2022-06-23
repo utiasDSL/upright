@@ -41,6 +41,11 @@ def main():
     u = np.zeros(sim.robot.nu)
 
     # controller
+    integrator = ctrl.trajectory.DoubleIntegrator(v.shape[0])
+
+    IPython.embed()
+    return
+
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
     model = ctrl_manager.model
     ref = ctrl_manager.ref
@@ -67,6 +72,9 @@ def main():
 
     ctrl_manager.warmstart()
 
+    v_ff = v.copy()
+    a_ff = a.copy()
+
     # simulation loop
     while t <= sim.duration:
         q, v = sim.robot.joint_states(add_noise=True)
@@ -82,11 +90,19 @@ def main():
             IPython.embed()
             break
 
-        # a = np.copy(x_opt[-sim.robot.nv :])
+        # qd, vd, a = mapping.xu2qva(xd)
         # sim.robot.command_jerk(u)
 
+        # alternatively we could use the command directly, but this leads to
+        # discontinuities in velocity
         qd, vd, a = mapping.xu2qva(xd)
-        v_cmd = Kp @ (qd - q) + vd
+        # v_cmd = Kp @ (qd - q) + vd
+
+        # TODO why is this better than using the zero-order hold?
+        # here we use the input u to generate the feedforward signal---using
+        # the jerk level ensures smoothness at the velocity level
+        v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u, sim.timestep)
+        v_cmd = Kp @ (qd - q) + v_ff
         sim.robot.command_velocity(v_cmd)
 
         # TODO more logger reforms to come

@@ -16,13 +16,29 @@
 
 using namespace upright;
 
+class ExponentialSmoother {
+   public:
+    ExponentialSmoother(const ocs2::scalar_t& factor, const VecXd& x0)
+        : factor_(factor), x_(x0) {}
+
+    VecXd update(const VecXd& x) {
+        x_ = factor_ * x + (1 - factor_) * x_;
+        return x_;
+    }
+
+    VecXd get_estimate() { return x_; }
+
+   private:
+    ocs2::scalar_t factor_;
+    VecXd x_;
+};
+
 // Get feedback and send commands to the robot
 class RobotInterface {
    public:
-    RobotInterface(ros::NodeHandle& nh, const VecXd& q0, const VecXd& v0) {
-        q = q0;
-        v = v0;
-
+    RobotInterface(ros::NodeHandle& nh, const VecXd& q0, const VecXd& v0,
+                   const ocs2::scalar_t& smoothing_factor)
+        : q_(q0), v_(v0), velocity_smoother_(smoothing_factor, v0) {
         // TODO avoid fixed names
         feedback_sub_ = nh.subscribe("/ur10_joint_states", 1,
                                      &RobotInterface::feedback_cb, this);
@@ -34,8 +50,10 @@ class RobotInterface {
     void feedback_cb(const sensor_msgs::JointState& msg) {
         std::vector<double> qvec = msg.position;
         std::vector<double> vvec = msg.velocity;
-        q = parse_vector(qvec);
-        v = parse_vector(vvec);
+        q_ = parse_vector(qvec);
+        v_ = parse_vector(vvec);
+
+        velocity_smoother_.update(v_);
     }
 
     void send_command(const VecXd& cmd) {
@@ -45,12 +63,22 @@ class RobotInterface {
         command_pub_.publish(msg);
     }
 
-    VecXd q;
-    VecXd v;
+    VecXd get_joint_position() { return q_; }
+
+    VecXd get_joint_velocity_raw() { return v_; }
+
+    VecXd get_joint_velocity_smoothed() {
+        return velocity_smoother_.get_estimate();
+    }
 
    private:
+    VecXd q_;
+    VecXd v_;
+
     ros::Subscriber feedback_sub_;
     ros::Publisher command_pub_;
+
+    ExponentialSmoother velocity_smoother_;
 };
 
 int main(int argc, char** argv) {
@@ -102,9 +130,12 @@ int main(int argc, char** argv) {
     // interface to the real robot
     VecXd q0 = x0.head(settings.dims.q);
     VecXd v0 = x0.segment(settings.dims.q, settings.dims.v);
-    RobotInterface robot(nh, q0, v0);
+    RobotInterface robot(nh, q0, v0, 0.9);
 
-    ros::Rate rate(125);
+    ros::Rate rate(settings.rate);
+
+    MatXd Kp = settings.Kp;
+    std::cout << "Kp = " << Kp << std::endl;
 
     // Reset MPC
     ocs2::TargetTrajectories target =
@@ -122,10 +153,9 @@ int main(int argc, char** argv) {
         }
         rate.sleep();
     }
+    mrt.updatePolicy();  // TODO not sure if needed
 
     std::cout << "Received first policy." << std::endl;
-
-    MatXd Kp = settings.Kp;
 
     VecXd x = x0;
     VecXd xd = VecXd::Zero(x.size());
@@ -133,30 +163,50 @@ int main(int argc, char** argv) {
     size_t mode = 0;
     ocs2::SystemObservation observation = initial_observation;
 
+    // TODO experimental
+    ros::Time now = ros::Time::now();
+    ros::Time last_policy_update_time = now;
+    ros::Duration policy_update_delay(0.1);
+
     while (ros::ok() && ros::master::check()) {
+        now = ros::Time::now();
+        ocs2::scalar_t t = now.toSec();
+
+        // Robot feedback
+        VecXd q = robot.get_joint_position();
+        VecXd v = robot.get_joint_velocity_raw();
+
         // Get new policy messages and update the policy if available
         mrt.spinMRT();
-        mrt.updatePolicy();
+        if (now - last_policy_update_time >= policy_update_delay) {
+            mrt.updatePolicy();
+            last_policy_update_time = now;
+        }
 
         // Current state is built from robot feedback for q and v; for
         // acceleration we just assume we are tracking well since we don't get
         // good feedback on this
-        x.head(settings.dims.q) = robot.q;
-        x.segment(settings.dims.q, settings.dims.v) = robot.v;
+        // NOTE: this should only affect u, not xd
+        x.head(settings.dims.q) = q;
+        x.segment(settings.dims.q, settings.dims.v) = xd.segment(settings.dims.q, settings.dims.v);
         x.tail(settings.dims.v) = xd.tail(settings.dims.v);
 
         // Compute optimal state and input using current policy
-        ocs2::scalar_t now = ros::Time::now().toSec();
-        mrt.evaluatePolicy(now, x, xd, u, mode);
+        mrt.evaluatePolicy(t, x, xd, u, mode);
 
         // PD controller to generate robot command
         VecXd qd = xd.head(settings.dims.q);
         VecXd vd = xd.segment(settings.dims.q, settings.dims.v);
-        VecXd v_cmd = Kp * (qd - robot.q) + vd;
+        VecXd v_cmd = Kp * (qd - q) + vd;
         robot.send_command(v_cmd);
 
+        // Also assume velocity is fine
+        // TODO why does this lead to more jittering?
+        // the sim is actually just slow!
+        x.segment(settings.dims.q, settings.dims.v) = vd;
+
         // Send observation to MPC
-        observation.time = now;
+        observation.time = t;
         observation.state = x;
         observation.input = u;
         mrt.setCurrentObservation(observation);

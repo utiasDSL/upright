@@ -12,12 +12,12 @@ import geometry_msgs.msg as geometry_msgs
 
 # If your robot description is created with a tf_prefix, those would have to be adapted
 UR10_JOINT_NAMES = [
-    "shoulder_pan_joint",
-    "shoulder_lift_joint",
-    "elbow_joint",
-    "wrist_1_joint",
-    "wrist_2_joint",
-    "wrist_3_joint",
+    "ur10_arm_shoulder_pan_joint",
+    "ur10_arm_shoulder_lift_joint",
+    "ur10_arm_elbow_joint",
+    "ur10_arm_wrist_1_joint",
+    "ur10_arm_wrist_2_joint",
+    "ur10_arm_wrist_3_joint",
 ]
 
 JOINT_TRAJECTORY_CONTROLLERS = [

@@ -44,6 +44,9 @@ struct ControllerSettings {
     // Gain matrix for low-level tracking controller.
     MatXd Kp;
 
+    // Frequency for tracking controller [Hz].
+    ocs2::scalar_t rate;
+
     // We can linearize around a set of operating points instead of just using
     // a stationary trajectory.
     bool use_operating_points = false;
@@ -72,7 +75,8 @@ struct ControllerSettings {
     DynamicObstacleSettings dynamic_obstacle_settings;
     CollisionAvoidanceSettings collision_avoidance_settings;
 
-    static ControllerSettings::SolverMethod solver_method_from_string(const std::string& s) {
+    static ControllerSettings::SolverMethod solver_method_from_string(
+        const std::string& s) {
         if (s == "ddp") {
             return ControllerSettings::SolverMethod::DDP;
         } else if (s == "sqp") {
@@ -80,8 +84,16 @@ struct ControllerSettings {
         }
         throw std::runtime_error("Cannot parse SolverMethod from string.");
     }
-};
 
+    static std::string solver_method_to_string(
+        const ControllerSettings::SolverMethod& method) {
+        if (method == ControllerSettings::SolverMethod::DDP) {
+            return "ddp";
+        } else {
+            return "sqp";
+        }
+    }
+};
 
 std::ostream& operator<<(std::ostream& out,
                          const ControllerSettings& settings) {

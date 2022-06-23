@@ -157,6 +157,7 @@ class SimulatedRobot:
 
     def command_velocity(self, cmd_vel):
         """Command the velocity of the robot's joints."""
+        self.cmd_vel = cmd_vel
         q, _ = self.joint_states()
 
         # convert to PyBullet coordinates

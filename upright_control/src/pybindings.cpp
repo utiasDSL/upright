@@ -8,20 +8,20 @@
 #include <ocs2_core/control/LinearController.h>
 #include <ocs2_python_interface/PybindMacros.h>
 
-#include <upright_control/controller_settings.h>
-#include <upright_control/controller_python_interface.h>
+#include <upright_control/balancing_constraint_wrapper.h>
 #include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/constraint/collision_avoidance_constraint.h>
 #include <upright_control/constraint/constraint_type.h>
 #include <upright_control/constraint/obstacle_constraint.h>
+#include <upright_control/controller_python_interface.h>
+#include <upright_control/controller_settings.h>
 #include <upright_control/dynamics/base_type.h>
 #include <upright_control/dynamics/dimensions.h>
 #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
 #include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
-#include <upright_control/constraint/balancing_constraint_wrapper.h>
 
 using namespace upright;
-using namespace ocs2;  // TODO
+using namespace ocs2;  // TODO perhaps avoid using
 
 /* make vector types opaque so they are not converted to python lists */
 PYBIND11_MAKE_OPAQUE(ocs2::scalar_array_t)
@@ -196,10 +196,14 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("inertial_alignment_settings",
                        &ControllerSettings::inertial_alignment_settings)
         .def_readwrite("Kp", &ControllerSettings::Kp)
+        .def_readwrite("rate", &ControllerSettings::rate)
         .def("solver_method_from_string",
-             &ControllerSettings::solver_method_from_string);
+             &ControllerSettings::solver_method_from_string)
+        .def("solver_method_to_string",
+             &ControllerSettings::solver_method_to_string);
 
-    pybind11::enum_<ControllerSettings::SolverMethod>(ctrl_settings, "SolverMethod")
+    pybind11::enum_<ControllerSettings::SolverMethod>(ctrl_settings,
+                                                      "SolverMethod")
         .value("DDP", ControllerSettings::SolverMethod::DDP)
         .value("SQP", ControllerSettings::SolverMethod::SQP);
 
@@ -321,17 +325,14 @@ PYBIND11_MODULE(bindings, m) {
         .def(pybind11::init<const ControllerSettings &>(), "settings"_a)
         .def("getStateDim", &ControllerPythonInterface::getStateDim)
         .def("getInputDim", &ControllerPythonInterface::getInputDim)
-        .def("setObservation",
-             &ControllerPythonInterface::setObservation, "t"_a,
-             "x"_a.noconvert(), "u"_a.noconvert())
+        .def("setObservation", &ControllerPythonInterface::setObservation,
+             "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("setTargetTrajectories",
              &ControllerPythonInterface::setTargetTrajectories,
              "targetTrajectories"_a)
-        .def("reset", &ControllerPythonInterface::reset,
-             "targetTrajectories"_a)
+        .def("reset", &ControllerPythonInterface::reset, "targetTrajectories"_a)
         .def("advanceMpc", &ControllerPythonInterface::advanceMpc)
-        .def("getMpcSolution",
-             &ControllerPythonInterface::getMpcSolution,
+        .def("getMpcSolution", &ControllerPythonInterface::getMpcSolution,
              "t"_a.noconvert(), "x"_a.noconvert(), "u"_a.noconvert())
         .def("evaluateMpcSolution",
              &ControllerPythonInterface::evaluateMpcSolution,
@@ -340,48 +341,44 @@ PYBIND11_MODULE(bindings, m) {
         .def("getLinearFeedbackGain",
              &ControllerPythonInterface::getLinearFeedbackGain,
              "t"_a.noconvert())
-        .def("getBias", &ControllerPythonInterface::getBias,
-             "t"_a.noconvert())
+        .def("getBias", &ControllerPythonInterface::getBias, "t"_a.noconvert())
         .def("getLinearController",
              &ControllerPythonInterface::getLinearController)
         .def("flowMap", &ControllerPythonInterface::flowMap, "t"_a,
              "x"_a.noconvert(), "u"_a.noconvert())
         .def("flowMapLinearApproximation",
-             &ControllerPythonInterface::flowMapLinearApproximation,
-             "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
-        .def("cost", &ControllerPythonInterface::cost, "t"_a,
+             &ControllerPythonInterface::flowMapLinearApproximation, "t"_a,
              "x"_a.noconvert(), "u"_a.noconvert())
+        .def("cost", &ControllerPythonInterface::cost, "t"_a, "x"_a.noconvert(),
+             "u"_a.noconvert())
         .def("costQuadraticApproximation",
-             &ControllerPythonInterface::costQuadraticApproximation,
-             "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
-        .def("valueFunction", &ControllerPythonInterface::valueFunction,
-             "t"_a, "x"_a.noconvert())
+             &ControllerPythonInterface::costQuadraticApproximation, "t"_a,
+             "x"_a.noconvert(), "u"_a.noconvert())
+        .def("valueFunction", &ControllerPythonInterface::valueFunction, "t"_a,
+             "x"_a.noconvert())
         .def("valueFunctionStateDerivative",
-             &ControllerPythonInterface::valueFunctionStateDerivative,
-             "t"_a, "x"_a.noconvert())
+             &ControllerPythonInterface::valueFunctionStateDerivative, "t"_a,
+             "x"_a.noconvert())
         .def("stateInputEqualityConstraint",
-             &ControllerPythonInterface::stateInputEqualityConstraint,
-             "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
+             &ControllerPythonInterface::stateInputEqualityConstraint, "t"_a,
+             "x"_a.noconvert(), "u"_a.noconvert())
         .def("stateInputEqualityConstraintLinearApproximation",
              &ControllerPythonInterface::
                  stateInputEqualityConstraintLinearApproximation,
              "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("stateInputEqualityConstraintLagrangian",
-             &ControllerPythonInterface::
-                 stateInputEqualityConstraintLagrangian,
+             &ControllerPythonInterface::stateInputEqualityConstraintLagrangian,
              "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("stateInputInequalityConstraint",
              &ControllerPythonInterface::stateInputInequalityConstraint,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("softStateInputInequalityConstraint",
-             &ControllerPythonInterface::
-                 softStateInputInequalityConstraint,
+             &ControllerPythonInterface::softStateInputInequalityConstraint,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("stateInequalityConstraint",
-             &ControllerPythonInterface::stateInequalityConstraint,
-             "name"_a, "t"_a, "x"_a.noconvert())
+             &ControllerPythonInterface::stateInequalityConstraint, "name"_a,
+             "t"_a, "x"_a.noconvert())
         .def("visualizeTrajectory",
-             &ControllerPythonInterface::visualizeTrajectory,
-             "t"_a.noconvert(), "x"_a.noconvert(), "u"_a.noconvert(),
-             "speed"_a);
+             &ControllerPythonInterface::visualizeTrajectory, "t"_a.noconvert(),
+             "x"_a.noconvert(), "u"_a.noconvert(), "speed"_a);
 }

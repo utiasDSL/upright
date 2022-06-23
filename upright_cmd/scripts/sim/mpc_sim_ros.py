@@ -74,24 +74,30 @@ def main():
 
     # setup the ROS interface
     ros_interface = ROSSimulationInterface("mobile_manipulator")
-    # ros_interface.publish_time(t)
+    ros_interface.publish_time(t)
 
-    rate = rospy.Rate(1.0 / sim.timestep)
+    # rate = rospy.Rate(1.0 / sim.timestep)
 
     # wait until a command has been received
+    # note that we use real time here since this sim directly controls sim time
     print("Waiting for a command to be received...")
     while not ros_interface.ready():
-        rate.sleep()
+        ros_interface.publish_time(t)
+        t += sim.timestep
+        time.sleep(sim.timestep)
 
     print("Command received. Executing...")
+    t0 = t
 
     # simulation loop
-    while t <= sim.duration:
+    while t - t0 <= sim.duration:
         q, v = sim.robot.joint_states(add_noise=True)
         ros_interface.publish_feedback(t, q, v)
         sim.robot.command_velocity(ros_interface.cmd_vel)
 
         if logger.ready(t):
+            x = np.concatenate((q, v, a))
+
             # log sim stuff
             r_ew_w, Q_we = sim.robot.link_pose()
             v_ew_w, ω_ew_w = sim.robot.link_velocity()
@@ -119,7 +125,7 @@ def main():
             logger.append("orn_err", model.angle_between_acc_and_normal())
 
         t = sim.step(t, step_robot=False)
-        # ros_interface.publish_time(t)
+        ros_interface.publish_time(t)
 
     # TODO can I get control durations somehow?
     # - could log frequency of message updates, though this would incur some

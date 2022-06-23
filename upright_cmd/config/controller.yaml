@@ -3,7 +3,7 @@ include:
     package: upright_cmd
     path: config/arrangements.yaml
 
-# compute a new control policy even `control_period` seconds
+# compute a new control policy every `control_period` seconds
 timestep: 0.025
 use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
@@ -27,6 +27,7 @@ inertial_alignment:
 
 # needs to be implemented for each particular system
 tracking:
+  rate: 125
   Kp: null
 
 # desired waypoints are set relative to the initial EE pose

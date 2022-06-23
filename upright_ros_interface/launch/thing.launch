@@ -2,11 +2,18 @@
 
 <!-- Launch UR10 driver. -->
 <launch>
+  <!-- published by the joint_state_controller -->
   <remap from="/joint_states" to="/ur10_joint_states" />
+
+  <!-- subscribed to by the joint_group_vel_controller -->
+  <remap from="/joint_group_vel_controller/command" to="/ur10_cmd_vel" />
 
   <include file="$(find ur_robot_driver)/launch/ur10_bringup.launch" >
     <arg name="robot_ip" default="192.168.131.40"/>
     <arg name="kinematics_config" default="$(find upright_assets)/config/ur10/calibration.yaml"/>
     <arg name="robot_description_file" value="$(find upright_ros_interface)/launch/thing_description.launch" />
+    <arg name="controller_config_file" value="$(find upright_ros_interface)/config/ur10_controllers.yaml" />
+    <arg name="controllers" value="joint_state_controller" />
+    <arg name="stopped_controllers" value="scaled_vel_joint_traj_controller joint_group_vel_controller" />
   </include>
 </launch>

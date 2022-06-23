@@ -120,8 +120,12 @@ class ControllerSettings(bindings.ControllerSettings):
         assert self.state_limit_lower.shape == (self.dims.x,)
         assert self.state_limit_upper.shape == (self.dims.x,)
 
+        # tracking gain
         self.Kp = core.parsing.parse_diag_matrix_dict(config["tracking"]["Kp"])
         assert self.Kp.shape == (self.dims.q, self.dims.q)
+
+        # rate for tracking controller
+        self.rate = core.parsing.parse_number(config["tracking"]["rate"])
 
         # URDFs
         self.robot_urdf_path = core.parsing.parse_ros_path(config["robot"]["urdf"])

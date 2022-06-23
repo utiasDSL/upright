@@ -8,6 +8,7 @@
 #include <ocs2_pinocchio_interface/urdf.h>
 
 #include <upright_control/constraint/bounded_balancing_constraints.h>
+#include <upright_control/controller_interface.h>
 #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
 #include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
 #include <upright_control/util.h>
@@ -29,7 +30,8 @@ class BalancingConstraintWrapper {
                     settings.dims));
         } else {
             pinocchio_mapping_ptr.reset(
-                new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(settings.dims));
+                new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(
+                    settings.dims));
         }
 
         bool recompileLibraries = true;

@@ -49,10 +49,10 @@ controller:
   # weights on state, input, and end effector pose
   weights:
     input:
-      scale: 0.0001
+      scale: 0.001
       diag: [1rep6]
     state:
-      scale: 0.001
+      scale: 0.01
       diag: [0rep6, 10rep6, 1rep6]
     end_effector:
       scale: 1

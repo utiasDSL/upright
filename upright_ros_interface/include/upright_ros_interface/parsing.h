@@ -37,6 +37,8 @@ ocs2::vector_array_t parse_vector_array(upright_msgs::FloatArray& msg) {
 ControllerSettings parse_control_settings(
     upright_ros_interface::ParseControlSettings::Response& resp) {
     ControllerSettings settings;
+
+    settings.solver_method = ControllerSettings::solver_method_from_string(resp.solver_method);
     settings.gravity = parse_vec3(resp.gravity);
     settings.initial_state = parse_vector(resp.initial_state);
 
@@ -59,6 +61,9 @@ ControllerSettings parse_control_settings(
 
     // tracking gain
     settings.Kp = parse_matrix(resp.Kp);
+
+    // tracking rate
+    settings.rate = resp.rate;
 
     // operating points
     settings.use_operating_points = resp.use_operating_points;

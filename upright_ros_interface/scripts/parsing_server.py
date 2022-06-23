@@ -27,6 +27,7 @@ def control_settings_to_response(settings):
     """convert the config to a response to send back"""
     resp = upright_ros_interface.srv.ParseControlSettingsResponse()
 
+    resp.solver_method = ctrl.wrappers.ControllerSettings.solver_method_to_string(settings.solver_method)
     resp.initial_state = settings.initial_state
     resp.gravity = ros_numpy.msgify(Vector3, settings.gravity)
 
@@ -51,6 +52,9 @@ def control_settings_to_response(settings):
 
     # tracking gain
     resp.Kp = ros_numpy.msgify(FloatArray, settings.Kp)
+
+    # tracking rate
+    resp.rate = settings.rate
 
     # operating points
     resp.use_operating_points = settings.use_operating_points
