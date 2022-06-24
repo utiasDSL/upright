@@ -16,6 +16,12 @@
 
 using namespace upright;
 
+// Map joint names to their correct indices in the configuration vector q
+std::map<std::string, size_t> JOINT_INDEX_MAP = {
+    {"ur10_arm_shoulder_pan_joint", 0}, {"ur10_arm_shoulder_lift_joint", 1},
+    {"ur10_arm_elbow_joint", 2},        {"ur10_arm_wrist_1_joint", 3},
+    {"ur10_arm_wrist_2_joint", 4},      {"ur10_arm_wrist_3_joint", 5}};
+
 class ExponentialSmoother {
    public:
     ExponentialSmoother(const ocs2::scalar_t& factor, const VecXd& x0)
@@ -33,6 +39,29 @@ class ExponentialSmoother {
     VecXd x_;
 };
 
+// Double integration using semi-implicit Euler method
+std::tuple<VecXd, VecXd> double_integrate(const VecXd& v, const VecXd& a,
+                                          const VecXd& u,
+                                          ocs2::scalar_t timestep) {
+    VecXd a_new = a + timestep * u;
+    VecXd v_new = v + timestep * a_new;
+    return std::tuple<VecXd, VecXd>(v_new, a_new);
+}
+
+std::tuple<VecXd, VecXd> double_integrate_repeated(const VecXd& v,
+                                                   const VecXd& a,
+                                                   const VecXd& u,
+                                                   ocs2::scalar_t timestep,
+                                                   size_t n) {
+    ocs2::scalar_t dt = timestep / n;
+    VecXd v_new = v;
+    VecXd a_new = a;
+    for (int i = 0; i < n; ++i) {
+        std::tie(v_new, a_new) = double_integrate(v_new, a_new, u, dt);
+    }
+    return std::tuple<VecXd, VecXd>(v_new, a_new);
+}
+
 // Get feedback and send commands to the robot
 class RobotInterface {
    public:
@@ -48,10 +77,12 @@ class RobotInterface {
     }
 
     void feedback_cb(const sensor_msgs::JointState& msg) {
-        std::vector<double> qvec = msg.position;
-        std::vector<double> vvec = msg.velocity;
-        q_ = parse_vector(qvec);
-        v_ = parse_vector(vvec);
+        // Joint name order not necessarily the same as config vector: remap it.
+        for (int i = 0; i < msg.name.size(); ++i) {
+            size_t j = JOINT_INDEX_MAP.at(msg.name[i]);
+            q_[j] = msg.position[i];
+            v_[j] = msg.velocity[i];
+        }
 
         velocity_smoother_.update(v_);
     }
@@ -59,6 +90,9 @@ class RobotInterface {
     void send_command(const VecXd& cmd) {
         std_msgs::Float64MultiArray msg;
         // TODO layout?
+        // The command has the joints in the correct order (i.e. the one
+        // specified in the config file), as opposed to the re-ordered version
+        // from the joint state controller feedback above.
         msg.data = std::vector<double>(cmd.data(), cmd.data() + cmd.size());
         command_pub_.publish(msg);
     }
@@ -132,6 +166,7 @@ int main(int argc, char** argv) {
     VecXd v0 = x0.segment(settings.dims.q, settings.dims.v);
     RobotInterface robot(nh, q0, v0, 0.9);
 
+    ocs2::scalar_t timestep = 1.0 / settings.rate;
     ros::Rate rate(settings.rate);
 
     MatXd Kp = settings.Kp;
@@ -163,47 +198,47 @@ int main(int argc, char** argv) {
     size_t mode = 0;
     ocs2::SystemObservation observation = initial_observation;
 
-    // TODO experimental
+    VecXd v_ff = VecXd::Zero(settings.dims.v);
+    VecXd a_ff = VecXd::Zero(settings.dims.v);
+
     ros::Time now = ros::Time::now();
     ros::Time last_policy_update_time = now;
-    ros::Duration policy_update_delay(0.1);
+    ros::Duration policy_update_delay(0.05);
+
+    ocs2::scalar_t t = now.toSec();
+    ocs2::scalar_t last_t = t;
 
     while (ros::ok() && ros::master::check()) {
         now = ros::Time::now();
-        ocs2::scalar_t t = now.toSec();
+        last_t = t;
+        t = now.toSec();
+        ocs2::scalar_t dt = t - last_t;
 
         // Robot feedback
         VecXd q = robot.get_joint_position();
-        VecXd v = robot.get_joint_velocity_raw();
+        // VecXd v = robot.get_joint_velocity_raw();
 
-        // Get new policy messages and update the policy if available
-        mrt.spinMRT();
-        if (now - last_policy_update_time >= policy_update_delay) {
-            mrt.updatePolicy();
-            last_policy_update_time = now;
-        }
+        // Integrate our internal model to get velocity and acceleration
+        // "feedback"
+        std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u, dt);
 
         // Current state is built from robot feedback for q and v; for
         // acceleration we just assume we are tracking well since we don't get
         // good feedback on this
-        // NOTE: this should only affect u, not xd
         x.head(settings.dims.q) = q;
-        x.segment(settings.dims.q, settings.dims.v) = xd.segment(settings.dims.q, settings.dims.v);
-        x.tail(settings.dims.v) = xd.tail(settings.dims.v);
+        x.segment(settings.dims.q, settings.dims.v) =
+            v_ff;  // xd.segment(settings.dims.q, settings.dims.v);
+        x.tail(settings.dims.v) = a_ff;  // xd.tail(settings.dims.v);
 
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, u, mode);
 
         // PD controller to generate robot command
-        VecXd qd = xd.head(settings.dims.q);
-        VecXd vd = xd.segment(settings.dims.q, settings.dims.v);
-        VecXd v_cmd = Kp * (qd - q) + vd;
-        robot.send_command(v_cmd);
-
-        // Also assume velocity is fine
-        // TODO why does this lead to more jittering?
-        // the sim is actually just slow!
-        x.segment(settings.dims.q, settings.dims.v) = vd;
+        // VecXd qd = xd.head(settings.dims.q);
+        // VecXd vd = xd.segment(settings.dims.q, settings.dims.v);
+        // VecXd v_cmd = Kp * (qd - q) + v_ff;
+        // VecXd v_cmd = v_ff;
+        robot.send_command(v_ff);
 
         // Send observation to MPC
         observation.time = t;
@@ -212,6 +247,14 @@ int main(int argc, char** argv) {
         mrt.setCurrentObservation(observation);
 
         ros::spinOnce();
+
+        // Get new policy messages and update the policy if available
+        mrt.spinMRT();
+        if (now - last_policy_update_time >= policy_update_delay) {
+            mrt.updatePolicy();
+            last_policy_update_time = now;
+        }
+
         rate.sleep();
     }
 

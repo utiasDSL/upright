@@ -20,13 +20,6 @@
 
   <xacro:property name="dummy_inertia" value="1e-09"/>
 
-  <material name="dark_grey"><color rgba="0.2 0.2 0.2 1.0" /></material>
-  <material name="light_grey"><color rgba="0.4 0.4 0.4 1.0" /></material>
-  <material name="red"><color rgba="0.8 0.0 0.0 1.0" /></material>
-  <material name="white"><color rgba="0.9 0.9 0.9 1.0" /></material>
-  <material name="yellow"><color rgba="0.8 0.8 0.0 1.0" /></material>
-  <material name="black"><color rgba="0.15 0.15 0.15 1.0" /></material>
-
   <xacro:macro name="wheel" params="prefix side *joint_pose">
     <link name="${prefix}_${side}_wheel_link">
       <visual>

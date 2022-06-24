@@ -168,38 +168,6 @@
       </geometry>
     </collision>
   </link>
-  <joint name="axle_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.05"/>
-    <parent link="chassis_link"/>
-    <child link="axle_link"/>
-  </joint>
-  <link name="axle_link">
-    <visual>
-      <origin rpy="0 1.57079632679 0" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="file://$(find upright_assets)/thing/meshes/ridgeback/axle.stl"/>
-      </geometry>
-      <material name="black"/>
-    </visual>
-  </link>
-  <link name="imu_link">
-    <inertial>
-      <mass value="0.001"/>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <inertia ixx="1e-09" ixy="0.0" ixz="0.0" iyy="1e-09" iyz="0.0" izz="1e-09"/>
-    </inertial>
-  </link>
-  <joint name="imu_joint" type="fixed">
-    <parent link="chassis_link"/>
-    <child link="imu_link"/>
-    <origin rpy="0 0 0" xyz="0.2085 -0.2902 0.1681"/>
-  </joint>
-  <link name="mid_mount"/>
-  <joint name="mid_mount_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="mid_mount"/>
-    <origin rpy="0 0 0" xyz="0 0 0.28"/>
-  </joint>
 
   <link name="arch_link">
     <visual>

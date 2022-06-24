@@ -28,6 +28,32 @@ def parse_time(msgs, normalize_time=True, t0=None):
     return t
 
 
+def plot_mpc_observations(mpc_msgs):
+    ts = np.array([msg.time for msg in mpc_msgs])
+    ts -= ts[0]  # normalize time
+
+    xs = np.array([msg.state.value for msg in mpc_msgs])
+    us = np.array([msg.input.value for msg in mpc_msgs])
+
+    plt.figure()
+    plt.grid()
+    for i in range(us.shape[1]):
+        plt.plot(ts, xs[:, 12+i], label=f"a_{i}")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Joint acceleration (rad/s^2)")
+    plt.legend()
+    plt.title("Joint acceleration")
+
+    plt.figure()
+    plt.grid()
+    for i in range(us.shape[1]):
+        plt.plot(ts, us[:, i], label=f"u_{i}")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Joint jerk input (rad/s^3)")
+    plt.legend()
+    plt.title("Joint jerk inputs")
+
+
 def plot_feedback(feedback_msgs):
     ts = parse_time(feedback_msgs)
     qs = np.array([msg.position for msg in feedback_msgs])
@@ -52,20 +78,26 @@ def plot_feedback(feedback_msgs):
     plt.title("Joint velocities")
 
 
-def plot_cmds(cmd_msgs):
-    # ts = parse_time(cmd_msgs)
-    # TODO there is no time
+def plot_cmds(cmd_ts, cmd_msgs):
     cmds = np.array([msg.data for msg in cmd_msgs])
-    ts = np.arange(cmds.shape[0]) * 0.008
+
+    cmd_ts = cmd_ts - cmd_ts[0]
 
     plt.figure()
     plt.grid()
     for i in range(cmds.shape[1]):
-        plt.plot(ts, cmds[:, i], label=f"cmd_{i}")
+        plt.plot(cmd_ts, cmds[:, i], label=f"cmd_{i}")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint command (rad/s)")
     plt.legend()
     plt.title("Joint velocity commands")
+
+    plt.figure()
+    plt.grid()
+    plt.plot(cmd_ts[1:] - cmd_ts[:-1])
+    plt.xlabel("Step")
+    plt.ylabel("Times (s)")
+    plt.title("Command time")
 
 
 def main():
@@ -73,9 +105,13 @@ def main():
 
     feedback_msgs = [msg for _, msg, _ in bag.read_messages("/ur10_joint_states")]
     cmd_msgs = [msg for _, msg, _ in bag.read_messages("/ur10_cmd_vel")]
+    cmd_ts = np.array([t.to_sec() for _, _, t in bag.read_messages("/ur10_cmd_vel")])
+
+    mpc_msgs = [msg for _, msg, _ in bag.read_messages("/mobile_manipulator_mpc_observation")]
 
     plot_feedback(feedback_msgs)
-    plot_cmds(cmd_msgs)
+    plot_cmds(cmd_ts, cmd_msgs)
+    plot_mpc_observations(mpc_msgs)
 
     plt.show()
 
