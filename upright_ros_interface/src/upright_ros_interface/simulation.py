@@ -8,6 +8,8 @@ from rosgraph_msgs.msg import Clock
 from trajectory_msgs.msg import JointTrajectory
 from sensor_msgs.msg import JointState
 
+from upright_ros_interface.trajectory_client import UR10_JOINT_NAMES
+
 
 class ROSSimulationInterface:
     """Interface between the MPC node and the simulation."""
@@ -29,6 +31,7 @@ class ROSSimulationInterface:
     def publish_feedback(self, t, q, v):
         msg = JointState()
         msg.header.stamp = rospy.Time(t)
+        msg.name = UR10_JOINT_NAMES
         msg.position = q
         msg.velocity = v
         self.feedback_pub.publish(msg)

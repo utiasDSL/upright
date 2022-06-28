@@ -84,7 +84,13 @@ class RobotInterface {
             v_[j] = msg.velocity[i];
         }
 
+        feedback_received_ = true;
+
         velocity_smoother_.update(v_);
+    }
+
+    bool has_received_feedback() {
+        return feedback_received_;
     }
 
     void send_command(const VecXd& cmd) {
@@ -108,6 +114,8 @@ class RobotInterface {
    private:
     VecXd q_;
     VecXd v_;
+
+    bool feedback_received_ = false;
 
     ros::Subscriber feedback_sub_;
     ros::Publisher command_pub_;
@@ -154,14 +162,8 @@ int main(int argc, char** argv) {
     mrt.initRollout(&interface.getRollout());
     mrt.launchNodes(nh);
 
-    // initial state
+    // nominal initial state and interface to the real robot
     VecXd x0 = interface.getInitialState();
-    ocs2::SystemObservation initial_observation;
-    initial_observation.state = x0;
-    initial_observation.input.setZero(settings.dims.u);
-    initial_observation.time = ros::Time::now().toSec();
-
-    // interface to the real robot
     VecXd q0 = x0.head(settings.dims.q);
     VecXd v0 = x0.segment(settings.dims.q, settings.dims.v);
     RobotInterface robot(nh, q0, v0, 0.9);
@@ -169,10 +171,29 @@ int main(int argc, char** argv) {
     ocs2::scalar_t timestep = 1.0 / settings.rate;
     ros::Rate rate(settings.rate);
 
-    MatXd Kp = settings.Kp;
-    std::cout << "Kp = " << Kp << std::endl;
+    // wait until we get feedback from the robot
+    while (ros::ok() && ros::master::check()) {
+        ros::spinOnce();
+        if (robot.has_received_feedback()) {
+            break;
+        }
+        rate.sleep();
+    }
+    std::cout << "Received feedback from robot." << std::endl;
 
-    // Reset MPC
+    // update to the real initial state
+    q0 = robot.get_joint_position();
+    x0.head(settings.dims.q) = q0;
+
+    // MatXd Kp = settings.Kp;
+    // std::cout << "Kp = " << Kp << std::endl;
+
+    ocs2::SystemObservation initial_observation;
+    initial_observation.state = x0;
+    initial_observation.input.setZero(settings.dims.u);
+    initial_observation.time = ros::Time::now().toSec();
+
+    // reset MPC
     ocs2::TargetTrajectories target =
         ocs2::ros_msg_conversions::readTargetTrajectoriesMsg(
             target_srv.response.target_trajectory);
@@ -257,6 +278,10 @@ int main(int argc, char** argv) {
 
         rate.sleep();
     }
+
+    // send zero-velocity command to stop the robot when we're done
+    v0 = VecXd::Zero(settings.dims.v);
+    robot.send_command(v0);
 
     // Successful exit
     return 0;

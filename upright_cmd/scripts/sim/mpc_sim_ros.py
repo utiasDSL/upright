@@ -76,21 +76,22 @@ def main():
     ros_interface = ROSSimulationInterface("mobile_manipulator")
     ros_interface.publish_time(t)
 
-    # rate = rospy.Rate(1.0 / sim.timestep)
-
     # wait until a command has been received
     # note that we use real time here since this sim directly controls sim time
     print("Waiting for a command to be received...")
     while not ros_interface.ready():
+        ros_interface.publish_feedback(t, q, v)
         ros_interface.publish_time(t)
         t += sim.timestep
         time.sleep(sim.timestep)
+        if rospy.is_shutdown():
+            return
 
     print("Command received. Executing...")
     t0 = t
 
     # simulation loop
-    while t - t0 <= sim.duration:
+    while not rospy.is_shutdown() and t - t0 <= sim.duration:
         q, v = sim.robot.joint_states(add_noise=True)
         ros_interface.publish_feedback(t, q, v)
         sim.robot.command_velocity(ros_interface.cmd_vel)
@@ -102,7 +103,7 @@ def main():
             r_ew_w, Q_we = sim.robot.link_pose()
             v_ew_w, ω_ew_w = sim.robot.link_velocity()
             r_ow_ws, Q_wos = sim.object_poses()
-            logger.append("ts", t)
+            logger.append("ts", t - t0)
             logger.append("us", u)
             logger.append("xs", x)
             logger.append("r_ew_ws", r_ew_w)

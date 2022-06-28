@@ -105,6 +105,9 @@ def main():
 
     feedback_msgs = [msg for _, msg, _ in bag.read_messages("/ur10_joint_states")]
     cmd_msgs = [msg for _, msg, _ in bag.read_messages("/ur10_cmd_vel")]
+
+    # this only uses real wall time, not simulated time, so is not accurate for
+    # simulation
     cmd_ts = np.array([t.to_sec() for _, _, t in bag.read_messages("/ur10_cmd_vel")])
 
     mpc_msgs = [msg for _, msg, _ in bag.read_messages("/mobile_manipulator_mpc_observation")]
