@@ -22,10 +22,10 @@ video:
       name: view1
 
 static_obstacles:
-  enabled: false
+  enabled: true
   urdf:
     package: "upright_assets"
-    path: "urdf/obstacles.urdf"
+    path: "thing/urdf/obstacles.urdf"
 
 dynamic_obstacles:
   enabled: false

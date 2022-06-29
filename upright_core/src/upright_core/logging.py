@@ -355,5 +355,13 @@ class DataPlotter:
                 title="ddC_we norm",
             )
 
+        if "collision_pair_distances" in self.data:
+            self.plot_value_vs_time(
+                "collision_pair_distances",
+                legend_prefix="d",
+                ylabel="Distance (m)",
+                title="Obstacle distances",
+            )
+
         if show:
             plt.show()

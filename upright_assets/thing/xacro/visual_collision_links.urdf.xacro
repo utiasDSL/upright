@@ -1,57 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <robot name="collision_links">
-  <material name="seethrough">
-    <color rgba="1.0 0.0 0.0 0.5"/>
-  </material>
-
-  <!-- Collision element to protect the balanced objects -->
-  <!-- This configuration is used for both obstacle avoidance tasks -->
-  <!-- <link name="balanced_object_collision_link"> -->
-  <!--   <collision> -->
-  <!--     <origin rpy="0 0 0" xyz="0 0 0.1"/> -->
-  <!--     <geometry> -->
-  <!--       <cylinder length="0.25" radius="0.25"/> -->
-  <!--     </geometry> -->
-  <!--   </collision> -->
-  <!--   <visual> -->
-  <!--     <origin rpy="0 0 0" xyz="0 0 0.1"/> -->
-  <!--     <geometry> -->
-  <!--       <cylinder length="0.25" radius="0.25"/> -->
-  <!--     </geometry> -->
-  <!--     <material name="seethrough"/> -->
-  <!--   </visual> -->
-  <!-- </link> -->
 
   <!-- This configuration is used for the single- and multi-object balancing tasks -->
   <link name="balanced_object_collision_link">
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0.02"/>
-      <geometry>
-        <cylinder length="0.1" radius="0.25"/>
-      </geometry>
-    </collision>
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.02"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <cylinder length="0.1" radius="0.25"/>
+        <sphere radius="0.2"/>
       </geometry>
       <material name="seethrough"/>
     </visual>
   </link>
   <joint name="balanced_object_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 0 0" xyz="0 0 0.05"/>
     <parent link="thing_tool"/>
     <child link="balanced_object_collision_link"/>
   </joint>
 
   <!-- Collision sphere for the shoulder -->
   <link name="shoulder_collision_link">
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.15"/>
-      </geometry>
-    </collision>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -68,14 +35,8 @@
 
   <!-- Collision cylinder for the upper arm link -->
   <link name="upper_arm_collision_link">
-    <collision>
-      <origin rpy="0 0 0" xyz="0 -0.05 0.325"/>
-      <geometry>
-        <cylinder length="0.65" radius="0.06"/>
-      </geometry>
-    </collision>
     <visual>
-      <origin rpy="0 0 0" xyz="0 -0.05 0.325"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <cylinder length="0.65" radius="0.06"/>
       </geometry>
@@ -83,21 +44,15 @@
     </visual>
   </link>
   <joint name="upper_arm_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 1.5708 0" xyz="-0.325 0 0.18"/>
     <parent link="ur10_arm_upper_arm_link"/>
     <child link="upper_arm_collision_link"/>
   </joint>
 
   <!-- Collision sphere for the elbow -->
   <link name="elbow_collision_link">
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0.06 0"/>
-      <geometry>
-        <sphere radius="0.15"/>
-      </geometry>
-    </collision>
     <visual>
-      <origin rpy="0 0 0" xyz="0 0.06 0"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <sphere radius="0.15"/>
       </geometry>
@@ -105,22 +60,17 @@
     </visual>
   </link>
   <joint name="elbow_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 0 0" xyz="0 0 0.12"/>
     <parent link="ur10_arm_forearm_link"/>
     <child link="elbow_collision_link"/>
   </joint>
 
   <!-- Collision cylinder for the forearm link -->
   <!-- For use as an end effector (i.e. to compute its position for the dynamic obstacle task), we must specify the origin of the link using the <joint> rather than inside the <link> itself. Otherwise, this should not be done, as it (oddly, and unexpectedly) changes the behaviour. -->
+  <!-- the above is because the origin used for the EE is the joint frame -->
   <link name="forearm_collision_link">
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0.3"/>
-      <geometry>
-        <cylinder length="0.6" radius="0.06"/>
-      </geometry>
-    </collision>
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.3"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <cylinder length="0.6" radius="0.06"/>
       </geometry>
@@ -128,19 +78,13 @@
     </visual>
   </link>
   <joint name="forearm_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 1.5708 0" xyz="-0.3 0 0.05"/>
     <parent link="ur10_arm_forearm_link"/>
     <child link="forearm_collision_link"/>
   </joint>
 
   <!-- Collision sphere for the wrist -->
   <link name="wrist_collision_link">
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.15"/>
-      </geometry>
-    </collision>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
@@ -158,21 +102,15 @@
   <!-- Collision rectangle for the base -->
   <link name="base_collision_link">
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.15"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <box size="1.0 0.8 0.3"/>
       </geometry>
       <material name="seethrough"/>
     </visual>
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0.15"/>
-      <geometry>
-        <box size="1.0 0.8 0.3"/>
-      </geometry>
-    </collision>
   </link>
   <joint name="base_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.01"/>
+    <origin rpy="0 0 0" xyz="0 0 0.16"/>
     <parent link="base_link"/>
     <child link="base_collision_link"/>
   </joint>
@@ -185,15 +123,9 @@
       </geometry>
       <material name="seethrough"/>
     </visual>
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.15"/>
-      </geometry>
-    </collision>
   </link>
   <joint name="forearm_collision_sphere_joint1" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.2"/>
+    <origin rpy="0 1.5708 0" xyz="-0.2 0 0.06"/>
     <parent link="ur10_arm_forearm_link"/>
     <child link="forearm_collision_sphere_link1"/>
   </joint>
@@ -206,17 +138,10 @@
       </geometry>
       <material name="seethrough"/>
     </visual>
-    <collision>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.15"/>
-      </geometry>
-    </collision>
   </link>
   <joint name="forearm_collision_sphere_joint2" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.4"/>
+    <origin rpy="0 1.5708 0" xyz="-0.4 0 0.06"/>
     <parent link="ur10_arm_forearm_link"/>
-    <child link="forearm_collision_sphere_link2"/>
-  </joint>
+    <child link="forearm_collision_sphere_link2"/> </joint>
 
 </robot>

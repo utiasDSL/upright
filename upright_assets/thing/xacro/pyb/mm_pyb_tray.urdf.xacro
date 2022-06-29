@@ -3,4 +3,5 @@
   <xacro:include filename="base_joints.urdf.xacro" />
   <xacro:include filename="../mm.urdf.xacro" />
   <xacro:include filename="../end_effector_tray.urdf.xacro" />
+  <xacro:include filename="../visual_collision_links.urdf.xacro" />
 </robot>

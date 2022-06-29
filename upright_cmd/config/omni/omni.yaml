@@ -1,7 +1,7 @@
 simulation:
   robot:
-    home: [0, 0, 0, 0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
-    # home: [0, 0, 0, 0, -0.75pi, -0.5pi, -0.75pi, -0.5pi, 0.5pi]  # standard
+    # home: [0, 0, 0, 0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
+    home: [0, 0, 0, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi]  # standard
     dims:
       q: 9  # generalized position
       v: 9  # generalized velocity
@@ -23,12 +23,11 @@ simulation:
       - "ur10_arm_wrist_1_joint"
       - "ur10_arm_wrist_2_joint"
       - "ur10_arm_wrist_3_joint"
-    tool_joint_name: "tool0_tcp_fixed_joint"
+    tool_joint_name: "gripper_tool_joint"
     base_type: omnidirectional
     urdf:
       package: "upright_assets"
-      path: "urdf/mm_pyb.urdf"
-      # path: "urdf/mm_pyb_static_obs.urdf"
+      path: "thing/urdf/mm_pyb_tray.urdf"
 
 controller:
   # robot parameters
@@ -38,10 +37,10 @@ controller:
       v: 9  # generalized velocity
       x: 27 # state
       u: 9  # input
-    x0: [0, 0, 0, 0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0rep9, 0rep9]
+    x0: [0, 0, 0, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi, 0rep9, 0rep9]
     urdf:
       package: "upright_assets"
-      path: "urdf/mm_ocs2.urdf"
+      path: "thing/urdf/mm_ocs2_tray.urdf"
     tool_link_name: "thing_tool"
     base_type: omnidirectional
 
@@ -55,22 +54,35 @@ controller:
       diag: [0rep9, 10rep9, 1rep9]
     end_effector:
       scale: 1
-      diag: [1, 1, 1, 0, 0, 1]
+      diag: [1, 1, 1, 0, 0, 0]
       # diag: [0, 0, 0, 1, 1, 1]
-
-  # state and input limits
+      #
+  # reduced state and input limits
   limits:
     input:
       lower: [-20, -20, -20, -80, -80, -80, -80, -80, -80]
       upper: [20, 20, 20, 80, 80, 80, 80, 80, 80]
-    # TODO: real arm velocity limits are higher
     state:
       lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
-              -1.1, -1.1, -2, -2, -2, -2, -2, -2, -2,
-              -2.5, -2.5, -1, -8, -8, -8, -8, -8, -8]
+              -0.5rep9,
+              -2rep9]
       upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
-              1.1, 1.1, 2, 2, 2, 2, 2, 2, 2,
-              2.5, 2.5, 1, 8, 8, 8, 8, 8, 8]
+              0.5rep9,
+              2rep9]
+
+  # state and input limits
+  # limits:
+  #   input:
+  #     lower: [-20, -20, -20, -80, -80, -80, -80, -80, -80]
+  #     upper: [20, 20, 20, 80, 80, 80, 80, 80, 80]
+  #   # TODO: real arm velocity limits are higher
+  #   state:
+  #     lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
+  #             -1.1, -1.1, -2, -2, -2, -2, -2, -2, -2,
+  #             -2.5, -2.5, -1, -8, -8, -8, -8, -8, -8]
+  #     upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
+  #             1.1, 1.1, 2, 2, 2, 2, 2, 2, 2,
+  #             2.5, 2.5, 1, 8, 8, 8, 8, 8, 8]
     # input:
     #   lower: [-200rep3, -400rep6]
     #   upper: [200rep3, 400rep6]

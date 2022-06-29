@@ -19,7 +19,7 @@
     <color rgba="0.15 0.15 0.15 1.0"/>
   </material>
   <material name="seethrough">
-    <color rgba="0.0 0.0 0.0 0.25"/>
+    <color rgba="1.0 0.0 0.0 0.25"/>
   </material>
 
   <link name="base_link">
@@ -36,26 +36,16 @@
   </joint>
   <link name="chassis_link">
     <visual>
-      <!-- <origin rpy="0 0 0" xyz="0 0 0.15"/> -->
-      <!-- <geometry> -->
-      <!--   <box size="1.0 0.8 0.3"/> -->
-      <!-- </geometry> -->
-      <!-- <origin xyz="0 0 0"/> -->
       <geometry>
         <mesh filename="file://$(find upright_assets)/thing/meshes/ridgeback/body.stl"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
-      <!-- simpler collision geometry for speed -->
-      <origin rpy="0 0 0" xyz="0 0 0.15"/>
+      <origin xyz="0 0 0"/>
       <geometry>
-        <box size="1.0 0.8 0.3"/>
+        <mesh filename="file://$(find upright_assets)/thing/meshes/ridgeback/body-collision.stl"/>
       </geometry>
-      <!-- <origin xyz="0 0 0"/> -->
-      <!-- <geometry> -->
-      <!--   <mesh filename="file://$(find upright_assets)/thing/meshes/ridgeback/body&#45;collision.stl"/> -->
-      <!-- </geometry> -->
     </collision>
     <inertial>
       <origin rpy="1.57079632679 0 1.57079632679" xyz="0.012 0.002 0.067"/>
@@ -181,6 +171,7 @@
   </link>
   <joint name="arch_joint" type="fixed">
     <origin rpy="0 0 1.57079632679" xyz="0 0 0.278"/>
+    <!-- <origin rpy="-1.57079632679 0 1.57079632679" xyz="0 0 0.278"/> -->
     <parent link="top_link"/>
     <child link="arch_link"/>
   </joint>

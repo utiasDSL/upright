@@ -266,7 +266,7 @@ class BulletSimulation:
         # setup obstacles
         if config["static_obstacles"]["enabled"]:
             obstacles_uid = pyb.loadURDF(
-                parsing.parse_ros_path(config["urdf"]["obstacles"])
+                parsing.parse_ros_path(config["static_obstacles"]["urdf"])
             )
             pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
 

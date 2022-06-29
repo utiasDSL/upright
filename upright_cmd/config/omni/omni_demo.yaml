@@ -12,19 +12,29 @@ include:
     path: config/omni/omni.yaml
 
 logging:
-  timestep: 10
+  timestep: 0.010
   log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
 
 simulation:
-  duration: 10000
-  arrangement: tray_cube
+  duration: 10.0
+  arrangement: one_box
 
 controller:
   balancing:
-    arrangement: tray_cube
+    enabled: false
+    arrangement: one_box
+
+  tracking:
+    rate: 125
+    Kp:
+      scale: 1
+      diag: [1rep9]
 
   waypoints:
     -
-      millis: 0
-      position: [2.0, 0.0, 0.0]
+      time: 0
+      position: [0.0, 0.3, 0.0]
       orientation: [0, 0, 0, 1]
+
+  operating_points:
+    enabled: false

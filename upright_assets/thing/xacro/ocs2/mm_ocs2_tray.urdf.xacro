@@ -2,4 +2,5 @@
 <robot name="mm_ocs2_tray" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="../mm.urdf.xacro" />
   <xacro:include filename="../end_effector_tray.urdf.xacro" />
+  <xacro:include filename="../collision_links.urdf.xacro" />
 </robot>

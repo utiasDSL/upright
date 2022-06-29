@@ -43,9 +43,6 @@ def main():
     # controller
     integrator = ctrl.trajectory.DoubleIntegrator(v.shape[0])
 
-    IPython.embed()
-    return
-
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
     model = ctrl_manager.model
     ref = ctrl_manager.ref
@@ -78,10 +75,10 @@ def main():
     # simulation loop
     while t <= sim.duration:
         q, v = sim.robot.joint_states(add_noise=True)
-        x = np.concatenate((q, v, a))
+        x = np.concatenate((q, v, a_ff))  # TODO use v_ff too?
 
-        # optimize with the MPC - only done if the internal MPC timestep has
-        # been exceeded
+        # compute policy - MPC is re-optimized automatically when the internal
+        # MPC timestep has been exceeded
         try:
             xd, u = ctrl_manager.step(t, x)
         except RuntimeError as e:
@@ -90,17 +87,10 @@ def main():
             IPython.embed()
             break
 
-        # qd, vd, a = mapping.xu2qva(xd)
-        # sim.robot.command_jerk(u)
-
-        # alternatively we could use the command directly, but this leads to
-        # discontinuities in velocity
-        qd, vd, a = mapping.xu2qva(xd)
-        # v_cmd = Kp @ (qd - q) + vd
-
         # TODO why is this better than using the zero-order hold?
         # here we use the input u to generate the feedforward signal---using
         # the jerk level ensures smoothness at the velocity level
+        qd, _, _ = mapping.xu2qva(xd)
         v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u, sim.timestep)
         v_cmd = Kp @ (qd - q) + v_ff
         sim.robot.command_velocity(v_cmd)
@@ -111,10 +101,9 @@ def main():
             #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
             #         "dynamicObstacleAvoidance", t, x
             #     )
-            # if ctrl_manager.settings.collision_avoidance_settings.enabled:
-            #     recorder.collision_pair_distance[
-            #         idx, :
-            #     ] = mpc.stateInequalityConstraint("collisionAvoidance", t, x)
+            if model.settings.collision_avoidance_settings.enabled:
+                ds = ctrl_manager.mpc.stateInequalityConstraint("collisionAvoidance", t, x)
+                logger.append("collision_pair_distances", ds)
 
             # log sim stuff
             r_ew_w, Q_we = sim.robot.link_pose()

@@ -187,50 +187,21 @@ class ControllerSettings(bindings.ControllerSettings):
             ].body.com_ellipsoid.center()  # TODO could specify index in config
 
         # collision avoidance settings
-        self.collision_avoidance_settings.enabled = False
-        # fmt: off
-        for pair in [
-            # the base with most everything
-            ("base_collision_link_0", "table1_link_0"),
-            ("base_collision_link_0", "table2_link_0"),
-            ("base_collision_link_0", "table3_link_0"),
-            ("base_collision_link_0", "table4_link_0"),
-            ("base_collision_link_0", "table5_link_0"),
-            ("base_collision_link_0", "chair1_1_link_0"),
-            ("base_collision_link_0", "chair1_2_link_0"),
-            ("base_collision_link_0", "chair2_1_link_0"),
-            ("base_collision_link_0", "chair3_1_link_0"),
-            ("base_collision_link_0", "chair3_2_link_0"),
-            ("base_collision_link_0", "chair4_1_link_0"),
-            ("base_collision_link_0", "chair4_2_link_0"),
-
-            # wrist and tables
-            ("wrist_collision_link_0", "table1_link_0"),
-            ("wrist_collision_link_0", "table2_link_0"),
-            ("wrist_collision_link_0", "table3_link_0"),
-            ("wrist_collision_link_0", "table4_link_0"),
-            ("wrist_collision_link_0", "table5_link_0"),
-
-            # wrist and shoulder
-            ("wrist_collision_link_0", "shoulder_collision_link_0"),
-
-            # elbow and tables
-            ("elbow_collision_link_0", "table1_link_0"),
-            ("elbow_collision_link_0", "table2_link_0"),
-            ("elbow_collision_link_0", "table3_link_0"),
-            ("elbow_collision_link_0", "table4_link_0"),
-            ("elbow_collision_link_0", "table5_link_0"),
-
-            # elbow and tall chairs
-            ("elbow_collision_link_0", "chair3_1_link_0"),
-            ("elbow_collision_link_0", "chair4_2_link_0"),
-            ("elbow_collision_link_0", "chair2_1_link_0"),
-        ]:
-            self.collision_avoidance_settings.collision_link_pairs.push_back(pair)
-        # fmt: on
-        self.collision_avoidance_settings.minimum_distance = 0
-        self.collision_avoidance_settings.mu = 1e-2
-        self.collision_avoidance_settings.delta = 1e-3
+        self.collision_avoidance_settings.enabled = config["static_obstacles"][
+            "enabled"
+        ]
+        if config["static_obstacles"]["collision_pairs"] is not None:
+            for pair in config["static_obstacles"]["collision_pairs"]:
+                self.collision_avoidance_settings.collision_link_pairs.push_back(tuple(pair))
+        self.collision_avoidance_settings.minimum_distance = config["static_obstacles"][
+            "minimum_distance"
+        ]
+        self.collision_avoidance_settings.mu = core.parsing.parse_number(
+            config["static_obstacles"]["mu"]
+        )
+        self.collision_avoidance_settings.delta = core.parsing.parse_number(
+            config["static_obstacles"]["delta"]
+        )
 
         # dynamic obstacle settings
         self.dynamic_obstacle_settings.enabled = False

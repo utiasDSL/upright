@@ -433,6 +433,7 @@ ControllerInterface::getCollisionAvoidanceConstraint(
         // The collision sphere is specified relative to a link, but the
         // geometry interface works relative to joints. Thus we need to find
         // the parent joint and the sphere's transform w.r.t. it.
+        // TODO if possible, it would be better to specify w.r.t. to a joint
         pinocchio::FrameIndex parent_frame_id =
             model.getFrameId(sphere.parent_frame_name);
         pinocchio::Frame parent_frame = model.frames[parent_frame_id];
@@ -461,11 +462,11 @@ ControllerInterface::getCollisionAvoidanceConstraint(
     std::cerr << "SelfCollision: Testing for " << numCollisionPairs
               << " collision pairs\n";
 
-    // std::vector<hpp::fcl::DistanceResult> distances =
-    //     geometryInterface.computeDistances(pinocchioInterface);
-    // for (int i = 0; i < distances.size(); ++i) {
-    //     std::cout << "dist = " << distances[i].min_distance << std::endl;
-    // }
+    std::vector<hpp::fcl::DistanceResult> distances =
+        geometryInterface.computeDistances(pinocchioInterface);
+    for (int i = 0; i < distances.size(); ++i) {
+        std::cout << "dist = " << distances[i].min_distance << std::endl;
+    }
 
     std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::scalar_t>>
         pinocchio_mapping_ptr;

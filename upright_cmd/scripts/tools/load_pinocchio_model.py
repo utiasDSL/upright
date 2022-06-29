@@ -21,8 +21,21 @@ def main():
     x = model.settings.initial_state
     u = np.zeros(robot.dims.u)
 
+    # create geometry interface
+    geom = ctrl.robot.PinocchioGeometry(robot)
+    geom.add_geometry_objects_from_config(config["static_obstacles"])
+    geom.add_collision_pairs(config["static_obstacles"]["collision_pairs"])
+
     robot.forward(x, u)
 
+    # compute distances between collision pairs
+    dists = geom.compute_distances()
+
+    # visualize the robot
+    q = x[:robot.dims.q]
+    viz = geom.visualize(q)
+
+    # forward kinematics (position, velocity, acceleration)
     r, Q = robot.link_pose()
     dr, ω = robot.link_velocity()
     J = robot.jacobian(q)
@@ -30,8 +43,8 @@ def main():
     # note that this is the classical acceleration, not the spatial acceleration
     ddr, α = robot.link_acceleration()
 
+    # forward kinematics derivatives
     robot.forward_derivatives(x, u)
-
     dVdq, dVdv = robot.link_velocity_derivatives()
     dAdq, dAdv, dAda = robot.link_acceleration_derivatives()
 

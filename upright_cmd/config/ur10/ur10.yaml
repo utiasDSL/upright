@@ -25,8 +25,6 @@ simulation:
     base_type: fixed
     urdf:
       package: "upright_assets"
-      # path: "urdf/mm_pyb.urdf"
-      # path: "urdf/mm_pyb_static_obs.urdf"
       path: "thing/urdf/mm_pyb_tray.urdf"
 
 controller:

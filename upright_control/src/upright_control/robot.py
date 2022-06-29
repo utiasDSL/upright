@@ -5,6 +5,79 @@ import upright_core as core
 from upright_control import bindings
 
 
+class PinocchioGeometry:
+    def __init__(self, robot):
+        self.robot = robot
+        self.collision_model = pinocchio.GeometryModel()
+        self.visual_model = pinocchio.GeometryModel()
+
+        self.add_geometry_objects_from_urdf(robot.urdf_path, model=robot.model)
+
+    def add_collision_objects(self, geoms):
+        """Add a list of geometry objects to the model."""
+        for geom in geoms:
+            self.collision_model.addGeometryObject(geom)
+
+    def add_visual_objects(self, geoms):
+        """Add a list of geometry objects to the model."""
+        for geom in geoms:
+            self.visual_model.addGeometryObject(geom)
+
+    def add_geometry_objects_from_urdf(self, urdf_path, model=None):
+        """Add geometry objects from a URDF file."""
+        geom_model = pinocchio.GeometryModel()
+
+        if model is None:
+            model = pinocchio.buildModelFromUrdf(urdf_path)
+
+        # load collision objects
+        pinocchio.buildGeomFromUrdf(model, urdf_path, pinocchio.COLLISION, geom_model)
+        self.add_collision_objects(geom_model.geometryObjects)
+
+        # load visual objects
+        pinocchio.buildGeomFromUrdf(model, urdf_path, pinocchio.VISUAL, geom_model)
+        self.add_visual_objects(geom_model.geometryObjects)
+
+    def add_geometry_objects_from_config(self, config):
+        """Add geometry objects from a config dict.
+
+        Expects the config to have a key "urdf" with the usual sub-dict.
+        """
+        urdf_path = core.parsing.parse_ros_path(config["urdf"])
+        self.add_geometry_objects_from_urdf(urdf_path)
+
+    def add_collision_pairs(self, pairs):
+        """Add collision pairs to the model."""
+        for pair in pairs:
+            id1 = self.collision_model.getGeometryId(pair[0])
+            id2 = self.collision_model.getGeometryId(pair[1])
+            self.collision_model.addCollisionPair(pinocchio.CollisionPair(id1, id2))
+
+    def compute_distances(self):
+        """Compute distances between collision pairs.
+
+        robot.forward(...) should be called first.
+        """
+        geom_data = pinocchio.GeometryData(self.collision_model)
+
+        pinocchio.updateGeometryPlacements(
+            self.robot.model, self.robot.data, self.collision_model, geom_data
+        )
+        pinocchio.computeDistances(self.collision_model, geom_data)
+
+        return np.array([result.min_distance for result in geom_data.distanceResults])
+
+    def visualize(self, q):
+        """Visualize the robot using meshcat."""
+        viz = pinocchio.visualize.MeshcatVisualizer(
+            self.robot.model, self.collision_model, self.visual_model
+        )
+        viz.initViewer()
+        viz.loadViewerModel()
+        viz.display(q)
+        return viz
+
+
 class PinocchioRobot:
     def __init__(self, config):
         # dimensions
@@ -15,17 +88,18 @@ class PinocchioRobot:
         self.dims.u = config["dims"]["u"]  # num inputs
 
         # create the model
-        urdf_path = core.parsing.parse_ros_path(config["urdf"])
+        self.urdf_path = core.parsing.parse_ros_path(config["urdf"])
         base_type = config["base_type"]
         if base_type == "fixed":
-            self.model = pinocchio.buildModelFromUrdf(urdf_path)
+            self.model = pinocchio.buildModelFromUrdf(self.urdf_path)
             self.mapping = bindings.FixedBasePinocchioMapping(self.dims)
         elif base_type == "omnidirectional":
             root_joint = pinocchio.JointModelComposite(3)
             root_joint.addJoint(pinocchio.JointModelPX())
             root_joint.addJoint(pinocchio.JointModelPY())
             root_joint.addJoint(pinocchio.JointModelRZ())
-            self.model = pinocchio.buildModelFromUrdf(urdf_path, root_joint)
+            # root_joint = pinocchio.JointModelPlanar()
+            self.model = pinocchio.buildModelFromUrdf(self.urdf_path, root_joint)
             self.mapping = bindings.OmnidirectionalPinocchioMapping(self.dims)
         else:
             raise ValueError(f"Invalid base type {base_type}.")
