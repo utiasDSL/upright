@@ -46,13 +46,13 @@ ddp
 ; multiple_shooting settings
 multiple_shooting
 {
-  dt                            0.1
+  dt                            0.01
   sqpIteration                  10
   deltaTol                      1e-3
   printSolverStatistics         true
   printSolverStatus             true
   printLinesearch               true
-  useFeedbackPolicy             true
+  useFeedbackPolicy             false
   integratorType                RK4
   nThreads                      4
 
