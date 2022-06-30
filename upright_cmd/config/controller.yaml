@@ -51,42 +51,42 @@ static_obstacles:
   collision_pairs:
     # wrist and shoulder
     - ["wrist_collision_link_0", "shoulder_collision_link_0"]
-    - ["balanced_object_collision_link_0", "shoulder_collision_link_0"]
+    # - ["balanced_object_collision_link_0", "shoulder_collision_link_0"]
 
     # - ["balanced_object_collision_link_0", "table1_link_0"]
 
     # the base with most everything
-    # - ["base_collision_link_0", "table1_link_0"]
-    # - ["base_collision_link_0", "table2_link_0"]
-    # - ["base_collision_link_0", "table3_link_0"]
-    # - ["base_collision_link_0", "table4_link_0"]
-    # - ["base_collision_link_0", "table5_link_0"]
-    # - ["base_collision_link_0", "chair1_1_link_0"]
-    # - ["base_collision_link_0", "chair1_2_link_0"]
-    # - ["base_collision_link_0", "chair2_1_link_0"]
-    # - ["base_collision_link_0", "chair3_1_link_0"]
-    # - ["base_collision_link_0", "chair3_2_link_0"]
-    # - ["base_collision_link_0", "chair4_1_link_0"]
-    # - ["base_collision_link_0", "chair4_2_link_0"]
+    - ["base_collision_link_0", "table1_link_0"]
+    - ["base_collision_link_0", "table2_link_0"]
+    - ["base_collision_link_0", "table3_link_0"]
+    - ["base_collision_link_0", "table4_link_0"]
+    - ["base_collision_link_0", "table5_link_0"]
+    - ["base_collision_link_0", "chair1_1_link_0"]
+    - ["base_collision_link_0", "chair1_2_link_0"]
+    - ["base_collision_link_0", "chair2_1_link_0"]
+    - ["base_collision_link_0", "chair3_1_link_0"]
+    - ["base_collision_link_0", "chair3_2_link_0"]
+    - ["base_collision_link_0", "chair4_1_link_0"]
+    - ["base_collision_link_0", "chair4_2_link_0"]
 
     # wrist and tables
-    # - ["wrist_collision_link_0", "table1_link_0"]
-    # - ["wrist_collision_link_0", "table2_link_0"]
-    # - ["wrist_collision_link_0", "table3_link_0"]
-    # - ["wrist_collision_link_0", "table4_link_0"]
-    # - ["wrist_collision_link_0", "table5_link_0"]
-    #
-    # # elbow and tables
-    # - ["elbow_collision_link_0", "table1_link_0"]
-    # - ["elbow_collision_link_0", "table2_link_0"]
-    # - ["elbow_collision_link_0", "table3_link_0"]
-    # - ["elbow_collision_link_0", "table4_link_0"]
-    # - ["elbow_collision_link_0", "table5_link_0"]
-    #
-    # # elbow and tall chairs
-    # - ["elbow_collision_link_0", "chair3_1_link_0"]
-    # - ["elbow_collision_link_0", "chair4_2_link_0"]
-    # - ["elbow_collision_link_0", "chair2_1_link_0"]
+    - ["wrist_collision_link_0", "table1_link_0"]
+    - ["wrist_collision_link_0", "table2_link_0"]
+    - ["wrist_collision_link_0", "table3_link_0"]
+    - ["wrist_collision_link_0", "table4_link_0"]
+    - ["wrist_collision_link_0", "table5_link_0"]
+
+    # elbow and tables
+    - ["elbow_collision_link_0", "table1_link_0"]
+    - ["elbow_collision_link_0", "table2_link_0"]
+    - ["elbow_collision_link_0", "table3_link_0"]
+    - ["elbow_collision_link_0", "table4_link_0"]
+    - ["elbow_collision_link_0", "table5_link_0"]
+
+    # elbow and tall chairs
+    - ["elbow_collision_link_0", "chair3_1_link_0"]
+    - ["elbow_collision_link_0", "chair4_2_link_0"]
+    - ["elbow_collision_link_0", "chair2_1_link_0"]
 
   # extra margin between objects
   minimum_distance: 0

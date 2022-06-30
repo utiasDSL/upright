@@ -85,24 +85,28 @@ class MobileManipulatorPinocchioMapping final
     // (generalized positions and velocities), as provided by Pinocchio as Jq
     // and Jv, to the Jacobian of the state dfdx and Jacobian of the input
     // dfdu.
-    std::pair<MatXd, MatXd> getOcs2Jacobian(const VecXd& state, const MatXd& Jq,
-                                            const MatXd& Jv) const override {
-        // TODO not correct now
-
+    std::pair<MatXd, MatXd> getOcs2Jacobian(const VecXd& state, const MatXd& Jq_pin,
+                                            const MatXd& Jv_pin) const override {
         // Jacobian of Pinocchio joint velocities v_pin w.r.t. actual state
         // velocities v
         Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
         MatXd dv_pin_dv = MatXd::Identity(dims_.v, dims_.v);
         dv_pin_dv.template topLeftCorner<2, 2>() = C_wb;
 
-        const auto output_dim = Jq.rows();
-        MatXd dfdx(output_dim, Jq.cols() + Jv.cols());
-        dfdx << Jq, Jv * dv_pin_dv;
+        const auto nf = Jq_pin.rows();
 
+        MatXd Jq = Jq_pin;
+        MatXd Jv = Jv_pin * dv_pin_dv;
+        MatXd Ja = MatXd::Zero(nf, Jv.cols());
+
+        // State Jacobian
+        MatXd dfdx(nf, Jq.cols() + Jv.cols() + Ja.cols());
+        dfdx << Jq, Jv, Ja;
+
+        // Input Jacobian
         // NOTE: this isn't used for collision avoidance (which is the only
         // place this method is called)
-        MatXd dfdu(output_dim, dims_.u);
-        dfdu.setZero();
+        MatXd dfdu = MatXd::Zero(nf, dims_.u);
 
         return {dfdx, dfdu};
     }
