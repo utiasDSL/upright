@@ -3,10 +3,10 @@
 <!-- Launch UR10 driver. -->
 <launch>
   <!-- published by the joint_state_controller -->
-  <remap from="/joint_states" to="/ur10_joint_states" />
+  <remap from="/joint_states" to="/mobile_manipulator_joint_states" />
 
   <!-- subscribed to by the joint_group_vel_controller -->
-  <remap from="/joint_group_vel_controller/command" to="/ur10_cmd_vel" />
+  <remap from="/joint_group_vel_controller/command" to="/mobile_manipulator_cmd_vel" />
 
   <include file="$(find ur_robot_driver)/launch/ur10_bringup.launch" >
     <arg name="robot_ip" default="192.168.131.40"/>

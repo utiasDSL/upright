@@ -65,15 +65,15 @@ std::tuple<VecXd, VecXd> double_integrate_repeated(const VecXd& v,
 // Get feedback and send commands to the robot
 class RobotInterface {
    public:
-    RobotInterface(ros::NodeHandle& nh, const VecXd& q0, const VecXd& v0,
+    RobotInterface(ros::NodeHandle& nh, const std::string& robot_name,
+                   const VecXd& q0, const VecXd& v0,
                    const ocs2::scalar_t& smoothing_factor)
         : q_(q0), v_(v0), velocity_smoother_(smoothing_factor, v0) {
-        // TODO avoid fixed names
-        feedback_sub_ = nh.subscribe("/ur10_joint_states", 1,
+        feedback_sub_ = nh.subscribe(robot_name + "_joint_states", 1,
                                      &RobotInterface::feedback_cb, this);
 
-        command_pub_ =
-            nh.advertise<std_msgs::Float64MultiArray>("/ur10_cmd_vel", 1, true);
+        command_pub_ = nh.advertise<std_msgs::Float64MultiArray>(
+            robot_name + "_cmd_vel", 1, true);
     }
 
     void feedback_cb(const sensor_msgs::JointState& msg) {
@@ -89,9 +89,7 @@ class RobotInterface {
         velocity_smoother_.update(v_);
     }
 
-    bool has_received_feedback() {
-        return feedback_received_;
-    }
+    bool has_received_feedback() { return feedback_received_; }
 
     void send_command(const VecXd& cmd) {
         std_msgs::Float64MultiArray msg;
@@ -123,15 +121,16 @@ class RobotInterface {
     ExponentialSmoother velocity_smoother_;
 };
 
+
 int main(int argc, char** argv) {
-    const std::string robotName = "mobile_manipulator";
+    const std::string robot_name = "mobile_manipulator";
 
     if (argc < 2) {
         throw std::runtime_error("Config path is required.");
     }
 
     // Initialize ros node
-    ros::init(argc, argv, robotName + "_mrt");
+    ros::init(argc, argv, robot_name + "_mrt");
     ros::NodeHandle nh;
 
     std::string config_path = std::string(argv[1]);
@@ -158,7 +157,7 @@ int main(int argc, char** argv) {
     ControllerInterface interface(settings);
 
     // MRT
-    ocs2::MRT_ROS_Interface mrt(robotName);
+    ocs2::MRT_ROS_Interface mrt(robot_name);
     mrt.initRollout(&interface.getRollout());
     mrt.launchNodes(nh);
 
@@ -166,7 +165,7 @@ int main(int argc, char** argv) {
     VecXd x0 = interface.getInitialState();
     VecXd q0 = x0.head(settings.dims.q);
     VecXd v0 = x0.segment(settings.dims.q, settings.dims.v);
-    RobotInterface robot(nh, q0, v0, 0.9);
+    RobotInterface robot(nh, robot_name, q0, v0, 0.9);
 
     ocs2::scalar_t timestep = 1.0 / settings.rate;
     ros::Rate rate(settings.rate);
@@ -253,6 +252,24 @@ int main(int argc, char** argv) {
 
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, u, mode);
+
+        // Check that the cntroller has provided sane values.
+        if (((xd - settings.state_limit_lower).array() < 0).any()) {
+            std::cout << "State violated lower limits!" << std::endl;
+            break;
+        }
+        if (((settings.state_limit_upper - xd).array() < 0).any()) {
+            std::cout << "State violated upper limits!" << std::endl;
+            break;
+        }
+        if (((u - settings.input_limit_lower).array() < 0).any()) {
+            std::cout << "Input violated lower limits!" << std::endl;
+            break;
+        }
+        if (((settings.input_limit_upper - u).array() < 0).any()) {
+            std::cout << "Input violated upper limits!" << std::endl;
+            break;
+        }
 
         // PD controller to generate robot command
         // VecXd qd = xd.head(settings.dims.q);
