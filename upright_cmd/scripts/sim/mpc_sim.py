@@ -104,10 +104,10 @@ def main():
         if logger.ready(t):
             # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
             #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
-            #         "dynamicObstacleAvoidance", t, x
+            #         "dynamic_obstacle_avoidance", t, x
             #     )
-            if model.settings.collision_avoidance_settings.enabled:
-                ds = ctrl_manager.mpc.stateInequalityConstraint("collisionAvoidance", t, x)
+            if model.settings.static_obstacle_settings.enabled:
+                ds = ctrl_manager.mpc.stateInequalityConstraint("static_obstacle_avoidance", t, x)
                 logger.append("collision_pair_distances", ds)
 
             # log sim stuff

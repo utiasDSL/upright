@@ -8,7 +8,6 @@
 #include <upright_control/dynamics/base_type.h>
 #include <upright_control/dynamics/dimensions.h>
 #include "upright_control/constraint/bounded_balancing_constraints.h"
-#include "upright_control/constraint/collision_avoidance_constraint.h"
 #include "upright_control/constraint/obstacle_constraint.h"
 
 namespace upright {
@@ -73,7 +72,7 @@ struct ControllerSettings {
     TrayBalanceSettings tray_balance_settings;
     InertialAlignmentSettings inertial_alignment_settings;
     DynamicObstacleSettings dynamic_obstacle_settings;
-    CollisionAvoidanceSettings collision_avoidance_settings;
+    StaticObstacleSettings static_obstacle_settings;
 
     static ControllerSettings::SolverMethod solver_method_from_string(
         const std::string& s) {

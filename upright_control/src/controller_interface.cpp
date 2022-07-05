@@ -54,6 +54,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_sqp/MultipleShootingMpc.h>
 #include <ocs2_sqp/MultipleShootingSettings.h>
 
+#include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/constraint/joint_state_input_limits.h>
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/cost/end_effector_cost.h>
@@ -65,33 +66,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <upright_control/dynamics/mobile_manipulator_dynamics.h>
 #include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
 #include <upright_control/util.h>
-#include <upright_control/constraint/bounded_balancing_constraints.h>
 
 #include "upright_control/controller_interface.h"
 
 namespace upright {
 
-ControllerInterface::ControllerInterface(
-    const ControllerSettings& settings)
+ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     : settings_(settings) {
     // load setting from config file
     loadSettings();
 }
 
-ocs2::PinocchioInterface ControllerInterface::buildPinocchioInterface(
-    const std::string& urdfPath, const std::string& obstacle_urdfPath) {
+ocs2::PinocchioInterface ControllerInterface::build_pinocchio_interface(
+    const std::string& urdf_path) {
     if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
         // add 3 DOF for wheelbase
-        pinocchio::JointModelComposite rootJoint(3);
-        rootJoint.addJoint(pinocchio::JointModelPX());
-        rootJoint.addJoint(pinocchio::JointModelPY());
-        // rootJoint.addJoint(pinocchio::JointModelRUBZ());
-        rootJoint.addJoint(pinocchio::JointModelRZ());
+        pinocchio::JointModelComposite root_joint(3);
+        root_joint.addJoint(pinocchio::JointModelPX());
+        root_joint.addJoint(pinocchio::JointModelPY());
+        root_joint.addJoint(pinocchio::JointModelRZ());
+        // root_joint.addJoint(pinocchio::JointModelRUBZ());
 
-        return ocs2::getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);
+        return ocs2::getPinocchioInterfaceFromUrdfFile(urdf_path, root_joint);
     }
     // Fixed base
-    return ocs2::getPinocchioInterfaceFromUrdfFile(urdfPath);
+    return ocs2::getPinocchioInterfaceFromUrdfFile(urdf_path);
 }
 
 pinocchio::GeometryModel ControllerInterface::build_geometry_model(
@@ -120,9 +119,8 @@ void ControllerInterface::loadSettings() {
     std::cerr << "Robot URDF: " << settings_.robot_urdf_path << std::endl;
     std::cerr << "Obstacle URDF: " << settings_.obstacle_urdf_path << std::endl;
 
-    pinocchioInterfacePtr_.reset(
-        new ocs2::PinocchioInterface(buildPinocchioInterface(
-            settings_.robot_urdf_path, settings_.obstacle_urdf_path)));
+    pinocchioInterfacePtr_.reset(new ocs2::PinocchioInterface(
+        build_pinocchio_interface(settings_.robot_urdf_path)));
     std::cerr << *pinocchioInterfacePtr_;
 
     /*
@@ -219,12 +217,12 @@ void ControllerInterface::loadSettings() {
         "jointStateInputLimits", getJointStateInputLimitConstraint(taskFile));
 
     // Self-collision avoidance and collision avoidance with static obstacles
-    if (settings_.collision_avoidance_settings.enabled) {
+    if (settings_.static_obstacle_settings.enabled) {
         std::cerr << "Collision avoidance is enabled." << std::endl;
         problem_.stateSoftConstraintPtr->add(
-            "collisionAvoidance",
-            getCollisionAvoidanceConstraint(
-                *pinocchioInterfacePtr_, settings_.collision_avoidance_settings,
+            "static_obstacle_avoidance",
+            getStaticObstacleConstraint(
+                *pinocchioInterfacePtr_, settings_.static_obstacle_settings,
                 settings_.obstacle_urdf_path, usePreComputation, libraryFolder,
                 recompileLibraries));
     } else {
@@ -236,7 +234,7 @@ void ControllerInterface::loadSettings() {
     if (settings_.dynamic_obstacle_settings.enabled) {
         std::cerr << "Dynamic obstacle avoidance is enabled." << std::endl;
         problem_.stateSoftConstraintPtr->add(
-            "dynamicObstacleAvoidance",
+            "dynamic_obstacle_avoidance",
             getDynamicObstacleConstraint(
                 *pinocchioInterfacePtr_, settings_.dynamic_obstacle_settings,
                 usePreComputation, libraryFolder, recompileLibraries));
@@ -292,8 +290,7 @@ std::unique_ptr<ocs2::MPC_BASE> ControllerInterface::getMpc() {
 }
 
 std::unique_ptr<ocs2::StateInputCost>
-ControllerInterface::getQuadraticStateInputCost(
-    const std::string& taskFile) {
+ControllerInterface::getQuadraticStateInputCost(const std::string& taskFile) {
     MatXd Q = settings_.state_weight;
     MatXd R = settings_.input_weight;
 
@@ -408,9 +405,9 @@ ControllerInterface::getTrayBalanceSoftConstraint(
 }
 
 std::unique_ptr<ocs2::StateCost>
-ControllerInterface::getCollisionAvoidanceConstraint(
+ControllerInterface::getStaticObstacleConstraint(
     ocs2::PinocchioInterface pinocchioInterface,
-    const CollisionAvoidanceSettings& settings,
+    const StaticObstacleSettings& settings,
     const std::string& obstacle_urdf_path, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
     // only specifying link pairs (i.e. by name)

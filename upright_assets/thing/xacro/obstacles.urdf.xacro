@@ -122,20 +122,16 @@
 
   <link name="table3_link">
     <visual>
-      <!-- <origin rpy="0 0 0" xyz="3.5 0.0 0.375"/> -->
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <cylinder length="0.75" radius="0.5"/>
-        <!-- <sphere radius="0.75"/> -->
       </geometry>
       <material name="table_color"/>
     </visual>
     <collision>
-      <!-- <origin rpy="0 0 0" xyz="3.5 0.0 0.375"/> -->
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
         <cylinder length="0.75" radius="0.5"/>
-        <!-- <sphere radius="0.75"/> -->
       </geometry>
     </collision>
   </link>
@@ -144,7 +140,6 @@
     <parent link="obstacle_base_link"/>
     <child link="table3_link"/>
     <origin rpy="0 0 0" xyz="3.5 0.0 0.375"/>
-    <!-- <origin rpy="0 0 0" xyz="0 0 0"/> -->
   </joint>
 
   <link name="chair3_1_link">

@@ -187,19 +187,19 @@ class ControllerSettings(bindings.ControllerSettings):
             ].body.com_ellipsoid.center()  # TODO could specify index in config
 
         # collision avoidance settings
-        self.collision_avoidance_settings.enabled = config["static_obstacles"][
+        self.static_obstacle_settings.enabled = config["static_obstacles"][
             "enabled"
         ]
         if config["static_obstacles"]["collision_pairs"] is not None:
             for pair in config["static_obstacles"]["collision_pairs"]:
-                self.collision_avoidance_settings.collision_link_pairs.push_back(tuple(pair))
-        self.collision_avoidance_settings.minimum_distance = config["static_obstacles"][
+                self.static_obstacle_settings.collision_link_pairs.push_back(tuple(pair))
+        self.static_obstacle_settings.minimum_distance = config["static_obstacles"][
             "minimum_distance"
         ]
-        self.collision_avoidance_settings.mu = core.parsing.parse_number(
+        self.static_obstacle_settings.mu = core.parsing.parse_number(
             config["static_obstacles"]["mu"]
         )
-        self.collision_avoidance_settings.delta = core.parsing.parse_number(
+        self.static_obstacle_settings.delta = core.parsing.parse_number(
             config["static_obstacles"]["delta"]
         )
 
@@ -243,8 +243,8 @@ class ControllerSettings(bindings.ControllerSettings):
         return self.tray_balance_settings.config.num_constraints()
 
     def get_num_collision_avoidance_constraints(self):
-        if self.collision_avoidance_settings.enabled:
-            return len(self.collision_avoidance_settings.collision_link_pairs)
+        if self.static_obstacle_settings.enabled:
+            return len(self.static_obstacle_settings.collision_link_pairs)
         return 0
 
     def get_num_dynamic_obstacle_constraints(self):

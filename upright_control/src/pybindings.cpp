@@ -10,7 +10,6 @@
 
 #include <upright_control/balancing_constraint_wrapper.h>
 #include <upright_control/constraint/bounded_balancing_constraints.h>
-#include <upright_control/constraint/collision_avoidance_constraint.h>
 #include <upright_control/constraint/constraint_type.h>
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/controller_python_interface.h>
@@ -100,18 +99,16 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("offset", &CollisionSphere<scalar_t>::offset)
         .def_readwrite("radius", &CollisionSphere<scalar_t>::radius);
 
-    pybind11::class_<CollisionAvoidanceSettings>(m,
-                                                 "CollisionAvoidanceSettings")
+    pybind11::class_<StaticObstacleSettings>(m, "StaticObstacleSettings")
         .def(pybind11::init<>())
-        .def_readwrite("enabled", &CollisionAvoidanceSettings::enabled)
+        .def_readwrite("enabled", &StaticObstacleSettings::enabled)
         .def_readwrite("collision_link_pairs",
-                       &CollisionAvoidanceSettings::collision_link_pairs)
+                       &StaticObstacleSettings::collision_link_pairs)
         .def_readwrite("minimum_distance",
-                       &CollisionAvoidanceSettings::minimum_distance)
-        .def_readwrite("mu", &CollisionAvoidanceSettings::mu)
-        .def_readwrite("delta", &CollisionAvoidanceSettings::delta)
-        .def_readwrite("extra_spheres",
-                       &CollisionAvoidanceSettings::extra_spheres);
+                       &StaticObstacleSettings::minimum_distance)
+        .def_readwrite("mu", &StaticObstacleSettings::mu)
+        .def_readwrite("delta", &StaticObstacleSettings::delta)
+        .def_readwrite("extra_spheres", &StaticObstacleSettings::extra_spheres);
 
     pybind11::class_<DynamicObstacleSettings>(m, "DynamicObstacleSettings")
         .def(pybind11::init<>())
@@ -153,8 +150,8 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("solver_method", &ControllerSettings::solver_method)
         .def_readwrite("dynamic_obstacle_settings",
                        &ControllerSettings::dynamic_obstacle_settings)
-        .def_readwrite("collision_avoidance_settings",
-                       &ControllerSettings::collision_avoidance_settings)
+        .def_readwrite("static_obstacle_settings",
+                       &ControllerSettings::static_obstacle_settings)
         .def_readwrite("tray_balance_settings",
                        &ControllerSettings::tray_balance_settings)
         .def_readwrite("initial_state", &ControllerSettings::initial_state)

@@ -37,9 +37,60 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
 #include <upright_control/reference_trajectory.h>
-#include <upright_control/constraint/collision_avoidance_constraint.h>
+#include <upright_control/types.h>
 
 namespace upright {
+
+template <typename Scalar>
+struct CollisionSphere {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    // Empty constructor required for binding as opaque vector type.
+    CollisionSphere() {
+        name = "";
+        parent_frame_name = "";
+        offset = Vec3<Scalar>::Zero();
+        radius = 0;
+    }
+
+    CollisionSphere(const std::string& name,
+                    const std::string& parent_frame_name,
+                    const Vec3<Scalar>& offset, const Scalar radius)
+        : name(name),
+          parent_frame_name(parent_frame_name),
+          offset(offset),
+          radius(radius) {}
+
+    // Name of this collision sphere.
+    std::string name;
+
+    // Name of the robot joint this collision sphere is attached to.
+    std::string parent_frame_name;
+
+    // Offset from that joint (in the joint's frame).
+    Vec3<Scalar> offset;
+
+    // Radius of this collision sphere.
+    Scalar radius;
+};
+
+struct StaticObstacleSettings {
+    bool enabled = false;
+
+    // List of pairs of collision objects to check
+    std::vector<std::pair<std::string, std::string>> collision_link_pairs;
+
+    // Minimum distance allowed between collision objects
+    ocs2::scalar_t minimum_distance = 0;
+
+    // Relaxed barrier function parameters
+    ocs2::scalar_t mu = 1e-2;
+    ocs2::scalar_t delta = 1e-3;
+
+    // Extra collision spheres to attach to the robot body for collision
+    // avoidance.
+    std::vector<CollisionSphere<ocs2::scalar_t>> extra_spheres;
+};
 
 struct DynamicObstacleSettings {
     bool enabled = false;

@@ -39,14 +39,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_mpc/MPC_DDP.h>
 #include <ocs2_oc/oc_problem/OptimalControlProblem.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
-#include <ocs2_robotic_tools/common/RobotInterface.h>
-#include <ocs2_sqp/MultipleShootingSettings.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
+#include <ocs2_robotic_tools/common/RobotInterface.h>
+#include <ocs2_sqp/MultipleShootingSettings.h>
 
-#include <upright_control/controller_settings.h>
-#include <upright_control/constraint/collision_avoidance_constraint.h>
 #include <upright_control/constraint/obstacle_constraint.h>
+#include <upright_control/controller_settings.h>
+#include <upright_control/types.h>
 
 namespace upright {
 
@@ -68,7 +68,8 @@ class ControllerInterface final : public ocs2::RobotInterface {
 
     std::unique_ptr<ocs2::MPC_BASE> getMpc();
 
-    const ocs2::OptimalControlProblem& getOptimalControlProblem() const override {
+    const ocs2::OptimalControlProblem& getOptimalControlProblem()
+        const override {
         return problem_;
     }
 
@@ -87,8 +88,8 @@ class ControllerInterface final : public ocs2::RobotInterface {
         return *pinocchioInterfacePtr_;
     }
 
-    ocs2::PinocchioInterface buildPinocchioInterface(
-        const std::string& urdfPath, const std::string& obstacle_urdfPath);
+    ocs2::PinocchioInterface build_pinocchio_interface(
+        const std::string& urdfPath);
 
     static pinocchio::GeometryModel build_geometry_model(
         const std::string& urdf_path);
@@ -103,11 +104,12 @@ class ControllerInterface final : public ocs2::RobotInterface {
     //     const std::string& libraryFolder, bool recompileLibraries);
 
     std::unique_ptr<ocs2::StateCost> getEndEffectorCost(
-        const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics);
+        const ocs2::PinocchioEndEffectorKinematicsCppAd&
+            end_effector_kinematics);
 
-    std::unique_ptr<ocs2::StateCost> getCollisionAvoidanceConstraint(
+    std::unique_ptr<ocs2::StateCost> getStaticObstacleConstraint(
         ocs2::PinocchioInterface pinocchioInterface,
-        const CollisionAvoidanceSettings& settings,
+        const StaticObstacleSettings& settings,
         const std::string& obstacle_urdf_path, bool useCaching,
         const std::string& libraryFolder, bool recompileLibraries);
 
@@ -115,13 +117,15 @@ class ControllerInterface final : public ocs2::RobotInterface {
         const std::string& taskFile);
 
     std::unique_ptr<ocs2::StateInputConstraint> getTrayBalanceConstraint(
-        const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
+        const ocs2::PinocchioEndEffectorKinematicsCppAd&
+            end_effector_kinematics,
         bool recompileLibraries);
 
     // Soft version of the above (i.e. formulated as a cost via penalty
     // functions)
     std::unique_ptr<ocs2::StateInputCost> getTrayBalanceSoftConstraint(
-        const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
+        const ocs2::PinocchioEndEffectorKinematicsCppAd&
+            end_effector_kinematics,
         bool recompileLibraries);
 
     std::unique_ptr<ocs2::StateCost> getDynamicObstacleConstraint(
