@@ -46,7 +46,7 @@ ddp
 ; multiple_shooting settings
 multiple_shooting
 {
-  dt                            0.01
+  dt                            0.1
   sqpIteration                  10
   deltaTol                      1e-3
   printSolverStatistics         true
@@ -76,7 +76,7 @@ rollout
 ; MPC settings
 mpc
 {
-  timeHorizon                    2.0
+  timeHorizon                    1.0
   numPartitions                  4
 
   runtimeMaxNumIterations        3

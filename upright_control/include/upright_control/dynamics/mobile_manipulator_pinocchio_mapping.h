@@ -38,6 +38,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace upright {
 
+
+// Mat2d<Scalar> base_rotation_matrix2(const VecX<Scalar>& state) {
+//     Mat2d<Scalar> C_wb;
+//     C_wb << state(2), -state(3), state(3), state(2);
+//     return C_wb;
+// }
+
 template <typename Scalar>
 class MobileManipulatorPinocchioMapping final
     : public ocs2::PinocchioStateInputMapping<Scalar> {
@@ -56,6 +63,11 @@ class MobileManipulatorPinocchioMapping final
     }
 
     VecXd getPinocchioJointPosition(const VecXd& state) const override {
+        // TODO this and the corresponding Jacobian change
+        // VecXd q = state.head(dims_.q);
+        // VecXd q_pin(dims_.q + 1);
+        // q_pin << q.head(2), cos(q(2)), sin(q(2)), q.tail(dims_.q - 3);
+        // return q_pin;
         return state.head(dims_.q);
     }
 
@@ -95,7 +107,14 @@ class MobileManipulatorPinocchioMapping final
 
         const auto nf = Jq_pin.rows();
 
+        // MatXd dq_pin_dq = MatXd::Zero(dims_.q + 1, dims_.q);
+        // dq_pin_dq.template topLeftCorner<2, 2>() = MatXd::Identity(2, 2);
+        // dq_pin_dq(2, 2) = -sin(state(2));
+        // dq_pin_dq(3, 2) = cos(state(2));
+        // dq_pin_dq.template bottomRightCorner<6, 6>() = MatXd::Identity(6, 6);
+
         MatXd Jq = Jq_pin;
+        // MatXd Jq = Jq_pin * dq_pin_dq;
         MatXd Jv = Jv_pin * dv_pin_dv;
         MatXd Ja = MatXd::Zero(nf, Jv.cols());
 

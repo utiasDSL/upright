@@ -49,7 +49,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_pinocchio_interface/urdf.h>
-#include <ocs2_self_collision/SelfCollisionConstraint.h>
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 #include <ocs2_self_collision/loadStdVectorOfPair.h>
 #include <ocs2_sqp/MultipleShootingMpc.h>
@@ -86,6 +85,7 @@ ocs2::PinocchioInterface ControllerInterface::buildPinocchioInterface(
         pinocchio::JointModelComposite rootJoint(3);
         rootJoint.addJoint(pinocchio::JointModelPX());
         rootJoint.addJoint(pinocchio::JointModelPY());
+        // rootJoint.addJoint(pinocchio::JointModelRUBZ());
         rootJoint.addJoint(pinocchio::JointModelRZ());
 
         return ocs2::getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);

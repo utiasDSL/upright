@@ -98,6 +98,7 @@ class PinocchioRobot:
             root_joint.addJoint(pinocchio.JointModelPX())
             root_joint.addJoint(pinocchio.JointModelPY())
             root_joint.addJoint(pinocchio.JointModelRZ())
+            # root_joint.addJoint(pinocchio.JointModelRUBZ())
             # root_joint = pinocchio.JointModelPlanar()
             self.model = pinocchio.buildModelFromUrdf(self.urdf_path, root_joint)
             self.mapping = bindings.OmnidirectionalPinocchioMapping(self.dims)

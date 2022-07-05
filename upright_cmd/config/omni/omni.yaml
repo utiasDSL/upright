@@ -37,7 +37,7 @@ controller:
       v: 9  # generalized velocity
       x: 27 # state
       u: 9  # input
-    x0: [0, 0, 0, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi, 0rep9, 0rep9]
+    x0: [1, 1, -0.25pi, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi, 0rep9, 0rep9]
     urdf:
       package: "upright_assets"
       path: "thing/urdf/mm_ocs2_tray.urdf"
@@ -47,16 +47,15 @@ controller:
   # weights on state, input, and end effector pose
   weights:
     input:
-      scale: 0.0001
+      scale: 0.001
       diag: [1rep9]
     state:
-      scale: 0.001
+      scale: 0.01
       diag: [0rep9, 10rep9, 1rep9]
     end_effector:
       scale: 1
       diag: [1, 1, 1, 0, 0, 0]
-      # diag: [0, 0, 0, 1, 1, 1]
-      #
+
   # reduced state and input limits
   limits:
     input:
