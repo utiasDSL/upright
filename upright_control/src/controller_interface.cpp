@@ -39,18 +39,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_core/initialization/DefaultInitializer.h>
 #include <ocs2_core/initialization/OperatingPoints.h>
 #include <ocs2_core/misc/LoadData.h>
+#include <ocs2_core/penalties/penalties/DoubleSidedPenalty.h>
+#include <ocs2_core/penalties/penalties/QuadraticPenalty.h>
+#include <ocs2_core/penalties/penalties/RelaxedBarrierPenalty.h>
+#include <ocs2_core/penalties/penalties/SquaredHingePenalty.h>
 #include <ocs2_core/soft_constraint/StateInputSoftConstraint.h>
 #include <ocs2_core/soft_constraint/StateSoftConstraint.h>
-#include <ocs2_core/soft_constraint/penalties/DoubleSidedPenalty.h>
-#include <ocs2_core/soft_constraint/penalties/QuadraticPenalty.h>
-#include <ocs2_core/soft_constraint/penalties/RelaxedBarrierPenalty.h>
-#include <ocs2_core/soft_constraint/penalties/SquaredHingePenalty.h>
+#include <ocs2_ddp/DDP_Settings.h>
+#include <ocs2_ddp/GaussNewtonDDP_MPC.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_pinocchio_interface/urdf.h>
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
-#include <ocs2_self_collision/loadStdVectorOfPair.h>
 #include <ocs2_sqp/MultipleShootingMpc.h>
 #include <ocs2_sqp/MultipleShootingSettings.h>
 
@@ -65,7 +66,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
 #include <upright_control/dynamics/mobile_manipulator_dynamics.h>
 #include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
-#include <upright_control/util.h>
 
 #include "upright_control/controller_interface.h"
 
@@ -280,9 +280,9 @@ void ControllerInterface::loadSettings() {
 
 std::unique_ptr<ocs2::MPC_BASE> ControllerInterface::getMpc() {
     if (settings_.solver_method == ControllerSettings::SolverMethod::DDP) {
-        return std::unique_ptr<ocs2::MPC_BASE>(
-            new ocs2::MPC_DDP(mpcSettings_, ddpSettings_, *rolloutPtr_,
-                              problem_, *initializerPtr_));
+        return std::unique_ptr<ocs2::MPC_BASE>(new ocs2::GaussNewtonDDP_MPC(
+            mpcSettings_, ddpSettings_, *rolloutPtr_, problem_,
+            *initializerPtr_));
     } else {
         return std::unique_ptr<ocs2::MPC_BASE>(new ocs2::MultipleShootingMpc(
             mpcSettings_, sqpSettings_, problem_, *initializerPtr_));

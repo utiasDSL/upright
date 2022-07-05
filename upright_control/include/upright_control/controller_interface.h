@@ -35,9 +35,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_core/Types.h>
 #include <ocs2_core/initialization/Initializer.h>
+#include <ocs2_ddp/DDP_Settings.h>
 #include <ocs2_mpc/MPC_BASE.h>
-#include <ocs2_mpc/MPC_DDP.h>
 #include <ocs2_oc/oc_problem/OptimalControlProblem.h>
+#include <ocs2_oc/rollout/RolloutBase.h>
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>

@@ -11,7 +11,6 @@
 #include <upright_control/controller_interface.h>
 #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
 #include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
-#include <upright_control/util.h>
 
 namespace upright {
 

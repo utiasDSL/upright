@@ -130,18 +130,18 @@ def main():
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("Q_we_ds", Q_we_d)
 
-            # ctrl_manager.model.update(x, u)
-            # logger.append("ddC_we_norm", model.ddC_we_norm())
-            # logger.append("balancing_constraints", model.balancing_constraints()[0])
-            # logger.append("sa_dists", model.support_area_distances())
-            # logger.append("orn_err", model.angle_between_acc_and_normal())
+            ctrl_manager.model.update(x, u)
+            logger.append("ddC_we_norm", model.ddC_we_norm())
+            logger.append("balancing_constraints", model.balancing_constraints()[0])
+            logger.append("sa_dists", model.support_area_distances())
+            logger.append("orn_err", model.angle_between_acc_and_normal())
 
         t = sim.step(t, step_robot=False)
         # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
         #     obstacle.step()
 
     try:
-        print(f"Min constraint value = {np.min(logger.data['ineq_cons'])}")
+        print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")
     except:
         pass
 

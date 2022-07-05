@@ -21,7 +21,7 @@ simulation:
 
 controller:
   balancing:
-    enabled: false
+    enabled: true
     arrangement: one_box
 
   tracking:

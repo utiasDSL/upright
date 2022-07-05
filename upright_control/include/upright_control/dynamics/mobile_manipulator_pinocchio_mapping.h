@@ -34,16 +34,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 
 #include <upright_control/dynamics/dimensions.h>
-#include <upright_control/util.h>
+#include <upright_control/dynamics/util.h>
 
 namespace upright {
 
-
-// Mat2d<Scalar> base_rotation_matrix2(const VecX<Scalar>& state) {
-//     Mat2d<Scalar> C_wb;
-//     C_wb << state(2), -state(3), state(3), state(2);
-//     return C_wb;
-// }
 
 template <typename Scalar>
 class MobileManipulatorPinocchioMapping final
@@ -63,7 +57,6 @@ class MobileManipulatorPinocchioMapping final
     }
 
     VecXd getPinocchioJointPosition(const VecXd& state) const override {
-        // TODO this and the corresponding Jacobian change
         // VecXd q = state.head(dims_.q);
         // VecXd q_pin(dims_.q + 1);
         // q_pin << q.head(2), cos(q(2)), sin(q(2)), q.tail(dims_.q - 3);
@@ -73,7 +66,7 @@ class MobileManipulatorPinocchioMapping final
 
     VecXd getPinocchioJointVelocity(const VecXd& state,
                                     const VecXd& input) const override {
-        Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
+        Mat2<Scalar> C_wb = base_rotation_matrix(state);
 
         // convert velocity from body frame to world frame
         VecXd v_body = state.segment(dims_.q, dims_.v);
@@ -84,7 +77,7 @@ class MobileManipulatorPinocchioMapping final
 
     VecXd getPinocchioJointAcceleration(const VecXd& state,
                                         const VecXd& input) const override {
-        Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
+        Mat2<Scalar> C_wb = base_rotation_matrix(state);
 
         // convert acceleration input from body frame to world frame
         VecXd a_body = state.tail(dims_.v);
@@ -101,7 +94,7 @@ class MobileManipulatorPinocchioMapping final
                                             const MatXd& Jv_pin) const override {
         // Jacobian of Pinocchio joint velocities v_pin w.r.t. actual state
         // velocities v
-        Eigen::Matrix<Scalar, 2, 2> C_wb = base_rotation_matrix(state);
+        Mat2<Scalar> C_wb = base_rotation_matrix(state);
         MatXd dv_pin_dv = MatXd::Identity(dims_.v, dims_.v);
         dv_pin_dv.template topLeftCorner<2, 2>() = C_wb;
 
