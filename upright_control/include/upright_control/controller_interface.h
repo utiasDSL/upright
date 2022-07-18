@@ -99,47 +99,58 @@ class ControllerInterface final : public ocs2::RobotInterface {
     std::unique_ptr<ocs2::StateInputCost> getQuadraticStateInputCost(
         const std::string& taskFile);
 
-    // std::unique_ptr<StateCost> getEndEffectorCost(
-    //     PinocchioInterface pinocchioInterface, const std::string& taskFile,
-    //     const std::string& prefix, bool useCaching,
-    //     const std::string& libraryFolder, bool recompileLibraries);
-
     std::unique_ptr<ocs2::StateCost> getEndEffectorCost(
         const ocs2::PinocchioEndEffectorKinematicsCppAd&
             end_effector_kinematics);
 
-    std::unique_ptr<ocs2::StateCost> getStaticObstacleConstraint(
+    // Hard static obstacle avoidance constraint.
+    std::unique_ptr<ocs2::StateConstraint> get_static_obstacle_constraint(
         ocs2::PinocchioInterface pinocchioInterface,
         const StaticObstacleSettings& settings,
         const std::string& obstacle_urdf_path, bool useCaching,
         const std::string& libraryFolder, bool recompileLibraries);
 
-    std::unique_ptr<ocs2::StateInputCost> getJointStateInputLimitConstraint(
-        const std::string& taskFile);
+    // Soft static obstacle avoidance constraint.
+    std::unique_ptr<ocs2::StateCost> get_soft_static_obstacle_constraint(
+        ocs2::PinocchioInterface pinocchioInterface,
+        const StaticObstacleSettings& settings,
+        const std::string& obstacle_urdf_path, bool useCaching,
+        const std::string& libraryFolder, bool recompileLibraries);
 
-    std::unique_ptr<ocs2::StateInputConstraint> getTrayBalanceConstraint(
+
+    // Hard state and input limits.
+    std::unique_ptr<ocs2::StateInputConstraint>
+    get_joint_state_input_limit_constraint();
+
+    // Soft state and input limits
+    std::unique_ptr<ocs2::StateInputCost>
+    get_soft_joint_state_input_limit_constraint();
+
+    // Hard balancing inequality constraints.
+    std::unique_ptr<ocs2::StateInputConstraint> get_balancing_constraint(
         const ocs2::PinocchioEndEffectorKinematicsCppAd&
             end_effector_kinematics,
         bool recompileLibraries);
 
-    // Soft version of the above (i.e. formulated as a cost via penalty
-    // functions)
-    std::unique_ptr<ocs2::StateInputCost> getTrayBalanceSoftConstraint(
+    // Soft version of the balancing constraints (i.e. formulated as a cost via
+    // penalty functions).
+    std::unique_ptr<ocs2::StateInputCost> get_soft_balancing_constraint(
         const ocs2::PinocchioEndEffectorKinematicsCppAd&
             end_effector_kinematics,
         bool recompileLibraries);
 
+    // Dynamic obstacle avoidance constraint.
     std::unique_ptr<ocs2::StateCost> getDynamicObstacleConstraint(
         ocs2::PinocchioInterface pinocchioInterface,
         const DynamicObstacleSettings& settings, bool usePreComputation,
         const std::string& libraryFolder, bool recompileLibraries);
 
+    // TODO remove
     void loadSettings();
 
     ocs2::ddp::Settings ddpSettings_;
     ocs2::mpc::Settings mpcSettings_;
     ocs2::multiple_shooting::Settings sqpSettings_;
-
     ControllerSettings settings_;
 
     ocs2::OptimalControlProblem problem_;

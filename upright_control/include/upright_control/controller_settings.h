@@ -7,8 +7,9 @@
 #include <upright_control/cost/inertial_alignment_cost.h>
 #include <upright_control/dynamics/base_type.h>
 #include <upright_control/dynamics/dimensions.h>
-#include "upright_control/constraint/bounded_balancing_constraints.h"
-#include "upright_control/constraint/obstacle_constraint.h"
+#include <upright_control/constraint/constraint_type.h>
+#include <upright_control/constraint/bounded_balancing_constraints.h>
+#include <upright_control/constraint/obstacle_constraint.h>
 
 namespace upright {
 
@@ -30,6 +31,7 @@ struct ControllerSettings {
     MatXd end_effector_weight;
 
     // Limits
+    ConstraintType limit_constraint_type = ConstraintType::Soft;
     VecXd input_limit_lower;
     VecXd input_limit_upper;
     ocs2::scalar_t input_limit_mu = 1e-2;
@@ -69,7 +71,7 @@ struct ControllerSettings {
     std::string end_effector_link_name;
 
     // Additional settings for constraints
-    TrayBalanceSettings tray_balance_settings;
+    BalancingSettings balancing_settings;
     InertialAlignmentSettings inertial_alignment_settings;
     DynamicObstacleSettings dynamic_obstacle_settings;
     StaticObstacleSettings static_obstacle_settings;
@@ -123,8 +125,8 @@ std::ostream& operator<<(std::ostream& out,
         << std::endl
         << "dims" << std::endl
         << settings.dims << std::endl
-        << "tray_balance_settings" << std::endl
-        << settings.tray_balance_settings << std::endl
+        << "balancing_settings" << std::endl
+        << settings.balancing_settings << std::endl
         << "inertial_alignment_settings" << std::endl
         << settings.inertial_alignment_settings << std::endl;
     return out;

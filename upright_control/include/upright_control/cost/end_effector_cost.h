@@ -41,7 +41,7 @@ namespace upright {
 
 class EndEffectorCost final : public ocs2::StateCost {
    public:
-    EndEffectorCost(const MatXd W,  // note not reference
+    EndEffectorCost(const MatXd& W,
                     const ocs2::EndEffectorKinematics<ocs2::scalar_t>&
                         endEffectorKinematics,
                     const ocs2::ReferenceManager& referenceManager)

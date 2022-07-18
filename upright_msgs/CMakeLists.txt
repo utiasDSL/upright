@@ -51,7 +51,7 @@ add_message_files(
   FILES
   RobotDimensions.msg
   BoundedBalancedObject.msg
-  TrayBalanceSettings.msg
+  BalancingSettings.msg
   InertialAlignmentSettings.msg
   FloatArray.msg
 )

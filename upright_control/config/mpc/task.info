@@ -47,7 +47,7 @@ ddp
 multiple_shooting
 {
   dt                            0.1
-  sqpIteration                  10
+  sqpIteration                  3
   deltaTol                      1e-3
   printSolverStatistics         true
   printSolverStatus             true
@@ -55,6 +55,7 @@ multiple_shooting
   useFeedbackPolicy             true
   integratorType                RK4
   nThreads                      4
+  projectStateInputEqualityConstraints true
 
   ; inequalityConstraintMu    1e-2
   ; inequalityConstraintDelta 1e-3

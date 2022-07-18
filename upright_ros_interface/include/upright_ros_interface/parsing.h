@@ -38,7 +38,8 @@ ControllerSettings parse_control_settings(
     upright_ros_interface::ParseControlSettings::Response& resp) {
     ControllerSettings settings;
 
-    settings.solver_method = ControllerSettings::solver_method_from_string(resp.solver_method);
+    settings.solver_method =
+        ControllerSettings::solver_method_from_string(resp.solver_method);
     settings.gravity = parse_vec3(resp.gravity);
     settings.initial_state = parse_vector(resp.initial_state);
 
@@ -89,21 +90,21 @@ ControllerSettings parse_control_settings(
     settings.dims.u = resp.dims.u;
 
     // tray balance settings
-    settings.tray_balance_settings.enabled = resp.tray_balance_settings.enabled;
-    settings.tray_balance_settings.constraints_enabled.normal =
-        resp.tray_balance_settings.normal_constraints_enabled;
-    settings.tray_balance_settings.constraints_enabled.friction =
-        resp.tray_balance_settings.friction_constraints_enabled;
-    settings.tray_balance_settings.constraints_enabled.zmp =
-        resp.tray_balance_settings.zmp_constraints_enabled;
-    for (auto& obj_msg : resp.tray_balance_settings.objects) {
+    settings.balancing_settings.enabled = resp.balancing_settings.enabled;
+    settings.balancing_settings.constraints_enabled.normal =
+        resp.balancing_settings.normal_constraints_enabled;
+    settings.balancing_settings.constraints_enabled.friction =
+        resp.balancing_settings.friction_constraints_enabled;
+    settings.balancing_settings.constraints_enabled.zmp =
+        resp.balancing_settings.zmp_constraints_enabled;
+    for (auto& obj_msg : resp.balancing_settings.objects) {
         VecXd parameters = parse_vector(obj_msg.parameters);
         BoundedBalancedObject<double> obj =
             BoundedBalancedObject<double>::from_parameters(parameters);
-        settings.tray_balance_settings.objects.push_back(obj);
+        settings.balancing_settings.objects.push_back(obj);
     }
-    settings.tray_balance_settings.mu = resp.tray_balance_settings.mu;
-    settings.tray_balance_settings.delta = resp.tray_balance_settings.delta;
+    settings.balancing_settings.mu = resp.balancing_settings.mu;
+    settings.balancing_settings.delta = resp.balancing_settings.delta;
 
     // inertial alignment settings
     settings.inertial_alignment_settings.enabled =

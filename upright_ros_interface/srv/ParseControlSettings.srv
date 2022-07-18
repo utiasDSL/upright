@@ -49,5 +49,5 @@ string end_effector_link_name
 upright_msgs/RobotDimensions dims
 
 # TODO remaining settings
-upright_msgs/TrayBalanceSettings tray_balance_settings
+upright_msgs/BalancingSettings balancing_settings
 upright_msgs/InertialAlignmentSettings inertial_alignment_settings

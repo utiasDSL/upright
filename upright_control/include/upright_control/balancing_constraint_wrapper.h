@@ -42,7 +42,7 @@ class BalancingConstraintWrapper {
             false);
 
         constraints_.reset(new BoundedBalancingConstraints(
-            end_effector_kinematics, settings.tray_balance_settings,
+            end_effector_kinematics, settings.balancing_settings,
             settings.gravity, settings.dims, recompileLibraries));
     }
 

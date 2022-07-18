@@ -6,7 +6,7 @@ namespace upright {
 
 BoundedBalancingConstraints::BoundedBalancingConstraints(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-    const TrayBalanceSettings& settings, const Vec3d& gravity,
+    const BalancingSettings& settings, const Vec3d& gravity,
     const RobotDimensions& dims, bool recompileLibraries)
     : ocs2::StateInputConstraintCppAd(ocs2::ConstraintOrder::Linear),
       pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
@@ -20,8 +20,8 @@ BoundedBalancingConstraints::BoundedBalancingConstraints(
     }
 
     // compile the CppAD library
-    initialize(dims.x, dims.u, 0, "bounded_upright_core",
-               "/tmp/ocs2", recompileLibraries, true);
+    initialize(dims.x, dims.u, 0, "bounded_upright_core", "/tmp/ocs2",
+               recompileLibraries, true);
 
     num_constraints_ = num_balancing_constraints(settings_.objects);
 }
@@ -48,8 +48,7 @@ VecXad BoundedBalancingConstraints::constraintFunction(
                                  angular_vel, linear_acc, angular_acc);
 }
 
-std::ostream& operator<<(std::ostream& out,
-                         const TrayBalanceSettings& settings) {
+std::ostream& operator<<(std::ostream& out, const BalancingSettings& settings) {
     out << "enabled = " << settings.enabled << std::endl
         << "normal enabled = " << settings.constraints_enabled.normal
         << std::endl

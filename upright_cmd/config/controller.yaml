@@ -11,6 +11,7 @@ solver_method: SQP  # SQP or DDP
 
 balancing:
   arrangement: nothing
+  constraint_type: soft
   enabled: true
   use_bounded_constraints: true
   enable_normal_constraint: true
@@ -43,6 +44,7 @@ tracking:
 
 static_obstacles:
   enabled: true
+  constraint_type: soft
   urdf:
     package: "upright_assets"
     path: "thing/urdf/obstacles.urdf"

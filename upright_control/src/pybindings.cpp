@@ -73,20 +73,22 @@ PYBIND11_MODULE(bindings, m) {
                  scalar_t>::getPinocchioJointAcceleration,
              "state"_a, "input"_a);
 
-    pybind11::class_<TrayBalanceSettings>(m, "TrayBalanceSettings")
+    pybind11::class_<BalancingSettings>(m, "BalancingSettings")
         .def(pybind11::init<>())
-        .def_readwrite("enabled", &TrayBalanceSettings::enabled)
+        .def_readwrite("enabled", &BalancingSettings::enabled)
         .def_readwrite("constraints_enabled",
-                       &TrayBalanceSettings::constraints_enabled)
-        .def_readwrite("objects", &TrayBalanceSettings::objects)
-        .def_readwrite("constraint_type", &TrayBalanceSettings::constraint_type)
-        .def_readwrite("mu", &TrayBalanceSettings::mu)
-        .def_readwrite("delta", &TrayBalanceSettings::delta);
+                       &BalancingSettings::constraints_enabled)
+        .def_readwrite("objects", &BalancingSettings::objects)
+        .def_readwrite("constraint_type", &BalancingSettings::constraint_type)
+        .def_readwrite("mu", &BalancingSettings::mu)
+        .def_readwrite("delta", &BalancingSettings::delta);
 
     /// Other stuff
     pybind11::enum_<ConstraintType>(m, "ConstraintType")
         .value("Soft", ConstraintType::Soft)
         .value("Hard", ConstraintType::Hard);
+    m.def("constraint_type_from_string", &constraint_type_from_string);
+    m.def("constraint_type_to_string", &constraint_type_to_string);
 
     pybind11::class_<CollisionSphere<scalar_t>>(m, "CollisionSphere")
         .def(pybind11::init<const std::string &, const std::string &,
@@ -106,6 +108,8 @@ PYBIND11_MODULE(bindings, m) {
                        &StaticObstacleSettings::collision_link_pairs)
         .def_readwrite("minimum_distance",
                        &StaticObstacleSettings::minimum_distance)
+        .def_readwrite("constraint_type",
+                       &StaticObstacleSettings::constraint_type)
         .def_readwrite("mu", &StaticObstacleSettings::mu)
         .def_readwrite("delta", &StaticObstacleSettings::delta)
         .def_readwrite("extra_spheres", &StaticObstacleSettings::extra_spheres);
@@ -152,13 +156,15 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::dynamic_obstacle_settings)
         .def_readwrite("static_obstacle_settings",
                        &ControllerSettings::static_obstacle_settings)
-        .def_readwrite("tray_balance_settings",
-                       &ControllerSettings::tray_balance_settings)
+        .def_readwrite("balancing_settings",
+                       &ControllerSettings::balancing_settings)
         .def_readwrite("initial_state", &ControllerSettings::initial_state)
         .def_readwrite("input_weight", &ControllerSettings::input_weight)
         .def_readwrite("state_weight", &ControllerSettings::state_weight)
         .def_readwrite("end_effector_weight",
                        &ControllerSettings::end_effector_weight)
+        .def_readwrite("limit_constraint_type",
+                       &ControllerSettings::limit_constraint_type)
         .def_readwrite("input_limit_lower",
                        &ControllerSettings::input_limit_lower)
         .def_readwrite("input_limit_upper",

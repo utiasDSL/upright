@@ -106,9 +106,11 @@ def main():
             #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
             #         "dynamic_obstacle_avoidance", t, x
             #     )
-            if model.settings.static_obstacle_settings.enabled:
-                ds = ctrl_manager.mpc.stateInequalityConstraint("static_obstacle_avoidance", t, x)
-                logger.append("collision_pair_distances", ds)
+            # if model.settings.static_obstacle_settings.enabled:
+            #     ds = ctrl_manager.mpc.stateInequalityConstraint("static_obstacle_avoidance", t, x)
+            #     logger.append("collision_pair_distances", ds)
+            # limits = ctrl_manager.mpc.stateInputInequalityConstraint("joint_state_input_limits", t, x, u)
+            # logger.append("limits", limits)
 
             # log sim stuff
             r_ew_w, Q_we = sim.robot.link_pose()
@@ -129,6 +131,7 @@ def main():
             r_ew_w_d, Q_we_d = ctrl_manager.ref.get_desired_pose(t)
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("Q_we_ds", Q_we_d)
+
 
             ctrl_manager.model.update(x, u)
             logger.append("ddC_we_norm", model.ddC_we_norm())
@@ -153,6 +156,14 @@ def main():
 
     if sim.video_manager.save:
         print(f"Saved video to {sim.video_manager.path}")
+
+    # limits = np.array(logger.data["limits"])
+    # violations = np.minimum(limits, 0)
+    # SSE = np.linalg.norm(violations, axis=1)
+    #
+    # import matplotlib.pyplot as plt
+    # plt.plot(logger.data["ts"], SSE)
+    # plt.show()
 
     # visualize data
     DataPlotter(logger).plot_all(show=True)

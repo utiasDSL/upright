@@ -10,7 +10,7 @@
 
 namespace upright {
 
-struct TrayBalanceSettings {
+struct BalancingSettings {
     bool enabled = false;
     BalanceConstraintsEnabled constraints_enabled;
     std::vector<BoundedBalancedObject<ocs2::scalar_t>> objects;
@@ -21,7 +21,7 @@ struct TrayBalanceSettings {
 };
 
 std::ostream& operator<<(std::ostream& out,
-                         const TrayBalanceSettings& settings);
+                         const BalancingSettings& settings);
 
 class BoundedBalancingConstraints final
     : public ocs2::StateInputConstraintCppAd {
@@ -30,7 +30,7 @@ class BoundedBalancingConstraints final
 
     BoundedBalancingConstraints(
         const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-        const TrayBalanceSettings& settings, const Vec3d& gravity,
+        const BalancingSettings& settings, const Vec3d& gravity,
         const RobotDimensions& dims, bool recompileLibraries);
 
     BoundedBalancingConstraints* clone() const override {
@@ -62,7 +62,7 @@ class BoundedBalancingConstraints final
 
     std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>
         pinocchioEEKinPtr_;
-    TrayBalanceSettings settings_;
+    BalancingSettings settings_;
     RobotDimensions dims_;
     Vec3d gravity_;
     size_t num_constraints_;

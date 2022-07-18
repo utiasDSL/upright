@@ -101,6 +101,9 @@ class ControllerSettings(bindings.ControllerSettings):
         assert self.end_effector_weight.shape == (6, 6)
 
         # input limits
+        self.limit_constraint_type = bindings.constraint_type_from_string(
+            config["limits"]["constraint_type"]
+        )
         self.input_limit_lower = core.parsing.parse_array(
             config["limits"]["input"]["lower"]
         )
@@ -147,25 +150,27 @@ class ControllerSettings(bindings.ControllerSettings):
                 self.operating_inputs.push_back(operating_trajectory.us[i, :])
 
         # tray balance settings
-        self.tray_balance_settings.enabled = config["balancing"]["enabled"]
-        self.tray_balance_settings.constraint_type = bindings.ConstraintType.Soft
-        self.tray_balance_settings.mu = core.parsing.parse_number(
+        self.balancing_settings.enabled = config["balancing"]["enabled"]
+        self.balancing_settings.constraint_type = bindings.constraint_type_from_string(
+            config["balancing"]["constraint_type"]
+        )
+        self.balancing_settings.mu = core.parsing.parse_number(
             config["balancing"]["mu"]
         )
-        self.tray_balance_settings.delta = core.parsing.parse_number(
+        self.balancing_settings.delta = core.parsing.parse_number(
             config["balancing"]["delta"]
         )
 
         ctrl_objects = core.parsing.parse_control_objects(config)
-        self.tray_balance_settings.objects = ctrl_objects
+        self.balancing_settings.objects = ctrl_objects
 
-        self.tray_balance_settings.constraints_enabled.normal = config["balancing"][
+        self.balancing_settings.constraints_enabled.normal = config["balancing"][
             "enable_normal_constraint"
         ]
-        self.tray_balance_settings.constraints_enabled.friction = config["balancing"][
+        self.balancing_settings.constraints_enabled.friction = config["balancing"][
             "enable_friction_constraint"
         ]
-        self.tray_balance_settings.constraints_enabled.zmp = config["balancing"][
+        self.balancing_settings.constraints_enabled.zmp = config["balancing"][
             "enable_zmp_constraint"
         ]
 
@@ -187,12 +192,17 @@ class ControllerSettings(bindings.ControllerSettings):
             ].body.com_ellipsoid.center()  # TODO could specify index in config
 
         # collision avoidance settings
-        self.static_obstacle_settings.enabled = config["static_obstacles"][
-            "enabled"
-        ]
+        self.static_obstacle_settings.enabled = config["static_obstacles"]["enabled"]
+        self.static_obstacle_settings.constraint_type = (
+            bindings.constraint_type_from_string(
+                config["static_obstacles"]["constraint_type"]
+            )
+        )
         if config["static_obstacles"]["collision_pairs"] is not None:
             for pair in config["static_obstacles"]["collision_pairs"]:
-                self.static_obstacle_settings.collision_link_pairs.push_back(tuple(pair))
+                self.static_obstacle_settings.collision_link_pairs.push_back(
+                    tuple(pair)
+                )
         self.static_obstacle_settings.minimum_distance = config["static_obstacles"][
             "minimum_distance"
         ]
@@ -238,9 +248,9 @@ class ControllerSettings(bindings.ControllerSettings):
             self.dynamic_obstacle_settings.collision_spheres.push_back(sphere)
 
     def get_num_balance_constraints(self):
-        if self.tray_balance_settings.bounded:
-            return self.tray_balance_settings.objects.num_constraints()
-        return self.tray_balance_settings.config.num_constraints()
+        if self.balancing_settings.bounded:
+            return self.balancing_settings.objects.num_constraints()
+        return self.balancing_settings.config.num_constraints()
 
     def get_num_collision_avoidance_constraints(self):
         if self.static_obstacle_settings.enabled:
@@ -254,4 +264,4 @@ class ControllerSettings(bindings.ControllerSettings):
 
     @property
     def objects(self):
-        return self.tray_balance_settings.objects
+        return self.balancing_settings.objects

@@ -79,4 +79,72 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
     RobotDimensions dims_;
 };
 
+// For hard inequalities. TODO: these should be replaced with box constraints
+// eventually.
+class JointStateInputConstraint final : public ocs2::StateInputConstraint {
+   public:
+    JointStateInputConstraint(const RobotDimensions& dims,
+                              const VecXd& state_limit_lower,
+                              const VecXd& state_limit_upper,
+                              const VecXd& input_limit_lower,
+                              const VecXd& input_limit_upper)
+        : ocs2::StateInputConstraint(ocs2::ConstraintOrder::Linear),
+          dims_(dims) {
+        size_t n = 2 * (dims.x + dims.u);
+        MatXd Ix = MatXd::Identity(dims.x, dims.x);
+        MatXd Iu = MatXd::Identity(dims.u, dims.u);
+
+        C_ = MatXd::Zero(n, dims.x);
+        C_.topRows(dims.x) = Ix;
+        C_.middleRows(dims.x, dims.x) = -Ix;
+
+        D_ = MatXd::Zero(n, dims.u);
+        D_.middleRows(2 * dims.x, dims.u) = Iu;
+        D_.bottomRows(dims.u) = -Iu;
+
+        e_ = VecXd::Zero(n);
+        e_ << -state_limit_lower, state_limit_upper, -input_limit_lower,
+            input_limit_upper;
+    }
+
+    ~JointStateInputConstraint() override = default;
+
+    JointStateInputConstraint* clone() const override {
+        return new JointStateInputConstraint(*this);
+    }
+
+    size_t getNumConstraints(ocs2::scalar_t time) const override {
+        // Limits are double-sided, hence factor of two.
+        return e_.rows();
+    }
+
+    VecXd getValue(ocs2::scalar_t time, const VecXd& state, const VecXd& input,
+                   const ocs2::PreComputation&) const override {
+        VecXd g = e_;
+        g.noalias() += C_ * state;
+        g.noalias() += D_ * input;
+        return g;
+    }
+
+    ocs2::VectorFunctionLinearApproximation getLinearApproximation(
+        ocs2::scalar_t time, const VecXd& state, const VecXd& input,
+        const ocs2::PreComputation&) const {
+        ocs2::VectorFunctionLinearApproximation g;
+        g.f = e_;
+        g.f.noalias() += C_ * state;
+        g.f.noalias() += D_ * input;
+        g.dfdx = C_;
+        g.dfdu = D_;
+        return g;
+    }
+
+   private:
+    JointStateInputConstraint(const JointStateInputConstraint& other) = default;
+
+    RobotDimensions dims_;
+    MatXd C_;
+    MatXd D_;
+    VecXd e_;
+};
+
 }  // namespace upright

@@ -58,6 +58,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/constraint/joint_state_input_limits.h>
 #include <upright_control/constraint/obstacle_constraint.h>
+#include <upright_control/constraint/state_to_state_input_constraint.h>
 #include <upright_control/cost/end_effector_cost.h>
 #include <upright_control/cost/inertial_alignment_cost.h>
 #include <upright_control/cost/quadratic_joint_state_input_cost.h>
@@ -213,20 +214,58 @@ void ControllerInterface::loadSettings() {
     //     std::move(inertial_alignment_constraint));
 
     /* Constraints */
-    problem_.softConstraintPtr->add(
-        "jointStateInputLimits", getJointStateInputLimitConstraint(taskFile));
+    if (settings_.limit_constraint_type == ConstraintType::Soft) {
+        problem_.softConstraintPtr->add(
+            "joint_state_input_limits",
+            get_soft_joint_state_input_limit_constraint());
+        std::cerr << "Soft state and input limits are enabled." << std::endl;
+    } else {
+        // TODO this should be a box constraint, but this is not implemented
+        // yet
+        std::unique_ptr<ocs2::StateInputConstraint>
+            joint_state_input_constraint(new JointStateInputConstraint(
+                settings_.dims, settings_.state_limit_lower,
+                settings_.state_limit_upper, settings_.input_limit_lower,
+                settings_.input_limit_upper));
+        problem_.inequalityConstraintPtr->add("joint_state_input_limits",
+                                              std::move(joint_state_input_constraint));
+        std::cerr << "Hard state and input limits are enabled." << std::endl;
+    }
 
     // Self-collision avoidance and collision avoidance with static obstacles
     if (settings_.static_obstacle_settings.enabled) {
-        std::cerr << "Collision avoidance is enabled." << std::endl;
-        problem_.stateSoftConstraintPtr->add(
-            "static_obstacle_avoidance",
-            getStaticObstacleConstraint(
-                *pinocchioInterfacePtr_, settings_.static_obstacle_settings,
-                settings_.obstacle_urdf_path, usePreComputation, libraryFolder,
-                recompileLibraries));
+        if (settings_.static_obstacle_settings.constraint_type ==
+            ConstraintType::Soft) {
+            problem_.stateSoftConstraintPtr->add(
+                "static_obstacle_avoidance",
+                get_soft_static_obstacle_constraint(
+                    *pinocchioInterfacePtr_, settings_.static_obstacle_settings,
+                    settings_.obstacle_urdf_path, usePreComputation,
+                    libraryFolder, recompileLibraries));
+            std::cerr
+                << "Soft static obstacle avoidance constraints are enabled."
+                << std::endl;
+        } else {
+            // Get the usual state constraint
+            std::unique_ptr<ocs2::StateConstraint> static_obstacle_constraint =
+                get_static_obstacle_constraint(
+                    *pinocchioInterfacePtr_, settings_.static_obstacle_settings,
+                    settings_.obstacle_urdf_path, usePreComputation,
+                    libraryFolder, recompileLibraries);
+
+            // Map it to a state-input constraint so it works with the current
+            // implementation of the hard inequality constraints
+            problem_.inequalityConstraintPtr->add(
+                "static_obstacle_avoidance",
+                std::unique_ptr<ocs2::StateInputConstraint>(
+                    new StateToStateInputConstraint(
+                        *static_obstacle_constraint)));
+            std::cerr
+                << "Hard static obstacle avoidance constraints are enabled."
+                << std::endl;
+        }
     } else {
-        std::cerr << "Collision avoidance is disabled." << std::endl;
+        std::cerr << "Static obstacle avoidance is disabled." << std::endl;
     }
 
     // Collision avoidance with dynamic obstacles specified via the reference
@@ -242,25 +281,22 @@ void ControllerInterface::loadSettings() {
         std::cerr << "Dynamic obstacle avoidance is disabled." << std::endl;
     }
 
-    if (settings_.tray_balance_settings.enabled) {
-        if (settings_.tray_balance_settings.constraint_type ==
+    if (settings_.balancing_settings.enabled) {
+        if (settings_.balancing_settings.constraint_type ==
             ConstraintType::Soft) {
-            std::cerr << "Soft tray balance constraints enabled." << std::endl;
+            std::cerr << "Soft balancing constraints enabled." << std::endl;
             problem_.softConstraintPtr->add(
-                "trayBalance",
-                getTrayBalanceSoftConstraint(end_effector_kinematics,
-                                             recompileLibraries));
+                "balancing", get_soft_balancing_constraint(
+                                 end_effector_kinematics, recompileLibraries));
 
         } else {
-            // TODO: hard inequality constraints not currently implemented by
-            // OCS2
-            std::cerr << "Hard tray balance constraints enabled." << std::endl;
+            std::cerr << "Hard balancing constraints enabled." << std::endl;
             problem_.inequalityConstraintPtr->add(
-                "trayBalance", getTrayBalanceConstraint(end_effector_kinematics,
-                                                        recompileLibraries));
+                "balancing", get_balancing_constraint(end_effector_kinematics,
+                                                      recompileLibraries));
         }
     } else {
-        std::cerr << "Tray balance constraints disabled." << std::endl;
+        std::cerr << "Balancing constraints disabled." << std::endl;
     }
 
     // Initialization state
@@ -371,32 +407,30 @@ std::unique_ptr<ocs2::StateCost> ControllerInterface::getEndEffectorCost(
 }
 
 std::unique_ptr<ocs2::StateInputConstraint>
-ControllerInterface::getTrayBalanceConstraint(
+ControllerInterface::get_balancing_constraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
     bool recompileLibraries) {
     return std::unique_ptr<ocs2::StateInputConstraint>(
         new BoundedBalancingConstraints(
-            end_effector_kinematics, settings_.tray_balance_settings,
+            end_effector_kinematics, settings_.balancing_settings,
             settings_.gravity, settings_.dims, recompileLibraries));
 }
 
 std::unique_ptr<ocs2::StateInputCost>
-ControllerInterface::getTrayBalanceSoftConstraint(
+ControllerInterface::get_soft_balancing_constraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
     bool recompileLibraries) {
     // compute the hard constraint
     std::unique_ptr<ocs2::StateInputConstraint> constraint =
-        getTrayBalanceConstraint(end_effector_kinematics, recompileLibraries);
+        get_balancing_constraint(end_effector_kinematics, recompileLibraries);
 
     // make it soft via penalty function
     std::vector<std::unique_ptr<ocs2::PenaltyBase>> penaltyArray(
         constraint->getNumConstraints(0));
     for (int i = 0; i < constraint->getNumConstraints(0); i++) {
-        penaltyArray[i].reset(
-            // new SquaredHingePenalty({settings.mu, settings.delta}));
-            new ocs2::RelaxedBarrierPenalty(
-                {settings_.tray_balance_settings.mu,
-                 settings_.tray_balance_settings.delta}));
+        penaltyArray[i].reset(new ocs2::RelaxedBarrierPenalty(
+            {settings_.balancing_settings.mu,
+             settings_.balancing_settings.delta}));
     }
 
     return std::unique_ptr<ocs2::StateInputCost>(
@@ -404,8 +438,8 @@ ControllerInterface::getTrayBalanceSoftConstraint(
                                            std::move(penaltyArray)));
 }
 
-std::unique_ptr<ocs2::StateCost>
-ControllerInterface::getStaticObstacleConstraint(
+std::unique_ptr<ocs2::StateConstraint>
+ControllerInterface::get_static_obstacle_constraint(
     ocs2::PinocchioInterface pinocchioInterface,
     const StaticObstacleSettings& settings,
     const std::string& obstacle_urdf_path, bool usePreComputation,
@@ -476,11 +510,24 @@ ControllerInterface::getStaticObstacleConstraint(
             new FixedBasePinocchioMapping<ocs2::scalar_t>(settings_.dims));
     }
 
-    std::unique_ptr<ocs2::StateConstraint> constraint(
+    return std::unique_ptr<ocs2::StateConstraint>(
         new ocs2::SelfCollisionConstraintCppAd(
             pinocchioInterface, *pinocchio_mapping_ptr,
             std::move(geometryInterface), settings.minimum_distance,
-            "self_collision", libraryFolder, recompileLibraries, false));
+            "static_obstacle_avoidance", libraryFolder, recompileLibraries,
+            false));
+}
+
+std::unique_ptr<ocs2::StateCost>
+ControllerInterface::get_soft_static_obstacle_constraint(
+    ocs2::PinocchioInterface pinocchioInterface,
+    const StaticObstacleSettings& settings,
+    const std::string& obstacle_urdf_path, bool usePreComputation,
+    const std::string& libraryFolder, bool recompileLibraries) {
+    std::unique_ptr<ocs2::StateConstraint> constraint =
+        get_static_obstacle_constraint(pinocchioInterface, settings,
+                                       obstacle_urdf_path, usePreComputation,
+                                       libraryFolder, recompileLibraries);
 
     std::unique_ptr<ocs2::PenaltyBase> penalty(
         new ocs2::RelaxedBarrierPenalty({settings.mu, settings.delta}));
@@ -489,18 +536,13 @@ ControllerInterface::getStaticObstacleConstraint(
         std::move(constraint), std::move(penalty)));
 }
 
-std::unique_ptr<ocs2::StateInputCost>
-ControllerInterface::getJointStateInputLimitConstraint(
-    const std::string& taskFile) {
+std::unique_ptr<ocs2::StateInputConstraint>
+ControllerInterface::get_joint_state_input_limit_constraint() {
     VecXd state_limit_lower = settings_.state_limit_lower;
     VecXd state_limit_upper = settings_.state_limit_upper;
-    ocs2::scalar_t state_limit_mu = settings_.state_limit_mu;
-    ocs2::scalar_t state_limit_delta = settings_.state_limit_delta;
 
     VecXd input_limit_lower = settings_.input_limit_lower;
     VecXd input_limit_upper = settings_.input_limit_upper;
-    ocs2::scalar_t input_limit_mu = settings_.input_limit_mu;
-    ocs2::scalar_t input_limit_delta = settings_.input_limit_delta;
 
     std::cout << "state limit lower: " << state_limit_lower.transpose()
               << std::endl;
@@ -511,8 +553,25 @@ ControllerInterface::getJointStateInputLimitConstraint(
     std::cout << "input limit upper: " << input_limit_upper.transpose()
               << std::endl;
 
-    std::unique_ptr<ocs2::StateInputConstraint> constraint(
+    return std::unique_ptr<ocs2::StateInputConstraint>(
         new JointStateInputLimits(settings_.dims));
+}
+
+std::unique_ptr<ocs2::StateInputCost>
+ControllerInterface::get_soft_joint_state_input_limit_constraint() {
+    std::unique_ptr<ocs2::StateInputConstraint> constraint =
+        get_joint_state_input_limit_constraint();
+
+    VecXd state_limit_lower = settings_.state_limit_lower;
+    VecXd state_limit_upper = settings_.state_limit_upper;
+    ocs2::scalar_t state_limit_mu = settings_.state_limit_mu;
+    ocs2::scalar_t state_limit_delta = settings_.state_limit_delta;
+
+    VecXd input_limit_lower = settings_.input_limit_lower;
+    VecXd input_limit_upper = settings_.input_limit_upper;
+    ocs2::scalar_t input_limit_mu = settings_.input_limit_mu;
+    ocs2::scalar_t input_limit_delta = settings_.input_limit_delta;
+
     auto num_constraints = constraint->getNumConstraints(0);
     std::unique_ptr<ocs2::PenaltyBase> barrierFunction;
     std::vector<std::unique_ptr<ocs2::PenaltyBase>> penaltyArray(

@@ -37,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
 #include <upright_control/reference_trajectory.h>
+#include <upright_control/constraint/constraint_type.h>
 #include <upright_control/types.h>
 
 namespace upright {
@@ -82,6 +83,8 @@ struct StaticObstacleSettings {
 
     // Minimum distance allowed between collision objects
     ocs2::scalar_t minimum_distance = 0;
+
+    ConstraintType constraint_type = ConstraintType::Soft;
 
     // Relaxed barrier function parameters
     ocs2::scalar_t mu = 1e-2;
