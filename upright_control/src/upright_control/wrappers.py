@@ -161,8 +161,11 @@ class ControllerSettings(bindings.ControllerSettings):
             config["balancing"]["delta"]
         )
 
-        ctrl_objects = core.parsing.parse_control_objects(config)
+        ctrl_objects, contacts = core.parsing.parse_control_objects(config)
+
+        # TODO
         self.balancing_settings.objects = ctrl_objects
+        self.balancing_settings.contacts = contacts
 
         self.balancing_settings.constraints_enabled.normal = config["balancing"][
             "enable_normal_constraint"

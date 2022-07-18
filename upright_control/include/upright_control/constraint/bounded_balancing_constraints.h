@@ -4,6 +4,7 @@
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 
 #include <upright_core/bounded.h>
+#include <upright_core/contact.h>
 #include <upright_control/constraint/constraint_type.h>
 #include <upright_control/dynamics/dimensions.h>
 #include <upright_control/types.h>
@@ -13,7 +14,8 @@ namespace upright {
 struct BalancingSettings {
     bool enabled = false;
     BalanceConstraintsEnabled constraints_enabled;
-    std::vector<BoundedBalancedObject<ocs2::scalar_t>> objects;
+    std::map<std::string, BoundedBalancedObject<ocs2::scalar_t>> objects;
+    std::vector<ContactPoint<ocs2::scalar_t>> contacts;
 
     ConstraintType constraint_type = ConstraintType::Soft;
     ocs2::scalar_t mu = 1e-2;

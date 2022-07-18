@@ -491,7 +491,7 @@ Vector<Scalar> bounded_balancing_constraints_single(
 
 template <typename Scalar>
 size_t num_balancing_constraints(
-    const std::vector<BoundedBalancedObject<Scalar>> objects) {
+    const std::vector<BoundedBalancedObject<Scalar>>& objects) {
     size_t num_constraints = 0;
     for (const auto& obj : objects) {
         num_constraints += obj.num_constraints();
@@ -500,8 +500,18 @@ size_t num_balancing_constraints(
 }
 
 template <typename Scalar>
+size_t num_balancing_constraints(
+    const std::map<std::string, BoundedBalancedObject<Scalar>>& objects) {
+    size_t num_constraints = 0;
+    for (const auto& kv : objects) {
+        num_constraints += kv.second.num_constraints();
+    }
+    return num_constraints;
+}
+
+template <typename Scalar>
 Vector<Scalar> balancing_constraints(
-    const std::vector<BoundedBalancedObject<Scalar>> objects,
+    const std::vector<BoundedBalancedObject<Scalar>>& objects,
     const Vec3<Scalar>& gravity, const BalanceConstraintsEnabled& enabled,
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc) {

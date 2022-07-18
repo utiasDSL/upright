@@ -11,6 +11,7 @@ from upright_core.bindings import (
     BoundedRigidBody,
     BoundedBalancedObject,
     PolygonSupportArea,
+    ContactPoint,
 )
 from upright_core import math
 from upright_core.composition import compose_bounded_objects
@@ -162,6 +163,7 @@ class BalancedObjectConfigWrapper:
         self.parent_name = parent_name
         self.children = []
         self.position = None
+        self._bounded_balanced_object = None
 
     @property
     def height(self):
@@ -196,6 +198,9 @@ class BalancedObjectConfigWrapper:
 
     def bounded_balanced_object(self):
         """Generate a BoundedBalancedObject for this object."""
+        if self._bounded_balanced_object is not None:
+            return self._bounded_balanced_object
+
         # parse the bounded rigid body
         mass_min = self.d["mass"]["min"]
         mass_max = self.d["mass"]["max"]
@@ -243,13 +248,39 @@ class BalancedObjectConfigWrapper:
         com_height = self.d["com"]["height"]
         mu_min = self.d["mu_min"]
 
-        return BoundedBalancedObject(
+        # cache for later retrieval
+        self._bounded_balanced_object = BoundedBalancedObject(
             body,
             com_height=com_height,
             support_area_min=support_area,
             r_tau_min=r_tau,
             mu_min=mu_min,
         )
+        return self._bounded_balanced_object
+
+    def base_contact_points(self, name):
+        """Generate the contact points at the base of this object."""
+        obj = self.bounded_balanced_object()
+        vertices = obj.support_area_min.vertices
+        h = obj.com_height
+
+        contacts = []
+        for vertex in vertices:
+            r = np.array([vertex[0], vertex[1], -h])
+            contact = ContactPoint()
+            contact.object1_name = name
+            contact.r_co_o1 = r
+            contacts.append(contact)
+        return contacts
+
+    def update_child_contact_points(self, name, child, contacts):
+        """Update base contact points of the child object."""
+        # need diff between my CoM and child's CoM
+        Δ = child.position - self.position
+        for contact in contacts:
+            contact.r_co_o2 = contact.r_co_o1 + Δ
+            contact.object2_name = name
+        return contacts
 
 
 def parse_control_objects(ctrl_config):
@@ -282,6 +313,21 @@ def parse_control_objects(ctrl_config):
             raise ValueError(f"Multiple control objects named {obj_name}.")
         wrappers[obj_name] = wrapper
 
+    # TODO use a C++ map to store the objects
+    contacts = []
+    for name, wrapper in wrappers.items():
+        # generate contacts for the base of this object
+        base_contacts = wrapper.base_contact_points(name)
+
+        # if the object has a parent, we need to add its info to the contact
+        # points as well
+        if wrapper.parent_name is not None:
+            wrappers[wrapper.parent_name].update_child_contact_points(
+                wrapper.parent_name, wrapper, base_contacts
+            )
+
+        contacts.extend(base_contacts)
+
     # find the direct children of each object
     for name, wrapper in wrappers.items():
         if wrapper.parent_name is not None:
@@ -289,18 +335,24 @@ def parse_control_objects(ctrl_config):
 
     # convert wrappers to BoundedBalancedObjects as required by the controller
     # and compose them as needed
-    composites = []
+    composites = {}
     for name, wrapper in wrappers.items():
-        # all descendants compose the new object
+        # all descendants compose the new object (descendants include the
+        # current object)
         descendants = []
+        descendant_names = [name]
         queue = deque([wrapper])
         while len(queue) > 0:
             desc_wrapper = queue.popleft()
             descendants.append(desc_wrapper.bounded_balanced_object())
             for child_name in desc_wrapper.children:
                 queue.append(wrappers[child_name])
+                descendant_names.append(child_name)
+
+        # new name includes names of all component objects
+        composite_name = "_".join(descendant_names)
 
         # descendants have already been converted to C++ objects
-        composites.append(compose_bounded_objects(descendants))
+        composites[composite_name] = compose_bounded_objects(descendants)
 
-    return composites
+    return composites, contacts

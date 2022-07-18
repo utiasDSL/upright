@@ -39,8 +39,8 @@ VecXad BoundedBalancingConstraints::constraintFunction(
     // Cast to AD scalar type
     Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
     std::vector<BoundedBalancedObject<ocs2::ad_scalar_t>> ad_objects;
-    for (const auto& obj : settings_.objects) {
-        ad_objects.push_back(obj.cast<ocs2::ad_scalar_t>());
+    for (const auto& kv : settings_.objects) {
+        ad_objects.push_back(kv.second.cast<ocs2::ad_scalar_t>());
     }
 
     return balancing_constraints(ad_objects, ad_gravity,

@@ -16,6 +16,7 @@ class ControllerModel:
 
     def __init__(self, settings, robot):
         self.settings = settings
+        self.objects = list(settings.objects.values())
         self.robot = robot
 
     @classmethod
@@ -35,7 +36,7 @@ class ControllerModel:
         a_ew_w, α_ew_w = self.robot.link_acceleration()
         C_we = core.math.quat_to_rot(Q_we)
         return core.bindings.balancing_constraints(
-            self.settings.objects, self.settings.gravity, C_we, ω_ew_w, a_ew_w, α_ew_w
+            self.objects, self.settings.gravity, C_we, ω_ew_w, a_ew_w, α_ew_w
         )
 
     def support_area_distances(self):
@@ -49,7 +50,7 @@ class ControllerModel:
         """
         _, Q_we = self.robot.link_pose()
         dists = []
-        for obj in self.settings.objects:
+        for obj in self.objects:
             dists.append(core.util.support_area_distance(obj, Q_we))
         return np.array(dists)
 

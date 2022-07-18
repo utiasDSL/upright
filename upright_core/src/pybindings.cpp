@@ -3,6 +3,7 @@
 #include <pybind11/stl.h>
 
 #include "upright_core/bounded.h"
+#include "upright_core/contact.h"
 #include "upright_core/ellipsoid.h"
 #include "upright_core/nominal.h"
 #include "upright_core/support_area.h"
@@ -104,6 +105,13 @@ PYBIND11_MODULE(bindings, m) {
                       &BoundedBalancedObject<Scalar>::support_area_min)
         .def_readonly("r_tau_min", &BoundedBalancedObject<Scalar>::r_tau_min)
         .def_readonly("mu_min", &BoundedBalancedObject<Scalar>::mu_min);
+
+    pybind11::class_<ContactPoint<Scalar>>(m, "ContactPoint")
+        .def(pybind11::init<>())
+        .def_readwrite("object1_name", &ContactPoint<Scalar>::object1_name)
+        .def_readwrite("object2_name", &ContactPoint<Scalar>::object2_name)
+        .def_readwrite("r_co_o1", &ContactPoint<Scalar>::r_co_o1)
+        .def_readwrite("r_co_o2", &ContactPoint<Scalar>::r_co_o2);
 
     // Compute balancing constraints for the list of objects given
     m.def("balancing_constraints",

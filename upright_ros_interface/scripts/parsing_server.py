@@ -98,9 +98,10 @@ def control_settings_to_response(settings):
         settings.tray_balance_settings.constraints_enabled.zmp
     )
 
-    for obj in settings.tray_balance_settings.objects:
+    for name, obj in settings.tray_balance_settings.objects:
         obj_msg = BoundedBalancedObject()
         obj_msg.parameters = obj.get_parameters()
+        obj_msg.name = name
         resp.tray_balance_settings.objects.append(obj_msg)
 
     # resp.tray_balance_settings.constraint_type =  # TODO

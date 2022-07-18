@@ -101,7 +101,7 @@ ControllerSettings parse_control_settings(
         VecXd parameters = parse_vector(obj_msg.parameters);
         BoundedBalancedObject<double> obj =
             BoundedBalancedObject<double>::from_parameters(parameters);
-        settings.balancing_settings.objects.push_back(obj);
+        settings.balancing_settings.objects.insert({obj_msg.name, obj});
     }
     settings.balancing_settings.mu = resp.balancing_settings.mu;
     settings.balancing_settings.delta = resp.balancing_settings.delta;
