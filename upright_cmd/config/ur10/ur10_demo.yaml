@@ -13,11 +13,11 @@ include:
 
 logging:
   timestep: 0.010
-  log_dir: /media/adam/Data/PhD/Data/object-balance/bounded
+  log_dir: /media/adam/Data/PhD/Data/upright/bounded
 
 simulation:
   duration: 5.0
-  arrangement: one_box
+  arrangement: nothing
 
 controller:
   balancing:
@@ -36,7 +36,7 @@ controller:
   waypoints:
     -
       time: 0
-      position: [0, 0.5, 0.25]
+      position: [0, 0, 0]
       orientation: [0, 0, 0, 1]
 
   operating_points:

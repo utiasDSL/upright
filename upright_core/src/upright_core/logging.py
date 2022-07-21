@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -69,11 +70,21 @@ class DataLogger:
 
 
 class DataPlotter:
-    def __init__(self, logger):
+    def __init__(self, data):
+        self.data = data
+
+    @classmethod
+    def from_logger(cls, logger):
         # convert logger data to numpy format
-        self.data = {}
+        data = {}
         for key, value in logger.data.items():
-            self.data[key] = np.array(value)
+            data[key] = np.array(value)
+        return cls(data)
+
+    @classmethod
+    def from_npz(cls, npz_file_path):
+        data = dict(np.load(sys.argv[1]))
+        return cls(data)
 
     def plot_ee_position(self):
         ts = self.data["ts"]
@@ -175,25 +186,25 @@ class DataPlotter:
         plt.ylabel("Error")
         plt.title(f"Object {obj_name} error")
 
-    def plot_control_durations(self):
-        durations = self.data["control_durations"]
+    def plot_replanning_durations(self, use_milliseconds=True):
+        ts = self.data["replanning_times"]
+        durations = self.data["replanning_durations"]
 
-        # the controller runs at a different rate than the simulation
-        control_times = (
-            np.arange(durations.shape[0])
-            * self.data["ctrl_timestep"]
-            * self.data["sim_timestep"]
-        )
+        if use_milliseconds:
+            durations *= 1000
+            unit_str = "ms"
+        else:
+            unit_str = "s"
 
-        print(f"max control time = {np.max(durations)}")
-        print(f"avg control time = {np.mean(durations)}")
-        print(f"avg without first = {np.mean(durations[1:])}")
+        print(f"max control time ({unit_str})  = {np.max(durations)}")
+        print(f"avg control time ({unit_str})  = {np.mean(durations)}")
+        print(f"avg without first ({unit_str}) = {np.mean(durations[1:])}")
 
         plt.figure()
-        plt.plot(control_times, durations)
+        plt.plot(ts, durations)
         plt.grid()
         plt.xlabel("Time (s)")
-        plt.ylabel("Controller time (s)")
+        plt.ylabel(f"Controller time ({unit_str})")
         plt.title("Controller duration")
 
     def plot_cmd_vs_real_vel(self):
@@ -219,7 +230,7 @@ class DataPlotter:
         plt.grid()
         plt.legend()
         plt.xlabel("Time (s)")
-        plt.ylabel("Velocity")
+        plt.ylabel("Joint velocity (rad/s)")
         plt.title("Actual and commanded velocity")
 
     def plot_dynamic_obs_dist(self):
@@ -312,8 +323,8 @@ class DataPlotter:
                 title="Commanded Inputs vs. Time",
             )
 
-        if "control_durations" in self.data:
-            self.plot_control_durations()
+        if "replanning_durations" in self.data:
+            self.plot_replanning_durations()
 
         if "cmd_vels" in self.data:
             self.plot_cmd_vs_real_vel()

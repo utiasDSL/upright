@@ -43,7 +43,7 @@ tracking:
 #     orientation: [0.0, 0.0, 0.0, 1.0]
 
 static_obstacles:
-  enabled: true
+  enabled: false
   constraint_type: soft
   urdf:
     package: "upright_assets"

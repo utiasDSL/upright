@@ -74,13 +74,20 @@ def main():
 
     # simulation loop
     while t <= sim.duration:
-        q, v = sim.robot.joint_states(add_noise=True)
-        x = np.concatenate((q, v, a_ff))  # TODO use v_ff too?
+        # get the true robot feedback
+        q, v = sim.robot.joint_states(add_noise=False)
+        x = np.concatenate((q, v, a_ff))
+
+        # now get the noisy version for use in the controller
+        # we can choose to use v_ff rather than v_noisy if we can to avoid
+        # noisy velocity feedback
+        q_noisy, v_noisy = sim.robot.joint_states(add_noise=True)
+        x_noisy = np.concatenate((q_noisy, v_noisy, a_ff))
 
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
         try:
-            xd, u = ctrl_manager.step(t, x)
+            xd, u = ctrl_manager.step(t, x_noisy)
         except RuntimeError as e:
             print(e)
             print("exit the interpreter to proceed to plots")
@@ -88,16 +95,18 @@ def main():
             break
 
         if np.isnan(u).any():
-            print("nan value!")
+            print("nan value in input!")
             IPython.embed()
             break
 
         # TODO why is this better than using the zero-order hold?
         # here we use the input u to generate the feedforward signal---using
         # the jerk level ensures smoothness at the velocity level
-        qd, _, _ = mapping.xu2qva(xd)
+        qd, vd, _ = mapping.xu2qva(xd)
         v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u, sim.timestep)
-        v_cmd = Kp @ (qd - q) + v_ff
+
+        # v_cmd = Kp @ (qd - q) + v_ff
+        v_cmd = Kp @ (qd - q) + vd
         sim.robot.command_velocity(v_cmd)
 
         # TODO more logger reforms to come
@@ -148,7 +157,8 @@ def main():
     except:
         pass
 
-    logger.add("control_durations", ctrl_manager.replanning_durations)
+    logger.add("replanning_times", ctrl_manager.replanning_times)
+    logger.add("replanning_durations", ctrl_manager.replanning_durations)
 
     # save logged data
     if cli_args.log is not None:
@@ -157,16 +167,8 @@ def main():
     if sim.video_manager.save:
         print(f"Saved video to {sim.video_manager.path}")
 
-    # limits = np.array(logger.data["limits"])
-    # violations = np.minimum(limits, 0)
-    # SSE = np.linalg.norm(violations, axis=1)
-    #
-    # import matplotlib.pyplot as plt
-    # plt.plot(logger.data["ts"], SSE)
-    # plt.show()
-
     # visualize data
-    DataPlotter(logger).plot_all(show=True)
+    DataPlotter.from_logger(logger).plot_all(show=True)
 
 
 if __name__ == "__main__":

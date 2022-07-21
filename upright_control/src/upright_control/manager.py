@@ -108,6 +108,11 @@ class ControllerManager:
         self.x_opt = np.zeros(self.model.settings.dims.x)
         self.u_opt = np.zeros(self.model.settings.dims.u)
 
+        # time at which replanning was done
+        self.replanning_times = []
+
+        # duration the replanning took in real time (i.e. how fast did the
+        # optimizer run)
         self.replanning_durations = []
 
     @classmethod
@@ -152,6 +157,7 @@ class ControllerManager:
             t1 = time.time()
 
             self.last_planning_time = t
+            self.replanning_times.append(t)
             self.replanning_durations.append(t1 - t0)
 
         # evaluate the current solution
