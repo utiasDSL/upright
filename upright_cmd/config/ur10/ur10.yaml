@@ -10,7 +10,7 @@ simulation:
       u: 6  # input
     noise:
       measurement:
-        q_std_dev: 0
+        q_std_dev: 0.00001
         v_std_dev: 0.001
       process:
         v_std_dev: 0

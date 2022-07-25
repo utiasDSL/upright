@@ -3,6 +3,9 @@ import numpy as np
 import rospy
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
+import upright_cmd as cmd
+import upright_control as ctrl
+import upright_core as core
 from upright_ros_interface import TrajectoryClient, UR10_JOINT_NAMES
 
 
@@ -17,8 +20,16 @@ def sinusoid(amplitude, frequency, time):
 
 
 if __name__ == "__main__":
-    # initial position
-    q0 = np.array([1.57, -0.785, 1.57, -0.785, 1.57, 0])
+    rospy.init_node("sine")
+
+    argparser = cmd.cli.basic_arg_parser()
+    cli_args = argparser.parse_args()
+
+    config = core.parsing.load_config(cli_args.config)
+    settings = ctrl.wrappers.ControllerSettings(config["controller"])
+    mapping = ctrl.trajectory.StateInputMapping(settings.dims)
+
+    q0, _, _ = mapping.xu2qva(settings.initial_state)
 
     duration = 10.0
     amplitude = 0.2

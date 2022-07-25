@@ -87,26 +87,26 @@ def control_settings_to_response(settings):
     resp.dims.u = settings.dims.u
 
     # tray balance settings
-    resp.tray_balance_settings.enabled = settings.tray_balance_settings.enabled
-    resp.tray_balance_settings.normal_constraints_enabled = (
-        settings.tray_balance_settings.constraints_enabled.normal
+    resp.balancing_settings.enabled = settings.balancing_settings.enabled
+    resp.balancing_settings.normal_constraints_enabled = (
+        settings.balancing_settings.constraints_enabled.normal
     )
-    resp.tray_balance_settings.friction_constraints_enabled = (
-        settings.tray_balance_settings.constraints_enabled.friction
+    resp.balancing_settings.friction_constraints_enabled = (
+        settings.balancing_settings.constraints_enabled.friction
     )
-    resp.tray_balance_settings.zmp_constraints_enabled = (
-        settings.tray_balance_settings.constraints_enabled.zmp
+    resp.balancing_settings.zmp_constraints_enabled = (
+        settings.balancing_settings.constraints_enabled.zmp
     )
 
-    for name, obj in settings.tray_balance_settings.objects:
+    for name, obj in settings.balancing_settings.objects.items():
         obj_msg = BoundedBalancedObject()
         obj_msg.parameters = obj.get_parameters()
         obj_msg.name = name
-        resp.tray_balance_settings.objects.append(obj_msg)
+        resp.balancing_settings.objects.append(obj_msg)
 
-    # resp.tray_balance_settings.constraint_type =  # TODO
-    resp.tray_balance_settings.mu = settings.tray_balance_settings.mu
-    resp.tray_balance_settings.delta = settings.tray_balance_settings.delta
+    # resp.balancing_settings.constraint_type =  # TODO
+    resp.balancing_settings.mu = settings.balancing_settings.mu
+    resp.balancing_settings.delta = settings.balancing_settings.delta
 
     # inertial alignment settings
     resp.inertial_alignment_settings.enabled = (

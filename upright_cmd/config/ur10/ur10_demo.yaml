@@ -34,9 +34,13 @@ controller:
       diag: [1, 1, 1, 1, 1, 1]
 
   waypoints:
+    # -
+    #   time: 0
+    #   position: [0, 0, 0]
+    #   orientation: [0, 0, 0, 1]
     -
       time: 0
-      position: [0, 0, 0]
+      position: [-0.25, 0.5, 0.25]
       orientation: [0, 0, 0, 1]
 
   operating_points:

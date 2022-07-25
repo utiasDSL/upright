@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot all figures from data, the same as after a simulation run."""
+"""Plot the state x over time."""
 import sys
 import numpy as np
 
@@ -8,7 +8,10 @@ from upright_core.logging import DataPlotter
 
 def main():
     plotter = DataPlotter.from_npz(sys.argv[1])
-    plotter.plot_all(show=True)
+    plotter.plot_ee_position()
+    plotter.plot_ee_orientation()
+    plotter.plot_ee_velocity()
+    plotter.show()
 
 
 if __name__ == "__main__":

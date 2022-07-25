@@ -52,7 +52,7 @@ multiple_shooting
   printSolverStatistics         true
   printSolverStatus             true
   printLinesearch               true
-  useFeedbackPolicy             true
+  useFeedbackPolicy             false
   integratorType                RK4
   nThreads                      4
   projectStateInputEqualityConstraints true

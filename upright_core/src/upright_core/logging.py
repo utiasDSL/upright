@@ -101,7 +101,7 @@ class DataPlotter:
         plt.grid()
         plt.legend()
         plt.xlabel("Time (s)")
-        plt.ylabel("Position")
+        plt.ylabel("Position (m)")
         plt.title("End effector position")
 
     def plot_ee_orientation(self):
@@ -292,6 +292,34 @@ class DataPlotter:
         ax = plt.gca()
         return ax
 
+    def plot_state(self):
+        self.plot_value_vs_time(
+            "xs",
+            indices=range(self.data["nq"]),
+            legend_prefix="q",
+            ylabel="Joint Position (rad)",
+            title="Joint Positions vs. Time",
+        )
+        self.plot_value_vs_time(
+            "xs",
+            indices=range(self.data["nq"], self.data["nq"] + self.data["nv"]),
+            legend_prefix="v",
+            ylabel="Joint Velocity (rad/s)",
+            title="Joint Velocities vs. Time",
+        )
+        self.plot_value_vs_time(
+            "xs",
+            indices=range(
+                self.data["nq"] + self.data["nv"], self.data["nq"] + 2 * self.data["nv"]
+            ),
+            legend_prefix="a",
+            ylabel="Joint Acceleration (rad/s^2)",
+            title="Joint Accelerations vs. Time",
+        )
+
+    def show(self):
+        plt.show()
+
     def plot_all(self, show=False):
         if "r_ew_ws" in self.data:
             self.plot_ee_position()
@@ -330,20 +358,7 @@ class DataPlotter:
             self.plot_cmd_vs_real_vel()
 
         if "xs" in self.data:
-            self.plot_value_vs_time(
-                "xs",
-                indices=range(self.data["nq"]),
-                legend_prefix="q",
-                ylabel="Joint Position",
-                title="Joint Positions vs. Time",
-            )
-            self.plot_value_vs_time(
-                "xs",
-                indices=range(self.data["nq"] + self.data["nv"], self.data["nq"] + 2 * self.data["nv"]),
-                legend_prefix="a",
-                ylabel="Joint Acceleration",
-                title="Joint Accelerations vs. Time",
-            )
+            self.plot_state()
 
         if "sa_dists" in self.data:
             self.plot_value_vs_time(
@@ -375,4 +390,4 @@ class DataPlotter:
             )
 
         if show:
-            plt.show()
+            self.show()

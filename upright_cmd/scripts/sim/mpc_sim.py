@@ -72,6 +72,9 @@ def main():
     v_ff = v.copy()
     a_ff = a.copy()
 
+    use_direct_velocity_command = False
+    use_velocity_feedback = False
+
     # simulation loop
     while t <= sim.duration:
         # get the true robot feedback
@@ -82,7 +85,10 @@ def main():
         # we can choose to use v_ff rather than v_noisy if we can to avoid
         # noisy velocity feedback
         q_noisy, v_noisy = sim.robot.joint_states(add_noise=True)
-        x_noisy = np.concatenate((q_noisy, v_noisy, a_ff))
+        if use_velocity_feedback:
+            x_noisy = np.concatenate((q_noisy, v_noisy, a_ff))
+        else:
+            x_noisy = np.concatenate((q_noisy, v_ff, a_ff))
 
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
@@ -103,10 +109,15 @@ def main():
         # here we use the input u to generate the feedforward signal---using
         # the jerk level ensures smoothness at the velocity level
         qd, vd, _ = mapping.xu2qva(xd)
-        v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u, sim.timestep)
 
-        # v_cmd = Kp @ (qd - q) + v_ff
-        v_cmd = Kp @ (qd - q) + vd
+        if use_direct_velocity_command:
+            v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u, sim.timestep)
+            v_cmd = Kp @ (qd - q_noisy) + vd
+        else:
+            ud = Kp @ (qd - q_noisy) + u
+            v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, ud, sim.timestep)
+            v_cmd = v_ff
+
         sim.robot.command_velocity(v_cmd)
 
         # TODO more logger reforms to come
