@@ -19,14 +19,17 @@ JOINT_INDEX_MAP = {
 }
 
 BAG_DIR = "/media/adam/Data/PhD/Data/upright/real-thing/bags/2022-07-25/velocity_test"
-BAG_PATHS = [BAG_DIR + "/" + path for path in [
-    "velocity_test_joint0_v0.5_2022-07-25-15-32-43.bag",
-    "velocity_test_joint1_v0.5_2022-07-25-15-39-15.bag",
-    "velocity_test_joint2_v0.5_2022-07-25-15-46-14.bag",
-    "velocity_test_joint3_v0.5_2022-07-25-15-55-46.bag",
-    "velocity_test_joint4_v0.5_2022-07-25-16-01-38.bag",
-    "velocity_test_joint5_v0.5_2022-07-25-16-04-08.bag",
-]]
+BAG_PATHS = [
+    BAG_DIR + "/" + path
+    for path in [
+        "velocity_test_joint0_v0.5_2022-07-25-15-32-43.bag",
+        "velocity_test_joint1_v0.5_2022-07-25-15-39-15.bag",
+        "velocity_test_joint2_v0.5_2022-07-25-15-46-14.bag",
+        "velocity_test_joint3_v0.5_2022-07-25-15-55-46.bag",
+        "velocity_test_joint4_v0.5_2022-07-25-16-01-38.bag",
+        "velocity_test_joint5_v0.5_2022-07-25-16-04-08.bag",
+    ]
+]
 
 
 def msg_time(msg):
@@ -122,22 +125,50 @@ def parse_velocity_data(feedback_msgs, cmd_msgs, cmd_ts, idx):
 
 # system identification routines adapted from
 # https://medium.com/robotics-devs/system-identification-with-python-2079088b4d03
-def simulate_second_order_system(ts, k, ωn, ζ, us):
+def simulate_second_order_system(ts, ωn, ζ, us, k=1):
     """Simulate a second-order system with parameters (k, ωn, ζ) and inputs us at times ts."""
     sys = signal.TransferFunction(k * (ωn ** 2), [1, 2 * ζ * ωn, ωn ** 2])
     _, ys, _ = signal.lsim2(sys, U=us, T=ts)
     return ys
 
 
-def identify_second_order_system(ts, us, ys, method="trf", p0=[1.0, 10.0, 0.1]):
+def simulate_first_order_system(ts, τ, us, k=1):
+    """Simulate a second-order system with parameters (k, ωn, ζ) and inputs us at times ts."""
+    sys = signal.TransferFunction(k, [τ, 1])
+    _, ys, _ = signal.lsim2(sys, U=us, T=ts)
+    return ys
+
+
+def identify_first_order_system(ts, us, ys, method="trf", p0=[1.0]):
     """Fit a second-order model to the inputs us and outputs ys at times ts."""
     # bounds: assume system is not overdamped
-    bounds = ([0, 0, 0], [np.inf, np.inf, 1.0])
-    model = partial(simulate_second_order_system, us=us)
-    (k, ωn, ζ), covariance = optimize.curve_fit(
-        model, ts, ys, method=method, p0=p0, bounds=bounds,
+    bounds = ([0], [np.inf])
+    model = partial(simulate_first_order_system, us=us)
+    (τ,), covariance = optimize.curve_fit(
+        model,
+        ts,
+        ys,
+        method=method,
+        p0=p0,
+        bounds=bounds,
     )
-    return k, ωn, ζ
+    return τ
+
+
+def identify_second_order_system(ts, us, ys, method="trf", p0=[10.0, 0.1]):
+    """Fit a second-order model to the inputs us and outputs ys at times ts."""
+    # bounds: assume system is not overdamped
+    bounds = ([0, 0], [np.inf, 1.0])
+    model = partial(simulate_second_order_system, us=us)
+    (ωn, ζ), covariance = optimize.curve_fit(
+        model,
+        ts,
+        ys,
+        method=method,
+        p0=p0,
+        bounds=bounds,
+    )
+    return ωn, ζ
 
 
 def process_one_bag(path, joint_idx):
@@ -159,14 +190,18 @@ def process_one_bag(path, joint_idx):
     )
 
     # fit a second-order model to the data
-    k, ωn, ζ = identify_second_order_system(ts, us, ys_actual)
-    ys_fit = simulate_second_order_system(ts, k, ωn, ζ, us)
+    ωn, ζ = identify_second_order_system(ts, us, ys_actual)
+    τ = identify_first_order_system(ts, us, ys_actual)
+
+    ys_fit1 = simulate_first_order_system(ts, τ, us)
+    ys_fit2 = simulate_second_order_system(ts, ωn, ζ, us)
 
     # make sure all steps are in positive direction for consistency
     if us[-1] < 0:
         us = -us
         ys_actual = -ys_actual
-        ys_fit = -ys_fit
+        ys_fit1 = -ys_fit1
+        ys_fit2 = -ys_fit2
 
     plt.figure()
 
@@ -176,8 +211,12 @@ def process_one_bag(path, joint_idx):
     # commands
     plt.plot(ts, us, linestyle="--", label="Commanded")
 
-    # fitted model
-    plt.plot(ts, ys_fit, color="k", label="Model")
+    # fitted models
+    plt.plot(ts, ys_fit1, label="First-order model")
+    plt.plot(ts, ys_fit2, label="Second-order model")
+
+    plt.text(0.6, 0.4, f"First-order\nτ = {τ:.2f}")
+    plt.text(0.6, 0.2, f"Second-order\nω = {ωn:.2f}\nζ = {ζ:.2f}")
 
     plt.xlabel("Time (s)")
     plt.ylabel("Joint velocity (rad/s)")
@@ -188,8 +227,7 @@ def process_one_bag(path, joint_idx):
 
 def main():
     for i, path in enumerate(BAG_PATHS):
-        if i == 4:
-            process_one_bag(path, i)
+        process_one_bag(path, i)
     plt.show()
 
 

@@ -269,6 +269,8 @@ class BalancedObjectConfigWrapper:
             r = np.array([vertex[0], vertex[1], -h])
             contact = ContactPoint()
             contact.object1_name = name
+            contact.mu = obj.mu_min
+            contact.normal = np.array([0, 0, 1])  # TODO fixed for now
             contact.r_co_o1 = r
             contacts.append(contact)
         return contacts

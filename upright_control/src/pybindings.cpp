@@ -130,7 +130,8 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("q", &RobotDimensions::q)
         .def_readwrite("v", &RobotDimensions::v)
         .def_readwrite("x", &RobotDimensions::x)
-        .def_readwrite("u", &RobotDimensions::u);
+        .def_readwrite("u", &RobotDimensions::u)
+        .def_readwrite("f", &RobotDimensions::f);
 
     pybind11::enum_<RobotBaseType>(m, "RobotBaseType")
         .value("Fixed", RobotBaseType::Fixed)

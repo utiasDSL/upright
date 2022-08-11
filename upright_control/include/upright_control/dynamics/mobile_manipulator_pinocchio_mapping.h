@@ -79,7 +79,7 @@ class MobileManipulatorPinocchioMapping final
                                         const VecXd& input) const override {
         Mat2<Scalar> C_wb = base_rotation_matrix(state);
 
-        // convert acceleration input from body frame to world frame
+        // convert acceleration from body frame to world frame
         VecXd a_body = state.tail(dims_.v);
         VecXd a_world(dims_.v);
         a_world << C_wb * a_body.head(2), a_body.tail(dims_.v - 2);

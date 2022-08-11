@@ -220,6 +220,7 @@ struct BoundedBalancedObject {
     BoundedRigidBody<Scalar> body;
 
     // Geometry
+    // TODO we are assuming object frame is same as EE at the moment
     Scalar com_height;  // nominal CoM height
     PolygonSupportArea<Scalar> support_area_min;
 

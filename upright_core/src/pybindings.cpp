@@ -110,8 +110,10 @@ PYBIND11_MODULE(bindings, m) {
         .def(pybind11::init<>())
         .def_readwrite("object1_name", &ContactPoint<Scalar>::object1_name)
         .def_readwrite("object2_name", &ContactPoint<Scalar>::object2_name)
+        .def_readwrite("mu", &ContactPoint<Scalar>::mu)
         .def_readwrite("r_co_o1", &ContactPoint<Scalar>::r_co_o1)
-        .def_readwrite("r_co_o2", &ContactPoint<Scalar>::r_co_o2);
+        .def_readwrite("r_co_o2", &ContactPoint<Scalar>::r_co_o2)
+        .def_readwrite("normal", &ContactPoint<Scalar>::normal);
 
     // Compute balancing constraints for the list of objects given
     m.def("balancing_constraints",
