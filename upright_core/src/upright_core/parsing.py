@@ -275,13 +275,23 @@ class BalancedObjectConfigWrapper:
             contacts.append(contact)
         return contacts
 
-    def update_child_contact_points(self, name, child, contacts):
-        """Update base contact points of the child object."""
-        # need diff between my CoM and child's CoM
-        Δ = child.position - self.position
+    # TODO to be removed when verified the parent version is working
+    # def update_child_contact_points(self, name, child, contacts):
+    #     """Update base contact points of the child object."""
+    #     # need diff between my CoM and child's CoM
+    #     Δ = child.position - self.position
+    #     for contact in contacts:
+    #         contact.r_co_o2 = contact.r_co_o1 + Δ
+    #         contact.object2_name = name
+    #     return contacts
+
+    def update_parent_contact_points(self, parent, contacts):
+        """Update base contact points with parent information."""
+        # need diff between my (child) CoM and parent's CoM
+        Δ = self.position - parent.position
         for contact in contacts:
             contact.r_co_o2 = contact.r_co_o1 + Δ
-            contact.object2_name = name
+            contact.object2_name = self.parent_name
         return contacts
 
 
@@ -315,18 +325,16 @@ def parse_control_objects(ctrl_config):
             raise ValueError(f"Multiple control objects named {obj_name}.")
         wrappers[obj_name] = wrapper
 
-    # TODO use a C++ map to store the objects
     contacts = []
     for name, wrapper in wrappers.items():
         # generate contacts for the base of this object
         base_contacts = wrapper.base_contact_points(name)
 
-        # if the object has a parent, we need to add its info to the contact
-        # points as well
+        # if the object has a parent, we need to add the parent info to the
+        # contact points as well
         if wrapper.parent_name is not None:
-            wrappers[wrapper.parent_name].update_child_contact_points(
-                wrapper.parent_name, wrapper, base_contacts
-            )
+            parent = wrappers[wrapper.parent_name]
+            wrapper.update_parent_contact_points(parent, base_contacts)
 
         contacts.extend(base_contacts)
 

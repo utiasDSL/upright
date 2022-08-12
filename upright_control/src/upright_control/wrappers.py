@@ -73,6 +73,7 @@ class ControllerSettings(bindings.ControllerSettings):
         self.gravity = config["gravity"]
 
         # dimensions
+        # note that dims.f (number of contact forces) is set below
         self.dims.q = config["robot"]["dims"]["q"]
         self.dims.v = config["robot"]["dims"]["v"]
         self.dims.x = config["robot"]["dims"]["x"]
@@ -151,6 +152,7 @@ class ControllerSettings(bindings.ControllerSettings):
 
         # tray balance settings
         self.balancing_settings.enabled = config["balancing"]["enabled"]
+        self.balancing_settings.use_force_constraints = config["balancing"]["use_force_constraints"]
         self.balancing_settings.constraint_type = bindings.constraint_type_from_string(
             config["balancing"]["constraint_type"]
         )
@@ -162,10 +164,13 @@ class ControllerSettings(bindings.ControllerSettings):
         )
 
         ctrl_objects, contacts = core.parsing.parse_control_objects(config)
-
-        # TODO
         self.balancing_settings.objects = ctrl_objects
         self.balancing_settings.contacts = contacts
+        self.dims.f = len(contacts)
+
+        # inputs are augmented with the contact forces
+        if self.balancing_settings.use_force_constraints:
+            self.dims.u += 3 * self.dims.f
 
         self.balancing_settings.constraints_enabled.normal = config["balancing"][
             "enable_normal_constraint"

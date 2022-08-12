@@ -209,7 +209,6 @@ class PinocchioRobot:
         return A.linear, A.angular
 
     def jacobian(self, q):
-        # TODO is it correct to do it in this frame?
         return pinocchio.computeFrameJacobian(
             self.model,
             self.data,

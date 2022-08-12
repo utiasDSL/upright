@@ -125,20 +125,20 @@ class ContactForceBalancingConstraints final
 
 // Equality constraints that ensure contact forces on the object are consistent
 // with sticking to the EE.
-class ContactForceBalancingEqualityConstraints final
+class ObjectDynamicsConstraints final
     : public ocs2::StateInputConstraintCppAd {
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    ContactForceBalancingEqualityConstraints(
+    ObjectDynamicsConstraints(
         const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const BalancingSettings& settings, const Vec3d& gravity,
         const RobotDimensions& dims, bool recompileLibraries);
 
-    ContactForceBalancingEqualityConstraints* clone() const override {
+    ObjectDynamicsConstraints* clone() const override {
         // Always pass recompileLibraries = false to avoid recompiling the same
         // library just because this object is cloned.
-        return new ContactForceBalancingEqualityConstraints(
+        return new ObjectDynamicsConstraints(
             *pinocchioEEKinPtr_, settings_, gravity_, dims_, false);
     }
 
@@ -159,8 +159,8 @@ class ContactForceBalancingEqualityConstraints final
                               const VecXad& parameters) const override;
 
    private:
-    ContactForceBalancingEqualityConstraints(
-        const ContactForceBalancingEqualityConstraints& other) = default;
+    ObjectDynamicsConstraints(
+        const ObjectDynamicsConstraints& other) = default;
 
     std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>
         pinocchioEEKinPtr_;

@@ -117,7 +117,6 @@ class ControllerInterface final : public ocs2::RobotInterface {
         const std::string& obstacle_urdf_path, bool useCaching,
         const std::string& libraryFolder, bool recompileLibraries);
 
-
     // Hard state and input limits.
     std::unique_ptr<ocs2::StateInputConstraint>
     get_joint_state_input_limit_constraint();
@@ -135,6 +134,26 @@ class ControllerInterface final : public ocs2::RobotInterface {
     // Soft version of the balancing constraints (i.e. formulated as a cost via
     // penalty functions).
     std::unique_ptr<ocs2::StateInputCost> get_soft_balancing_constraint(
+        const ocs2::PinocchioEndEffectorKinematicsCppAd&
+            end_effector_kinematics,
+        bool recompileLibraries);
+
+    std::unique_ptr<ocs2::StateInputConstraint> get_object_dynamics_constraint(
+        const ocs2::PinocchioEndEffectorKinematicsCppAd&
+            end_effector_kinematics,
+        bool recompileLibraries);
+
+    std::unique_ptr<ocs2::StateInputCost> get_soft_object_dynamics_constraint(
+        const ocs2::PinocchioEndEffectorKinematicsCppAd&
+            end_effector_kinematics,
+        bool recompileLibraries);
+
+    std::unique_ptr<ocs2::StateInputConstraint> get_contact_force_constraint(
+        const ocs2::PinocchioEndEffectorKinematicsCppAd&
+            end_effector_kinematics,
+        bool recompileLibraries);
+
+    std::unique_ptr<ocs2::StateInputCost> get_soft_contact_force_constraint(
         const ocs2::PinocchioEndEffectorKinematicsCppAd&
             end_effector_kinematics,
         bool recompileLibraries);

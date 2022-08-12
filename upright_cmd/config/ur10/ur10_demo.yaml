@@ -22,7 +22,8 @@ simulation:
 controller:
   balancing:
     arrangement: one_box
-    enabled: false
+    enabled: true
+    use_force_constraints: true
     enable_normal_constraint: true
     enable_friction_constraint: true
     enable_zmp_constraint: true
@@ -34,10 +35,6 @@ controller:
       diag: [1, 1, 1, 1, 1, 1]
 
   waypoints:
-    # -
-    #   time: 0
-    #   position: [0, 0, 0]
-    #   orientation: [0, 0, 0, 1]
     -
       time: 0
       position: [-0.25, 0.5, 0.25]

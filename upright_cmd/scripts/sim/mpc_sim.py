@@ -94,6 +94,7 @@ def main():
         # MPC timestep has been exceeded
         try:
             xd, u = ctrl_manager.step(t, x_noisy)
+            u_cmd = u[:model.settings.dims.v]
         except RuntimeError as e:
             print(e)
             print("exit the interpreter to proceed to plots")
@@ -114,7 +115,7 @@ def main():
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u, sim.timestep)
             v_cmd = Kp @ (qd - q_noisy) + vd
         else:
-            ud = Kp @ (qd - q_noisy) + u
+            ud = Kp @ (qd - q_noisy) + u_cmd
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, ud, sim.timestep)
             v_cmd = v_ff
 
@@ -152,8 +153,7 @@ def main():
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("Q_we_ds", Q_we_d)
 
-
-            ctrl_manager.model.update(x, u)
+            ctrl_manager.model.update(x, u_cmd)
             logger.append("ddC_we_norm", model.ddC_we_norm())
             logger.append("balancing_constraints", model.balancing_constraints()[0])
             logger.append("sa_dists", model.support_area_distances())

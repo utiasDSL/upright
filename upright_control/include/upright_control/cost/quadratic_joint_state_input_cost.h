@@ -34,11 +34,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace upright {
 
+    // TODO we need to handle the forces correctly here
 class QuadraticJointStateInputCost final
     : public ocs2::QuadraticStateInputCost {
    public:
-    explicit QuadraticJointStateInputCost(MatXd Q, MatXd R)
-        : ocs2::QuadraticStateInputCost(std::move(Q), std::move(R)) {}
+    explicit QuadraticJointStateInputCost(const MatXd& Q, const MatXd& R)
+        : ocs2::QuadraticStateInputCost(Q, R) {}
     ~QuadraticJointStateInputCost() override = default;
 
     QuadraticJointStateInputCost* clone() const override {

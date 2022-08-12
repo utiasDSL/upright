@@ -227,8 +227,9 @@ void ControllerInterface::loadSettings() {
                 settings_.dims, settings_.state_limit_lower,
                 settings_.state_limit_upper, settings_.input_limit_lower,
                 settings_.input_limit_upper));
-        problem_.inequalityConstraintPtr->add("joint_state_input_limits",
-                                              std::move(joint_state_input_constraint));
+        problem_.inequalityConstraintPtr->add(
+            "joint_state_input_limits",
+            std::move(joint_state_input_constraint));
         std::cerr << "Hard state and input limits are enabled." << std::endl;
     }
 
@@ -281,19 +282,53 @@ void ControllerInterface::loadSettings() {
         std::cerr << "Dynamic obstacle avoidance is disabled." << std::endl;
     }
 
+    // TODO we're getting too nested here
     if (settings_.balancing_settings.enabled) {
-        if (settings_.balancing_settings.constraint_type ==
-            ConstraintType::Soft) {
-            std::cerr << "Soft balancing constraints enabled." << std::endl;
-            problem_.softConstraintPtr->add(
-                "balancing", get_soft_balancing_constraint(
-                                 end_effector_kinematics, recompileLibraries));
+        if (settings_.balancing_settings.use_force_constraints) {
+            std::cerr << "Contact force-based balancing constraints enabled."
+                      << std::endl;
 
-        } else {
-            std::cerr << "Hard balancing constraints enabled." << std::endl;
-            problem_.inequalityConstraintPtr->add(
-                "balancing", get_balancing_constraint(end_effector_kinematics,
+            // We have equality constraints to enforce the object dynamics and
+            // inequalities for the friction cones
+            if (settings_.balancing_settings.constraint_type ==
+                ConstraintType::Soft) {
+                problem_.softConstraintPtr->add(
+                    "object_dynamics",
+                    get_soft_object_dynamics_constraint(end_effector_kinematics,
+                                                        recompileLibraries));
+                problem_.softConstraintPtr->add(
+                    "contact_forces",
+                    get_soft_contact_force_constraint(end_effector_kinematics,
                                                       recompileLibraries));
+            } else {
+                problem_.equalityConstraintPtr->add(
+                    "object_dynamics",
+                    get_object_dynamics_constraint(end_effector_kinematics,
+                                                   recompileLibraries));
+                problem_.inequalityConstraintPtr->add(
+                    "contact_forces",
+                    get_contact_force_constraint(end_effector_kinematics,
+                                                 recompileLibraries));
+            }
+        } else {
+            std::cerr
+                << "ZMP/limit surface-based balancing constraints enabled."
+                << std::endl;
+            if (settings_.balancing_settings.constraint_type ==
+                ConstraintType::Soft) {
+                std::cerr << "Soft balancing constraints enabled." << std::endl;
+                problem_.softConstraintPtr->add(
+                    "balancing",
+                    get_soft_balancing_constraint(end_effector_kinematics,
+                                                  recompileLibraries));
+
+            } else {
+                std::cerr << "Hard balancing constraints enabled." << std::endl;
+                problem_.inequalityConstraintPtr->add(
+                    "balancing",
+                    get_balancing_constraint(end_effector_kinematics,
+                                             recompileLibraries));
+            }
         }
     } else {
         std::cerr << "Balancing constraints disabled." << std::endl;
@@ -330,11 +365,16 @@ ControllerInterface::getQuadraticStateInputCost(const std::string& taskFile) {
     MatXd Q = settings_.state_weight;
     MatXd R = settings_.input_weight;
 
+    // augment R with cost on the contact forces
+    MatXd Rf = MatXd::Identity(settings_.dims.u, settings_.dims.u);
+    Rf.topLeftCorner(R.rows(), R.cols()) = R;
+
     std::cout << "Q: " << Q << std::endl;
     std::cout << "R: " << R << std::endl;
+    std::cout << "Rf: " << Rf << std::endl;
 
     return std::unique_ptr<ocs2::StateInputCost>(
-        new QuadraticJointStateInputCost(std::move(Q), std::move(R)));
+        new QuadraticJointStateInputCost(Q, Rf));
 }
 
 std::unique_ptr<ocs2::StateCost>
@@ -423,6 +463,73 @@ ControllerInterface::get_soft_balancing_constraint(
     // compute the hard constraint
     std::unique_ptr<ocs2::StateInputConstraint> constraint =
         get_balancing_constraint(end_effector_kinematics, recompileLibraries);
+
+    // make it soft via penalty function
+    std::vector<std::unique_ptr<ocs2::PenaltyBase>> penaltyArray(
+        constraint->getNumConstraints(0));
+    for (int i = 0; i < constraint->getNumConstraints(0); i++) {
+        penaltyArray[i].reset(new ocs2::RelaxedBarrierPenalty(
+            {settings_.balancing_settings.mu,
+             settings_.balancing_settings.delta}));
+    }
+
+    return std::unique_ptr<ocs2::StateInputCost>(
+        new ocs2::StateInputSoftConstraint(std::move(constraint),
+                                           std::move(penaltyArray)));
+}
+
+std::unique_ptr<ocs2::StateInputConstraint>
+ControllerInterface::get_object_dynamics_constraint(
+    const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
+    bool recompileLibraries) {
+    return std::unique_ptr<ocs2::StateInputConstraint>(
+        new ObjectDynamicsConstraints(
+            end_effector_kinematics, settings_.balancing_settings,
+            settings_.gravity, settings_.dims, recompileLibraries));
+}
+
+std::unique_ptr<ocs2::StateInputCost>
+ControllerInterface::get_soft_object_dynamics_constraint(
+    const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
+    bool recompileLibraries) {
+    // compute the hard constraint
+    std::unique_ptr<ocs2::StateInputConstraint> constraint =
+        get_object_dynamics_constraint(end_effector_kinematics,
+                                       recompileLibraries);
+
+    // make it soft via penalty function: since this is an equality constraint,
+    // we use a quadratic penalty
+    // TODO may need to increase the scaling
+    std::vector<std::unique_ptr<ocs2::PenaltyBase>> penaltyArray(
+        constraint->getNumConstraints(0));
+    for (int i = 0; i < constraint->getNumConstraints(0); i++) {
+        penaltyArray[i].reset(
+            new ocs2::QuadraticPenalty(settings_.balancing_settings.mu));
+    }
+
+    return std::unique_ptr<ocs2::StateInputCost>(
+        new ocs2::StateInputSoftConstraint(std::move(constraint),
+                                           std::move(penaltyArray)));
+}
+
+std::unique_ptr<ocs2::StateInputConstraint>
+ControllerInterface::get_contact_force_constraint(
+    const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
+    bool recompileLibraries) {
+    return std::unique_ptr<ocs2::StateInputConstraint>(
+        new ContactForceBalancingConstraints(
+            end_effector_kinematics, settings_.balancing_settings,
+            settings_.gravity, settings_.dims, recompileLibraries));
+}
+
+std::unique_ptr<ocs2::StateInputCost>
+ControllerInterface::get_soft_contact_force_constraint(
+    const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
+    bool recompileLibraries) {
+    // compute the hard constraint
+    std::unique_ptr<ocs2::StateInputConstraint> constraint =
+        get_contact_force_constraint(end_effector_kinematics,
+                                     recompileLibraries);
 
     // make it soft via penalty function
     std::vector<std::unique_ptr<ocs2::PenaltyBase>> penaltyArray(

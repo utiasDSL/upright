@@ -78,11 +78,13 @@ ContactForceBalancingConstraints::ContactForceBalancingConstraints(
             "number of end effector IDs.");
     }
 
-    // compile the CppAD library
-    initialize(dims.x, dims.u, 0, "upright_contact_force_balancing_constraints",
-               "/tmp/ocs2", recompileLibraries, true);
-
+    // Important: this needs to come before the call to initialize, because it
+    // is used in the constraintFunction which is called therein
     num_constraints_ = settings_.contacts.size() * NUM_CONSTRAINTS_PER_CONTACT;
+
+    // compile the CppAD library
+    initialize(dims.x, dims.u, 0, "upright_contact_force_constraints",
+               "/tmp/ocs2", recompileLibraries, true);
 }
 
 VecXad ContactForceBalancingConstraints::constraintFunction(
@@ -93,6 +95,7 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
 
     VecXad constraints(num_constraints_);
     for (int i = 0; i < dims_.f; ++i) {
+
         // Convert the contact point to AD type
         ContactPoint<ocs2::ad_scalar_t> contact =
             settings_.contacts[i].template cast<ocs2::ad_scalar_t>();
@@ -115,8 +118,8 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
     return constraints;
 }
 
-ContactForceBalancingEqualityConstraints::
-    ContactForceBalancingEqualityConstraints(
+ObjectDynamicsConstraints::
+    ObjectDynamicsConstraints(
         const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const BalancingSettings& settings, const Vec3d& gravity,
         const RobotDimensions& dims, bool recompileLibraries)
@@ -131,16 +134,16 @@ ContactForceBalancingEqualityConstraints::
             "number of end effector IDs.");
     }
 
-    // compile the CppAD library
-    initialize(dims.x, dims.u, 0,
-               "upright_contact_force_balancing_equality_constraints",
-               "/tmp/ocs2", recompileLibraries, true);
-
     // Six constraints per object: three linear and three rotational.
     num_constraints_ = settings_.objects.size() * 6;
+
+    // compile the CppAD library
+    initialize(dims.x, dims.u, 0,
+               "upright_object_dynamics_constraints",
+               "/tmp/ocs2", recompileLibraries, true);
 }
 
-VecXad ContactForceBalancingEqualityConstraints::constraintFunction(
+VecXad ObjectDynamicsConstraints::constraintFunction(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
 
