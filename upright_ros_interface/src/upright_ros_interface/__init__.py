@@ -1,1 +1,0 @@
-from upright_ros_interface.trajectory_client import UR10_JOINT_NAMES, TrajectoryClient

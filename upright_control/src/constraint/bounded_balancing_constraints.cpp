@@ -95,7 +95,6 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
 
     VecXad constraints(num_constraints_);
     for (int i = 0; i < dims_.f; ++i) {
-
         // Convert the contact point to AD type
         ContactPoint<ocs2::ad_scalar_t> contact =
             settings_.contacts[i].template cast<ocs2::ad_scalar_t>();
@@ -118,11 +117,10 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
     return constraints;
 }
 
-ObjectDynamicsConstraints::
-    ObjectDynamicsConstraints(
-        const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-        const BalancingSettings& settings, const Vec3d& gravity,
-        const RobotDimensions& dims, bool recompileLibraries)
+ObjectDynamicsConstraints::ObjectDynamicsConstraints(
+    const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
+    const BalancingSettings& settings, const Vec3d& gravity,
+    const RobotDimensions& dims, bool recompileLibraries)
     : ocs2::StateInputConstraintCppAd(ocs2::ConstraintOrder::Linear),
       pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
       gravity_(gravity),
@@ -138,15 +136,13 @@ ObjectDynamicsConstraints::
     num_constraints_ = settings_.objects.size() * 6;
 
     // compile the CppAD library
-    initialize(dims.x, dims.u, 0,
-               "upright_object_dynamics_constraints",
+    initialize(dims.x, dims.u, 0, "upright_object_dynamics_constraints",
                "/tmp/ocs2", recompileLibraries, true);
 }
 
 VecXad ObjectDynamicsConstraints::constraintFunction(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
-
     Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
     Vec3ad angular_vel =
         pinocchioEEKinPtr_->getAngularVelocityCppAd(state, input);
@@ -198,13 +194,16 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
         // Linear dynamics (in the inertial/world frame)
         ocs2::ad_scalar_t m = ad_obj.body.mass_min;
         Vec3ad total_force = C_we * obj_forces[kv.first] + m * ad_gravity;
-        Vec3ad desired_force = m * (linear_acc + C_we * ad_obj.body.com_ellipsoid.center());
+        Vec3ad desired_force =
+            m * (linear_acc + C_we * ad_obj.body.com_ellipsoid.center());
         constraints.segment(i * 6, 3) = total_force - desired_force;
 
         // Rotational dynamics
         Vec3ad total_torque = C_we * obj_torques[kv.first];
-        Mat3ad inertia = m * C_we * ad_obj.body.radii_of_gyration_matrix() * C_we.transpose();
-        Vec3ad desired_torque = angular_vel.cross(inertia * angular_vel) + inertia * angular_acc;
+        Mat3ad inertia = m * C_we * ad_obj.body.radii_of_gyration_matrix() *
+                         C_we.transpose();
+        Vec3ad desired_torque =
+            angular_vel.cross(inertia * angular_vel) + inertia * angular_acc;
         constraints.segment(i * 6 + 3, 3) = total_torque - desired_torque;
 
         i += 1;
