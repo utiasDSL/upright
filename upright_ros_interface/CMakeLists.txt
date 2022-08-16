@@ -12,8 +12,6 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   upright_msgs
-  controller_manager
-  hardware_interface
 )
 
 # hack to resolve pinocchio error, see
@@ -151,11 +149,6 @@ target_link_libraries(mpc_node
 
 add_executable(mrt_node src/mrt_node.cpp)
 target_link_libraries(mrt_node
-  ${catkin_LIBRARIES}
-)
-
-add_executable(twist_interface src/twist_interface.cpp)
-target_link_libraries(twist_interface
   ${catkin_LIBRARIES}
 )
 
