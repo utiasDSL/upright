@@ -48,6 +48,7 @@ multiple_shooting
 {
   dt                            0.1
   sqpIteration                  3
+  initSqpIteration              100
   deltaTol                      1e-3
   printSolverStatistics         true
   printSolverStatus             true
@@ -56,9 +57,6 @@ multiple_shooting
   integratorType                RK4
   nThreads                      4
   projectStateInputEqualityConstraints true
-
-  ; inequalityConstraintMu    1e-2
-  ; inequalityConstraintDelta 1e-3
 }
 
 ; Rollout settings
@@ -78,20 +76,8 @@ rollout
 mpc
 {
   timeHorizon                    1.0
-  numPartitions                  4
-
-  runtimeMaxNumIterations        3
-  initMaxNumIterations           100
-
-  runtimeMaxStepLength           1.0
-  runtimeMinStepLength           1e-2
-  initMaxStepLength              1.0
-  initMinStepLength              1e-2
+  solutionTimeWindow             -1   ; [s]
 
   debugPrint                     true
   coldStart                      false
-
-  useParallelRiccatiSolver       true  ; use disjoint riccati solver in MP case and recedingHorizon fashion
-
-  solutionTimeWindow             -1   ; [s]
 }

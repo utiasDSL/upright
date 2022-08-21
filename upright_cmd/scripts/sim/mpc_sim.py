@@ -69,6 +69,8 @@ def main():
 
     ctrl_manager.warmstart()
 
+    IPython.embed()
+
     v_ff = v.copy()
     a_ff = a.copy()
 
@@ -94,7 +96,7 @@ def main():
         # MPC timestep has been exceeded
         try:
             xd, u = ctrl_manager.step(t, x_noisy)
-            u_cmd = u[:model.settings.dims.v]
+            u_cmd = u[: model.settings.dims.v]
         except RuntimeError as e:
             print(e)
             print("exit the interpreter to proceed to plots")
@@ -130,8 +132,6 @@ def main():
             # if model.settings.static_obstacle_settings.enabled:
             #     ds = ctrl_manager.mpc.stateInequalityConstraint("static_obstacle_avoidance", t, x)
             #     logger.append("collision_pair_distances", ds)
-            # limits = ctrl_manager.mpc.stateInputInequalityConstraint("joint_state_input_limits", t, x, u)
-            # logger.append("limits", limits)
 
             # log sim stuff
             r_ew_w, Q_we = sim.robot.link_pose()
@@ -153,11 +153,34 @@ def main():
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("Q_we_ds", Q_we_d)
 
-            ctrl_manager.model.update(x, u_cmd)
+            model.update(x, u_cmd)
             logger.append("ddC_we_norm", model.ddC_we_norm())
-            logger.append("balancing_constraints", model.balancing_constraints()[0])
             logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
+
+            # NOTE these can be computed whether the controller is using them
+            # or not
+            logger.append("balancing_constraints", model.balancing_constraints())
+
+            # TODO eventually it would be nice to also compute this directly
+            # via the core library
+            if model.is_using_force_constraints():
+                contact_force_constraints = (
+                    ctrl_manager.mpc.softStateInputInequalityConstraint(
+                        "contact_forces", t, x, u
+                    )
+                )
+                object_dynamics_constraints = (
+                    ctrl_manager.mpc.getStateInputEqualityConstraintValue(
+                        "object_dynamics", t, x, u
+                    )
+                )
+
+                logger.append("contact_force_constraints", contact_force_constraints)
+                logger.append("contact_forces", u[model.settings.dims.v:])
+                logger.append(
+                    "object_dynamics_constraints", object_dynamics_constraints
+                )
 
         t = sim.step(t, step_robot=False)
         # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:

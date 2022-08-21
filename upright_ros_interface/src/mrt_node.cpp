@@ -63,6 +63,7 @@ std::tuple<VecXd, VecXd> double_integrate_repeated(const VecXd& v,
 }
 
 // Get feedback and send commands to the robot
+// TODO ideally we'd have a similar setup to mm_central
 class RobotInterface {
    public:
     RobotInterface(ros::NodeHandle& nh, const std::string& robot_name,

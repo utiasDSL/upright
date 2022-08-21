@@ -8,7 +8,7 @@ namespace upright {
 
 // Number of constraints per contact. One constraint for the normal force
 // to be non-negative; one for the friction cone.
-const size_t NUM_CONSTRAINTS_PER_CONTACT = 2;
+const size_t NUM_CONSTRAINTS_PER_CONTACT = 5;
 
 template <typename Scalar>
 struct ContactPoint {

@@ -29,6 +29,9 @@ class ControllerModel:
         """Update model with state x and input u. Required before calling other methods."""
         self.robot.forward(x, u)
 
+    def is_using_force_constraints(self):
+        return self.settings.balancing_settings.use_force_constraints
+
     def balancing_constraints(self):
         """Evaluate the balancing constraints at time t and state x."""
         _, Q_we = self.robot.link_pose()
@@ -78,6 +81,7 @@ class ControllerModel:
         return angle
 
     def ddC_we_norm(self):
+        """Compute the norm of the ddC_we matrix."""
         _, Q_we = self.robot.link_pose()
         C_we = core.math.quat_to_rot(Q_we)
         _, ω_ew_w = self.robot.link_velocity()
@@ -144,6 +148,8 @@ class ControllerManager:
         self.mpc.setObservation(0, x0, u0)
 
         self.mpc.advanceMpc()
+        # for i in range(10):
+        #     self.mpc.advanceMpc()
         self.last_planning_time = 0
 
     def step(self, t, x):

@@ -389,5 +389,29 @@ class DataPlotter:
                 title="Obstacle distances",
             )
 
+        if "contact_forces" in self.data:
+            self.plot_value_vs_time(
+                "contact_forces",
+                legend_prefix="f",
+                ylabel="Force (N)",
+                title="Contact forces",
+            )
+
+        if "contact_force_constraints" in self.data:
+            self.plot_value_vs_time(
+                "contact_force_constraints",
+                legend_prefix="g",
+                ylabel="Constraint value",
+                title="Contact force constraints",
+            )
+
+        if "object_dynamics_constraints" in self.data:
+            self.plot_value_vs_time(
+                "object_dynamics_constraints",
+                legend_prefix="f",
+                ylabel="Constraint value",
+                title="Object dynamics constraints",
+            )
+
         if show:
             self.show()

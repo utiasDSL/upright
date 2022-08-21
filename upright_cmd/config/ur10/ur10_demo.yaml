@@ -17,7 +17,7 @@ logging:
 
 simulation:
   duration: 5.0
-  arrangement: nothing
+  arrangement: one_box
 
 controller:
   balancing:
@@ -27,6 +27,9 @@ controller:
     enable_normal_constraint: true
     enable_friction_constraint: true
     enable_zmp_constraint: true
+
+    # mu: 1e-1
+    # delta: 1e-3
 
   tracking:
     rate: 125

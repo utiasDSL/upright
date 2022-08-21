@@ -375,6 +375,10 @@ PYBIND11_MODULE(bindings, m) {
         .def("stateInputEqualityConstraintLagrangian",
              &ControllerPythonInterface::stateInputEqualityConstraintLagrangian,
              "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
+
+        .def("getStateInputEqualityConstraintValue",
+             &ControllerPythonInterface::getStateInputEqualityConstraintValue,
+             "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("stateInputInequalityConstraint",
              &ControllerPythonInterface::stateInputInequalityConstraint,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
@@ -384,6 +388,7 @@ PYBIND11_MODULE(bindings, m) {
         .def("stateInequalityConstraint",
              &ControllerPythonInterface::stateInequalityConstraint, "name"_a,
              "t"_a, "x"_a.noconvert())
+
         .def("visualizeTrajectory",
              &ControllerPythonInterface::visualizeTrajectory, "t"_a.noconvert(),
              "x"_a.noconvert(), "u"_a.noconvert(), "speed"_a);

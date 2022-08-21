@@ -148,6 +148,9 @@ void ControllerInterface::loadSettings() {
     sqpSettings_ =
         ocs2::multiple_shooting::loadSettings(taskFile, "multiple_shooting");
 
+    // sqpSettings_.hpipmSettings.warm_start = true;
+    sqpSettings_.hpipmSettings.use_slack = true;
+
     // Dynamics
     std::unique_ptr<ocs2::SystemDynamicsBase> dynamicsPtr;
     if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
@@ -214,14 +217,14 @@ void ControllerInterface::loadSettings() {
     //     std::move(inertial_alignment_constraint));
 
     /* Constraints */
-    if (settings_.limit_constraint_type == ConstraintType::Soft) {
-        problem_.softConstraintPtr->add(
-            "joint_state_input_limits",
-            get_soft_joint_state_input_limit_constraint());
-        std::cerr << "Soft state and input limits are enabled." << std::endl;
-    } else {
-        // TODO this should be a box constraint, but this is not implemented
-        // yet
+    // if (settings_.limit_constraint_type == ConstraintType::Soft) {
+    //     problem_.softConstraintPtr->add(
+    //         "joint_state_input_limits",
+    //         get_soft_joint_state_input_limit_constraint());
+    //     std::cerr << "Soft state and input limits are enabled." << std::endl;
+    // } else {
+    //     // TODO this should be a box constraint, but this is not implemented
+    //     // yet
         std::unique_ptr<ocs2::StateInputConstraint>
             joint_state_input_constraint(new JointStateInputConstraint(
                 settings_.dims, settings_.state_limit_lower,
@@ -231,7 +234,7 @@ void ControllerInterface::loadSettings() {
             "joint_state_input_limits",
             std::move(joint_state_input_constraint));
         std::cerr << "Hard state and input limits are enabled." << std::endl;
-    }
+    // }
 
     // Self-collision avoidance and collision avoidance with static obstacles
     if (settings_.static_obstacle_settings.enabled) {
@@ -288,23 +291,21 @@ void ControllerInterface::loadSettings() {
             std::cerr << "Contact force-based balancing constraints enabled."
                       << std::endl;
 
-            // We have equality constraints to enforce the object dynamics and
-            // inequalities for the friction cones
+            // Currently we always use exact constraints for the object
+            // dynamics.
+            problem_.equalityConstraintPtr->add(
+                "object_dynamics",
+                get_object_dynamics_constraint(end_effector_kinematics,
+                                               recompileLibraries));
+
+            // Inequalities for the friction cones
             if (settings_.balancing_settings.constraint_type ==
                 ConstraintType::Soft) {
-                problem_.softConstraintPtr->add(
-                    "object_dynamics",
-                    get_soft_object_dynamics_constraint(end_effector_kinematics,
-                                                        recompileLibraries));
                 problem_.softConstraintPtr->add(
                     "contact_forces",
                     get_soft_contact_force_constraint(end_effector_kinematics,
                                                       recompileLibraries));
             } else {
-                problem_.equalityConstraintPtr->add(
-                    "object_dynamics",
-                    get_object_dynamics_constraint(end_effector_kinematics,
-                                                   recompileLibraries));
                 problem_.inequalityConstraintPtr->add(
                     "contact_forces",
                     get_contact_force_constraint(end_effector_kinematics,
@@ -366,7 +367,8 @@ ControllerInterface::getQuadraticStateInputCost(const std::string& taskFile) {
     MatXd R = settings_.input_weight;
 
     // augment R with cost on the contact forces
-    MatXd Rf = MatXd::Identity(settings_.dims.u, settings_.dims.u);
+    MatXd Rf = 0.01 * MatXd::Identity(settings_.dims.u, settings_.dims.u);
+    // MatXd Rf = MatXd::Zero(settings_.dims.u, settings_.dims.u);
     Rf.topLeftCorner(R.rows(), R.cols()) = R;
 
     std::cout << "Q: " << Q << std::endl;
@@ -694,12 +696,20 @@ ControllerInterface::get_soft_joint_state_input_limit_constraint() {
     }
 
     // Input penalty
-    for (int i = 0; i < settings_.dims.u; i++) {
+    for (int i = 0; i < settings_.dims.v; i++) {
         barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
             {input_limit_mu, input_limit_delta}));
         penaltyArray[settings_.dims.x + i].reset(new ocs2::DoubleSidedPenalty(
             input_limit_lower(i), input_limit_upper(i),
             std::move(barrierFunction)));
+    }
+
+    // Force penalty
+    for (int i = settings_.dims.v; i < settings_.dims.u; i++) {
+        barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
+            {input_limit_mu, input_limit_delta}));
+        penaltyArray[settings_.dims.x + i].reset(new ocs2::DoubleSidedPenalty(
+            -100, 100, std::move(barrierFunction)));
     }
 
     return std::unique_ptr<ocs2::StateInputCost>(
