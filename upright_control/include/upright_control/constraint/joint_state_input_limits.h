@@ -49,15 +49,13 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
     }
 
     size_t getNumConstraints(ocs2::scalar_t time) const override {
-        // return dims_.x + dims_.v;
-        return dims_.x + dims_.u;
+        return dims_.x + dims_.v;
     }
 
     VecXd getValue(ocs2::scalar_t time, const VecXd& state, const VecXd& input,
                    const ocs2::PreComputation&) const override {
         VecXd value(getNumConstraints(time));
-        // value << state, input.head(dims_.v);
-        value << state, input;
+        value << state, input.head(dims_.v);
         return value;
     }
 
@@ -70,12 +68,8 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
         limits.f = getValue(time, state, input, precomp);
         limits.dfdx.setZero();
         limits.dfdx.topRows(state.rows()).setIdentity();
-        // limits.dfdx.topLeftCorner(dims_.q, dims_.q).setIdentity();
-        // limits.dfdx.block(dims_.q, dims_.q, dims_.v, dims_.v).setIdentity();
-        // limits.dfdx.block(dims_.q + dims_.v, dims_.q + dims_.v, dims_.v, dims_.v).setIdentity();
         limits.dfdu.setZero();
-        // limits.dfdu.bottomLeftCorner(dims_.v, dims_.v).setIdentity();
-        limits.dfdu.bottomRows(dims_.u).setIdentity();
+        limits.dfdu.bottomLeftCorner(dims_.v, dims_.v).setIdentity();
 
         return limits;
     }

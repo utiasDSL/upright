@@ -217,14 +217,14 @@ void ControllerInterface::loadSettings() {
     //     std::move(inertial_alignment_constraint));
 
     /* Constraints */
-    // if (settings_.limit_constraint_type == ConstraintType::Soft) {
-    //     problem_.softConstraintPtr->add(
-    //         "joint_state_input_limits",
-    //         get_soft_joint_state_input_limit_constraint());
-    //     std::cerr << "Soft state and input limits are enabled." << std::endl;
-    // } else {
-    //     // TODO this should be a box constraint, but this is not implemented
-    //     // yet
+    if (settings_.limit_constraint_type == ConstraintType::Soft) {
+        problem_.softConstraintPtr->add(
+            "joint_state_input_limits",
+            get_soft_joint_state_input_limit_constraint());
+        std::cerr << "Soft state and input limits are enabled." << std::endl;
+    } else {
+        // TODO this should be a box constraint, but this is not implemented
+        // yet
         std::unique_ptr<ocs2::StateInputConstraint>
             joint_state_input_constraint(new JointStateInputConstraint(
                 settings_.dims, settings_.state_limit_lower,
@@ -234,7 +234,7 @@ void ControllerInterface::loadSettings() {
             "joint_state_input_limits",
             std::move(joint_state_input_constraint));
         std::cerr << "Hard state and input limits are enabled." << std::endl;
-    // }
+    }
 
     // Self-collision avoidance and collision avoidance with static obstacles
     if (settings_.static_obstacle_settings.enabled) {
@@ -299,6 +299,8 @@ void ControllerInterface::loadSettings() {
                                                recompileLibraries));
 
             // Inequalities for the friction cones
+            // NOTE: the hard inequality constraints appear to work much better
+            // (avoid phantom gradients and such)
             if (settings_.balancing_settings.constraint_type ==
                 ConstraintType::Soft) {
                 problem_.softConstraintPtr->add(
@@ -537,9 +539,8 @@ ControllerInterface::get_soft_contact_force_constraint(
     std::vector<std::unique_ptr<ocs2::PenaltyBase>> penaltyArray(
         constraint->getNumConstraints(0));
     for (int i = 0; i < constraint->getNumConstraints(0); i++) {
-        penaltyArray[i].reset(new ocs2::RelaxedBarrierPenalty(
-            {settings_.balancing_settings.mu,
-             settings_.balancing_settings.delta}));
+        penaltyArray[i].reset(new ocs2::SquaredHingePenalty(
+            {1, settings_.balancing_settings.delta}));  // TODO
     }
 
     return std::unique_ptr<ocs2::StateInputCost>(
@@ -688,8 +689,10 @@ ControllerInterface::get_soft_joint_state_input_limit_constraint() {
 
     // State penalty
     for (int i = 0; i < settings_.dims.x; i++) {
-        barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
-            {state_limit_mu, state_limit_delta}));
+        // barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
+        //     {state_limit_mu, state_limit_delta}));
+        barrierFunction.reset(new ocs2::SquaredHingePenalty(
+            {100, state_limit_delta}));
         penaltyArray[i].reset(new ocs2::DoubleSidedPenalty(
             state_limit_lower(i), state_limit_upper(i),
             std::move(barrierFunction)));
@@ -697,19 +700,13 @@ ControllerInterface::get_soft_joint_state_input_limit_constraint() {
 
     // Input penalty
     for (int i = 0; i < settings_.dims.v; i++) {
-        barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
-            {input_limit_mu, input_limit_delta}));
+        // barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
+        //     {input_limit_mu, input_limit_delta}));
+        barrierFunction.reset(new ocs2::SquaredHingePenalty(
+            {100, input_limit_delta}));
         penaltyArray[settings_.dims.x + i].reset(new ocs2::DoubleSidedPenalty(
             input_limit_lower(i), input_limit_upper(i),
             std::move(barrierFunction)));
-    }
-
-    // Force penalty
-    for (int i = settings_.dims.v; i < settings_.dims.u; i++) {
-        barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
-            {input_limit_mu, input_limit_delta}));
-        penaltyArray[settings_.dims.x + i].reset(new ocs2::DoubleSidedPenalty(
-            -100, 100, std::move(barrierFunction)));
     }
 
     return std::unique_ptr<ocs2::StateInputCost>(

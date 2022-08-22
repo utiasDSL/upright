@@ -180,6 +180,10 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     Vec3ad angular_acc =
         pinocchioEEKinPtr_->getAngularAccelerationCppAd(state, input);
     Vec3ad linear_acc = pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
+
+    Mat3ad C_ew = C_we.transpose();
+    Vec3ad angular_vel_e = C_ew * angular_vel;
+    Vec3ad angular_acc_e = C_ew * angular_acc;
     Mat3ad ddC_we =
         rotation_matrix_second_derivative(C_we, angular_vel, angular_acc);
 
@@ -219,27 +223,21 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     VecXad constraints(num_constraints_);
     Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
 
-    // std::cout << "gravity = " << gravity_.transpose() << std::endl;
-    // std::cout << "f_z sum = " << forces(2) + forces(5) + forces(8) + forces(11) << std::endl;
-    // std::cout << "C_we.T * g = " << C_we.transpose() * ad_gravity << std::endl;
-
     size_t i = 0;
     for (const auto& kv : settings_.objects) {
         auto ad_obj = kv.second.template cast<ocs2::ad_scalar_t>();
 
         // Linear dynamics (in the inertial/world frame)
         ocs2::ad_scalar_t m = ad_obj.body.mass_min;
-        Vec3ad total_force = obj_forces[kv.first] + m * C_we.transpose() * ad_gravity;
+        Vec3ad total_force = obj_forces[kv.first];
         Vec3ad desired_force =
-            m * C_we.transpose() * (linear_acc + ddC_we * ad_obj.body.com_ellipsoid.center());
+            m * C_ew * (linear_acc + ddC_we * ad_obj.body.com_ellipsoid.center() - ad_gravity);
         constraints.segment(i * 6, 3) = total_force - desired_force;
 
         // Rotational dynamics
         Vec3ad total_torque = obj_torques[kv.first];
-        Mat3ad inertia = m * C_we * ad_obj.body.radii_of_gyration_matrix() *
-                         C_we.transpose();
-        Vec3ad desired_torque =
-            C_we.transpose() * (angular_vel.cross(inertia * angular_vel) + inertia * angular_acc);
+        Mat3ad I_e = m * ad_obj.body.radii_of_gyration_matrix();
+        Vec3ad desired_torque = angular_vel_e.cross(I_e * angular_vel_e) + I_e * angular_acc_e;
         constraints.segment(i * 6 + 3, 3) = total_torque - desired_torque;
 
         i += 1;

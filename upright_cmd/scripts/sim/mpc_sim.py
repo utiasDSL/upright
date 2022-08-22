@@ -165,18 +165,19 @@ def main():
             # TODO eventually it would be nice to also compute this directly
             # via the core library
             if model.is_using_force_constraints():
-                contact_force_constraints = (
-                    ctrl_manager.mpc.softStateInputInequalityConstraint(
-                        "contact_forces", t, x, u
-                    )
-                )
+                # contact_force_constraints = (
+                #     ctrl_manager.mpc.softStateInputInequalityConstraint(
+                #         "contact_forces", t, x, u
+                #     )
+                # )
                 object_dynamics_constraints = (
                     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
                         "object_dynamics", t, x, u
                     )
                 )
+                logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
 
-                logger.append("contact_force_constraints", contact_force_constraints)
+                # logger.append("contact_force_constraints", contact_force_constraints)
                 logger.append("contact_forces", u[model.settings.dims.v:])
                 logger.append(
                     "object_dynamics_constraints", object_dynamics_constraints

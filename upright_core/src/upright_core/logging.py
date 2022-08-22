@@ -413,5 +413,12 @@ class DataPlotter:
                 title="Object dynamics constraints",
             )
 
+        if "cost" in self.data:
+            self.plot_value_vs_time(
+                "cost",
+                ylabel="Cost",
+                title="Controller cost",
+            )
+
         if show:
             self.show()
