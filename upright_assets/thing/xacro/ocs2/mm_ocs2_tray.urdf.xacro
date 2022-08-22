@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <robot name="mm_ocs2_tray" xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <xacro:include filename="../mm.urdf.xacro" />
+  <xacro:include filename="$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro" />
   <xacro:include filename="../end_effector_tray.urdf.xacro" />
   <xacro:include filename="../collision_links.urdf.xacro" />
 </robot>
