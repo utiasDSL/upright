@@ -84,7 +84,7 @@ class SimulatedRobot:
         # but messes up the origins of the merged links, so this is not
         # recommended. Instead, if performance is an issue, consider using the
         # base_simple.urdf model instead of the Ridgeback.
-        urdf_path = core.parsing.parse_ros_path(config["robot"]["urdf"])
+        urdf_path = core.parsing.parse_and_compile_urdf(config["robot"]["urdf"])
         self.uid = pyb.loadURDF(urdf_path, position, orientation, useFixedBase=True)
 
         # home position

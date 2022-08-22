@@ -5,6 +5,7 @@ from pathlib import Path
 import rospkg
 import numpy as np
 import yaml
+import xacro
 
 from upright_core.bindings import (
     Ellipsoid,
@@ -17,12 +18,6 @@ from upright_core import math
 from upright_core.composition import compose_bounded_objects
 
 import IPython
-
-
-# Naming:
-# - config = raw dict
-# - config_wrapper = object somehow containing the raw config
-# - arrangement = the particular set of objects in use
 
 
 # This is from <https://github.com/Maples7/dict-recursive-update/blob/07204cdab891ac4123b19fe3fa148c3dd1c93992/dict_recursive_update/__init__.py>
@@ -133,6 +128,30 @@ def parse_ros_path(d):
     rospack = rospkg.RosPack()
     path = Path(rospack.get_path(d["package"])) / d["path"]
     return path.as_posix()
+
+
+def parse_and_compile_urdf(d, runs=2):
+    """Parse and compile a URDF from a xacro'd URDF file."""
+    rospack = rospkg.RosPack()
+    pkg_path = Path(rospack.get_path(d["package"]))
+    input_path = pkg_path / d["input_path"]
+    output_path = pkg_path / d["output_path"]
+
+    # compile the xacro'd URDF to a raw URDF file
+    doc = xacro.process_file(input_path)
+    with open(output_path, "w") as f:
+        f.write(doc.toprettyxml(indent="  "))
+    run = 1
+
+    # a second pass is required to resolve mesh paths; here we keep things
+    # general and allow any number of runs
+    while run < runs:
+        doc = xacro.process_file(output_path)
+        with open(output_path, "w") as f:
+            f.write(doc.toprettyxml(indent="  "))
+        run += 1
+
+    return output_path.as_posix()
 
 
 def parse_support_offset(d):

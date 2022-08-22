@@ -27,7 +27,8 @@ simulation:
     base_type: omnidirectional
     urdf:
       package: "upright_assets"
-      path: "thing/urdf/mm_pyb_tray.urdf"
+      input_path: "thing/xacro/pyb/thing_pyb_tray.urdf"
+      output_path: "thing/urdf/thing_pyb_tray.urdf"
 
 controller:
   # robot parameters
@@ -40,7 +41,8 @@ controller:
     x0: [1, 1, -0.25pi, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi, 0rep9, 0rep9]
     urdf:
       package: "upright_assets"
-      path: "thing/urdf/mm_ocs2_tray.urdf"
+      input_path: "thing/xacro/ocs2/mm_ocs2_tray.urdf"
+      output_path: "thing/urdf/thing_ocs2_tray.urdf"
     tool_link_name: "thing_tool"
     base_type: omnidirectional
 

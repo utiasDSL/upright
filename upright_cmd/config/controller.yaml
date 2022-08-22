@@ -48,7 +48,8 @@ static_obstacles:
   constraint_type: soft
   urdf:
     package: "upright_assets"
-    path: "thing/urdf/obstacles.urdf"
+    input_path: "thing/xacro/obstacles.urdf.xacro"
+    output_path: "thing/urdf/obstacles.urdf"
 
   # check collisions between these pairs of objects
   collision_pairs:

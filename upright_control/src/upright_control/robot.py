@@ -43,7 +43,7 @@ class PinocchioGeometry:
 
         Expects the config to have a key "urdf" with the usual sub-dict.
         """
-        urdf_path = core.parsing.parse_ros_path(config["urdf"])
+        urdf_path = core.parsing.parse_and_compile_urdf(config["urdf"])
         self.add_geometry_objects_from_urdf(urdf_path)
 
     def add_collision_pairs(self, pairs):
@@ -88,7 +88,7 @@ class PinocchioRobot:
         self.dims.u = config["dims"]["u"]  # num inputs
 
         # create the model
-        self.urdf_path = core.parsing.parse_ros_path(config["urdf"])
+        self.urdf_path = core.parsing.parse_and_compile_urdf(config["urdf"])
         base_type = config["base_type"]
         if base_type == "fixed":
             self.model = pinocchio.buildModelFromUrdf(self.urdf_path)

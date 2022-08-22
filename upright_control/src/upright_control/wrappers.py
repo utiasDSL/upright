@@ -132,8 +132,8 @@ class ControllerSettings(bindings.ControllerSettings):
         self.rate = core.parsing.parse_number(config["tracking"]["rate"])
 
         # URDFs
-        self.robot_urdf_path = core.parsing.parse_ros_path(config["robot"]["urdf"])
-        self.obstacle_urdf_path = core.parsing.parse_ros_path(
+        self.robot_urdf_path = core.parsing.parse_and_compile_urdf(config["robot"]["urdf"])
+        self.obstacle_urdf_path = core.parsing.parse_and_compile_urdf(
             config["static_obstacles"]["urdf"]
         )
 
