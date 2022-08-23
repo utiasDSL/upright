@@ -6,10 +6,15 @@
 #include <geometry_msgs/Vector3.h>
 #include <ros/ros.h>
 
+#include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
+
 #include <upright_control/controller_settings.h>
 #include <upright_control/types.h>
 #include <upright_msgs/FloatArray.h>
 #include <upright_ros_interface/ParseControlSettings.h>
+
+namespace py = pybind11;
 
 namespace upright {
 
@@ -34,7 +39,25 @@ ocs2::vector_array_t parse_vector_array(upright_msgs::FloatArray& msg) {
     return vec_array;
 }
 
-ControllerSettings parse_control_settings(
+// TODO: ideally, we could just parse everything on C++, instead of doing it in
+// Python and casting the object back like this
+ControllerSettings parse_control_settings(const std::string& config_path) {
+    // Note pybind11_catkin uses an older version of pybind, so we use
+    // py::module rather than py::module_
+    py::scoped_interpreter guard{};
+    py::object upright_control = py::module::import("upright_control");
+    py::object PyControllerSettings = upright_control.attr("wrappers").attr("ControllerSettings");
+    return PyControllerSettings.attr("cpp")(config_path).cast<ControllerSettings>();
+}
+
+ocs2::TargetTrajectories parse_target_trajectory(const std::string& config_path, const VecXd& x0) {
+    py::scoped_interpreter guard{};
+    py::object upright_control = py::module::import("upright_control");
+    py::object PyTargetTrajectories = upright_control.attr("wrappers").attr("TargetTrajectories");
+    return PyTargetTrajectories.attr("from_config_file")(config_path, x0).cast<ocs2::TargetTrajectories>();
+}
+
+ControllerSettings parse_control_settings_old(
     upright_ros_interface::ParseControlSettings::Response& resp) {
     ControllerSettings settings;
 

@@ -6,6 +6,13 @@
 
 namespace upright {
 
+// Number of constraints per contact. One constraint for the normal force
+// to be non-negative; one for the friction cone.
+const size_t NUM_CONSTRAINTS_PER_CONTACT = 2;
+
+// Three for linear and three for rotation.
+const size_t NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT = 6;
+
 std::ostream& operator<<(std::ostream& out, const BalancingSettings& settings) {
     out << "enabled = " << settings.enabled << std::endl
         << "normal enabled = " << settings.constraints_enabled.normal
@@ -104,7 +111,8 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
 
     VecXad constraints(num_constraints_);
     for (int i = 0; i < dims_.f; ++i) {
-        MatXad N = null(settings_.contacts[i].normal).template cast<ocs2::ad_scalar_t>();
+        MatXad N = null(settings_.contacts[i].normal)
+                       .template cast<ocs2::ad_scalar_t>();
 
         // Convert the contact point to AD type
         ContactPoint<ocs2::ad_scalar_t> contact =
@@ -117,33 +125,28 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
         ocs2::ad_scalar_t f_y = N.col(1).dot(f);
         ocs2::ad_scalar_t f_z = contact.normal.dot(f);
 
-        // Squared magnitude of tangential force
-        // ocs2::ad_scalar_t ft_squared = f.dot(f) - fn * fn;
+        // assume normal is (0, 0, 1)
+        // Vec2ad f_xy = f.head(2);
+        // ocs2::ad_scalar_t fn = f(2);
 
-        // TODO for now we assume normal is (0, 0, 1)
-        Vec2ad f_xy = f.head(2);
-        ocs2::ad_scalar_t fn = f(2);
+        // Squared magnitude of tangential force
+        ocs2::ad_scalar_t f_t_squared = f.dot(f) - f_z * f_z;
 
         // Constrain the normal force to be non-negative
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT) = fn;
-
-        // TODO we need to compute f_x and f_y
+        constraints(i * NUM_CONSTRAINTS_PER_CONTACT) = f_z;
 
         // Constrain force to lie in friction cone
-        // TODO this is not linearized
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) =
-        //     // contact.mu * contact.mu * fn * fn - ft_squared;
-        //     (1 + contact.mu * contact.mu) * fn * fn - f.dot(f);
+        // NOTE: this is not linearized
+        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) =
+            contact.mu * contact.mu * f_z * f_z - f_t_squared;
 
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) = contact.mu * fn - f_xy(0) - f_xy(1);
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 2) = contact.mu * fn - f_xy(0) + f_xy(1);
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 3) = contact.mu * fn + f_xy(0) - f_xy(1);
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 4) = contact.mu * fn + f_xy(0) + f_xy(1);
-
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) = contact.mu * fn - f_xy(0);
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 2) = contact.mu * fn + f_xy(0);
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 3) = contact.mu * fn - f_xy(1);
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 4) = contact.mu * fn + f_xy(1);
+        // linearized version
+        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) = contact.mu * fn -
+        // f_xy(0) - f_xy(1); constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 2) =
+        // contact.mu * fn - f_xy(0) + f_xy(1); constraints(i *
+        // NUM_CONSTRAINTS_PER_CONTACT + 3) = contact.mu * fn + f_xy(0) -
+        // f_xy(1); constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 4) =
+        // contact.mu * fn + f_xy(0) + f_xy(1);
     }
     return constraints;
 }
@@ -164,7 +167,8 @@ ObjectDynamicsConstraints::ObjectDynamicsConstraints(
     }
 
     // Six constraints per object: three linear and three rotational.
-    num_constraints_ = settings_.objects.size() * 6;
+    num_constraints_ =
+        settings_.objects.size() * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT;
 
     // compile the CppAD library
     initialize(dims.x, dims.u, 0, "upright_object_dynamics_constraints",
@@ -231,14 +235,19 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
         ocs2::ad_scalar_t m = ad_obj.body.mass_min;
         Vec3ad total_force = obj_forces[kv.first];
         Vec3ad desired_force =
-            m * C_ew * (linear_acc + ddC_we * ad_obj.body.com_ellipsoid.center() - ad_gravity);
-        constraints.segment(i * 6, 3) = total_force - desired_force;
+            m * C_ew *
+            (linear_acc + ddC_we * ad_obj.body.com_ellipsoid.center() -
+             ad_gravity);
+        constraints.segment(i * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT, 3) =
+            total_force - desired_force;
 
         // Rotational dynamics
         Vec3ad total_torque = obj_torques[kv.first];
         Mat3ad I_e = m * ad_obj.body.radii_of_gyration_matrix();
-        Vec3ad desired_torque = angular_vel_e.cross(I_e * angular_vel_e) + I_e * angular_acc_e;
-        constraints.segment(i * 6 + 3, 3) = total_torque - desired_torque;
+        Vec3ad desired_torque =
+            angular_vel_e.cross(I_e * angular_vel_e) + I_e * angular_acc_e;
+        constraints.segment(i * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT + 3, 3) =
+            total_torque - desired_torque;
 
         i += 1;
     }

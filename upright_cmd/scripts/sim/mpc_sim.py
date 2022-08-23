@@ -126,11 +126,11 @@ def main():
         # TODO more logger reforms to come
         if logger.ready(t):
             # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
-            #     recorder.dynamic_obs_distance[idx, :] = mpc.stateInequalityConstraint(
+            #     recorder.dynamic_obs_distance[idx, :] = mpc.getStateInequalityConstraintValue(
             #         "dynamic_obstacle_avoidance", t, x
             #     )
             # if model.settings.static_obstacle_settings.enabled:
-            #     ds = ctrl_manager.mpc.stateInequalityConstraint("static_obstacle_avoidance", t, x)
+            #     ds = ctrl_manager.mpc.getStateInequalityConstraintValue("static_obstacle_avoidance", t, x)
             #     logger.append("collision_pair_distances", ds)
 
             # log sim stuff
@@ -165,11 +165,11 @@ def main():
             # TODO eventually it would be nice to also compute this directly
             # via the core library
             if model.is_using_force_constraints():
-                # contact_force_constraints = (
-                #     ctrl_manager.mpc.softStateInputInequalityConstraint(
-                #         "contact_forces", t, x, u
-                #     )
-                # )
+                contact_force_constraints = (
+                    ctrl_manager.mpc.getSoftStateInputInequalityConstraintValue(
+                        "contact_forces", t, x, u
+                    )
+                )
                 object_dynamics_constraints = (
                     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
                         "object_dynamics", t, x, u
@@ -177,7 +177,7 @@ def main():
                 )
                 logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
 
-                # logger.append("contact_force_constraints", contact_force_constraints)
+                logger.append("contact_force_constraints", contact_force_constraints)
                 logger.append("contact_forces", u[model.settings.dims.v:])
                 logger.append(
                     "object_dynamics_constraints", object_dynamics_constraints

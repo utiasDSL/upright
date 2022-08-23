@@ -16,9 +16,7 @@
 #include <upright_control/controller_interface.h>
 #include <upright_control/dynamics/dimensions.h>
 #include <upright_control/types.h>
-#include <upright_msgs/FloatArray.h>
 
-#include <upright_ros_interface/ParseControlSettings.h>
 #include <upright_ros_interface/parsing.h>
 
 using namespace upright;
@@ -222,16 +220,10 @@ int main(int argc, char** argv) {
     // Initialize ros node
     ros::init(argc, argv, "mpc_node");
     ros::NodeHandle nodeHandle;
-
-    ros::service::waitForService("parse_control_settings");
-    upright_ros_interface::ParseControlSettings settings_srv;
-    settings_srv.request.config_path = std::string(argv[1]);
-    if (!ros::service::call("parse_control_settings", settings_srv)) {
-        throw std::runtime_error("Service call for control settings failed.");
-    }
+    std::string config_path = std::string(argv[1]);
 
     // Robot interface
-    ControllerSettings settings = parse_control_settings(settings_srv.response);
+    ControllerSettings settings = parse_control_settings(config_path);
     std::cout << settings << std::endl;
     ControllerInterface interface(settings);
 

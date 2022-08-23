@@ -2,42 +2,17 @@
 
 #include <ros/init.h>
 #include <ros/package.h>
-#include <sensor_msgs/JointState.h>
-#include <std_msgs/Float64MultiArray.h>
 
 #include <ocs2_mpc/SystemObservation.h>
 #include <ocs2_ros_interfaces/common/RosMsgConversions.h>
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
 
+#include <mobile_manipulation_central/robot_interfaces.h>
+
 #include <upright_control/controller_interface.h>
-#include <upright_ros_interface/ParseControlSettings.h>
-#include <upright_ros_interface/ParseTargetTrajectory.h>
 #include <upright_ros_interface/parsing.h>
 
 using namespace upright;
-
-// Map joint names to their correct indices in the configuration vector q
-std::map<std::string, size_t> JOINT_INDEX_MAP = {
-    {"ur10_arm_shoulder_pan_joint", 0}, {"ur10_arm_shoulder_lift_joint", 1},
-    {"ur10_arm_elbow_joint", 2},        {"ur10_arm_wrist_1_joint", 3},
-    {"ur10_arm_wrist_2_joint", 4},      {"ur10_arm_wrist_3_joint", 5}};
-
-class ExponentialSmoother {
-   public:
-    ExponentialSmoother(const ocs2::scalar_t& factor, const VecXd& x0)
-        : factor_(factor), x_(x0) {}
-
-    VecXd update(const VecXd& x) {
-        x_ = factor_ * x + (1 - factor_) * x_;
-        return x_;
-    }
-
-    VecXd get_estimate() { return x_; }
-
-   private:
-    ocs2::scalar_t factor_;
-    VecXd x_;
-};
 
 // Double integration using semi-implicit Euler method
 std::tuple<VecXd, VecXd> double_integrate(const VecXd& v, const VecXd& a,
@@ -62,67 +37,6 @@ std::tuple<VecXd, VecXd> double_integrate_repeated(const VecXd& v,
     return std::tuple<VecXd, VecXd>(v_new, a_new);
 }
 
-// Get feedback and send commands to the robot
-// TODO ideally we'd have a similar setup to mm_central
-class RobotInterface {
-   public:
-    RobotInterface(ros::NodeHandle& nh, const std::string& robot_name,
-                   const VecXd& q0, const VecXd& v0,
-                   const ocs2::scalar_t& smoothing_factor)
-        : q_(q0), v_(v0), velocity_smoother_(smoothing_factor, v0) {
-        feedback_sub_ = nh.subscribe(robot_name + "_joint_states", 1,
-                                     &RobotInterface::feedback_cb, this);
-
-        command_pub_ = nh.advertise<std_msgs::Float64MultiArray>(
-            robot_name + "_cmd_vel", 1, true);
-    }
-
-    void feedback_cb(const sensor_msgs::JointState& msg) {
-        // Joint name order not necessarily the same as config vector: remap it.
-        for (int i = 0; i < msg.name.size(); ++i) {
-            size_t j = JOINT_INDEX_MAP.at(msg.name[i]);
-            q_[j] = msg.position[i];
-            v_[j] = msg.velocity[i];
-        }
-
-        feedback_received_ = true;
-
-        velocity_smoother_.update(v_);
-    }
-
-    bool has_received_feedback() { return feedback_received_; }
-
-    void send_command(const VecXd& cmd) {
-        std_msgs::Float64MultiArray msg;
-        // TODO layout?
-        // The command has the joints in the correct order (i.e. the one
-        // specified in the config file), as opposed to the re-ordered version
-        // from the joint state controller feedback above.
-        msg.data = std::vector<double>(cmd.data(), cmd.data() + cmd.size());
-        command_pub_.publish(msg);
-    }
-
-    VecXd get_joint_position() { return q_; }
-
-    VecXd get_joint_velocity_raw() { return v_; }
-
-    VecXd get_joint_velocity_smoothed() {
-        return velocity_smoother_.get_estimate();
-    }
-
-   private:
-    VecXd q_;
-    VecXd v_;
-
-    bool feedback_received_ = false;
-
-    ros::Subscriber feedback_sub_;
-    ros::Publisher command_pub_;
-
-    ExponentialSmoother velocity_smoother_;
-};
-
-
 int main(int argc, char** argv) {
     const std::string robot_name = "mobile_manipulator";
 
@@ -133,27 +47,10 @@ int main(int argc, char** argv) {
     // Initialize ros node
     ros::init(argc, argv, robot_name + "_mrt");
     ros::NodeHandle nh;
-
     std::string config_path = std::string(argv[1]);
 
-    // parse the control settings
-    ros::service::waitForService("parse_control_settings");
-    upright_ros_interface::ParseControlSettings settings_srv;
-    settings_srv.request.config_path = config_path;
-    if (!ros::service::call("parse_control_settings", settings_srv)) {
-        throw std::runtime_error("Service call for control settings failed.");
-    }
-
-    // parse the target trajectory
-    ros::service::waitForService("parse_target_trajectory");
-    upright_ros_interface::ParseTargetTrajectory target_srv;
-    target_srv.request.config_path = config_path;
-    if (!ros::service::call("parse_target_trajectory", target_srv)) {
-        throw std::runtime_error("Service call for control settings failed.");
-    }
-
     // controller interface
-    ControllerSettings settings = parse_control_settings(settings_srv.response);
+    ControllerSettings settings = parse_control_settings(config_path);
     std::cout << settings << std::endl;
     ControllerInterface interface(settings);
 
@@ -164,9 +61,7 @@ int main(int argc, char** argv) {
 
     // nominal initial state and interface to the real robot
     VecXd x0 = interface.getInitialState();
-    VecXd q0 = x0.head(settings.dims.q);
-    VecXd v0 = x0.segment(settings.dims.q, settings.dims.v);
-    RobotInterface robot(nh, robot_name, q0, v0, 0.9);
+    mm::UR10ROSInterface robot(nh);
 
     ocs2::scalar_t timestep = 1.0 / settings.rate;
     ros::Rate rate(settings.rate);
@@ -174,7 +69,7 @@ int main(int argc, char** argv) {
     // wait until we get feedback from the robot
     while (ros::ok() && ros::master::check()) {
         ros::spinOnce();
-        if (robot.has_received_feedback()) {
+        if (robot.ready()) {
             break;
         }
         rate.sleep();
@@ -182,11 +77,7 @@ int main(int argc, char** argv) {
     std::cout << "Received feedback from robot." << std::endl;
 
     // update to the real initial state
-    q0 = robot.get_joint_position();
-    x0.head(settings.dims.q) = q0;
-
-    // MatXd Kp = settings.Kp;
-    // std::cout << "Kp = " << Kp << std::endl;
+    x0.head(settings.dims.q) = robot.q();
 
     ocs2::SystemObservation initial_observation;
     initial_observation.state = x0;
@@ -194,9 +85,7 @@ int main(int argc, char** argv) {
     initial_observation.time = ros::Time::now().toSec();
 
     // reset MPC
-    ocs2::TargetTrajectories target =
-        ocs2::ros_msg_conversions::readTargetTrajectoriesMsg(
-            target_srv.response.target_trajectory);
+    ocs2::TargetTrajectories target = parse_target_trajectory(config_path, x0);
     mrt.resetMpcNode(target);
     mrt.setCurrentObservation(initial_observation);
 
@@ -236,12 +125,13 @@ int main(int argc, char** argv) {
         ocs2::scalar_t dt = t - last_t;
 
         // Robot feedback
-        VecXd q = robot.get_joint_position();
+        VecXd q = robot.q();
         // VecXd v = robot.get_joint_velocity_raw();
 
         // Integrate our internal model to get velocity and acceleration
         // "feedback"
-        std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u, dt);
+        std::tie(v_ff, a_ff) =
+            double_integrate(v_ff, a_ff, u.head(settings.dims.v), dt);
 
         // Current state is built from robot feedback for q and v; for
         // acceleration we just assume we are tracking well since we don't get
@@ -277,7 +167,7 @@ int main(int argc, char** argv) {
         // VecXd vd = xd.segment(settings.dims.q, settings.dims.v);
         // VecXd v_cmd = Kp * (qd - q) + v_ff;
         // VecXd v_cmd = v_ff;
-        robot.send_command(v_ff);
+        robot.publish_cmd_vel(v_ff);
 
         // Send observation to MPC
         observation.time = t;
@@ -297,9 +187,8 @@ int main(int argc, char** argv) {
         rate.sleep();
     }
 
-    // send zero-velocity command to stop the robot when we're done
-    v0 = VecXd::Zero(settings.dims.v);
-    robot.send_command(v0);
+    // stop the robot when we're done
+    robot.brake();
 
     // Successful exit
     return 0;

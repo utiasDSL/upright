@@ -379,14 +379,17 @@ PYBIND11_MODULE(bindings, m) {
         .def("getStateInputEqualityConstraintValue",
              &ControllerPythonInterface::getStateInputEqualityConstraintValue,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
-        .def("stateInputInequalityConstraint",
-             &ControllerPythonInterface::stateInputInequalityConstraint,
+        .def("getStateInputInequalityConstraintValue",
+             &ControllerPythonInterface::getStateInputInequalityConstraintValue,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
-        .def("softStateInputInequalityConstraint",
-             &ControllerPythonInterface::softStateInputInequalityConstraint,
+        .def("getSoftStateInputInequalityConstraintValue",
+             &ControllerPythonInterface::getSoftStateInputInequalityConstraintValue,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
-        .def("stateInequalityConstraint",
-             &ControllerPythonInterface::stateInequalityConstraint, "name"_a,
+        .def("getStateInequalityConstraintValue",
+             &ControllerPythonInterface::getStateInequalityConstraintValue, "name"_a,
+             "t"_a, "x"_a.noconvert())
+        .def("getSoftStateInequalityConstraintValue",
+             &ControllerPythonInterface::getSoftStateInequalityConstraintValue, "name"_a,
              "t"_a, "x"_a.noconvert())
 
         .def("visualizeTrajectory",

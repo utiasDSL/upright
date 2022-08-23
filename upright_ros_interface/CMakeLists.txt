@@ -3,16 +3,24 @@ project(upright_ros_interface)
 
 add_compile_options(-std=c++14)
 
+set(PYTHON_VERSION_STRING 3.8)
+
+find_package(PythonLibs REQUIRED)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   upright_control
-  message_generation
+  # message_generation
   std_msgs
   geometry_msgs
-  upright_msgs
+  # upright_msgs
+  pybind11_catkin
+  mobile_manipulation_central
 )
+
+# find_package(pybind11 REQUIRED)
 
 # hack to resolve pinocchio error, see
 # <https://github.com/epfl-lasa/control-libraries/issues/120>
@@ -57,11 +65,11 @@ catkin_python_setup()
 # )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  ParseControlSettings.srv
-  ParseTargetTrajectory.srv
-)
+# add_service_files(
+#   FILES
+#   ParseControlSettings.srv
+#   ParseTargetTrajectory.srv
+# )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -71,13 +79,13 @@ add_service_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  geometry_msgs
-  upright_msgs
-  ocs2_msgs
-)
+# generate_messages(
+#   DEPENDENCIES
+#   std_msgs
+#   geometry_msgs
+#   upright_msgs
+#   ocs2_msgs
+# )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -126,7 +134,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 ## Your package locations should be listed before other locations
 include_directories(
   include
+  ${mobile_manipulation_central_INCLUDE_DIRS}
+  ${upright_control_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+  ${PYTHON_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -151,6 +162,24 @@ add_executable(mrt_node src/mrt_node.cpp)
 target_link_libraries(mrt_node
   ${catkin_LIBRARIES}
 )
+
+# add_executable(python_cpp src/python_cpp.cpp)
+# target_link_libraries(python_cpp
+#   ${catkin_LIBRARIES}
+# )
+
+add_executable(python_cpp src/python_cpp.cpp)
+target_link_libraries(python_cpp ${PYTHON_LIBRARIES} ${upright_control_LIBRARIES})
+# add_dependencies(python_cpp
+#   ${catkin_EXPORTED_TARGETS}
+# )
+# target_link_libraries(python_cpp PRIVATE
+#   ${catkin_LIBRARIES}
+# )
+# target_link_libraries(python_cpp
+#   ${pybind11_catkin_LIBRARIES}
+#   ${catkin_LIBRARIES}
+# )
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

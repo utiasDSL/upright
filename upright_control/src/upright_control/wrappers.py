@@ -4,13 +4,14 @@ import numpy as np
 
 import upright_core as core
 from upright_control import bindings
+from upright_control.robot import PinocchioRobot
 from upright_control.trajectory import StateInputTrajectory
 
 import IPython
 
 
 class TargetTrajectories(bindings.TargetTrajectories):
-    """Wrapper around bound TargetTrajectories."""
+    """Wrapper around TargetTrajectories binding."""
 
     def __init__(self, ts, xs, us):
         ts_ocs2 = bindings.scalar_array()
@@ -40,6 +41,20 @@ class TargetTrajectories(bindings.TargetTrajectories):
             xs.append(x)
         return cls(ts, xs, us)
 
+    @classmethod
+    def from_config_file(cls, config_path, x0):
+        """Load the trajectory directly from a config file.
+
+        This is convenient for loading from C++, for example in the MRT node.
+        """
+        config = core.parsing.load_config(config_path)
+        ctrl_config = config["controller"]
+        robot = PinocchioRobot(config=ctrl_config["robot"])
+        robot.forward(x0)
+        r_ew_w, Q_we = robot.link_pose()
+        u0 = np.zeros(robot.dims.u)
+        return cls.from_config(ctrl_config, r_ew_w, Q_we, u0)
+
     @staticmethod
     def _state_to_pose(x):
         return x[:3], x[3:7]
@@ -56,6 +71,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
 
 
 class ControllerSettings(bindings.ControllerSettings):
+    """Wrapper around ControllerSettings binding."""
     def __init__(self, config, x0=None, operating_trajectory=None):
         super().__init__()
 
@@ -254,6 +270,16 @@ class ControllerSettings(bindings.ControllerSettings):
             ),
         ]:
             self.dynamic_obstacle_settings.collision_spheres.push_back(sphere)
+
+    @classmethod
+    def from_config_file(cls, config_path):
+        """Load the settings directly from a config file.
+
+        This is convenient for loading from C++, for example in the MRT node.
+        """
+        config = core.parsing.load_config(config_path)
+        ctrl_config = config["controller"]
+        return cls(ctrl_config)
 
     def get_num_balance_constraints(self):
         if self.balancing_settings.bounded:
