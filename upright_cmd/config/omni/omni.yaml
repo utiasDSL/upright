@@ -23,12 +23,16 @@ simulation:
       - "ur10_arm_wrist_1_joint"
       - "ur10_arm_wrist_2_joint"
       - "ur10_arm_wrist_3_joint"
-    tool_joint_name: "gripper_tool_joint"
+    tool_joint_name: "gripped_object_joint"
     base_type: omnidirectional
     urdf:
       package: "upright_assets"
-      input_path: "thing/xacro/pyb/thing_pyb_tray.urdf"
-      output_path: "thing/urdf/thing_pyb_tray.urdf"
+      path: "thing/urdf/thing_pyb.urdf"
+      includes:
+        - "$(find upright_assets)/thing/xacro/cartesian_base_joints.urdf.xacro"
+        - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/collision/visual_collision_links.urdf.xacro"
 
 controller:
   # robot parameters
@@ -41,9 +45,12 @@ controller:
     x0: [1, 1, -0.25pi, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi, 0rep9, 0rep9]
     urdf:
       package: "upright_assets"
-      input_path: "thing/xacro/ocs2/mm_ocs2_tray.urdf"
-      output_path: "thing/urdf/thing_ocs2_tray.urdf"
-    tool_link_name: "thing_tool"
+      path: "thing/urdf/thing_ocs2.urdf"
+      includes:
+        - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/collision/collision_links.urdf.xacro"
+    tool_link_name: "gripped_object"
     base_type: omnidirectional
 
   # weights on state, input, and end effector pose

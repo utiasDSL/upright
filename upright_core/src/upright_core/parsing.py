@@ -131,24 +131,45 @@ def parse_ros_path(d):
     return path.as_posix()
 
 
-def parse_and_compile_urdf(d, runs=2):
+def xacro_include(path):
+    return f"""
+    <xacro:include filename="{path}" />
+    """
+
+
+def parse_and_compile_urdf(d, max_runs=10):
     """Parse and compile a URDF from a xacro'd URDF file."""
-    rospack = rospkg.RosPack()
-    pkg_path = Path(rospack.get_path(d["package"]))
-    input_path = pkg_path / d["input_path"]
-    output_path = pkg_path / d["output_path"]
+    output_path = parse_ros_path(d)
 
-    # compile the xacro'd URDF to a raw URDF file
-    # a second pass is required to resolve mesh paths; here we keep things
-    # general and allow any number of runs
-    doc = xacro.process_file(input_path)
-    for _ in range(runs - 1):
+    s = """
+    <?xml version="1.0" ?>
+    <robot name="robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+    """.strip()
+    for incl in d["includes"]:
+        s += xacro_include(incl)
+    s += "</robot>"
+
+    doc = xacro.parse(s)
+    s1 = doc.toxml()
+
+    # keep processing until a fixed point is reached
+    run = 1
+    while run < max_runs:
         xacro.process_doc(doc)
+        s2 = doc.toxml()
+        if s1 == s2:
+            break
+        s1 = s2
+        run += 1
 
+    if run == max_runs:
+        raise ValueError("URDF file did not converge.")
+
+    # write the final document to a file for later consumption
     with open(output_path, "w") as f:
         f.write(doc.toprettyxml(indent="  "))
 
-    return output_path.as_posix()
+    return output_path
 
 
 def parse_support_offset(d):

@@ -26,6 +26,8 @@ static_obstacles:
   urdf:
     package: "upright_assets"
     path: "thing/urdf/obstacles.urdf"
+    includes:
+      - "$(find upright_assets)/thing/xacro/obstacles.urdf.xacro"
 
 dynamic_obstacles:
   enabled: false
