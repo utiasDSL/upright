@@ -14,6 +14,7 @@
 
 using namespace upright;
 
+
 // Double integration using semi-implicit Euler method
 std::tuple<VecXd, VecXd> double_integrate(const VecXd& v, const VecXd& a,
                                           const VecXd& u,
@@ -171,7 +172,12 @@ int main(int argc, char** argv) {
         // VecXd vd = xd.segment(settings.dims.q, settings.dims.v);
         // VecXd v_cmd = Kp * (qd - q) + v_ff;
         // VecXd v_cmd = v_ff;
-        robot.publish_cmd_vel(v_ff);
+        // TODO: experimental
+        if (ros::isShuttingDown()) {
+            robot.brake();
+        } else {
+            robot.publish_cmd_vel(v_ff);
+        }
 
         // Send observation to MPC
         observation.time = t;
@@ -192,10 +198,9 @@ int main(int argc, char** argv) {
     }
 
     // stop the robot when we're done
+    // NOTE: doesn't really work because we can't publish after the node is
+    // shutdown
     robot.brake();
-
-    // TODO is this required to make sure the above brake command goes through?
-    ros::Duration(1.0).sleep();
 
     // Successful exit
     return 0;
