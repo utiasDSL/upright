@@ -33,7 +33,7 @@ dynamic_obstacles:
 objects:
   # EE is a special object
   ee:
-    height: 0.04
+    height: 0.0
     mu: 1.0
 
   tray:

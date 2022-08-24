@@ -43,6 +43,9 @@ def main():
         config=sim_config, timestamp=timestamp, cli_args=cli_args
     )
 
+    # settle sim to make sure everything is touching comfortably
+    sim.settle(5.0)
+
     # initial time, state, input
     t = 0.0
     q, v = sim.robot.joint_states()

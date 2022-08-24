@@ -19,7 +19,7 @@
   </link>
   <joint name="balanced_object_collision_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0 0 0.05"/>
-    <parent link="thing_tool"/>
+    <parent link="gripped_object"/>
     <child link="balanced_object_collision_link"/>
   </joint>
 

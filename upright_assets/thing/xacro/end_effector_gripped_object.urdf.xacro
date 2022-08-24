@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="end_effector_gripped_object" xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <joint name="gripped_object_joint" type="fixed">
+    <xacro:transformed_origin name="T2" />
+    <parent link="gripper"/>
+    <child link="gripped_object"/>
+  </joint>
+
+  <xacro:macro name="gripped_object_geometry">
+    <origin rpy="0 0 0" xyz="0.1 0.13 -0.032"/>
+    <geometry>
+      <box size="0.23 0.3 0.064" />
+    </geometry>
+  </xacro:macro>
+
+  <!-- Extra link for the gripped object, which must be calibrated. -->
+  <link name="gripped_object">
+    <visual>
+      <xacro:gripped_object_geometry />
+      <material name="black"/>
+    </visual>
+
+    <collision>
+      <xacro:gripped_object_geometry />
+    </collision>
+
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0.1"/>
+      <!-- not accurate, but pybullet recomputes this by default -->
+      <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+  </link>
+</robot>

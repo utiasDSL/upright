@@ -72,6 +72,9 @@ arrangements:
     -
       name: box1
       type: cube
+      offset:
+        x: 0.1
+        y: 0.1
   boxes_stack:
     -
       name: tray

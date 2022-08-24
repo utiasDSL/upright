@@ -78,6 +78,7 @@ class PinocchioGeometry:
         return viz
 
 
+# TODO revise to inherit from RobotKinematics in mm_central
 class PinocchioRobot:
     def __init__(self, config):
         # dimensions
