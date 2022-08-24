@@ -1,3 +1,4 @@
+// Test node for loading stuff into C++ via Python
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
 #include <pybind11/eigen.h>

@@ -5,7 +5,6 @@
 #include <pybind11/embed.h>
 
 #include <ocs2_mpc/SystemObservation.h>
-#include <ocs2_ros_interfaces/common/RosMsgConversions.h>
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
 
 #include <mobile_manipulation_central/robot_interfaces.h>
@@ -51,6 +50,9 @@ int main(int argc, char** argv) {
     std::string config_path = std::string(argv[1]);
 
     // controller interface
+    // Python interpret required for now because we actually load the control
+    // settings and the target trajectories using Python - not ideal but easier
+    // than re-implementing the parsing logic in C++ for now
     py::scoped_interpreter guard{};
     ControllerSettings settings = parse_control_settings(config_path);
     std::cout << settings << std::endl;
@@ -193,7 +195,7 @@ int main(int argc, char** argv) {
     robot.brake();
 
     // TODO is this required to make sure the above brake command goes through?
-    ros::Duration(1.0)::sleep();
+    ros::Duration(1.0).sleep();
 
     // Successful exit
     return 0;
