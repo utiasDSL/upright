@@ -1,6 +1,7 @@
 """Utilities for parsing general configuration dictionaries."""
 from collections import deque
 from pathlib import Path
+import tempfile
 
 import rospkg
 import numpy as np
@@ -138,18 +139,14 @@ def parse_and_compile_urdf(d, runs=2):
     output_path = pkg_path / d["output_path"]
 
     # compile the xacro'd URDF to a raw URDF file
-    doc = xacro.process_file(input_path)
-    with open(output_path, "w") as f:
-        f.write(doc.toprettyxml(indent="  "))
-    run = 1
-
     # a second pass is required to resolve mesh paths; here we keep things
     # general and allow any number of runs
-    while run < runs:
-        doc = xacro.process_file(output_path)
-        with open(output_path, "w") as f:
-            f.write(doc.toprettyxml(indent="  "))
-        run += 1
+    doc = xacro.process_file(input_path)
+    for _ in range(runs - 1):
+        xacro.process_doc(doc)
+
+    with open(output_path, "w") as f:
+        f.write(doc.toprettyxml(indent="  "))
 
     return output_path.as_posix()
 

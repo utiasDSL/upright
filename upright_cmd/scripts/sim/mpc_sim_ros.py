@@ -20,7 +20,8 @@ from upright_core.logging import DataLogger, DataPlotter
 import upright_core as core
 import upright_control as ctrl
 import upright_cmd as cmd
-from upright_ros_interface.simulation import ROSSimulationInterface
+
+from mobile_manipulation_central import SimulatedUR10ROSInterface
 
 import IPython
 
@@ -73,7 +74,8 @@ def main():
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
     # setup the ROS interface
-    ros_interface = ROSSimulationInterface("mobile_manipulator")
+    rospy.init_node("mpc_sim_ros")
+    ros_interface = SimulatedUR10ROSInterface()
     ros_interface.publish_time(t)
 
     # wait until a command has been received
@@ -104,7 +106,6 @@ def main():
             v_ew_w, ω_ew_w = sim.robot.link_velocity()
             r_ow_ws, Q_wos = sim.object_poses()
             logger.append("ts", t - t0)
-            logger.append("us", u)
             logger.append("xs", x)
             logger.append("r_ew_ws", r_ew_w)
             logger.append("Q_wes", Q_we)
@@ -119,7 +120,7 @@ def main():
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("Q_we_ds", Q_we_d)
 
-            model.update(x, u)
+            model.update(x)
             logger.append("ddC_we_norm", model.ddC_we_norm())
             logger.append("balancing_constraints", model.balancing_constraints())
             logger.append("sa_dists", model.support_area_distances())
@@ -128,11 +129,12 @@ def main():
         t = sim.step(t, step_robot=False)
         ros_interface.publish_time(t)
 
-    # TODO can I get control durations somehow?
-    # - could log frequency of message updates, though this would incur some
-    #   overhead
-    # - could somehow log and publish it separately
+    try:
+        print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")
+    except:
+        pass
 
+    # save logged data
     if cli_args.log is not None:
         logger.save(timestamp, name=cli_args.log)
 
@@ -140,7 +142,7 @@ def main():
         print(f"Saved video to {sim.video_manager.path}")
 
     # visualize data
-    DataPlotter(logger).plot_all(show=True)
+    DataPlotter.from_logger(logger).plot_all(show=True)
 
 
 if __name__ == "__main__":

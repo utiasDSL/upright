@@ -2,6 +2,7 @@
 
 #include <ros/init.h>
 #include <ros/package.h>
+#include <pybind11/embed.h>
 
 #include <ocs2_mpc/SystemObservation.h>
 #include <ocs2_ros_interfaces/common/RosMsgConversions.h>
@@ -50,6 +51,7 @@ int main(int argc, char** argv) {
     std::string config_path = std::string(argv[1]);
 
     // controller interface
+    py::scoped_interpreter guard{};
     ControllerSettings settings = parse_control_settings(config_path);
     std::cout << settings << std::endl;
     ControllerInterface interface(settings);
@@ -130,8 +132,8 @@ int main(int argc, char** argv) {
 
         // Integrate our internal model to get velocity and acceleration
         // "feedback"
-        std::tie(v_ff, a_ff) =
-            double_integrate(v_ff, a_ff, u.head(settings.dims.v), dt);
+        VecXd u_cmd = u.head(settings.dims.v);
+        std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u_cmd, dt);
 
         // Current state is built from robot feedback for q and v; for
         // acceleration we just assume we are tracking well since we don't get
@@ -153,11 +155,11 @@ int main(int argc, char** argv) {
             std::cout << "State violated upper limits!" << std::endl;
             break;
         }
-        if (((u - settings.input_limit_lower).array() < 0).any()) {
+        if (((u_cmd - settings.input_limit_lower).array() < 0).any()) {
             std::cout << "Input violated lower limits!" << std::endl;
             break;
         }
-        if (((settings.input_limit_upper - u).array() < 0).any()) {
+        if (((settings.input_limit_upper - u_cmd).array() < 0).any()) {
             std::cout << "Input violated upper limits!" << std::endl;
             break;
         }
@@ -189,6 +191,9 @@ int main(int argc, char** argv) {
 
     // stop the robot when we're done
     robot.brake();
+
+    // TODO is this required to make sure the above brake command goes through?
+    ros::Duration(1.0)::sleep();
 
     // Successful exit
     return 0;

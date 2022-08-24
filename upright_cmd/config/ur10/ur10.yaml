@@ -21,7 +21,8 @@ simulation:
       - "ur10_arm_wrist_1_joint"
       - "ur10_arm_wrist_2_joint"
       - "ur10_arm_wrist_3_joint"
-    tool_joint_name: "gripper_tool_joint"
+    # tool_joint_name: "gripper_tool_joint"
+    tool_joint_name: "gripped_object_joint"
     base_type: fixed
     urdf:
       package: "upright_assets"
@@ -43,7 +44,7 @@ controller:
       package: "upright_assets"
       input_path: "thing/xacro/ocs2/thing_ocs2_tray.urdf.xacro"
       output_path: "thing/urdf/thing_ocs2_tray.urdf"
-    tool_link_name: "thing_tool"
+    tool_link_name: "gripped_object"
     base_type: fixed
 
   # weights on state, input, and end effector pose
