@@ -168,11 +168,18 @@ def main():
             # TODO eventually it would be nice to also compute this directly
             # via the core library
             if model.is_using_force_constraints():
-                contact_force_constraints = (
-                    ctrl_manager.mpc.getSoftStateInputInequalityConstraintValue(
-                        "contact_forces", t, x, u
+                if model.settings.balancing_settings.constraint_type == ctrl.bindings.ConstraintType.Soft:
+                    contact_force_constraints = (
+                        ctrl_manager.mpc.getSoftStateInputInequalityConstraintValue(
+                            "contact_forces", t, x, u
+                        )
                     )
-                )
+                else:
+                    contact_force_constraints = (
+                        ctrl_manager.mpc.getStateInputInequalityConstraintValue(
+                            "contact_forces", t, x, u
+                        )
+                    )
                 object_dynamics_constraints = (
                     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
                         "object_dynamics", t, x, u

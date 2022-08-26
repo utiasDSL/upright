@@ -81,6 +81,7 @@ PYBIND11_MODULE(bindings, m) {
                        &BalancingSettings::constraints_enabled)
         .def_readwrite("objects", &BalancingSettings::objects)
         .def_readwrite("contacts", &BalancingSettings::contacts)
+        .def_readwrite("force_weight", &BalancingSettings::force_weight)
         .def_readwrite("constraint_type", &BalancingSettings::constraint_type)
         .def_readwrite("mu", &BalancingSettings::mu)
         .def_readwrite("delta", &BalancingSettings::delta);

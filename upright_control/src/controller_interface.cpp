@@ -288,9 +288,6 @@ void ControllerInterface::loadSettings() {
     // TODO we're getting too nested here
     if (settings_.balancing_settings.enabled) {
         if (settings_.balancing_settings.use_force_constraints) {
-            std::cerr << "Contact force-based balancing constraints enabled."
-                      << std::endl;
-
             // Currently we always use exact constraints for the object
             // dynamics.
             problem_.equalityConstraintPtr->add(
@@ -303,30 +300,38 @@ void ControllerInterface::loadSettings() {
             // (avoid phantom gradients and such)
             if (settings_.balancing_settings.constraint_type ==
                 ConstraintType::Soft) {
+                std::cerr
+                    << "Soft contact force-based balancing constraints enabled."
+                    << std::endl;
                 problem_.softConstraintPtr->add(
                     "contact_forces",
                     get_soft_contact_force_constraint(end_effector_kinematics,
                                                       recompileLibraries));
             } else {
+                std::cerr
+                    << "Hard contact force-based balancing constraints enabled."
+                    << std::endl;
                 problem_.inequalityConstraintPtr->add(
                     "contact_forces",
                     get_contact_force_constraint(end_effector_kinematics,
                                                  recompileLibraries));
             }
         } else {
-            std::cerr
-                << "ZMP/limit surface-based balancing constraints enabled."
-                << std::endl;
             if (settings_.balancing_settings.constraint_type ==
                 ConstraintType::Soft) {
-                std::cerr << "Soft balancing constraints enabled." << std::endl;
+                std::cerr << "Soft ZMP/limit surface-based balancing "
+                             "constraints enabled."
+                          << std::endl;
+
                 problem_.softConstraintPtr->add(
                     "balancing",
                     get_soft_balancing_constraint(end_effector_kinematics,
                                                   recompileLibraries));
 
             } else {
-                std::cerr << "Hard balancing constraints enabled." << std::endl;
+                std::cerr << "Hard ZMP/limit surface-based balancing "
+                             "constraints enabled."
+                          << std::endl;
                 problem_.inequalityConstraintPtr->add(
                     "balancing",
                     get_balancing_constraint(end_effector_kinematics,
@@ -369,12 +374,11 @@ ControllerInterface::getQuadraticStateInputCost(const std::string& taskFile) {
     MatXd R = settings_.input_weight;
 
     // augment R with cost on the contact forces
-    MatXd Rf = 0.01 * MatXd::Identity(settings_.dims.u, settings_.dims.u);
-    // MatXd Rf = MatXd::Zero(settings_.dims.u, settings_.dims.u);
+    MatXd Rf = settings_.balancing_settings.force_weight *
+               MatXd::Identity(settings_.dims.u, settings_.dims.u);
     Rf.topLeftCorner(R.rows(), R.cols()) = R;
 
     std::cout << "Q: " << Q << std::endl;
-    std::cout << "R: " << R << std::endl;
     std::cout << "Rf: " << Rf << std::endl;
 
     return std::unique_ptr<ocs2::StateInputCost>(
@@ -691,8 +695,8 @@ ControllerInterface::get_soft_joint_state_input_limit_constraint() {
     for (int i = 0; i < settings_.dims.x; i++) {
         // barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
         //     {state_limit_mu, state_limit_delta}));
-        barrierFunction.reset(new ocs2::SquaredHingePenalty(
-            {100, state_limit_delta}));
+        barrierFunction.reset(
+            new ocs2::SquaredHingePenalty({1, state_limit_delta}));
         penaltyArray[i].reset(new ocs2::DoubleSidedPenalty(
             state_limit_lower(i), state_limit_upper(i),
             std::move(barrierFunction)));
@@ -702,8 +706,8 @@ ControllerInterface::get_soft_joint_state_input_limit_constraint() {
     for (int i = 0; i < settings_.dims.v; i++) {
         // barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
         //     {input_limit_mu, input_limit_delta}));
-        barrierFunction.reset(new ocs2::SquaredHingePenalty(
-            {100, input_limit_delta}));
+        barrierFunction.reset(
+            new ocs2::SquaredHingePenalty({1, input_limit_delta}));
         penaltyArray[settings_.dims.x + i].reset(new ocs2::DoubleSidedPenalty(
             input_limit_lower(i), input_limit_upper(i),
             std::move(barrierFunction)));

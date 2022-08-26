@@ -229,6 +229,7 @@ struct BoundedBalancedObject {
     Scalar mu_min;
 };
 
+
 template <typename Scalar>
 Scalar max_beta_projection_approx(const Vec3<Scalar>& p, const Mat3<Scalar>& R2,
                                   const Mat3<Scalar>& C_ew,

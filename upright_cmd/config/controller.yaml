@@ -19,6 +19,8 @@ balancing:
   enable_friction_constraint: true
   enable_zmp_constraint: true
 
+  force_weight: 0.001
+
   mu: 1e-3
   delta: 1e-3
 

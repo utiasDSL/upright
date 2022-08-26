@@ -33,6 +33,15 @@ Mat3<Scalar> skew3(const Vec3<Scalar>& x) {
     return M;
 }
 
+
+// Second time-derivative of the rotation matrix.
+template <typename Scalar>
+Mat3<Scalar> dC_dtt(const RigidBodyState<Scalar>& state) {
+    Mat3<Scalar> S_angular_vel = skew3<Scalar>(state.velocity.angular);
+    Mat3<Scalar> S_angular_acc = skew3<Scalar>(state.acceleration.angular);
+    return (S_angular_acc + S_angular_vel * S_angular_vel) * state.pose.orientation;
+}
+
 // Generate a random scalar between 0 and 1
 template <typename Scalar>
 Scalar random_scalar() {
@@ -44,7 +53,18 @@ Scalar random_scalar() {
 // Matrix::isZero method.
 template <typename Scalar>
 bool near_zero(Scalar x) {
-    return abs(x) < Scalar(1e-6);
+    return abs(x) < Scalar(NEAR_ZERO);
+}
+
+// Compute the a basis for the nullspace of the vector v.
+template <typename Scalar>
+MatX<Scalar> null(const Vec3<Scalar>& v) {
+    Eigen::FullPivLU<MatX<Scalar>> lu(v.transpose());
+    MatX<Scalar> N = lu.kernel();
+    for (size_t i = 0; i < N.cols(); ++i) {
+        N.col(i).normalize();
+    }
+    return N;
 }
 
 }  // namespace upright

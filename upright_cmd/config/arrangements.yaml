@@ -75,6 +75,17 @@ arrangements:
       offset:
         x: 0.1
         y: 0.1
+  two_box:
+    -
+      name: box1
+      type: cube
+      offset:
+        x: 0.1
+        y: 0.1
+    -
+      name: box2
+      type: cube
+      parent: box1
   boxes_stack:
     -
       name: tray

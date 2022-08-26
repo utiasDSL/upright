@@ -192,6 +192,7 @@ def parse_support_offset(d):
     return np.array([x, y])
 
 
+# TODO could possibly convert this to inheriting from BoundedBalancedObject?
 class BalancedObjectConfigWrapper:
     """Wrapper around the config dict for a balanced object."""
 
@@ -312,16 +313,6 @@ class BalancedObjectConfigWrapper:
             contacts.append(contact)
         return contacts
 
-    # TODO to be removed when verified the parent version is working
-    # def update_child_contact_points(self, name, child, contacts):
-    #     """Update base contact points of the child object."""
-    #     # need diff between my CoM and child's CoM
-    #     Δ = child.position - self.position
-    #     for contact in contacts:
-    #         contact.r_co_o2 = contact.r_co_o1 + Δ
-    #         contact.object2_name = name
-    #     return contacts
-
     def update_parent_contact_points(self, parent, contacts):
         """Update base contact points with parent information."""
         # need diff between my (child) CoM and parent's CoM
@@ -332,7 +323,57 @@ class BalancedObjectConfigWrapper:
         return contacts
 
 
+def _parse_objects_with_contacts(wrappers):
+    contacts = []
+    for name, wrapper in wrappers.items():
+        # generate contacts for the base of this object
+        base_contacts = wrapper.base_contact_points(name)
+
+        # if the object has a parent, we need to add the parent info to the
+        # contact points as well
+        if wrapper.parent_name is not None:
+            parent = wrappers[wrapper.parent_name]
+            wrapper.update_parent_contact_points(parent, base_contacts)
+
+        contacts.extend(base_contacts)
+
+    unwrapped_objects = {
+        name: wrapper.bounded_balanced_object() for name, wrapper in wrappers.items()
+    }
+    return unwrapped_objects, contacts
+
+def _parse_composite_objects(wrappers):
+    # find the direct children of each object
+    for name, wrapper in wrappers.items():
+        if wrapper.parent_name is not None:
+            wrappers[wrapper.parent_name].children.append(name)
+
+    # convert wrappers to BoundedBalancedObjects as required by the controller
+    # and compose them as needed
+    composites = {}
+    for name, wrapper in wrappers.items():
+        # all descendants compose the new object (descendants include the
+        # current object)
+        descendants = []
+        descendant_names = [name]
+        queue = deque([wrapper])
+        while len(queue) > 0:
+            desc_wrapper = queue.popleft()
+            descendants.append(desc_wrapper.bounded_balanced_object())
+            for child_name in desc_wrapper.children:
+                queue.append(wrappers[child_name])
+                descendant_names.append(child_name)
+
+        # new name includes names of all component objects
+        composite_name = "_".join(descendant_names)
+
+        # descendants have already been converted to C++ objects
+        composites[composite_name] = compose_bounded_objects(descendants)
+    return composites
+
+
 def parse_control_objects(ctrl_config):
+    """Parse the control objects and contact points from the configuration."""
     arrangement_name = ctrl_config["balancing"]["arrangement"]
     arrangement = ctrl_config["arrangements"][arrangement_name]
     object_configs = ctrl_config["objects"]
@@ -362,44 +403,8 @@ def parse_control_objects(ctrl_config):
             raise ValueError(f"Multiple control objects named {obj_name}.")
         wrappers[obj_name] = wrapper
 
-    contacts = []
-    for name, wrapper in wrappers.items():
-        # generate contacts for the base of this object
-        base_contacts = wrapper.base_contact_points(name)
-
-        # if the object has a parent, we need to add the parent info to the
-        # contact points as well
-        if wrapper.parent_name is not None:
-            parent = wrappers[wrapper.parent_name]
-            wrapper.update_parent_contact_points(parent, base_contacts)
-
-        contacts.extend(base_contacts)
-
-    # find the direct children of each object
-    for name, wrapper in wrappers.items():
-        if wrapper.parent_name is not None:
-            wrappers[wrapper.parent_name].children.append(name)
-
-    # convert wrappers to BoundedBalancedObjects as required by the controller
-    # and compose them as needed
-    composites = {}
-    for name, wrapper in wrappers.items():
-        # all descendants compose the new object (descendants include the
-        # current object)
-        descendants = []
-        descendant_names = [name]
-        queue = deque([wrapper])
-        while len(queue) > 0:
-            desc_wrapper = queue.popleft()
-            descendants.append(desc_wrapper.bounded_balanced_object())
-            for child_name in desc_wrapper.children:
-                queue.append(wrappers[child_name])
-                descendant_names.append(child_name)
-
-        # new name includes names of all component objects
-        composite_name = "_".join(descendant_names)
-
-        # descendants have already been converted to C++ objects
-        composites[composite_name] = compose_bounded_objects(descendants)
-
-    return composites, contacts
+    if ctrl_config["balancing"]["use_force_constraints"]:
+        return _parse_objects_with_contacts(wrappers)
+    else:
+        composites = _parse_objects_with_contacts(wrappers)
+        return composites, []

@@ -4,6 +4,8 @@
 
 namespace upright {
 
+const double NEAR_ZERO = 1e-8;
+
 struct BalanceConstraintsEnabled {
     bool normal = true;
     bool friction = true;
@@ -35,7 +37,30 @@ using Vec3 = Eigen::Matrix<Scalar, 3, 1>;
 template <typename Scalar>
 using Mat3 = Eigen::Matrix<Scalar, 3, 3>;
 
-const double NEAR_ZERO = 1e-8;
+template <typename Scalar>
+struct Pose {
+    Mat3<Scalar> orientation;
+    Vec3<Scalar> position;
+};
+
+template <typename Scalar>
+struct Twist {
+    Vec3<Scalar> linear;
+    Vec3<Scalar> angular;
+};
+
+template <typename Scalar>
+struct Wrench {
+    Vec3<Scalar> force;
+    Vec3<Scalar> torque;
+};
+
+template <typename Scalar>
+struct RigidBodyState {
+    Pose<Scalar> pose;
+    Twist<Scalar> velocity;
+    Twist<Scalar> acceleration;
+};
 
 }  // namespace upright
 

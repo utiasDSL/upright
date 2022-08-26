@@ -11,8 +11,11 @@ struct RobotDimensions {
     size_t x; // State dimension
     size_t u; // Input dimension
 
+    // TODO: proposal
+    size_t cmd;  // Number of actuated inputs
+
     // Number of constraint forces. Only relevant if the contact force-based
-    // balancing constraints are used.
+    // balancing constraints are used. Each force has three components.
     size_t f = 0;
 };
 

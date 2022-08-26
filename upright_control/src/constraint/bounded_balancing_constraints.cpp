@@ -1,17 +1,11 @@
 #include <upright_control/types.h>
 #include <upright_core/bounded.h>
 #include <upright_core/contact.h>
+#include <upright_core/contact_constraints.h>
 
 #include "upright_control/constraint/bounded_balancing_constraints.h"
 
 namespace upright {
-
-// Number of constraints per contact. One constraint for the normal force
-// to be non-negative; one for the friction cone.
-const size_t NUM_CONSTRAINTS_PER_CONTACT = 2;
-
-// Three for linear and three for rotation.
-const size_t NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT = 6;
 
 std::ostream& operator<<(std::ostream& out, const BalancingSettings& settings) {
     out << "enabled = " << settings.enabled << std::endl
@@ -94,61 +88,18 @@ ContactForceBalancingConstraints::ContactForceBalancingConstraints(
                "/tmp/ocs2", recompileLibraries, true);
 }
 
-// Compute the a basis for the nullspace of the vector v.
-MatXd null(const Vec3d& v) {
-    Eigen::FullPivLU<MatXd> lu(v.transpose());
-    MatXd N = lu.kernel();
-    N.col(0).normalize();
-    N.col(1).normalize();
-    return N;
-}
-
 VecXad ContactForceBalancingConstraints::constraintFunction(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
     // All forces are expressed in the EE frame
     VecXad forces = input.tail(3 * dims_.f);
 
-    VecXad constraints(num_constraints_);
-    for (int i = 0; i < dims_.f; ++i) {
-        MatXad N = null(settings_.contacts[i].normal)
-                       .template cast<ocs2::ad_scalar_t>();
-
-        // Convert the contact point to AD type
-        ContactPoint<ocs2::ad_scalar_t> contact =
-            settings_.contacts[i].template cast<ocs2::ad_scalar_t>();
-        Vec3ad f = forces.segment(i * 3, 3);
-
-        // Normal force
-        // ocs2::ad_scalar_t fn = f.dot(contact.normal);
-        ocs2::ad_scalar_t f_x = N.col(0).dot(f);
-        ocs2::ad_scalar_t f_y = N.col(1).dot(f);
-        ocs2::ad_scalar_t f_z = contact.normal.dot(f);
-
-        // assume normal is (0, 0, 1)
-        // Vec2ad f_xy = f.head(2);
-        // ocs2::ad_scalar_t fn = f(2);
-
-        // Squared magnitude of tangential force
-        ocs2::ad_scalar_t f_t_squared = f.dot(f) - f_z * f_z;
-
-        // Constrain the normal force to be non-negative
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT) = f_z;
-
-        // Constrain force to lie in friction cone
-        // NOTE: this is not linearized
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) =
-            contact.mu * contact.mu * f_z * f_z - f_t_squared;
-
-        // linearized version
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) = contact.mu * fn -
-        // f_xy(0) - f_xy(1); constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 2) =
-        // contact.mu * fn - f_xy(0) + f_xy(1); constraints(i *
-        // NUM_CONSTRAINTS_PER_CONTACT + 3) = contact.mu * fn + f_xy(0) -
-        // f_xy(1); constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 4) =
-        // contact.mu * fn + f_xy(0) + f_xy(1);
+    std::vector<ContactPoint<ocs2::ad_scalar_t>> ad_contacts;
+    for (auto& contact : settings_.contacts) {
+        ad_contacts.push_back(contact.template cast<ocs2::ad_scalar_t>());
     }
-    return constraints;
+
+    return compute_contact_force_constraints(ad_contacts, forces);
 }
 
 ObjectDynamicsConstraints::ObjectDynamicsConstraints(
@@ -175,83 +126,48 @@ ObjectDynamicsConstraints::ObjectDynamicsConstraints(
                "/tmp/ocs2", recompileLibraries, true);
 }
 
+RigidBodyState<ocs2::ad_scalar_t> get_rigid_body_state(
+    const std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>&
+        kinematics_ptr,
+    const VecXad& state, const VecXad& input) {
+    RigidBodyState<ocs2::ad_scalar_t> X;
+    X.pose.position = kinematics_ptr->getPositionCppAd(state);
+    X.pose.orientation = kinematics_ptr->getOrientationCppAd(state);
+
+    X.velocity.linear = kinematics_ptr->getVelocityCppAd(state, input);
+    X.velocity.angular = kinematics_ptr->getAngularVelocityCppAd(state, input);
+
+    X.acceleration.linear = kinematics_ptr->getAccelerationCppAd(state, input);
+    X.acceleration.angular =
+        kinematics_ptr->getAngularAccelerationCppAd(state, input);
+    return X;
+}
+
 VecXad ObjectDynamicsConstraints::constraintFunction(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
-    Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
-    Vec3ad angular_vel =
-        pinocchioEEKinPtr_->getAngularVelocityCppAd(state, input);
-    Vec3ad angular_acc =
-        pinocchioEEKinPtr_->getAngularAccelerationCppAd(state, input);
-    Vec3ad linear_acc = pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
-
-    Mat3ad C_ew = C_we.transpose();
-    Vec3ad angular_vel_e = C_ew * angular_vel;
-    Vec3ad angular_acc_e = C_ew * angular_acc;
-    Mat3ad ddC_we =
-        rotation_matrix_second_derivative(C_we, angular_vel, angular_acc);
-
     // All forces are expressed in the EE frame
     VecXad forces = input.tail(3 * dims_.f);
 
-    // First we need to compute the total wrench on each object
-    std::map<std::string, Vec3ad> obj_forces;
-    std::map<std::string, Vec3ad> obj_torques;
-    for (int i = 0; i < dims_.f; ++i) {
-        // Convert the contact point to AD type
-        ContactPoint<ocs2::ad_scalar_t> contact =
-            settings_.contacts[i].template cast<ocs2::ad_scalar_t>();
-        Vec3ad f = forces.segment(i * 3, 3);
+    RigidBodyState<ocs2::ad_scalar_t> X =
+        get_rigid_body_state(pinocchioEEKinPtr_, state, input);
 
-        if (obj_forces.find(contact.object1_name) == obj_forces.end()) {
-            // TODO this relies on object frame having same orientation as EE
-            // frame
-            obj_forces[contact.object1_name] = f;
-            obj_torques[contact.object1_name] = contact.r_co_o1.cross(f);
-        } else {
-            obj_forces[contact.object1_name] += f;
-            obj_torques[contact.object1_name] += contact.r_co_o1.cross(f);
-        }
-
-        // For the second object, the forces are negative
-        if (obj_forces.find(contact.object2_name) == obj_forces.end()) {
-            obj_forces[contact.object2_name] = -f;
-            obj_torques[contact.object2_name] = contact.r_co_o2.cross(-f);
-        } else {
-            obj_forces[contact.object2_name] -= f;
-            obj_torques[contact.object2_name] += contact.r_co_o2.cross(-f);
-        }
+    // Convert contact points to AD type
+    std::vector<ContactPoint<ocs2::ad_scalar_t>> ad_contacts;
+    for (const auto& contact : settings_.contacts) {
+        ad_contacts.push_back(contact.template cast<ocs2::ad_scalar_t>());
     }
 
-    // Now we can express the constraint
-    VecXad constraints(num_constraints_);
+    // Convert objects to AD type
+    std::map<std::string, BoundedBalancedObject<ocs2::ad_scalar_t>> ad_objects;
+    for (const auto& kv : settings_.objects) {
+        ad_objects.emplace(kv.first, kv.second.template cast<ocs2::ad_scalar_t>());
+    }
+
     Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
 
-    size_t i = 0;
-    for (const auto& kv : settings_.objects) {
-        auto ad_obj = kv.second.template cast<ocs2::ad_scalar_t>();
-
-        // Linear dynamics (in the inertial/world frame)
-        ocs2::ad_scalar_t m = ad_obj.body.mass_min;
-        Vec3ad total_force = obj_forces[kv.first];
-        Vec3ad desired_force =
-            m * C_ew *
-            (linear_acc + ddC_we * ad_obj.body.com_ellipsoid.center() -
-             ad_gravity);
-        constraints.segment(i * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT, 3) =
-            total_force - desired_force;
-
-        // Rotational dynamics
-        Vec3ad total_torque = obj_torques[kv.first];
-        Mat3ad I_e = m * ad_obj.body.radii_of_gyration_matrix();
-        Vec3ad desired_torque =
-            angular_vel_e.cross(I_e * angular_vel_e) + I_e * angular_acc_e;
-        constraints.segment(i * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT + 3, 3) =
-            total_torque - desired_torque;
-
-        i += 1;
-    }
-    return constraints;
+    return compute_object_dynamics_constraints(ad_objects, ad_contacts, forces,
+                                               X, ad_gravity);
 }
 
 }  // namespace upright

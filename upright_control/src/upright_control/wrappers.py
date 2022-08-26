@@ -179,6 +179,7 @@ class ControllerSettings(bindings.ControllerSettings):
             config["balancing"]["delta"]
         )
 
+        self.balancing_settings.force_weight = config["balancing"]["force_weight"]
         ctrl_objects, contacts = core.parsing.parse_control_objects(config)
         self.balancing_settings.objects = ctrl_objects
         self.balancing_settings.contacts = contacts

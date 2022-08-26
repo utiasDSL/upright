@@ -23,6 +23,9 @@ struct BalancingSettings {
     bool use_force_constraints = false;
     std::vector<ContactPoint<ocs2::scalar_t>> contacts;
 
+    // Weight on the contact forces in the optimization problem
+    ocs2::scalar_t force_weight = 0.01;
+
     ConstraintType constraint_type = ConstraintType::Soft;
     ocs2::scalar_t mu = 1e-2;
     ocs2::scalar_t delta = 1e-3;
