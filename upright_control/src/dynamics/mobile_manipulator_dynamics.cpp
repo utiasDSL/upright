@@ -11,7 +11,7 @@ MobileManipulatorDynamics::MobileManipulatorDynamics(
     const std::string& modelFolder /*= "/tmp/ocs2"*/,
     bool recompileLibraries /*= true*/, bool verbose /*= true*/)
     : dims_(dims), ocs2::SystemDynamicsBaseAD() {
-    initialize(dims.x, dims.u, modelName, modelFolder, recompileLibraries,
+    initialize(dims.ox(), dims.ou(), modelName, modelFolder, recompileLibraries,
                verbose);
 }
 

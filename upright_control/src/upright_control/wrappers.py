@@ -52,7 +52,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
         robot = PinocchioRobot(config=ctrl_config["robot"])
         robot.forward(x0)
         r_ew_w, Q_we = robot.link_pose()
-        u0 = np.zeros(robot.dims.u)
+        u0 = np.zeros(robot.dims.ou)
         return cls.from_config(ctrl_config, r_ew_w, Q_we, u0)
 
     @staticmethod

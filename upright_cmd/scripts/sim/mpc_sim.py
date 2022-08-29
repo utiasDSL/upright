@@ -127,6 +127,8 @@ def main():
 
         sim.robot.command_velocity(v_cmd)
 
+        # IPython.embed()
+
         # TODO more logger reforms to come
         if logger.ready(t):
             # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
@@ -169,21 +171,21 @@ def main():
                 if model.settings.balancing_settings.constraint_type == ctrl.bindings.ConstraintType.Soft:
                     contact_force_constraints = (
                         ctrl_manager.mpc.getSoftStateInputInequalityConstraintValue(
-                            "contact_forces", t, x, u
+                            "contact_forces", t, x, ou
                         )
                     )
                 else:
                     contact_force_constraints = (
                         ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                            "contact_forces", t, x, u
+                            "contact_forces", t, x, ou
                         )
                     )
                 object_dynamics_constraints = (
                     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
-                        "object_dynamics", t, x, u
+                        "object_dynamics", t, x, ou
                     )
                 )
-                logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
+                logger.append("cost", ctrl_manager.mpc.cost(t, x, ou))
 
                 logger.append("contact_force_constraints", contact_force_constraints)
                 logger.append("contact_forces", f)
