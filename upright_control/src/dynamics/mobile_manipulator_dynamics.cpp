@@ -26,7 +26,7 @@ VecXad MobileManipulatorDynamics::systemFlowMap(
     dqdt << C_wb * v_body.head(2), v_body.tail(dims_.v - 2);
 
     VecXad dvdt = state.tail(dims_.v);
-    VecXad dadt = input.head(dims_.v);
+    VecXad dadt = input.head(dims_.u);
     // dvdt(1) = 0;  // nonholonomic
 
     VecXad dxdt(dims_.x);

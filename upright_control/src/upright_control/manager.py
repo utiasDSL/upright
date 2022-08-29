@@ -109,8 +109,8 @@ class ControllerManager:
         self.mpc.reset(self.ref)
 
         self.last_planning_time = -np.infty
-        self.x_opt = np.zeros(self.model.settings.dims.x)
-        self.u_opt = np.zeros(self.model.settings.dims.u)
+        self.x_opt = np.zeros(self.model.settings.dims.ox)
+        self.u_opt = np.zeros(self.model.settings.dims.ou)
 
         # time at which replanning was done
         self.replanning_times = []

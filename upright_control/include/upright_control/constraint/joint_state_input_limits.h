@@ -49,13 +49,13 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
     }
 
     size_t getNumConstraints(ocs2::scalar_t time) const override {
-        return dims_.x + dims_.v;
+        return dims_.x + dims_.u;
     }
 
     VecXd getValue(ocs2::scalar_t time, const VecXd& state, const VecXd& input,
                    const ocs2::PreComputation&) const override {
         VecXd value(getNumConstraints(time));
-        value << state, input.head(dims_.v);
+        value << state, input.head(dims_.u);
         return value;
     }
 
@@ -69,7 +69,7 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
         limits.dfdx.setZero();
         limits.dfdx.topRows(state.rows()).setIdentity();
         limits.dfdu.setZero();
-        limits.dfdu.bottomLeftCorner(dims_.v, dims_.v).setIdentity();
+        limits.dfdu.bottomLeftCorner(dims_.u, dims_.u).setIdentity();
 
         return limits;
     }
@@ -91,17 +91,17 @@ class JointStateInputConstraint final : public ocs2::StateInputConstraint {
                               const VecXd& input_limit_upper)
         : ocs2::StateInputConstraint(ocs2::ConstraintOrder::Linear),
           dims_(dims) {
-        size_t n = 2 * (dims.x + dims.v);
+        size_t n = 2 * (dims.x + dims.u);
         MatXd Ix = MatXd::Identity(dims.x, dims.x);
-        MatXd Iu = MatXd::Identity(dims.v, dims.v);
+        MatXd Iu = MatXd::Identity(dims.u, dims.u);
 
         C_ = MatXd::Zero(n, dims.x);
         C_.topRows(dims.x) = Ix;
         C_.middleRows(dims.x, dims.x) = -Ix;
 
-        D_ = MatXd::Zero(n, dims.u);
-        D_.block(2 * dims.x, 0, dims.v, dims.v) = Iu;
-        D_.bottomLeftCorner(dims.v, dims.v) = -Iu;
+        D_ = MatXd::Zero(n, dims.ou());
+        D_.block(2 * dims.x, 0, dims.u, dims.u) = Iu;
+        D_.bottomLeftCorner(dims.u, dims.u) = -Iu;
 
         e_ = VecXd::Zero(n);
         e_ << -state_limit_lower, state_limit_upper, -input_limit_lower,

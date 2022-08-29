@@ -37,7 +37,7 @@ class BalancingConstraintWrapper {
 
         ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
             interface, *pinocchio_mapping_ptr,
-            {settings.end_effector_link_name}, settings.dims.x, settings.dims.u,
+            {settings.end_effector_link_name}, settings.dims.ox(), settings.dims.ou(),
             "end_effector_kinematics", settings.lib_folder, recompileLibraries,
             false);
 

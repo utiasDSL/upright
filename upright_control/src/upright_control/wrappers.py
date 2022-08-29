@@ -186,8 +186,8 @@ class ControllerSettings(bindings.ControllerSettings):
         self.dims.f = len(contacts)
 
         # inputs are augmented with the contact forces
-        if self.balancing_settings.use_force_constraints:
-            self.dims.u += 3 * self.dims.f
+        # if self.balancing_settings.use_force_constraints:
+        #     self.dims.u += 3 * self.dims.f
 
         self.balancing_settings.constraints_enabled.normal = config["balancing"][
             "enable_normal_constraint"

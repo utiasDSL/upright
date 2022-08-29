@@ -1,5 +1,6 @@
 #include <upright_control/types.h>
 #include <upright_core/bounded.h>
+#include <upright_core/bounded_constraints.h>
 #include <upright_core/contact.h>
 #include <upright_core/contact_constraints.h>
 
@@ -36,7 +37,7 @@ BoundedBalancingConstraints::BoundedBalancingConstraints(
     }
 
     // compile the CppAD library
-    initialize(dims.x, dims.u, 0, "upright_bounded_balancing_constraints",
+    initialize(dims.ox(), dims.ou(), 0, "upright_bounded_balancing_constraints",
                "/tmp/ocs2", recompileLibraries, true);
 
     num_constraints_ = num_balancing_constraints(settings_.objects);
@@ -84,7 +85,7 @@ ContactForceBalancingConstraints::ContactForceBalancingConstraints(
     num_constraints_ = settings_.contacts.size() * NUM_CONSTRAINTS_PER_CONTACT;
 
     // compile the CppAD library
-    initialize(dims.x, dims.u, 0, "upright_contact_force_constraints",
+    initialize(dims.ox(), dims.ou(), 0, "upright_contact_force_constraints",
                "/tmp/ocs2", recompileLibraries, true);
 }
 
@@ -122,7 +123,7 @@ ObjectDynamicsConstraints::ObjectDynamicsConstraints(
         settings_.objects.size() * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT;
 
     // compile the CppAD library
-    initialize(dims.x, dims.u, 0, "upright_object_dynamics_constraints",
+    initialize(dims.ox(), dims.ou(), 0, "upright_object_dynamics_constraints",
                "/tmp/ocs2", recompileLibraries, true);
 }
 
@@ -161,7 +162,8 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     // Convert objects to AD type
     std::map<std::string, BoundedBalancedObject<ocs2::ad_scalar_t>> ad_objects;
     for (const auto& kv : settings_.objects) {
-        ad_objects.emplace(kv.first, kv.second.template cast<ocs2::ad_scalar_t>());
+        ad_objects.emplace(kv.first,
+                           kv.second.template cast<ocs2::ad_scalar_t>());
     }
 
     Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();

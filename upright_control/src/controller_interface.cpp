@@ -176,7 +176,7 @@ void ControllerInterface::loadSettings() {
     problem_.dynamicsPtr = std::move(dynamicsPtr);
 
     // Cost
-    problem_.costPtr->add("stateInputCost",
+    problem_.costPtr->add("state_input_cost",
                           getQuadraticStateInputCost(taskFile));
 
     // Build the end effector kinematics
@@ -193,10 +193,11 @@ void ControllerInterface::loadSettings() {
 
     ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
         *pinocchioInterfacePtr_, *pinocchio_mapping_ptr,
-        {settings_.end_effector_link_name}, settings_.dims.x, settings_.dims.u,
-        "end_effector_kinematics", libraryFolder, recompileLibraries, false);
+        {settings_.end_effector_link_name}, settings_.dims.ox(),
+        settings_.dims.ou(), "end_effector_kinematics", libraryFolder,
+        recompileLibraries, false);
 
-    problem_.stateCostPtr->add("endEffector",
+    problem_.stateCostPtr->add("end_effector_cost",
                                getEndEffectorCost(end_effector_kinematics));
 
     if (settings_.inertial_alignment_settings.enabled) {
@@ -207,14 +208,6 @@ void ControllerInterface::loadSettings() {
         problem_.costPtr->add("inertial_alignment_cost",
                               std::move(inertial_alignment_cost));
     }
-
-    // std::unique_ptr<StateConstraint> inertial_alignment_constraint(
-    //     new InertialAlignmentConstraint(end_effector_kinematics,
-    //     settings_.dims,
-    //                                     true));
-    // problem_.stateEqualityConstraintPtr->add(
-    //     "inertial_alignment_constraint",
-    //     std::move(inertial_alignment_constraint));
 
     /* Constraints */
     if (settings_.limit_constraint_type == ConstraintType::Soft) {
@@ -348,7 +341,8 @@ void ControllerInterface::loadSettings() {
             settings_.operating_times, settings_.operating_states,
             settings_.operating_inputs));
     } else {
-        initializerPtr_.reset(new ocs2::DefaultInitializer(settings_.dims.u));
+        initializerPtr_.reset(
+            new ocs2::DefaultInitializer(settings_.dims.ou()));
     }
 
     // referenceManagerPtr_->setTargetTrajectories(settings_.target_trajectory);
@@ -375,7 +369,7 @@ ControllerInterface::getQuadraticStateInputCost(const std::string& taskFile) {
 
     // augment R with cost on the contact forces
     MatXd Rf = settings_.balancing_settings.force_weight *
-               MatXd::Identity(settings_.dims.u, settings_.dims.u);
+               MatXd::Identity(settings_.dims.ou(), settings_.dims.ou());
     Rf.topLeftCorner(R.rows(), R.cols()) = R;
 
     std::cout << "Q: " << Q << std::endl;
@@ -428,15 +422,15 @@ ControllerInterface::getDynamicObstacleConstraint(
             new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(settings_.dims));
     }
 
-    ocs2::PinocchioEndEffectorKinematicsCppAd eeKinematics(
+    ocs2::PinocchioEndEffectorKinematicsCppAd object_ee_kinematics(
         pinocchioInterface, *pinocchio_mapping_ptr,
-        settings.get_collision_frame_names(), settings_.dims.x,
-        settings_.dims.u, "obstacle_ee_kinematics", libraryFolder,
+        settings.get_collision_frame_names(), settings_.dims.ox(),
+        settings_.dims.ou(), "obstacle_ee_kinematics", libraryFolder,
         recompileLibraries, false);
 
     std::unique_ptr<ocs2::StateConstraint> constraint(
-        new DynamicObstacleConstraint(eeKinematics, *referenceManagerPtr_,
-                                      settings));
+        new DynamicObstacleConstraint(object_ee_kinematics,
+                                      *referenceManagerPtr_, settings));
 
     std::unique_ptr<ocs2::PenaltyBase> penalty(
         new ocs2::RelaxedBarrierPenalty({settings.mu, settings.delta}));
@@ -703,7 +697,7 @@ ControllerInterface::get_soft_joint_state_input_limit_constraint() {
     }
 
     // Input penalty
-    for (int i = 0; i < settings_.dims.v; i++) {
+    for (int i = 0; i < settings_.dims.u; i++) {
         // barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
         //     {input_limit_mu, input_limit_delta}));
         barrierFunction.reset(

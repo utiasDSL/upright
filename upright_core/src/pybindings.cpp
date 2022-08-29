@@ -3,6 +3,7 @@
 #include <pybind11/stl.h>
 
 #include "upright_core/bounded.h"
+#include "upright_core/bounded_constraints.h"
 #include "upright_core/contact.h"
 #include "upright_core/ellipsoid.h"
 #include "upright_core/nominal.h"

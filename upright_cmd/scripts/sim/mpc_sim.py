@@ -98,8 +98,9 @@ def main():
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
         try:
-            xd, u = ctrl_manager.step(t, x_noisy)
-            u_cmd = u[: model.settings.dims.v]
+            xd, ou = ctrl_manager.step(t, x_noisy)
+            u = ou[: model.settings.dims.u]
+            f = ou[model.settings.dims.u:]
         except RuntimeError as e:
             print(e)
             print("exit the interpreter to proceed to plots")
@@ -120,7 +121,7 @@ def main():
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u, sim.timestep)
             v_cmd = Kp @ (qd - q_noisy) + vd
         else:
-            ud = Kp @ (qd - q_noisy) + u_cmd
+            ud = Kp @ (qd - q_noisy) + u
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, ud, sim.timestep)
             v_cmd = v_ff
 
@@ -156,13 +157,10 @@ def main():
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("Q_we_ds", Q_we_d)
 
-            model.update(x, u_cmd)
+            model.update(x, u)
             logger.append("ddC_we_norm", model.ddC_we_norm())
             logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
-
-            # NOTE these can be computed whether the controller is using them
-            # or not
             logger.append("balancing_constraints", model.balancing_constraints())
 
             # TODO eventually it would be nice to also compute this directly
@@ -188,7 +186,7 @@ def main():
                 logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
 
                 logger.append("contact_force_constraints", contact_force_constraints)
-                logger.append("contact_forces", u[model.settings.dims.v:])
+                logger.append("contact_forces", f)
                 logger.append(
                     "object_dynamics_constraints", object_dynamics_constraints
                 )
