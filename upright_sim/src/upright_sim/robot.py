@@ -41,19 +41,21 @@ class NonholonomicBaseMapping:
 class OmnidirectionalBaseMapping:
     @staticmethod
     def forward(q, v):
-        yaw = q[2]
-        C_wb = core.math.rotz(yaw)
-        v_pyb = np.copy(v)
-        v_pyb[:3] = C_wb @ v[:3]
-        return q.copy(), v_pyb
+        # yaw = q[2]
+        # C_wb = core.math.rotz(yaw)
+        # v_pyb = np.copy(v)
+        # v_pyb[:3] = C_wb @ v[:3]
+        # return q.copy(), v_pyb
+        return q.copy(), v.copy()
 
     @staticmethod
     def inverse(q_pyb, v_pyb):
-        yaw = q_pyb[2]
-        C_wb = core.math.rotz(yaw)
-        v = np.copy(v_pyb)
-        v[:3] = C_wb.T @ v_pyb[:3]
-        return q_pyb.copy(), v
+        # yaw = q_pyb[2]
+        # C_wb = core.math.rotz(yaw)
+        # v = np.copy(v_pyb)
+        # v[:3] = C_wb.T @ v_pyb[:3]
+        # return q_pyb.copy(), v
+        return q_pyb.copy(), v_pyb.copy()
 
 
 class PyBulletInputMapping:

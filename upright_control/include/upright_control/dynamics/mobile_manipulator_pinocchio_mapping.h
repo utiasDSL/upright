@@ -66,59 +66,75 @@ class MobileManipulatorPinocchioMapping final
 
     VecXd getPinocchioJointVelocity(const VecXd& state,
                                     const VecXd& input) const override {
-        Mat2<Scalar> C_wb = base_rotation_matrix(state);
+        // Mat2<Scalar> C_wb = base_rotation_matrix(state);
 
         // convert velocity from body frame to world frame
-        VecXd v_body = state.segment(dims_.q, dims_.v);
-        VecXd v_world(dims_.v);
-        v_world << C_wb * v_body.head(2), v_body.tail(dims_.v - 2);
-        return v_world;
+        // VecXd v_body = state.segment(dims_.q, dims_.v);
+        // VecXd v_world(dims_.v);
+        // v_world << C_wb * v_body.head(2), v_body.tail(dims_.v - 2);
+        // return v_world;
+        return state.segment(dims_.q, dims_.v);
     }
 
     VecXd getPinocchioJointAcceleration(const VecXd& state,
                                         const VecXd& input) const override {
-        Mat2<Scalar> C_wb = base_rotation_matrix(state);
+        // Mat2<Scalar> C_wb = base_rotation_matrix(state);
 
         // convert acceleration from body frame to world frame
-        VecXd a_body = state.tail(dims_.v);
-        VecXd a_world(dims_.v);
-        a_world << C_wb * a_body.head(2), a_body.tail(dims_.v - 2);
-        return a_world;
+        // VecXd a_body = state.tail(dims_.v);
+        // VecXd a_world(dims_.v);
+        // a_world << C_wb * a_body.head(2), a_body.tail(dims_.v - 2);
+        // return a_world;
+        return state.tail(dims_.v);
     }
 
-    // NOTE: maps the Jacobians of an arbitrary function f w.r.t q and v
-    // (generalized positions and velocities), as provided by Pinocchio as Jq
-    // and Jv, to the Jacobian of the state dfdx and Jacobian of the input
-    // dfdu.
-    std::pair<MatXd, MatXd> getOcs2Jacobian(const VecXd& state, const MatXd& Jq_pin,
-                                            const MatXd& Jv_pin) const override {
-        // Jacobian of Pinocchio joint velocities v_pin w.r.t. actual state
-        // velocities v
-        Mat2<Scalar> C_wb = base_rotation_matrix(state);
-        MatXd dv_pin_dv = MatXd::Identity(dims_.v, dims_.v);
-        dv_pin_dv.template topLeftCorner<2, 2>() = C_wb;
+    // // NOTE: maps the Jacobians of an arbitrary function f w.r.t q and v
+    // // (generalized positions and velocities), as provided by Pinocchio as Jq
+    // // and Jv, to the Jacobian of the state dfdx and Jacobian of the input
+    // // dfdu.
+    // std::pair<MatXd, MatXd> getOcs2Jacobian(const VecXd& state, const MatXd& Jq_pin,
+    //                                         const MatXd& Jv_pin) const override {
+    //     // Jacobian of Pinocchio joint velocities v_pin w.r.t. actual state
+    //     // velocities v
+    //     Mat2<Scalar> C_wb = base_rotation_matrix(state);
+    //     MatXd dv_pin_dv = MatXd::Identity(dims_.v, dims_.v);
+    //     dv_pin_dv.template topLeftCorner<2, 2>() = C_wb;
+    //
+    //     const auto nf = Jq_pin.rows();
+    //
+    //     // MatXd dq_pin_dq = MatXd::Zero(dims_.q + 1, dims_.q);
+    //     // dq_pin_dq.template topLeftCorner<2, 2>() = MatXd::Identity(2, 2);
+    //     // dq_pin_dq(2, 2) = -sin(state(2));
+    //     // dq_pin_dq(3, 2) = cos(state(2));
+    //     // dq_pin_dq.template bottomRightCorner<6, 6>() = MatXd::Identity(6, 6);
+    //
+    //     MatXd Jq = Jq_pin;
+    //     // MatXd Jq = Jq_pin * dq_pin_dq;
+    //     MatXd Jv = Jv_pin * dv_pin_dv;
+    //     MatXd Ja = MatXd::Zero(nf, Jv.cols());
+    //
+    //     // State Jacobian
+    //     MatXd dfdx(nf, Jq.cols() + Jv.cols() + Ja.cols());
+    //     dfdx << Jq, Jv, Ja;
+    //
+    //     // Input Jacobian
+    //     // NOTE: this isn't used for collision avoidance (which is the only
+    //     // place this method is called)
+    //     MatXd dfdu = MatXd::Zero(nf, dims_.u);
+    //
+    //     return {dfdx, dfdu};
+    // }
 
-        const auto nf = Jq_pin.rows();
+    std::pair<MatXd, MatXd> getOcs2Jacobian(const VecXd& state, const MatXd& Jq,
+                                            const MatXd& Jv) const override {
+        const auto output_dim = Jq.rows();
+        MatXd dfdx(output_dim, Jq.cols() + Jv.cols() + dims_.v);
+        dfdx << Jq, Jv, MatXd::Zero(output_dim, dims_.v);
 
-        // MatXd dq_pin_dq = MatXd::Zero(dims_.q + 1, dims_.q);
-        // dq_pin_dq.template topLeftCorner<2, 2>() = MatXd::Identity(2, 2);
-        // dq_pin_dq(2, 2) = -sin(state(2));
-        // dq_pin_dq(3, 2) = cos(state(2));
-        // dq_pin_dq.template bottomRightCorner<6, 6>() = MatXd::Identity(6, 6);
-
-        MatXd Jq = Jq_pin;
-        // MatXd Jq = Jq_pin * dq_pin_dq;
-        MatXd Jv = Jv_pin * dv_pin_dv;
-        MatXd Ja = MatXd::Zero(nf, Jv.cols());
-
-        // State Jacobian
-        MatXd dfdx(nf, Jq.cols() + Jv.cols() + Ja.cols());
-        dfdx << Jq, Jv, Ja;
-
-        // Input Jacobian
         // NOTE: this isn't used for collision avoidance (which is the only
         // place this method is called)
-        MatXd dfdu = MatXd::Zero(nf, dims_.u);
+        MatXd dfdu(output_dim, dims_.u);
+        dfdu.setZero();
 
         return {dfdx, dfdu};
     }

@@ -18,16 +18,16 @@ MobileManipulatorDynamics::MobileManipulatorDynamics(
 VecXad MobileManipulatorDynamics::systemFlowMap(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
-    Mat2ad C_wb = base_rotation_matrix(state);
+    // Mat2ad C_wb = base_rotation_matrix(state);
 
     // convert base velocity from body frame to world frame
-    VecXad v_body = state.segment(dims_.q, dims_.v);
-    VecXad dqdt(dims_.q);
-    dqdt << C_wb * v_body.head(2), v_body.tail(dims_.v - 2);
+    // VecXad v_body = state.segment(dims_.q, dims_.v);
+    // VecXad dqdt(dims_.q);
+    // dqdt << C_wb * v_body.head(2), v_body.tail(dims_.v - 2);
 
+    VecXad dqdt = state.segment(dims_.q, dims_.v);
     VecXad dvdt = state.tail(dims_.v);
     VecXad dadt = input.head(dims_.u);
-    // dvdt(1) = 0;  // nonholonomic
 
     VecXad dxdt(dims_.x);
     dxdt << dqdt, dvdt, dadt;
