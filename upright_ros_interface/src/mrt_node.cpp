@@ -66,7 +66,16 @@ int main(int argc, char** argv) {
 
     // nominal initial state and interface to the real robot
     VecXd x0 = interface.getInitialState();
-    mm::UR10ROSInterface robot(nh);
+
+    // Initialize the robot interface
+    std::unique_ptr<mm::RobotROSInterface> robot_ptr;
+    if (settings.robot_base_type == RobotBaseType::Fixed) {
+        robot_ptr.reset(new mm::UR10ROSInterface(nh));
+    } else if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
+        robot_ptr.reset(new mm::MobileManipulatorROSInterface(nh));
+    } else {
+        throw std::runtime_error("Unsupported base type.");
+    }
 
     ocs2::scalar_t timestep = 1.0 / settings.rate;
     ros::Rate rate(settings.rate);
@@ -74,7 +83,7 @@ int main(int argc, char** argv) {
     // wait until we get feedback from the robot
     while (ros::ok() && ros::master::check()) {
         ros::spinOnce();
-        if (robot.ready()) {
+        if (robot_ptr->ready()) {
             break;
         }
         rate.sleep();
@@ -82,11 +91,11 @@ int main(int argc, char** argv) {
     std::cout << "Received feedback from robot." << std::endl;
 
     // update to the real initial state
-    x0.head(settings.dims.q) = robot.q();
+    x0.head(settings.dims.q) = robot_ptr->q();
 
     ocs2::SystemObservation initial_observation;
     initial_observation.state = x0;
-    initial_observation.input.setZero(settings.dims.u);
+    initial_observation.input.setZero(settings.dims.ou());
     initial_observation.time = ros::Time::now().toSec();
 
     // reset MPC
@@ -109,7 +118,7 @@ int main(int argc, char** argv) {
 
     VecXd x = x0;
     VecXd xd = VecXd::Zero(x.size());
-    VecXd u = VecXd::Zero(settings.dims.u);
+    VecXd ou = VecXd::Zero(settings.dims.ou());
     size_t mode = 0;
     ocs2::SystemObservation observation = initial_observation;
 
@@ -118,7 +127,7 @@ int main(int argc, char** argv) {
 
     ros::Time now = ros::Time::now();
     ros::Time last_policy_update_time = now;
-    ros::Duration policy_update_delay(0.05);
+    ros::Duration policy_update_delay(0.05); // TODO note
 
     ocs2::scalar_t t = now.toSec();
     ocs2::scalar_t last_t = t;
@@ -130,13 +139,13 @@ int main(int argc, char** argv) {
         ocs2::scalar_t dt = t - last_t;
 
         // Robot feedback
-        VecXd q = robot.q();
+        VecXd q = robot_ptr->q();
         // VecXd v = robot.get_joint_velocity_raw();
 
         // Integrate our internal model to get velocity and acceleration
         // "feedback"
-        VecXd u_cmd = u.head(settings.dims.v);
-        std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u_cmd, dt);
+        VecXd u = ou.head(settings.dims.u);
+        std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u, dt);
 
         // Current state is built from robot feedback for q and v; for
         // acceleration we just assume we are tracking well since we don't get
@@ -147,7 +156,7 @@ int main(int argc, char** argv) {
         x.tail(settings.dims.v) = a_ff;  // xd.tail(settings.dims.v);
 
         // Compute optimal state and input using current policy
-        mrt.evaluatePolicy(t, x, xd, u, mode);
+        mrt.evaluatePolicy(t, x, xd, ou, mode);
 
         // Check that the cntroller has provided sane values.
         if (((xd - settings.state_limit_lower).array() < 0).any()) {
@@ -158,11 +167,11 @@ int main(int argc, char** argv) {
             std::cout << "State violated upper limits!" << std::endl;
             break;
         }
-        if (((u_cmd - settings.input_limit_lower).array() < 0).any()) {
+        if (((u - settings.input_limit_lower).array() < 0).any()) {
             std::cout << "Input violated lower limits!" << std::endl;
             break;
         }
-        if (((settings.input_limit_upper - u_cmd).array() < 0).any()) {
+        if (((settings.input_limit_upper - u).array() < 0).any()) {
             std::cout << "Input violated upper limits!" << std::endl;
             break;
         }
@@ -174,15 +183,15 @@ int main(int argc, char** argv) {
         // VecXd v_cmd = v_ff;
         // TODO: experimental
         if (ros::isShuttingDown()) {
-            robot.brake();
+            robot_ptr->brake();
         } else {
-            robot.publish_cmd_vel(v_ff);
+            robot_ptr->publish_cmd_vel(v_ff);
         }
 
         // Send observation to MPC
         observation.time = t;
         observation.state = x;
-        observation.input = u;
+        observation.input = ou;
         mrt.setCurrentObservation(observation);
 
         ros::spinOnce();
@@ -200,7 +209,7 @@ int main(int argc, char** argv) {
     // stop the robot when we're done
     // NOTE: doesn't really work because we can't publish after the node is
     // shutdown
-    robot.brake();
+    robot_ptr->brake();
 
     // Successful exit
     return 0;

@@ -21,7 +21,7 @@ import upright_core as core
 import upright_control as ctrl
 import upright_cmd as cmd
 
-from mobile_manipulation_central import SimulatedUR10ROSInterface
+from mobile_manipulation_central import SimulatedUR10ROSInterface, SimulatedMobileManipulatorROSInterface
 
 import IPython
 
@@ -78,7 +78,12 @@ def main():
 
     # setup the ROS interface
     rospy.init_node("mpc_sim_ros")
-    ros_interface = SimulatedUR10ROSInterface()
+    if model.settings.robot_base_type == ctrl.bindings.RobotBaseType.Fixed:
+        ros_interface = SimulatedUR10ROSInterface()
+    elif model.settings.robot_base_type == ctrl.bindings.RobotBaseType.Omnidirectional:
+        ros_interface = SimulatedMobileManipulatorROSInterface()
+    else:
+        raise ValueError("Unsupported robot base type.")
     ros_interface.publish_time(t)
 
     # wait until a command has been received
