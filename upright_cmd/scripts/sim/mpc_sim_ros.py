@@ -104,7 +104,9 @@ def main():
     while not rospy.is_shutdown() and t - t0 <= sim.duration:
         q, v = sim.robot.joint_states(add_noise=True)
         ros_interface.publish_feedback(t, q, v)
-        sim.robot.command_velocity(ros_interface.cmd_vel)
+
+        # command are always in the body frame (to match the real robot)
+        sim.robot.command_velocity(ros_interface.cmd_vel, bodyframe=True)
 
         if logger.ready(t):
             x = np.concatenate((q, v, a))
@@ -119,7 +121,7 @@ def main():
             logger.append("Q_wes", Q_we)
             logger.append("v_ew_ws", v_ew_w)
             logger.append("ω_ew_ws", ω_ew_w)
-            logger.append("cmd_vels", sim.robot.cmd_vel.copy())
+            logger.append("cmd_vels", ros_interface.cmd_vel)
             logger.append("r_ow_ws", r_ow_ws)
             logger.append("Q_wos", Q_wos)
 

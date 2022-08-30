@@ -125,9 +125,7 @@ def main():
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, ud, sim.timestep)
             v_cmd = v_ff
 
-        sim.robot.command_velocity(v_cmd)
-
-        # IPython.embed()
+        sim.robot.command_velocity(v_cmd, bodyframe=False)
 
         # TODO more logger reforms to come
         if logger.ready(t):
@@ -150,7 +148,7 @@ def main():
             logger.append("Q_wes", Q_we)
             logger.append("v_ew_ws", v_ew_w)
             logger.append("ω_ew_ws", ω_ew_w)
-            logger.append("cmd_vels", sim.robot.cmd_vel.copy())
+            logger.append("cmd_vels", v_cmd)
             logger.append("r_ow_ws", r_ow_ws)
             logger.append("Q_wos", Q_wos)
 

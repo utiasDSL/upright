@@ -69,6 +69,13 @@ objects:
     side_lengths: [0.08, 0.08, 0.15]
     color: [1, 0, 0, 1]
 
+  bottle:
+    shape: "cuboid"
+    mass: 0.5
+    mu: 0.25
+    side_lengths: [0.065, 0.065, 0.15]
+    color: [0, 0, 1, 1]
+
   box2:
     shape: "cuboid"
     mass: 0.5

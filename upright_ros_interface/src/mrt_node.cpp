@@ -185,7 +185,7 @@ int main(int argc, char** argv) {
         if (ros::isShuttingDown()) {
             robot_ptr->brake();
         } else {
-            robot_ptr->publish_cmd_vel(v_ff);
+            robot_ptr->publish_cmd_vel(v_ff, /* bodyframe = */ false);
         }
 
         // Send observation to MPC

@@ -184,7 +184,7 @@ objects:
       min: 1.0
       max: 1.0
     com:
-      height: 0.0
+      height: 0.025
       half_lengths: [0.0, 0.0, 0.0]
     radii_of_gyration:
       use_exact:
@@ -196,6 +196,24 @@ objects:
       lx: 0.1
       ly: 0.1
     height: 0.05
+
+  bottle:
+    mass:
+      min: 0.5
+      max: 0.5
+    com:
+      height: 0.075
+      half_lengths: [0, 0, 0]  # these are for the uncertainty
+    radii_of_gyration:
+      use_exact:
+        shape: cuboid
+        side_lengths: [0.065, 0.065, 0.15]
+    mu_min: 0.25
+    support_area:
+      shape: rect
+      lx: 0.065
+      ly: 0.065
+    height: 0.15
 
   tall_box:
     mass:

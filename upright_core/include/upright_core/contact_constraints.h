@@ -35,7 +35,7 @@ VecX<Scalar> compute_contact_force_constraints(
         constraints(i * NUM_CONSTRAINTS_PER_CONTACT) = f_n;
 
         // non-linear exact version of friction cone
-        constraints(i * 2 + 1) =
+        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) =
             contact.mu * contact.mu * f_n * f_n - f_t_squared;
 
         // linearized version
