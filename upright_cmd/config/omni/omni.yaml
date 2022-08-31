@@ -73,11 +73,11 @@ controller:
       upper: [20, 20, 20, 80, 80, 80, 80, 80, 80]
     state:
       lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
-              -0.5rep9,
-              -2rep9]
+              -1rep9,
+              -2rep3, -8rep6]
       upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
-              0.5rep9,
-              2rep9]
+              1rep9,
+              2rep3, 8rep6]
 
   # state and input limits
   # limits:

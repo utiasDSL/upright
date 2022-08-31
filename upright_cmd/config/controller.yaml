@@ -208,7 +208,7 @@ objects:
       use_exact:
         shape: cuboid
         side_lengths: [0.065, 0.065, 0.15]
-    mu_min: 0.25
+    mu_min: 0.15
     support_area:
       shape: rect
       lx: 0.065

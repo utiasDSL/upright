@@ -165,7 +165,7 @@ class SimulatedRobot:
             targetVelocities=list(v_pyb),
         )
 
-    def joint_states(self, add_noise=False):
+    def joint_states(self, add_noise=False, bodyframe=False):
         """Get the current state of the joints.
 
         Return a tuple (q, v), where q is the n-dim array of positions and v is
@@ -176,7 +176,7 @@ class SimulatedRobot:
         v_pyb = np.array([state[1] for state in states])
 
         # convert from PyBullet coordinates
-        q, v = self.pyb_mapping.inverse(q_pyb, v_pyb)
+        q, v = self.pyb_mapping.inverse(q_pyb, v_pyb, bodyframe=bodyframe)
 
         if add_noise:
             q += np.random.normal(scale=self.q_meas_std_dev, size=q.shape)

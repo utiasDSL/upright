@@ -102,13 +102,18 @@ def main():
 
     # simulation loop
     while not rospy.is_shutdown() and t - t0 <= sim.duration:
-        q, v = sim.robot.joint_states(add_noise=True)
+        # feedback is in the world frame
+        v_prev = v
+        q, v = sim.robot.joint_states(add_noise=True, bodyframe=False)
         ros_interface.publish_feedback(t, q, v)
 
-        # command are always in the body frame (to match the real robot)
+        # commands are always in the body frame (to match the real robot)
         sim.robot.command_velocity(ros_interface.cmd_vel, bodyframe=True)
 
         if logger.ready(t):
+            # NOTE: we can try to approximate acceleration using finite
+            # differences, but it is extremely inaccurate
+            # a = (v - v_prev) / sim.timestep
             x = np.concatenate((q, v, a))
 
             # log sim stuff
@@ -130,11 +135,15 @@ def main():
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("Q_we_ds", Q_we_d)
 
+            # NOTE: not accurate due to lack of acceleration info
             model.update(x)
             logger.append("ddC_we_norm", model.ddC_we_norm())
             logger.append("balancing_constraints", model.balancing_constraints())
             logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
+
+            # if (model.balancing_constraints() < -0.1).any():
+            #     IPython.embed()
 
         t = sim.step(t, step_robot=False)
         ros_interface.publish_time(t)

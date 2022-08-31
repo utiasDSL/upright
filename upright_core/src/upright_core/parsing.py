@@ -405,5 +405,5 @@ def parse_control_objects(ctrl_config):
     if ctrl_config["balancing"]["use_force_constraints"]:
         return _parse_objects_with_contacts(wrappers)
     else:
-        composites = _parse_objects_with_contacts(wrappers)
+        composites = _parse_composite_objects(wrappers)
         return composites, []

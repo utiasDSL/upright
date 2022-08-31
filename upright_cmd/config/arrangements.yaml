@@ -27,7 +27,7 @@ arrangements:
       type: bottle
       offset:
         x: 0.1
-        y: 0.1
+        y: 0.07
 
   # one:
   #   -

@@ -72,7 +72,7 @@ objects:
   bottle:
     shape: "cuboid"
     mass: 0.5
-    mu: 0.25
+    mu: 0.15
     side_lengths: [0.065, 0.065, 0.15]
     color: [0, 0, 1, 1]
 

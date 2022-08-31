@@ -11,7 +11,7 @@ namespace upright {
 
 // Number of constraints per contact. One constraint for the normal force
 // to be non-negative; one for the friction cone.
-const size_t NUM_CONSTRAINTS_PER_CONTACT = 2;
+const size_t NUM_CONSTRAINTS_PER_CONTACT = 5;
 
 // Three for linear and three for rotation.
 const size_t NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT = 6;
@@ -19,7 +19,7 @@ const size_t NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT = 6;
 template <typename Scalar>
 VecX<Scalar> compute_contact_force_constraints(
     const std::vector<ContactPoint<Scalar>>& contacts,
-    const VecX<Scalar> forces) {
+    const VecX<Scalar>& forces) {
     VecX<Scalar> constraints(contacts.size() * NUM_CONSTRAINTS_PER_CONTACT);
     for (int i = 0; i < contacts.size(); ++i) {
         auto& contact = contacts[i];
@@ -34,20 +34,20 @@ VecX<Scalar> compute_contact_force_constraints(
         // constrain the normal force to be non-negative
         constraints(i * NUM_CONSTRAINTS_PER_CONTACT) = f_n;
 
-        // non-linear exact version of friction cone
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) =
-            contact.mu * contact.mu * f_n * f_n - f_t_squared;
+        // non-linear exact version of Coulomb friction cone
+        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) =
+        //     contact.mu * contact.mu * f_n * f_n - f_t_squared;
 
         // linearized version
-        // Vec2<Scalar> f_xy = f.head(2);
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) =
-        //     contact.mu * f_n - f_xy(0) - f_xy(1);
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 2) =
-        //     contact.mu * f_n - f_xy(0) + f_xy(1);
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 3) =
-        //     contact.mu * f_n + f_xy(0) - f_xy(1);
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 4) =
-        //     contact.mu * f_n + f_xy(0) + f_xy(1);
+        Vec2<Scalar> f_xy = f.head(2);
+        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) =
+            contact.mu * f_n - f_xy(0) - f_xy(1);
+        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 2) =
+            contact.mu * f_n - f_xy(0) + f_xy(1);
+        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 3) =
+            contact.mu * f_n + f_xy(0) - f_xy(1);
+        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 4) =
+            contact.mu * f_n + f_xy(0) + f_xy(1);
     }
     return constraints;
 }
@@ -80,7 +80,7 @@ Wrench<Scalar> compute_object_dynamics_constraint(
 template <typename Scalar>
 std::map<std::string, Wrench<Scalar>> compute_object_wrenches(
     const std::vector<ContactPoint<Scalar>>& contacts,
-    const VecX<Scalar> forces) {
+    const VecX<Scalar>& forces) {
     std::map<std::string, Wrench<Scalar>> object_wrenches;
     for (int i = 0; i < contacts.size(); ++i) {
         auto& contact = contacts[i];
