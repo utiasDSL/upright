@@ -82,7 +82,8 @@ ContactForceBalancingConstraints::ContactForceBalancingConstraints(
 
     // Important: this needs to come before the call to initialize, because it
     // is used in the constraintFunction which is called therein
-    num_constraints_ = settings_.contacts.size() * NUM_CONSTRAINTS_PER_CONTACT;
+    num_constraints_ = settings_.contacts.size() *
+                       NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT;
 
     // compile the CppAD library
     initialize(dims.ox(), dims.ou(), 0, "upright_contact_force_constraints",
@@ -100,7 +101,7 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
         ad_contacts.push_back(contact.template cast<ocs2::ad_scalar_t>());
     }
 
-    return compute_contact_force_constraints(ad_contacts, forces);
+    return compute_contact_force_constraints_linearized(ad_contacts, forces);
 }
 
 ObjectDynamicsConstraints::ObjectDynamicsConstraints(

@@ -9,9 +9,12 @@
 
 namespace upright {
 
-// Number of constraints per contact. One constraint for the normal force
-// to be non-negative; one for the friction cone.
-const size_t NUM_CONSTRAINTS_PER_CONTACT = 5;
+// Number of friction cone constraints per contact. One constraint for the
+// normal force to be non-negative; one for the friction cone.
+const size_t NUM_FRICTION_CONSTRAINTS_PER_CONTACT = 2;
+
+// Or we can linear the friction cone
+const size_t NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT = 5;
 
 // Three for linear and three for rotation.
 const size_t NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT = 6;
@@ -20,7 +23,9 @@ template <typename Scalar>
 VecX<Scalar> compute_contact_force_constraints(
     const std::vector<ContactPoint<Scalar>>& contacts,
     const VecX<Scalar>& forces) {
-    VecX<Scalar> constraints(contacts.size() * NUM_CONSTRAINTS_PER_CONTACT);
+    const size_t n = NUM_FRICTION_CONSTRAINTS_PER_CONTACT;
+    VecX<Scalar> constraints(contacts.size() * n);
+
     for (int i = 0; i < contacts.size(); ++i) {
         auto& contact = contacts[i];
         Vec3<Scalar> f = forces.segment(i * 3, 3);
@@ -32,22 +37,42 @@ VecX<Scalar> compute_contact_force_constraints(
         Scalar f_t_squared = f.dot(f) - f_n * f_n;
 
         // constrain the normal force to be non-negative
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT) = f_n;
+        constraints(i * n) = f_n;
 
         // non-linear exact version of Coulomb friction cone
-        // constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) =
-        //     contact.mu * contact.mu * f_n * f_n - f_t_squared;
+        constraints(i * n + 1) =
+            contact.mu * contact.mu * f_n * f_n - f_t_squared;
+    }
+    return constraints;
+}
+
+template <typename Scalar>
+VecX<Scalar> compute_contact_force_constraints_linearized(
+    const std::vector<ContactPoint<Scalar>>& contacts,
+    const VecX<Scalar>& forces) {
+    const size_t n = NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT;
+    VecX<Scalar> constraints(contacts.size() * n);
+
+    for (int i = 0; i < contacts.size(); ++i) {
+        auto& contact = contacts[i];
+        Vec3<Scalar> f = forces.segment(i * 3, 3);
+
+        // normal force
+        Scalar f_n = contact.normal.dot(f);
+
+        // tangential force is obtained by projecting onto the nullspace of the
+        // normal vector
+        MatX<Scalar> N = null(contact.normal);
+        VecX<Scalar> f_t = N.transpose() * f;
+
+        // constrain the normal force to be non-negative
+        constraints(i * n) = f_n;
 
         // linearized version
-        Vec2<Scalar> f_xy = f.head(2);
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 1) =
-            contact.mu * f_n - f_xy(0) - f_xy(1);
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 2) =
-            contact.mu * f_n - f_xy(0) + f_xy(1);
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 3) =
-            contact.mu * f_n + f_xy(0) - f_xy(1);
-        constraints(i * NUM_CONSTRAINTS_PER_CONTACT + 4) =
-            contact.mu * f_n + f_xy(0) + f_xy(1);
+        constraints(i * n + 1) = contact.mu * f_n - f_t(0) - f_t(1);
+        constraints(i * n + 2) = contact.mu * f_n - f_t(0) + f_t(1);
+        constraints(i * n + 3) = contact.mu * f_n + f_t(0) - f_t(1);
+        constraints(i * n + 4) = contact.mu * f_n + f_t(0) + f_t(1);
     }
     return constraints;
 }
@@ -58,10 +83,10 @@ Wrench<Scalar> compute_object_dynamics_constraint(
     const RigidBodyState<Scalar>& state, const Vec3<Scalar>& gravity) {
     Scalar m = object.body.mass_min;
     Mat3<Scalar> C_ew = state.pose.orientation.transpose();
-    Vec3<Scalar> inertial_force =
+    Vec3<Scalar> gravito_inertial_force =
         m * C_ew *
         (state.acceleration.linear +
-         dC_dtt(state) * object.body.com_ellipsoid.center());
+         dC_dtt(state) * object.body.com_ellipsoid.center() - gravity);
 
     Vec3<Scalar> angular_vel_e = C_ew * state.velocity.angular;
     Vec3<Scalar> angular_acc_e = C_ew * state.acceleration.angular;
@@ -70,7 +95,7 @@ Wrench<Scalar> compute_object_dynamics_constraint(
         angular_vel_e.cross(I_e * angular_vel_e) + I_e * angular_acc_e;
 
     Wrench<Scalar> constraints;
-    constraints.force = inertial_force - m * gravity - wrench.force;
+    constraints.force = gravito_inertial_force - wrench.force;
     constraints.torque = inertial_torque - wrench.torque;
     return constraints;
 }
