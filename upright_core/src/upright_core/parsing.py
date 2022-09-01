@@ -152,10 +152,13 @@ def parse_and_compile_urdf(d, max_runs=10):
     doc = xacro.parse(s)
     s1 = doc.toxml()
 
+    # xacro args
+    mappings = d["args"] if "args" in d else {}
+
     # keep processing until a fixed point is reached
     run = 1
     while run < max_runs:
-        xacro.process_doc(doc)
+        xacro.process_doc(doc, mappings=mappings)
         s2 = doc.toxml()
         if s1 == s2:
             break

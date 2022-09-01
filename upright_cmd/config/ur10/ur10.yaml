@@ -30,7 +30,9 @@ simulation:
         - "$(find upright_assets)/thing/xacro/cartesian_base_joints.urdf.xacro"
         - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
         - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
-        - "$(find upright_assets)/thing/xacro/collision/visual_collision_links.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/collision_links.urdf.xacro"
+      args:
+        use_collision: "false"
 
 controller:
   # robot parameters
@@ -49,7 +51,9 @@ controller:
       includes:
         - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
         - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
-        - "$(find upright_assets)/thing/xacro/collision/collision_links.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/collision_links.urdf.xacro"
+      args:
+        use_collision: "true"
     tool_link_name: "gripped_object"
     base_type: fixed
 
