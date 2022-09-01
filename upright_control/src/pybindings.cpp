@@ -17,7 +17,7 @@
 #include <upright_control/dynamics/base_type.h>
 #include <upright_control/dynamics/dimensions.h>
 #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
-#include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
+#include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
 
 using namespace upright;
 using namespace ocs2;  // TODO perhaps avoid using
@@ -57,26 +57,27 @@ PYBIND11_MODULE(bindings, m) {
             &FixedBasePinocchioMapping<scalar_t>::getPinocchioJointAcceleration,
             "state"_a, "input"_a);
 
-    pybind11::class_<MobileManipulatorPinocchioMapping<scalar_t>>(
+    pybind11::class_<OmnidirectionalPinocchioMapping<scalar_t>>(
         m, "OmnidirectionalPinocchioMapping")
         .def(pybind11::init<const RobotDimensions &>(), "dims")
         .def("get_pinocchio_joint_position",
-             &MobileManipulatorPinocchioMapping<
+             &OmnidirectionalPinocchioMapping<
                  scalar_t>::getPinocchioJointPosition,
              "state"_a)
         .def("get_pinocchio_joint_velocity",
-             &MobileManipulatorPinocchioMapping<
+             &OmnidirectionalPinocchioMapping<
                  scalar_t>::getPinocchioJointVelocity,
              "state"_a, "input"_a)
         .def("get_pinocchio_joint_acceleration",
-             &MobileManipulatorPinocchioMapping<
+             &OmnidirectionalPinocchioMapping<
                  scalar_t>::getPinocchioJointAcceleration,
              "state"_a, "input"_a);
 
     pybind11::class_<BalancingSettings>(m, "BalancingSettings")
         .def(pybind11::init<>())
         .def_readwrite("enabled", &BalancingSettings::enabled)
-        .def_readwrite("use_force_constraints", &BalancingSettings::use_force_constraints)
+        .def_readwrite("use_force_constraints",
+                       &BalancingSettings::use_force_constraints)
         .def_readwrite("constraints_enabled",
                        &BalancingSettings::constraints_enabled)
         .def_readwrite("objects", &BalancingSettings::objects)
@@ -386,14 +387,15 @@ PYBIND11_MODULE(bindings, m) {
              &ControllerPythonInterface::getStateInputInequalityConstraintValue,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("getSoftStateInputInequalityConstraintValue",
-             &ControllerPythonInterface::getSoftStateInputInequalityConstraintValue,
+             &ControllerPythonInterface::
+                 getSoftStateInputInequalityConstraintValue,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("getStateInequalityConstraintValue",
-             &ControllerPythonInterface::getStateInequalityConstraintValue, "name"_a,
-             "t"_a, "x"_a.noconvert())
+             &ControllerPythonInterface::getStateInequalityConstraintValue,
+             "name"_a, "t"_a, "x"_a.noconvert())
         .def("getSoftStateInequalityConstraintValue",
-             &ControllerPythonInterface::getSoftStateInequalityConstraintValue, "name"_a,
-             "t"_a, "x"_a.noconvert())
+             &ControllerPythonInterface::getSoftStateInequalityConstraintValue,
+             "name"_a, "t"_a, "x"_a.noconvert())
 
         .def("visualizeTrajectory",
              &ControllerPythonInterface::visualizeTrajectory, "t"_a.noconvert(),

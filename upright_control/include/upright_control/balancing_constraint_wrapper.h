@@ -10,7 +10,7 @@
 #include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/controller_interface.h>
 #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
-#include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
+#include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
 
 namespace upright {
 
@@ -25,7 +25,7 @@ class BalancingConstraintWrapper {
             pinocchio_mapping_ptr;
         if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
             pinocchio_mapping_ptr.reset(
-                new MobileManipulatorPinocchioMapping<ocs2::ad_scalar_t>(
+                new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
                     settings.dims));
         } else {
             pinocchio_mapping_ptr.reset(

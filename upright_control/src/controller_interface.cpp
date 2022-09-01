@@ -65,8 +65,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <upright_control/dynamics/base_type.h>
 #include <upright_control/dynamics/fixed_base_dynamics.h>
 #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
-#include <upright_control/dynamics/mobile_manipulator_dynamics.h>
-#include <upright_control/dynamics/mobile_manipulator_pinocchio_mapping.h>
+#include <upright_control/dynamics/omnidirectional_dynamics.h>
+#include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
 
 #include "upright_control/controller_interface.h"
 
@@ -154,7 +154,7 @@ void ControllerInterface::loadSettings() {
     // Dynamics
     std::unique_ptr<ocs2::SystemDynamicsBase> dynamicsPtr;
     if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
-        dynamicsPtr.reset(new MobileManipulatorDynamics(
+        dynamicsPtr.reset(new OmnidirectionalDynamics(
             "robot_dynamics", settings_.dims, libraryFolder, recompileLibraries,
             true));
     } else {
@@ -184,7 +184,7 @@ void ControllerInterface::loadSettings() {
         pinocchio_mapping_ptr;
     if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
         pinocchio_mapping_ptr.reset(
-            new MobileManipulatorPinocchioMapping<ocs2::ad_scalar_t>(
+            new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
                 settings_.dims));
     } else {
         pinocchio_mapping_ptr.reset(
@@ -415,7 +415,7 @@ ControllerInterface::getDynamicObstacleConstraint(
         pinocchio_mapping_ptr;
     if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
         pinocchio_mapping_ptr.reset(
-            new MobileManipulatorPinocchioMapping<ocs2::ad_scalar_t>(
+            new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
                 settings_.dims));
     } else {
         pinocchio_mapping_ptr.reset(
@@ -611,7 +611,7 @@ ControllerInterface::get_static_obstacle_constraint(
         pinocchio_mapping_ptr;
     if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
         pinocchio_mapping_ptr.reset(
-            new MobileManipulatorPinocchioMapping<ocs2::scalar_t>(
+            new OmnidirectionalPinocchioMapping<ocs2::scalar_t>(
                 settings_.dims));
     } else {
         pinocchio_mapping_ptr.reset(

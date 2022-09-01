@@ -84,10 +84,11 @@ link_directories(
   ${pinocchio_LIBRARY_DIRS}
 )
 
-# mobile maniulator interface library
+# upright_control interface library
 add_library(${PROJECT_NAME}
-  src/dynamics/mobile_manipulator_dynamics.cpp
+  src/dynamics/omnidirectional_dynamics.cpp
   src/dynamics/fixed_base_dynamics.cpp
+  src/dynamics/nonholonomic_dynamics.cpp
   src/controller_interface.cpp
   src/constraint/bounded_balancing_constraints.cpp
 )
