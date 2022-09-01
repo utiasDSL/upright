@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="obstacles" xmlns:xacro="http://wiki.ros.org/xacro">
+  <material name="red">
+    <color rgba="1.0 0.0 0.0 1.0"/>
+  </material>
+
+  <!-- It is convenient to use a macro to avoid mismatches accidental between visual and collision geometry -->
+  <xacro:macro name="obstacle_link" params="name material *origin *geometry">
+    <link name="${name}">
+      <collision>
+        <xacro:insert_block name="origin" />
+        <xacro:insert_block name="geometry" />
+      </collision>
+      <visual>
+        <xacro:insert_block name="origin" />
+        <xacro:insert_block name="geometry" />
+        <material name="${material}"/>
+      </visual>
+    </link>
+  </xacro:macro>
+
+  <link name="obstacle_base_link"></link>
+
+  <xacro:obstacle_link name="sphere1_link" material="red">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <geometry>
+      <sphere radius="0.5"/>
+    </geometry>
+  </xacro:obstacle_link>
+  <joint name="table1_link_joint" type="fixed">
+    <parent link="obstacle_base_link"/>
+    <child link="sphere1_link"/>
+    <origin rpy="0 0 0" xyz="1.5 1.0 0.375"/>
+  </joint>
+
+</robot>

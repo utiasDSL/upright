@@ -125,6 +125,7 @@ def main():
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, ud, sim.timestep)
             v_cmd = v_ff
 
+        print(v_cmd)
         sim.robot.command_velocity(v_cmd, bodyframe=False)
 
         # TODO more logger reforms to come

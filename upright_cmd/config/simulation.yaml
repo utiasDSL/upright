@@ -14,7 +14,7 @@ arrangement: nothing
 
 video:
   save_frames: true
-  dir: "/media/adam/Data/PhD/Videos/tray-balance/"
+  dir: "/media/adam/Data/PhD/Videos/upright/"
   timestep: 0.040
   views:
     -
@@ -22,12 +22,12 @@ video:
       name: view1
 
 static_obstacles:
-  enabled: false
+  enabled: true
   urdf:
     package: "upright_assets"
     path: "thing/urdf/obstacles.urdf"
     includes:
-      - "$(find upright_assets)/thing/xacro/obstacles.urdf.xacro"
+      - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
 
 dynamic_obstacles:
   enabled: false
