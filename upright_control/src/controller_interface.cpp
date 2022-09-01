@@ -51,6 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_pinocchio_interface/urdf.h>
+#include <ocs2_self_collision/SelfCollisionConstraint.h>
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 #include <ocs2_sqp/MultipleShootingMpc.h>
 #include <ocs2_sqp/MultipleShootingSettings.h>
@@ -624,6 +625,11 @@ ControllerInterface::get_static_obstacle_constraint(
             std::move(geometryInterface), settings.minimum_distance,
             "static_obstacle_avoidance", libraryFolder, recompileLibraries,
             false));
+    // TODO need precomp for this apparently
+    // return std::unique_ptr<ocs2::StateConstraint>(
+    //     new ocs2::SelfCollisionConstraint(*pinocchio_mapping_ptr,
+    //                                            std::move(geometryInterface),
+    //                                            settings.minimum_distance));
 }
 
 std::unique_ptr<ocs2::StateCost>

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
+import argparse
 import numpy as np
-import sys
 
 import upright_core as core
 import upright_control as ctrl
@@ -12,9 +12,17 @@ def main():
     np.random.seed(0)
     np.set_printoptions(precision=3, suppress=True)
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config", help="Path to YAML config file.")
+    # parser.add_argument(
+    #     "--visualize",
+    #     help="Visualize the scene in meshcat",
+    #     action="store_true",
+    # )
+    args = parser.parse_args()
+
     # get config path from command line argument
-    config_path = sys.argv[1]
-    config = core.parsing.load_config(config_path)["controller"]
+    config = core.parsing.load_config(args.config)["controller"]
     model = ctrl.manager.ControllerModel.from_config(config)
     robot = model.robot
 
@@ -30,6 +38,7 @@ def main():
 
     # compute distances between collision pairs
     dists = geom.compute_distances()
+    print(f"Collision distances = {dists}")
 
     # visualize the robot
     q = x[:robot.dims.q]

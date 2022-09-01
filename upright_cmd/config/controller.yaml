@@ -113,7 +113,7 @@ static_obstacles:
     # # - ["elbow_collision_link_0", "chair2_1_link_0"]
 
   # extra margin between objects
-  minimum_distance: 0
+  minimum_distance: 0.0
 
   # relaxed barrier function parameters
   mu: 1e-2

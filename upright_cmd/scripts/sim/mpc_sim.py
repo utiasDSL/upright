@@ -100,7 +100,7 @@ def main():
         try:
             xd, ou = ctrl_manager.step(t, x_noisy)
             u = ou[: model.settings.dims.u]
-            f = ou[model.settings.dims.u:]
+            f = ou[model.settings.dims.u :]
         except RuntimeError as e:
             print(e)
             print("exit the interpreter to proceed to plots")
@@ -125,7 +125,6 @@ def main():
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, ud, sim.timestep)
             v_cmd = v_ff
 
-        print(v_cmd)
         sim.robot.command_velocity(v_cmd, bodyframe=False)
 
         # TODO more logger reforms to come
@@ -164,10 +163,31 @@ def main():
             logger.append("orn_err", model.angle_between_acc_and_normal())
             logger.append("balancing_constraints", model.balancing_constraints())
 
+            if model.settings.static_obstacle_settings.enabled:
+                if (
+                    model.settings.static_obstacle_settings.constraint_type
+                    == ctrl.bindings.ConstraintType.Soft
+                ):
+                    static_obs_constraints = (
+                        ctrl_manager.mpc.getSoftStateInequalityConstraintValue(
+                            "static_obstacle_avoidance", t, x
+                        )
+                    )
+                else:
+                    static_obs_constraints = (
+                        ctrl_manager.mpc.getStateInputInequalityConstraintValue(
+                            "static_obstacle_avoidance", t, x, ou
+                        )
+                    )
+                logger.append("collision_pair_distances", static_obs_constraints)
+
             # TODO eventually it would be nice to also compute this directly
             # via the core library
             if model.is_using_force_constraints():
-                if model.settings.balancing_settings.constraint_type == ctrl.bindings.ConstraintType.Soft:
+                if (
+                    model.settings.balancing_settings.constraint_type
+                    == ctrl.bindings.ConstraintType.Soft
+                ):
                     contact_force_constraints = (
                         ctrl_manager.mpc.getSoftStateInputInequalityConstraintValue(
                             "contact_forces", t, x, ou
