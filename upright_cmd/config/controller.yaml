@@ -62,6 +62,8 @@ static_obstacles:
     # wrist and sphere
     # - ["wrist_collision_link_0", "sphere1_link_0"]
 
+    - ["base_collision_link_0", "sphere1_link_0"]
+
     # balanced objects and sphere
     - ["balanced_object_collision_link_0", "sphere1_link_0"]
 
@@ -113,7 +115,9 @@ static_obstacles:
     # # - ["elbow_collision_link_0", "chair2_1_link_0"]
 
   # extra margin between objects
-  minimum_distance: 0.0
+  # Important: this needs to be > 0 for the resulting constraint to be
+  # differentiable
+  minimum_distance: 0.01
 
   # relaxed barrier function parameters
   mu: 1e-2

@@ -549,7 +549,7 @@ ControllerInterface::get_soft_contact_force_constraint(
 
 std::unique_ptr<ocs2::StateConstraint>
 ControllerInterface::get_static_obstacle_constraint(
-    ocs2::PinocchioInterface pinocchioInterface,
+    ocs2::PinocchioInterface& pinocchioInterface,
     const StaticObstacleSettings& settings,
     const std::string& obstacle_urdf_path, bool usePreComputation,
     const std::string& libraryFolder, bool recompileLibraries) {
@@ -562,7 +562,12 @@ ControllerInterface::get_static_obstacle_constraint(
         build_geometry_model(obstacle_urdf_path);
     geometryInterface.addGeometryObjects(obs_geom_model);
 
-    ocs2::PinocchioInterface::Model model = pinocchioInterface.getModel();
+    const auto& model = pinocchioInterface.getModel();
+    auto& data = pinocchioInterface.getData();
+    // const auto q = pinocchioMapping_.getPinocchioJointPosition(x);
+    // pinocchio::forwardKinematics(model, data, q);
+    // pinocchio::updateFramePlacements(model, data);
+
     Mat3d R = Mat3d::Identity();
 
     std::cerr << "Number of extra collision spheres = "

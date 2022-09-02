@@ -105,7 +105,7 @@ class ControllerInterface final : public ocs2::RobotInterface {
 
     // Hard static obstacle avoidance constraint.
     std::unique_ptr<ocs2::StateConstraint> get_static_obstacle_constraint(
-        ocs2::PinocchioInterface pinocchioInterface,
+        ocs2::PinocchioInterface& pinocchioInterface,
         const StaticObstacleSettings& settings,
         const std::string& obstacle_urdf_path, bool useCaching,
         const std::string& libraryFolder, bool recompileLibraries);

@@ -17,7 +17,8 @@ class StateToStateInputConstraint final : public ocs2::StateInputConstraint {
 
     ~StateToStateInputConstraint() override = default;
 
-    StateToStateInputConstraint(const StateToStateInputConstraint& other) = default;
+    StateToStateInputConstraint(const StateToStateInputConstraint& other) =
+        default;
 
     StateToStateInputConstraint* clone() const override {
         return new StateToStateInputConstraint(*constraint_ptr_);
@@ -35,7 +36,8 @@ class StateToStateInputConstraint final : public ocs2::StateInputConstraint {
     ocs2::VectorFunctionLinearApproximation getLinearApproximation(
         ocs2::scalar_t time, const VecXd& state, const VecXd& input,
         const ocs2::PreComputation& preComp) const override {
-        ocs2::VectorFunctionLinearApproximation approx = constraint_ptr_->getLinearApproximation(time, state, preComp);
+        ocs2::VectorFunctionLinearApproximation approx =
+            constraint_ptr_->getLinearApproximation(time, state, preComp);
         approx.dfdu.setZero(approx.dfdx.rows(), input.rows());
         return approx;
     }
