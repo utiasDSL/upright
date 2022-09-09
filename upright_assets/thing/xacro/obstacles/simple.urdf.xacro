@@ -4,33 +4,40 @@
     <color rgba="1.0 0.0 0.0 1.0"/>
   </material>
 
-  <!-- It is convenient to use a macro to avoid mismatches accidental between visual and collision geometry -->
+  <!-- It is convenient to use a macro to avoid accidental mismatches between visual and collision geometry -->
   <xacro:macro name="obstacle_link" params="name material *origin *geometry">
     <link name="${name}">
       <collision>
-        <xacro:insert_block name="origin" />
+        <origin rpy="0 0 0" xyz="0 0 0"/>
         <xacro:insert_block name="geometry" />
       </collision>
       <visual>
-        <xacro:insert_block name="origin" />
+        <origin rpy="0 0 0" xyz="0 0 0"/>
         <xacro:insert_block name="geometry" />
         <material name="${material}"/>
       </visual>
     </link>
+    <joint name="${name}_joint" type="fixed">
+      <parent link="obstacle_base_link"/>
+      <child link="${name}"/>
+      <xacro:insert_block name="origin" />
+    </joint>
   </xacro:macro>
 
   <link name="obstacle_base_link"></link>
 
   <xacro:obstacle_link name="sphere1_link" material="red">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 0 0" xyz="1.5 0.75 0.25"/>
     <geometry>
-      <sphere radius="0.5"/>
+      <sphere radius="0.25"/>
     </geometry>
   </xacro:obstacle_link>
-  <joint name="table1_link_joint" type="fixed">
-    <parent link="obstacle_base_link"/>
-    <child link="sphere1_link"/>
-    <origin rpy="0 0 0" xyz="1.5 1.0 0.375"/>
-  </joint>
+
+  <xacro:obstacle_link name="sphere2_link" material="red">
+    <origin rpy="0 0 0" xyz="1.5 0.75 0.75"/>
+    <geometry>
+      <sphere radius="0.25"/>
+    </geometry>
+  </xacro:obstacle_link>
 
 </robot>

@@ -4,7 +4,7 @@ include:
     path: config/arrangements.yaml
   -
     package: upright_cmd
-    path: config/cameras.yaml
+    path: config/simulation/cameras.yaml
 
 # all times are in seconds
 timestep: 0.001

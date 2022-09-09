@@ -44,34 +44,34 @@ controller:
     #   time: 0
     #   position: [6.0, 0, 0]
     #   orientation: [0, 0, 0, 1]
-    # -
-    #   time: 0
-    #   position: [0.0, 0, 0]
-    #   orientation: [0, 0, 0, 1]
-    # -
-    #   time: 2
-    #   position: [1.0, 0, 0]
-    #   orientation: [0, 0, 0, 1]
-    # -
-    #   time: 4
-    #   position: [2.0, 0, 0]
-    #   orientation: [0, 0, 0, 1]
-    # -
-    #   time: 6
-    #   position: [3.0, 0, 0]
-    #   orientation: [0, 0, 0, 1]
-    # -
-    #   time: 8
-    #   position: [4.0, 0, 0]
-    #   orientation: [0, 0, 0, 1]
-    # -
-    #   time: 10
-    #   position: [5.0, 0, 0]
-    #   orientation: [0, 0, 0, 1]
-    # -
-    #   time: 12
-    #   position: [6.0, 0, 0]
-    #   orientation: [0, 0, 0, 1]
+  #   -
+  #     time: 0
+  #     position: [0.0, 0, 0]
+  #     orientation: [0, 0, 0, 1]
+  #   -
+  #     time: 2
+  #     position: [1.0, 0, 0]
+  #     orientation: [0, 0, 0, 1]
+  #   -
+  #     time: 4
+  #     position: [2.0, 0, 0]
+  #     orientation: [0, 0, 0, 1]
+  #   -
+  #     time: 6
+  #     position: [3.0, 0, 0]
+  #     orientation: [0, 0, 0, 1]
+  #   -
+  #     time: 8
+  #     position: [4.0, 0, 0]
+  #     orientation: [0, 0, 0, 1]
+  #   -
+  #     time: 10
+  #     position: [5.0, 0, 0]
+  #     orientation: [0, 0, 0, 1]
+  #   -
+  #     time: 12
+  #     position: [6.0, 0, 0]
+  #     orientation: [0, 0, 0, 1]
 
   operating_points:
     enabled: false
