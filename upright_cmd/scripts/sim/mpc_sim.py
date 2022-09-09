@@ -35,6 +35,7 @@ def main():
 
     # settle sim to make sure everything is touching comfortably
     sim.settle(5.0)
+    sim.launch_dynamic_obstacles(offset=sim.robot.link_pose()[0])
 
     # initial time, state, input
     t = 0.0

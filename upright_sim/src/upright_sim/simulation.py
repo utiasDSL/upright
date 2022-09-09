@@ -104,6 +104,27 @@ class BulletBody:
         )
 
     @staticmethod
+    def sphere(mass, mu, radius, com_offset=None, color=(0, 0, 1, 1)):
+        """Construct a cylinder object."""
+        collision_uid = pyb.createCollisionShape(
+            shapeType=pyb.GEOM_SPHERE,
+            radius=radius,
+        )
+        visual_uid = pyb.createVisualShape(
+            shapeType=pyb.GEOM_SPHERE,
+            radius=radius,
+            rgbaColor=color,
+        )
+        return BulletBody(
+            mass=mass,
+            mu=mu,
+            height=2 * radius,
+            collision_uid=collision_uid,
+            visual_uid=visual_uid,
+            com_offset=com_offset,
+        )
+
+    @staticmethod
     def fromdict(d):
         """Construct the object from a dictionary."""
         com_offset = np.array(d["com_offset"]) if "com_offset" in d else np.zeros(3)
@@ -128,79 +149,60 @@ class BulletBody:
             raise ValueError(f"Unrecognized object shape {d['shape']}")
 
 
-# TODO replace below dynamic obstacle implementation with this one
 class BulletDynamicObstacle:
-    def __init__(self, initial_position, radius=0.1, velocity=None):
-        self.initial_position = initial_position
-        self.velocity = velocity if velocity is not None else np.zeros(3)
+    def __init__(
+        self, position, velocity, acceleration=None, radius=0.1, controlled=False
+    ):
+        self.r0 = np.array(position)
+        self.v0 = np.array(velocity)
+        self.a0 = np.array(acceleration) if acceleration is not None else np.zeros(3)
 
-        self.body = BulletBody.sphere(radius)
-        self.body.add_to_sim()
+        self.controlled = controlled
+        self.K = np.eye(3)  # position gain
 
-        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.velocity))
+        self.body = BulletBody.sphere(mass=1, mu=1, radius=radius)
+        self.body.add_to_sim(position)
 
-    def sample_position(self, t):
-        """Sample the position of the object at a given time."""
-        # assume constant velocity
-        return self.initial_position + t * self.velocity
+        # self.reset_velocity(velocity)
+        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
 
-    def reset_pose(self, position=None, orientation=None):
-        self.body.reset_pose(position=position, orientation=orientation)
+    @classmethod
+    def from_config(cls, config, offset=None):
+        """Parse obstacle properties from a config dict."""
+        position = np.array(config["position"])
+        if offset is not None:
+            position = position + offset
 
-    def reset_velocity(self, v):
-        self.velocity = v
-        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(v))
+        velocity = np.array(config["velocity"])
+        acceleration = (
+            np.array(config["acceleration"]) if "acceleration" in config else None
+        )
 
-    def step(self):
+        return cls(
+            position=position,
+            velocity=velocity,
+            acceleration=acceleration,
+            radius=config["radius"],
+            controlled=config["controlled"],
+        )
+
+    def _desired_state(self, t):
+        rd = self.r0 + t * self.v0 + 0.5 * t ** 2 * self.a0
+        vd = self.v0 + t * self.a0
+        return rd, vd
+
+    def step(self, t):
+        """Step the object forward in time."""
         # velocity needs to be reset at each step of the simulation to negate
         # the effects of gravity
-        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.velocity))
+        if self.controlled:
+            rd, vd = self._desired_state(t)
+            r, _ = self.body.get_pose()
+            cmd_vel = self.K @ (rd - r) + vd
+            pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(cmd_vel))
 
 
-class DynamicObstacle:
-    def __init__(self, initial_position, radius=0.1, velocity=None):
-        collision_uid = pyb.createCollisionShape(
-            shapeType=pyb.GEOM_SPHERE,
-            radius=radius,
-        )
-        visual_uid = pyb.createVisualShape(
-            shapeType=pyb.GEOM_SPHERE,
-            radius=radius,
-            rgbaColor=(1, 0, 0, 1),
-        )
-        self.uid = pyb.createMultiBody(
-            baseMass=0.1,
-            baseCollisionShapeIndex=collision_uid,
-            baseVisualShapeIndex=visual_uid,
-            basePosition=list(initial_position),
-            baseOrientation=(0, 0, 0, 1),
-        )
-        self.initial_position = initial_position
-
-        self.velocity = velocity
-        if self.velocity is None:
-            self.velocity = np.zeros(3)
-        pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
-
-    def sample_position(self, t):
-        """Sample the position of the object at a given time."""
-        # assume constant velocity
-        return self.initial_position + t * self.velocity
-
-    def reset_pose(self, r, Q):
-        pyb.resetBasePositionAndOrientation(self.uid, list(r), list(Q))
-
-    def reset_velocity(self, v):
-        self.velocity = v
-        pyb.resetBaseVelocity(self.uid, linearVelocity=list(v))
-
-    def step(self):
-        # velocity needs to be reset at each step of the simulation to negate
-        # the effects of gravity
-        pyb.resetBaseVelocity(self.uid, linearVelocity=list(self.velocity))
-
-
-def sim_object_setup(r_ew_w, config):
+def balanced_object_setup(r_ew_w, config):
     arrangement_name = config["arrangement"]
     arrangement = config["arrangements"][arrangement_name]
     object_configs = config["objects"]
@@ -241,7 +243,8 @@ def sim_object_setup(r_ew_w, config):
 
 class BulletSimulation:
     def __init__(self, config, timestamp, cli_args):
-        # convert milliseconds to seconds
+        self.config = config
+
         self.timestep = config["timestep"]
         self.duration = config["duration"]
 
@@ -278,7 +281,7 @@ class BulletSimulation:
 
         # setup balanced objects
         r_ew_w, Q_we = self.robot.link_pose()
-        self.objects = sim_object_setup(r_ew_w, config)
+        self.objects = balanced_object_setup(r_ew_w, config)
 
         # mark frame at the initial position
         debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
@@ -312,9 +315,16 @@ class BulletSimulation:
         Useful to let objects settle to rest before applying control.
         """
         t = 0
-        while t < 1.0:
+        while t < duration:
             pyb.stepSimulation()
             t += self.timestep
+
+    def launch_dynamic_obstacles(self, offset=None):
+        self.dynamic_obstacles = []
+        if self.config["dynamic_obstacles"]["enabled"]:
+            for c in self.config["dynamic_obstacles"]["obstacles"]:
+                obstacle = BulletDynamicObstacle.from_config(c, offset=offset)
+                self.dynamic_obstacles.append(obstacle)
 
     def step(self, t, step_robot=True):
         """Step the simulation forward one timestep."""
@@ -323,6 +333,8 @@ class BulletSimulation:
 
         for ghost in self.ghosts:
             ghost.update()
+        for obstacle in self.dynamic_obstacles:
+            obstacle.step(t)
 
         self.video_manager.record(t)
 
