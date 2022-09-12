@@ -28,13 +28,21 @@ class TargetTrajectories(bindings.TargetTrajectories):
         ts = []
         xs = []
         us = []
+
+        if config["dynamic_obstacles"]["enabled"]:
+            r0 = config["dynamic_obstacles"]["position"]
+            v0 = config["dynamic_obstacles"]["velocity"]
+            a0 = config["dynamic_obstacles"]["acceleration"]
+            x_obs = np.concatenate((r0, v0, a0))
+        else:
+            x_obs = np.zeros(9)
+
         for waypoint in config["waypoints"]:
             t = waypoint["time"]
 
             r_ew_w_d = r_ew_w + waypoint["position"]
             Q_we_d = core.math.quat_multiply(Q_we, waypoint["orientation"])
-            r_obs = np.zeros(3)
-            x = np.concatenate((r_ew_w_d, Q_we_d, r_obs))
+            x = np.concatenate((r_ew_w_d, Q_we_d, x_obs))
 
             ts.append(t)
             us.append(np.copy(u))
@@ -235,11 +243,13 @@ class ControllerSettings(bindings.ControllerSettings):
         )
 
         # dynamic obstacle settings
-        self.dynamic_obstacle_settings.enabled = False
-        self.dynamic_obstacle_settings.obstacle_radius = 0.1
-        self.dynamic_obstacle_settings.mu = 1e-2
-        self.dynamic_obstacle_settings.delta = 1e-3
+        self.dynamic_obstacle_settings.enabled = config["dynamic_obstacles"]["enabled"]
+        if self.dynamic_obstacle_settings.enabled:
+            self.dynamic_obstacle_settings.obstacle_radius = config["dynamic_obstacles"]["radius"]
+            self.dynamic_obstacle_settings.mu = 1e-2
+            self.dynamic_obstacle_settings.delta = 1e-3
 
+        # TODO not happy about this
         for sphere in [
             bindings.CollisionSphere(
                 name="elbow_collision_link",

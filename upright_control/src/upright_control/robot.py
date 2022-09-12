@@ -260,19 +260,3 @@ class PinocchioRobot:
             pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
         )
         return dAdq, dAdv, dAda
-
-    # TODO need to update these methods from previous iteration of the model
-    # def tangent(self, x, u):
-    #     """Tangent vector dx = f(x, u)."""
-    #     B = block_diag(rot2d(x[2], np=jnp), jnp.eye(7))
-    #     return jnp.concatenate((x[self.ni :], B @ u))
-    #
-    # def simulate(self, x, u):
-    #     """Forward simulate the model."""
-    #     # TODO not sure if I can somehow use RK4 for part and not for
-    #     # all---we'd have to split base and arm
-    #     k1 = self.tangent(x, u)
-    #     k2 = self.tangent(x + self.dt * k1 / 2, u)
-    #     k3 = self.tangent(x + self.dt * k2 / 2, u)
-    #     k4 = self.tangent(x + self.dt * k3, u)
-    #     return x + self.dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6

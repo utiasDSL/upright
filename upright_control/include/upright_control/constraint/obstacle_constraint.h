@@ -36,8 +36,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
-#include <upright_control/reference_trajectory.h>
 #include <upright_control/constraint/constraint_type.h>
+#include <upright_control/reference_trajectory.h>
 #include <upright_control/types.h>
 
 namespace upright {
@@ -121,12 +121,6 @@ class DynamicObstacleConstraint final : public ocs2::StateConstraint {
           endEffectorKinematicsPtr_(endEffectorKinematics.clone()),
           referenceManagerPtr_(&referenceManager),
           settings_(settings) {
-        // if (endEffectorKinematics.getIds().size() !=
-        //     settings_.collision_sphere_radii.size()) {
-        //     throw std::runtime_error(
-        //         "[DynamicObstacleConstraint] Number of collision sphere radii
-        //         " "must match number of end effector IDs.");
-        // }
         pinocchioEEKinPtr_ =
             dynamic_cast<ocs2::PinocchioEndEffectorKinematics*>(
                 endEffectorKinematicsPtr_.get());

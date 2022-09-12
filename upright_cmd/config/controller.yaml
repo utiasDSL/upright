@@ -59,7 +59,11 @@ static_obstacles:
   delta: 1e-3
 
 dynamic_obstacles:
-  enabled: false
+  enabled: true
+  position: [0, -1, 0]
+  velocity: [0, 1, 2]
+  acceleration: [0, 0, -2]
+  radius: 0.1
 
 infofile:
   package: "upright_control"

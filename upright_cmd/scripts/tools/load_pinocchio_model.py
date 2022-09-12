@@ -1,11 +1,40 @@
 #!/usr/bin/env python3
 import argparse
 import numpy as np
+import pinocchio
+import hppfcl as fcl
 
 import upright_core as core
 import upright_control as ctrl
 
 import IPython
+
+
+def obstacle_model():
+    model = pinocchio.Model()
+    model.name = "obstacle"
+    geom_model = pinocchio.GeometryModel()
+
+    # free-floating joint
+    joint_name = "obstacle_joint"
+    joint_placement = pinocchio.SE3.Identity()
+    joint_id = model.addJoint(0, pinocchio.JointModelTranslation(), joint_placement, joint_name)
+
+    # body
+    mass = 1.0
+    radius = 0.1
+    inertia = pinocchio.Inertia.FromSphere(mass, radius)
+    body_placement = pinocchio.SE3.Identity()
+    model.appendBodyToJoint(joint_id, inertia, body_placement)
+
+    # visual model
+    geom_name = "obstacle"
+    shape = fcl.Sphere(radius)
+    geom_obj = pinocchio.GeometryObject(geom_name, joint_id, shape, body_placement)
+    geom_obj.meshColor = np.ones((4))
+    geom_model.addGeometryObject(geom_obj)
+
+    return model, geom_model
 
 
 def main():
@@ -14,11 +43,6 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("config", help="Path to YAML config file.")
-    # parser.add_argument(
-    #     "--visualize",
-    #     help="Visualize the scene in meshcat",
-    #     action="store_true",
-    # )
     args = parser.parse_args()
 
     # get config path from command line argument
@@ -26,7 +50,22 @@ def main():
     model = ctrl.manager.ControllerModel.from_config(config)
     robot = model.robot
 
-    x = model.settings.initial_state
+    obs_model, obs_geom_model = obstacle_model()
+    new_model = pinocchio.appendModel(
+        robot.model,
+        obs_model,
+        # geom.visual_model,
+        # obs_geom_model,
+        0,
+        pinocchio.SE3.Identity(),
+    )
+    IPython.embed()
+    # robot.model = new_model
+    # robot.dims.x += 9
+    # robot.dims.q += 3
+    # robot.dims.v += 3
+
+    x = np.concatenate((model.settings.initial_state, np.zeros(9)))
     u = np.zeros(robot.dims.u)
 
     # create geometry interface
@@ -41,7 +80,7 @@ def main():
     print(f"Collision distances = {dists}")
 
     # visualize the robot
-    q = x[:robot.dims.q]
+    q = x[: robot.dims.q]
     viz = geom.visualize(q)
 
     # forward kinematics (position, velocity, acceleration)
