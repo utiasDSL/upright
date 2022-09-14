@@ -6,7 +6,7 @@
 
 #include <upright_control/cost/inertial_alignment_cost.h>
 #include <upright_control/dynamics/base_type.h>
-#include <upright_control/dynamics/dimensions.h>
+#include <upright_control/dimensions.h>
 #include <upright_control/constraint/constraint_type.h>
 #include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/constraint/obstacle_constraint.h>
@@ -67,7 +67,7 @@ struct ControllerSettings {
 
     // Robot settings
     RobotBaseType robot_base_type = RobotBaseType::Fixed;
-    RobotDimensions dims;
+    OptimizationDimensions dims;
     std::string end_effector_link_name;
 
     // Additional settings for constraints

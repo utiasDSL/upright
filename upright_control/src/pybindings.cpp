@@ -15,7 +15,7 @@
 #include <upright_control/controller_python_interface.h>
 #include <upright_control/controller_settings.h>
 #include <upright_control/dynamics/base_type.h>
-#include <upright_control/dynamics/dimensions.h>
+#include <upright_control/dimensions.h>
 #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
 #include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
 
@@ -133,10 +133,17 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("q", &RobotDimensions::q)
         .def_readwrite("v", &RobotDimensions::v)
         .def_readwrite("x", &RobotDimensions::x)
-        .def_readwrite("u", &RobotDimensions::u)
-        .def_readwrite("f", &RobotDimensions::f)
-        .def_property_readonly("ox", &RobotDimensions::ox)
-        .def_property_readonly("ou", &RobotDimensions::ou);
+        .def_readwrite("u", &RobotDimensions::u);
+
+    pybind11::class_<OptimizationDimensions>(m, "OptimizationDimensions")
+        .def(pybind11::init<>())
+        .def("push_back", &OptimizationDimensions::push_back)
+        .def("set_num_contacts", &OptimizationDimensions::set_num_contacts)
+        .def("q", &OptimizationDimensions::q)
+        .def("v", &OptimizationDimensions::v)
+        .def("x", &OptimizationDimensions::x)
+        .def("u", &OptimizationDimensions::u)
+        .def("f", &OptimizationDimensions::f);
 
     pybind11::enum_<RobotBaseType>(m, "RobotBaseType")
         .value("Fixed", RobotBaseType::Fixed)

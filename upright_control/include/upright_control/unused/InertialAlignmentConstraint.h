@@ -10,7 +10,7 @@
 
 #include <upright_core/bounded.h>
 
-#include <upright_control/dynamics/Dimensions.h>
+#include <upright_control/dimensions.h>
 
 namespace ocs2 {
 namespace mobile_manipulator {
