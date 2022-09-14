@@ -26,7 +26,7 @@
   <xacro:collision_link name="balanced_object_collision_link">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <geometry>
-      <sphere radius="0.2"/>
+      <sphere radius="0.21"/>
     </geometry>
   </xacro:collision_link>
   <joint name="balanced_object_collision_joint" type="fixed">
@@ -75,17 +75,29 @@
     <child link="elbow_collision_link"/>
   </joint>
 
-  <!-- Collision sphere for the wrist -->
-  <xacro:collision_link name="wrist_collision_link">
+  <xacro:collision_link name="wrist1_collision_link">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <geometry>
       <sphere radius="0.15"/>
     </geometry>
   </xacro:collision_link>
-  <joint name="wrist_collision_joint" type="fixed">
+  <joint name="wrist1_collision_joint" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 -0.05"/>
+    <parent link="ur10_arm_wrist_1_link"/>
+    <child link="wrist1_collision_link"/>
+  </joint>
+
+  <!-- Collision sphere for the wrist -->
+  <xacro:collision_link name="wrist3_collision_link">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <geometry>
+      <sphere radius="0.15"/>
+    </geometry>
+  </xacro:collision_link>
+  <joint name="wrist3_collision_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="ur10_arm_wrist_3_link"/>
-    <child link="wrist_collision_link"/>
+    <child link="wrist3_collision_link"/>
   </joint>
 
   <!-- Collision rectangle for the base -->

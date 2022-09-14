@@ -12,13 +12,19 @@ minimum_distance: 0.01
 # check collisions between these pairs of objects
 collision_pairs:
   # wrist and sphere
-  - ["wrist_collision_link_0", "sphere1_link_0"]
+  - ["wrist1_collision_link_0", "sphere2_link_0"]
+  - ["wrist3_collision_link_0", "sphere2_link_0"]
+  - ["elbow_collision_link_0", "sphere2_link_0"]
+  - ["forearm_collision_sphere_link1_0", "sphere2_link_0"]
+  - ["forearm_collision_sphere_link2_0", "sphere2_link_0"]
+  # - ["upper_arm_collision_link_0", "sphere2_link_0"]
+  # - ["forearm_collision_link_0", "sphere2_link_0"]
 
   # base and sphere
   - ["base_collision_link_0", "sphere1_link_0"]
 
   # balanced objects and sphere
-  - ["balanced_object_collision_link_0", "sphere1_link_0"]
+  - ["balanced_object_collision_link_0", "sphere2_link_0"]
 
   # wrist and shoulder
-  - ["wrist_collision_link_0", "shoulder_collision_link_0"]
+  - ["wrist1_collision_link_0", "shoulder_collision_link_0"]

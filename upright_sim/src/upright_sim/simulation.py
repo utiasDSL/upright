@@ -272,6 +272,7 @@ class BulletSimulation:
                 parsing.parse_and_compile_urdf(config["static_obstacles"]["urdf"])
             )
             pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
+        self.dynamic_obstacles = []
 
         self.robot = SimulatedRobot(config)
         self.robot.reset_joint_configuration(self.robot.home)
@@ -320,7 +321,6 @@ class BulletSimulation:
             t += self.timestep
 
     def launch_dynamic_obstacles(self, offset=None):
-        self.dynamic_obstacles = []
         if self.config["dynamic_obstacles"]["enabled"]:
             for c in self.config["dynamic_obstacles"]["obstacles"]:
                 obstacle = BulletDynamicObstacle.from_config(c, offset=offset)

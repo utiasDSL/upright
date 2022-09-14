@@ -21,6 +21,8 @@ arrangements:
       name: box2
       type: cube
       parent: box1
+
+  # single water bottle
   bottle:
     -
       name: bottle1
@@ -28,6 +30,28 @@ arrangements:
       offset:
         x: 0.1
         y: 0.07
+
+  # single foam die
+  foam_die1:
+    -
+      name: foam_die1
+      type: foam_die
+      offset:
+        x: 0.1
+        y: 0.07
+
+  # two foam dice stacked atop one another
+  foam_die2:
+    -
+      name: foam_die1
+      type: foam_die
+      offset:
+        x: 0.1
+        y: 0.07
+    -
+      name: foam_die2
+      type: foam_die
+      parent: foam_die1
 
   # one:
   #   -

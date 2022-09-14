@@ -1,7 +1,7 @@
 simulation:
   robot:
     # home: [0, 0, 0, 0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
-    home: [0, 0, 0, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi]  # standard
+    home: [-2, -1, 0, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi]  # standard
     dims:
       q: 9  # generalized position
       v: 9  # generalized velocity
@@ -64,7 +64,8 @@ controller:
       diag: [1rep9]
     state:
       scale: 0.01
-      diag: [0rep9, 10rep9, 1rep9]
+      # diag: [0rep9, 10rep9, 1rep9]
+      diag: [0rep9, 10rep3, 10rep6, 10rep3, 1rep6]
     end_effector:
       scale: 1
       diag: [1, 1, 1, 0, 0, 0]

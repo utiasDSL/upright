@@ -161,6 +161,24 @@ objects:
       ly: 0.065
     height: 0.15
 
+  foam_die:
+    mass:
+      min: 0.02
+      max: 0.02
+    com:
+      height: 0.0325
+      half_lengths: [0, 0, 0]  # these are for the uncertainty
+    radii_of_gyration:
+      use_exact:
+        shape: cuboid
+        side_lengths: [0.065, 0.065, 0.065]
+    mu_min: 0.4
+    support_area:
+      shape: rect
+      lx: 0.05
+      ly: 0.05
+    height: 0.065
+
   tall_box:
     mass:
       min: 1.0

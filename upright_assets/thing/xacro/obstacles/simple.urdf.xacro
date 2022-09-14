@@ -27,14 +27,14 @@
   <link name="obstacle_base_link"></link>
 
   <xacro:obstacle_link name="sphere1_link" material="red">
-    <origin rpy="0 0 0" xyz="1.5 0.75 0.25"/>
+    <origin rpy="0 0 0" xyz="0 -1 0.25"/>
     <geometry>
       <sphere radius="0.25"/>
     </geometry>
   </xacro:obstacle_link>
 
   <xacro:obstacle_link name="sphere2_link" material="red">
-    <origin rpy="0 0 0" xyz="1.5 0.75 0.75"/>
+    <origin rpy="0 0 0" xyz="0 -1 0.75"/>
     <geometry>
       <sphere radius="0.25"/>
     </geometry>

@@ -30,7 +30,7 @@ static_obstacles:
       - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
 
 dynamic_obstacles:
-  enabled: true
+  enabled: false
   obstacles:
     -
       controlled: true
@@ -81,6 +81,13 @@ objects:
     mass: 0.5
     mu: 0.15
     side_lengths: [0.065, 0.065, 0.15]
+    color: [0, 0, 1, 1]
+
+  foam_die:
+    shape: "cuboid"
+    mass: 0.02
+    mu: 0.45
+    side_lengths: [0.065, 0.065, 0.065]
     color: [0, 0, 1, 1]
 
   box2:

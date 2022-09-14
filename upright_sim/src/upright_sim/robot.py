@@ -162,7 +162,7 @@ class SimulatedRobot:
             self.uid,
             self.robot_joint_indices,
             controlMode=pyb.VELOCITY_CONTROL,
-            targetVelocities=list(v_pyb),
+            targetVelocities=list(v_pyb_noisy),
         )
 
     def joint_states(self, add_noise=False, bodyframe=False):

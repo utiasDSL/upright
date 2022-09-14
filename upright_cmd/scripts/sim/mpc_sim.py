@@ -122,7 +122,8 @@ def main():
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u, sim.timestep)
             v_cmd = Kp @ (qd - q_noisy) + vd
         else:
-            ud = Kp @ (qd - q_noisy) + u
+            # ud = Kp @ (qd - q_noisy) + u
+            ud = u
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, ud, sim.timestep)
             v_cmd = v_ff
 
@@ -134,9 +135,6 @@ def main():
             #     recorder.dynamic_obs_distance[idx, :] = mpc.getStateInequalityConstraintValue(
             #         "dynamic_obstacle_avoidance", t, x
             #     )
-            # if model.settings.static_obstacle_settings.enabled:
-            #     ds = ctrl_manager.mpc.getStateInequalityConstraintValue("static_obstacle_avoidance", t, x)
-            #     logger.append("collision_pair_distances", ds)
 
             # log sim stuff
             r_ew_w, Q_we = sim.robot.link_pose()

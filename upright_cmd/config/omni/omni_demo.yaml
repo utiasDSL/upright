@@ -17,12 +17,12 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: bottle
+  arrangement: foam_die2
 
 controller:
   balancing:
-    enabled: false
-    arrangement: bottle
+    enabled: true
+    arrangement: foam_die2
     constraint_type: hard
     use_force_constraints: false
     enable_normal_constraint: true
@@ -38,15 +38,11 @@ controller:
   waypoints:
     -
       time: 0
-      position: [0, 0, 0]
+      position: [1.0, 0, 0]
       orientation: [0, 0, 0, 1]
     # -
     #   time: 0
     #   position: [1.0, 0.5, 0.25]
-    #   orientation: [0, 0, 0, 1]
-    # -
-    #   time: 0
-    #   position: [6.0, 0, 0]
     #   orientation: [0, 0, 0, 1]
   #   -
   #     time: 0
