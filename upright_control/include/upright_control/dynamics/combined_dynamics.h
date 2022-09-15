@@ -7,6 +7,9 @@
 
 namespace upright {
 
+// TODO might we use a templated approach (which assumes one robot) as we
+// do in the pinocchio mapping?
+
 template <typename Scalar>
 class Dynamics {
    public:

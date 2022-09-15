@@ -153,17 +153,20 @@ void ControllerInterface::loadSettings() {
     sqpSettings_.hpipmSettings.use_slack = true;
 
     // Dynamics
+    std::vector<std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>> dynamics;
+
+    // Robot dynamics
     // NOTE: we don't have any checks here because every system we use
     // currently is an integrator
-    // TODO: obstacle is not a triple integrator and is autonomous
-    std::vector<std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>> dynamics;
-    for (size_t i = 0; i < settings_.dims.r(); ++i) {
-        robot_dynamics_ptr = std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>(
-            new IntegratorDynamics<ocs2::ad_scalar_t>(settings_.dims.robot(i)));
-        dynamics.push_back(robot_dynamics_ptr);
-    }
-    for (const auto& obstacles : settings_.dims.obstacles) {
-        // TODO
+    robot_dynamics_ptr = std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>(
+        new IntegratorDynamics<ocs2::ad_scalar_t>(settings_.dims.robot));
+    dynamics.push_back(robot_dynamics_ptr);
+
+    // Dynamic obstacles (optional)
+    for (const auto& obstacles : settings_.dims.o) {
+        obstacle_dynamics_ptr = std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>(
+            new ObstacleDynamics<ocs2::ad_scalar_t>());
+        dynamics.push_back(obstacle_dynamics_ptr);
     }
     // if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
     //     dynamicsPtr.reset(new OmnidirectionalDynamics(

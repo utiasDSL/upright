@@ -6,79 +6,78 @@
 
 namespace upright {
 
-template <typename Scalar>
+// TODO: do we want to make a simplified version of the pinocchio mapping, like
+// I've done for the dynamics?
+
+template <typename Mapping, typename Scalar>
 class CombinedPinocchioMapping final
     : public ocs2::PinocchioStateInputMapping<Scalar> {
    public:
-    using Base = ocs2::PinocchioStateInputMapping<Scalar>;
-    using VecXd = typename Base::vector_t;
-    using MatXd = typename Base::matrix_t;
+    using VecXs = VecX<Scalar>;
+    using MatXs = MatX<Scalar>;
 
-    // q_indices and v_indices contain the indices that each robot q and v
-    // (respectively) starts at in the Pinocchio q and v vectors
-    CombinedPinocchioMapping(
-        const OptimizationDimensions& dims,
-        const std::vector<ocs2::PinocchioStateInputMapping<Scalar>>& mappings,
-        const std::vector<size_t>& q_indices,
-        const std::vector<size_t>& v_indices)
-        : dims_(dims),
-          mappings_(mappings),
-          q_indices_(q_indices),
-          v_indices_(v_indices) {}
+    CombinedPinocchioMapping(const OptimizationDimensions& dims)
+        : dims_(dims), robot_mapping_(dims.robot) {}
 
     ~CombinedPinocchioMapping() override = default;
 
     CombinedPinocchioMapping<Scalar>* clone() const override {
-        return new CombinedPinocchioMapping<Scalar>(*this);
+        return new CombinedPinocchioMapping<Mapping, Scalar>(*this);
     }
 
-    VecXd getPinocchioJointPosition(const VecXd& state) const override {
-        VecXd q_pin(dims_.q());
-        size_t ix = 0;
-        for (int i = 0; i < mappings_.size(); ++i) {
-            const RobotDimensions& robot_dims = dims_.robot(i);
-            VecXd x = state.segment(ix, robot_dims.x);
-            q_pin.segment(q_indices_[i], robot_dims.q) =
-                mappings_[i].getPinocchioJointPosition(x);
+    VecXs getPinocchioJointPosition(const VecXs& state) const override {
+        VecXs q_pin(dims_.q());
 
-            ix += robot_dims.x;
+        // For now, we assume all obstacles go first in list of q, v
+        for (int i = 0; i < dims_.o; ++i) {
+            VecXs x_obs = state.segment(dims_.robot.x + i * 9, 9);
+            q_pin.segment(i * 3, 3) =
+                obstacle_mapping_.getPinocchioJointPosition(x_obs);
         }
+
+        // Then we add on the robot q
+        VecXs x_robot = state.head(dims.robot.x);
+        q_pin.tail(dims_.robot.q) =
+            robot_mapping_.getPinocchioJointPosition(x_robot);
+
         return q_pin;
     }
 
-    VecXd getPinocchioJointVelocity(const VecXd& state,
-                                    const VecXd& input) const override {
-        VecXd v_pin(dims_.v());
-        size_t ix = 0;
-        size_t iu = 0;
-        for (int i = 0; i < mappings_.size(); ++i) {
-            const RobotDimensions& robot_dims = dims_.robot(i);
-            VecXd x = state.segment(ix, robot_dims.x);
-            VecXd u = input.segment(iu, robot_dims.u);
-            v_pin.segment(v_indices_[i], robot_dims.v) =
-                mappings_[i].getPinocchioJointVelocity(x, u);
+    VecXs getPinocchioJointVelocity(const VecXs& state,
+                                    const VecXs& input) const override {
+        VecXs v_pin(dims_.v());
+        VecXs u_obs = VecXs::Zero(3);  // Obstacles have no input
 
-            ix += robot_dims.x;
-            iu += robot_dims.u;
+        for (int i = 0; i < dims_.o; ++i) {
+            VecXs x_obs = state.segment(dims_.robot.x + i * 9, 9);
+            v_pin.segment(i * 3, 3) =
+                obstacle_mapping_.getPinocchioJointVelocity(x_obs, u_obs);
         }
+
+        // Then we add on the robot v
+        VecXs x_robot = state.head(dims.robot.x);
+        v_pin.tail(dims_.robot.v) =
+            robot_mapping_.getPinocchioJointVelocity(x_robot);
+
         return v_pin;
     }
 
-    VecXd getPinocchioJointAcceleration(const VecXd& state,
-                                        const VecXd& input) const override {
-        VecXd a_pin(dims_.v());
-        size_t ix = 0;
-        size_t iu = 0;
-        for (int i = 0; i < mappings_.size(); ++i) {
-            const RobotDimensions& robot_dims = dims_.robot(i);
-            VecXd x = state.segment(ix, robot_dims.x);
-            VecXd u = input.segment(iu, robot_dims.u);
-            a_pin.segment(v_indices[i], robot_dims.v) =
-                mappings_[i].getPinocchioJointAcceleration(x, u);
+    VecXs getPinocchioJointAcceleration(const VecXs& state,
+                                        const VecXs& input) const override {
+        VecXs a_pin(dims_.v());
+        VecXs u_obs = VecXs::Zero(3);  // Obstacles have no input
 
-            ix += robot_dims.x;
-            iu += robot_dims.u;
+        for (int i = 0; i < dims_.o; ++i) {
+            VecXs x_obs = state.segment(dims_.robot.x + i * 9, 9);
+            a_pin.segment(i * 3, 3) =
+                obstacle_mapping_.getPinocchioJointAcceleration(x_obs, u_obs);
         }
+
+        // Then we add on the robot a
+        VecXs x_robot = state.head(dims.robot.x);
+        a_pin.tail(dims_.robot.v) =
+            robot_mapping_.getPinocchioJointAcceleration(x_robot);
+
         return a_pin;
     }
 
@@ -86,42 +85,44 @@ class CombinedPinocchioMapping final
     // (generalized positions and velocities), as provided by Pinocchio as Jq
     // and Jv, to the Jacobian of the state dfdx and Jacobian of the input
     // dfdu.
-    std::pair<MatXd, MatXd> getOcs2Jacobian(
-        const VecXd& state, const MatXd& Jq_pin,
-        const MatXd& Jv_pin) const override {
+    std::pair<MatXs, MatXs> getOcs2Jacobian(
+        const VecXs& state, const MatXs& Jq_pin,
+        const MatXs& Jv_pin) const override {
+
         const auto output_dim = Jq_pin.rows();
-        MatXd dfdx(output_dim, dims_.x());
-        MatXd dfdu(output_dim, dims_.u());
+        MatXs dfdx(output_dim, dims_.x());
+        MatXs dfdu(output_dim, dims_.u());
 
-        size_t iq = 0;
-        size_t iv = 0;
-        size_t ix = 0;
-        size_t iu = 0;
-        for (int i = 0; i < mappings_.size(); ++i) {
-            const RobotDimensions& robot_dims = dims_.robot(i);
-            VecXd x = state.segment(ix, robot_dims.x);
-            MatXd Jq_pin_i = Jq_pin.middleCols(iq, robot_dims.q);
-            MatXd Jv_pin_i = Jv_pin.middleCols(iv, robot_dims.v);
+        for (int i = 0; i < dims_.o; ++i) {
+            VecXs x_obs = state.segment(dims_.robot.x + i * 9, 9);
+            MatXs Jq_pin_obs = Jq_pin.middleCols(i * 3, 3);
+            MatXs Jv_pin_obs = Jv_pin.middleCols(i * 3, 3);
 
-            MatXd dfdx_i, dfdu_i;
-            std::tie(dfdx_i, dfdu_i) =
-                mappings_[i].getOcs2Jacobian(x, Jq_pin_i, Jv_pin_i);
-            dfdx.middleCols(ix, robot_dims.x) = dfdx_i;
-            dfdu.middleCols(iu, robot_dims.u) = dfdu_i;
+            MatXs dfdx_obs;
+            std::tie(dfdx_obs, std::ignore) =
+                obstacle_mapping_.getOcs2Jacobian(x_obs, Jq_pin_obs, Jv_pin_obs);
 
-            iq += robot_dims.q;
-            iv += robot_dims.v;
-            ix += robot_dims.x;
-            iu += robot_dims.u;
+            // Obstacles have no input, so no dfdu
+            dfdx.middleCols(dims_.robot.x + i * 9, 9) = dfdx_i;
         }
+
+        VecXs x_robot = state.head(dims_.robot.x);
+        MatXs Jq_pin_robot = Jq_pin.leftCols(dims_.robot.q);
+        MatXs Jv_pin_robot = Jv_pin.leftCols(dims_.robot.v);
+        MatXs dfdx_robot, dfdu_robot;
+        std::tie(dfdx_robot, dfdu_robot) =
+            robot_mapping_.getOcs2Jacobian(x_robot, Jq_pin_robot, Jv_pin_robot);
+
+        dfdx.leftCols(dims_.robot.x) = dfdx_robot;
+        dfdu.leftCols(dims_.robot.u) = dfdu_robot;
+
         return {dfdx, dfdu};
     }
 
    private:
     OptimizationDimensions dims_;
-    std::vector<ocs2::PinocchioStateInputMapping<Scalar>> mappings_;
-    std::vector<size_t> q_indices_;
-    std::vector<size_t> v_indices_;
+    Mapping<Scalar> robot_mapping_;
+    ObstacleMapping<Scalar> obstacle_mapping_;
 };
 
 }  // namespace upright
