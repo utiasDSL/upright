@@ -69,6 +69,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <upright_control/dynamics/omnidirectional_dynamics.h>
 #include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
 
+#include <upright_control/dynamics/combined_dynamics.h>
+#include <upright_control/dynamics/combined_pinocchio_mapping.h>
+
 #include "upright_control/controller_interface.h"
 
 namespace upright {
@@ -153,21 +156,21 @@ void ControllerInterface::loadSettings() {
     sqpSettings_.hpipmSettings.use_slack = true;
 
     // Dynamics
-    std::vector<std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>> dynamics;
+    // std::vector<std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>> dynamics;
 
     // Robot dynamics
     // NOTE: we don't have any checks here because every system we use
     // currently is an integrator
-    robot_dynamics_ptr = std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>(
-        new IntegratorDynamics<ocs2::ad_scalar_t>(settings_.dims.robot));
-    dynamics.push_back(robot_dynamics_ptr);
+    // robot_dynamics_ptr = std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>(
+    //     new IntegratorDynamics<ocs2::ad_scalar_t>(settings_.dims.robot));
+    // dynamics.push_back(robot_dynamics_ptr);
 
     // Dynamic obstacles (optional)
-    for (const auto& obstacles : settings_.dims.o) {
-        obstacle_dynamics_ptr = std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>(
-            new ObstacleDynamics<ocs2::ad_scalar_t>());
-        dynamics.push_back(obstacle_dynamics_ptr);
-    }
+    // for (const auto& obstacles : settings_.dims.o) {
+    //     obstacle_dynamics_ptr = std::unique_ptr<Dynamics<ocs2::ad_scalar_t>>(
+    //         new ObstacleDynamics<ocs2::ad_scalar_t>());
+    //     dynamics.push_back(obstacle_dynamics_ptr);
+    // }
     // if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
     //     dynamicsPtr.reset(new OmnidirectionalDynamics(
     //         "robot_dynamics", settings_.dims, libraryFolder,
@@ -179,8 +182,9 @@ void ControllerInterface::loadSettings() {
     //                                             recompileLibraries, true));
     // }
     std::unique_ptr<ocs2::SystemDynamicsBase> dynamicsPtr(
-        new SystemDynamics("robot_dynamics", dynamics, settings_.dims,
-                           libraryFolder, recompileLibraries, true));
+        new SystemDynamics<IntegratorDynamics<ocs2::ad_scalar_t>>(
+            "robot_dynamics", settings_.dims, libraryFolder, recompileLibraries,
+            true));
 
     // Rollout
     const auto rolloutSettings =
@@ -200,16 +204,19 @@ void ControllerInterface::loadSettings() {
 
     // Build the end effector kinematics
     std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::ad_scalar_t>>
-        pinocchio_mapping_ptr;
-    if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
-        pinocchio_mapping_ptr.reset(
-            new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
-                settings_.dims.robot(0)));
-    } else {
-        pinocchio_mapping_ptr.reset(
-            new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(
-                settings_.dims.robot(0)));
-    }
+        pinocchio_mapping_ptr(
+            new CombinedPinocchioMapping<
+                IntegratorPinocchioMapping<ocs2::ad_scalar_t>,
+                ocs2::ad_scalar_t>(settings_.dims));
+    // if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
+    //     pinocchio_mapping_ptr.reset(
+    //         new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
+    //             settings_.dims.robot));
+    // } else {
+    //     pinocchio_mapping_ptr.reset(
+    //         new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(
+    //             settings_.dims.robot));
+    // }
 
     ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
         *pinocchioInterfacePtr_, *pinocchio_mapping_ptr,
@@ -430,17 +437,22 @@ ControllerInterface::getDynamicObstacleConstraint(
     // Re-initialize interface with the updated model.
     pinocchioInterface = ocs2::PinocchioInterface(model);
 
+    // std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::ad_scalar_t>>
+    //     pinocchio_mapping_ptr;
+    // if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
+    //     pinocchio_mapping_ptr.reset(
+    //         new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
+    //             settings_.dims.robot));
+    // } else {
+    //     pinocchio_mapping_ptr.reset(
+    //         new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(
+    //             settings_.dims.robot));
+    // }
     std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::ad_scalar_t>>
-        pinocchio_mapping_ptr;
-    if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
-        pinocchio_mapping_ptr.reset(
-            new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
-                settings_.dims.robot(0)));
-    } else {
-        pinocchio_mapping_ptr.reset(
-            new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(
-                settings_.dims.robot(0)));
-    }
+        pinocchio_mapping_ptr(
+            new CombinedPinocchioMapping<
+                IntegratorPinocchioMapping<ocs2::ad_scalar_t>,
+                ocs2::ad_scalar_t>(settings_.dims));
 
     ocs2::PinocchioEndEffectorKinematicsCppAd object_ee_kinematics(
         pinocchioInterface, *pinocchio_mapping_ptr,
@@ -632,17 +644,22 @@ ControllerInterface::get_static_obstacle_constraint(
         std::cout << "dist = " << distances[i].min_distance << std::endl;
     }
 
+    // std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::scalar_t>>
+    //     pinocchio_mapping_ptr;
+    // if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
+    //     pinocchio_mapping_ptr.reset(
+    //         new OmnidirectionalPinocchioMapping<ocs2::scalar_t>(
+    //             settings_.dims.robot));
+    // } else {
+    //     pinocchio_mapping_ptr.reset(
+    //         new FixedBasePinocchioMapping<ocs2::scalar_t>(
+    //             settings_.dims.robot));
+    // }
     std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::scalar_t>>
-        pinocchio_mapping_ptr;
-    if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
-        pinocchio_mapping_ptr.reset(
-            new OmnidirectionalPinocchioMapping<ocs2::scalar_t>(
-                settings_.dims.robot(0)));
-    } else {
-        pinocchio_mapping_ptr.reset(
-            new FixedBasePinocchioMapping<ocs2::scalar_t>(
-                settings_.dims.robot(0)));
-    }
+        pinocchio_mapping_ptr(
+            new CombinedPinocchioMapping<
+                IntegratorPinocchioMapping<ocs2::scalar_t>,
+                ocs2::scalar_t>(settings_.dims));
 
     return std::unique_ptr<ocs2::StateConstraint>(
         new ocs2::SelfCollisionConstraintCppAd(
@@ -717,7 +734,7 @@ ControllerInterface::get_soft_joint_state_input_limit_constraint() {
         num_constraints);
 
     // State penalty
-    for (int i = 0; i < settings_.dims.robot(0).x; i++) {
+    for (int i = 0; i < settings_.dims.robot.x; i++) {
         // barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
         //     {state_limit_mu, state_limit_delta}));
         barrierFunction.reset(
@@ -728,12 +745,12 @@ ControllerInterface::get_soft_joint_state_input_limit_constraint() {
     }
 
     // Input penalty
-    for (int i = 0; i < settings_.dims.robot(0).u; i++) {
+    for (int i = 0; i < settings_.dims.robot.u; i++) {
         // barrierFunction.reset(new ocs2::RelaxedBarrierPenalty(
         //     {input_limit_mu, input_limit_delta}));
         barrierFunction.reset(
             new ocs2::SquaredHingePenalty({1, input_limit_delta}));
-        penaltyArray[settings_.dims.robot(0).x + i].reset(
+        penaltyArray[settings_.dims.robot.x + i].reset(
             new ocs2::DoubleSidedPenalty(input_limit_lower(i),
                                          input_limit_upper(i),
                                          std::move(barrierFunction)));

@@ -49,9 +49,10 @@ def main():
 
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
     model = ctrl_manager.model
+    dims = model.settings.dims
     ref = ctrl_manager.ref
     Kp = model.settings.Kp
-    mapping = ctrl.trajectory.StateInputMapping(model.settings.dims)
+    mapping = ctrl.trajectory.StateInputMapping(model.settings.dims.robot)
 
     # data logging
     logger = DataLogger(config)
@@ -99,9 +100,11 @@ def main():
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
         try:
-            xd, ou = ctrl_manager.step(t, x_noisy)
-            u = ou[: model.settings.dims.u]
-            f = ou[model.settings.dims.u :]
+            xd, u = ctrl_manager.step(t, x_noisy)
+            xd_robot = x[:dims.robot.x]
+            u_robot = u[:dims.robot.u]
+            # u = ou[: model.settings.dims.u]
+            f = u[-dims.f():]
         except RuntimeError as e:
             print(e)
             print("exit the interpreter to proceed to plots")
@@ -116,13 +119,13 @@ def main():
         # TODO why is this better than using the zero-order hold?
         # here we use the input u to generate the feedforward signal---using
         # the jerk level ensures smoothness at the velocity level
-        qd, vd, _ = mapping.xu2qva(xd)
+        qd, vd, _ = mapping.xu2qva(xd_robot)
 
         if use_direct_velocity_command:
-            v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u, sim.timestep)
+            v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, sim.timestep)
             v_cmd = Kp @ (qd - q_noisy) + vd
         else:
-            ud = Kp @ (qd - q_noisy) + u
+            ud = Kp @ (qd - q_noisy) + u_robot
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, ud, sim.timestep)
             v_cmd = v_ff
 
@@ -130,14 +133,6 @@ def main():
 
         # TODO more logger reforms to come
         if logger.ready(t):
-            # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
-            #     recorder.dynamic_obs_distance[idx, :] = mpc.getStateInequalityConstraintValue(
-            #         "dynamic_obstacle_avoidance", t, x
-            #     )
-            # if model.settings.static_obstacle_settings.enabled:
-            #     ds = ctrl_manager.mpc.getStateInequalityConstraintValue("static_obstacle_avoidance", t, x)
-            #     logger.append("collision_pair_distances", ds)
-
             # log sim stuff
             r_ew_w, Q_we = sim.robot.link_pose()
             v_ew_w, ω_ew_w = sim.robot.link_velocity()
@@ -177,7 +172,7 @@ def main():
                 else:
                     static_obs_constraints = (
                         ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                            "static_obstacle_avoidance", t, x, ou
+                            "static_obstacle_avoidance", t, x, u
                         )
                     )
                 logger.append("collision_pair_distances", static_obs_constraints)
@@ -191,21 +186,21 @@ def main():
                 ):
                     contact_force_constraints = (
                         ctrl_manager.mpc.getSoftStateInputInequalityConstraintValue(
-                            "contact_forces", t, x, ou
+                            "contact_forces", t, x, u
                         )
                     )
                 else:
                     contact_force_constraints = (
                         ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                            "contact_forces", t, x, ou
+                            "contact_forces", t, x, u
                         )
                     )
                 object_dynamics_constraints = (
                     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
-                        "object_dynamics", t, x, ou
+                        "object_dynamics", t, x, u
                     )
                 )
-                logger.append("cost", ctrl_manager.mpc.cost(t, x, ou))
+                logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
 
                 logger.append("contact_force_constraints", contact_force_constraints)
                 logger.append("contact_forces", f)

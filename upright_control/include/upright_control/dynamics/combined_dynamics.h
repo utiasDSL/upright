@@ -10,69 +10,87 @@ namespace upright {
 // TODO might we use a templated approach (which assumes one robot) as we
 // do in the pinocchio mapping?
 
+// template <typename Scalar>
+// class Dynamics {
+//    public:
+//     Dynamics(const RobotDimensions& dims) : dims_(dims) {}
+//
+//     virtual VecX<Scalar> flowmap(Scalar t, const VecX<Scalar>& x,
+//                                  const VecX<Scalar>& u,
+//                                  const VecX<Scalar>& p) const = 0;
+//
+//    protected:
+//     RobotDimensions dims_;
+// };
+
 template <typename Scalar>
-class Dynamics {
+class IntegratorDynamics {
    public:
-    Dynamics(const RobotDimensions& dims) : dims_(dims) {}
+    IntegratorDynamics(const RobotDimensions& dims) : dims_(dims) {}
 
-    virtual VecX<Scalar> flowmap(Scalar t, const VecX<Scalar>& x,
-                                 const VecX<Scalar>& u,
-                                 const VecX<Scalar>& p) const = 0;
+    VecX<Scalar> flowmap(Scalar t, const VecX<Scalar>& x, const VecX<Scalar>& u,
+                         const VecX<Scalar>& p) const {
+        VecX<Scalar> dxdt(dims_.x);
+        dxdt.head(dims_.q) = x.segment(dims_.q, dims_.v);
+        dxdt.segment(dims_.q, dims_.v) = x.segment(dims_.q + dims_.v, dims_.v);
+        dxdt.segment(dims_.q + dims_.v, dims_.v) = u;
+        return dxdt;
+    }
 
-   protected:
+   private:
     RobotDimensions dims_;
 };
 
 template <typename Scalar>
-class IntegratorDynamics : Dynamics<Scalar> {
+class ObstacleDynamics {
    public:
-    IntegratorDynamics(const RobotDimensions& dims) : Dynamics(dims) {}
+    ObstacleDynamics() {}
 
-    VecX<Scalar> flowmap(Scalar t, const VecX<Scalar>& x, const VecX<Scalar>& u,
-                         const VecX<Scalar>& p) const override {
-        VecX<Scalar> dxdt(dims_.x);
-        dxdt.head(dims.q) = x.segment(dims.q, dims.v);
-        dxdt.segment(dims.q, dims.v) = x.segment(dims.q + dims.v, dims.v);
-        dxdt.segment(dims.q + dims.v, dims.v) = u;
+    VecX<Scalar> flowmap(Scalar t, const VecX<Scalar>& x,
+                         const VecX<Scalar>& p) const {
+        VecX<Scalar> dxdt(9);
+        dxdt << x.tail(6), VecX<Scalar>::Zero(3);
         return dxdt;
     }
 };
 
+template <typename Dynamics>
 class SystemDynamics final : public ocs2::SystemDynamicsBaseAD {
    public:
-    explicit SystemDynamics(
-        const std::string& modelName,
-        const std::vector<Dynamics<ocs2::ad_scalar_t>*>& dynamics,
-        const OptimizationDimensions& dims;
-        const std::string& modelFolder = "/tmp/ocs2",
-        bool recompileLibraries = true, bool verbose = true)
-        : dims_(dims), dynamics_(dynamics), ocs2::SystemDynamicsBaseAD() {
-        initialize(dims.x(), dims.u(), modelName, modelFolder,
-                   recompileLibraries, verbose);
+    explicit SystemDynamics(const std::string& model_name,
+                            const OptimizationDimensions& dims,
+                            const std::string& model_folder = "/tmp/ocs2",
+                            bool recompile_libraries = true,
+                            bool verbose = true)
+        : dims_(dims),
+          robot_dynamics_(dims.robot),
+          ocs2::SystemDynamicsBaseAD() {
+        initialize(dims.x(), dims.u(), model_name, model_folder,
+                   recompile_libraries, verbose);
     }
 
     ~SystemDynamics() override = default;
 
-    SystemDynamics* clone() const override { return new SystemDynamics(*this); }
+    SystemDynamics<Dynamics>* clone() const override {
+        return new SystemDynamics<Dynamics>(*this);
+    }
 
     VecXad systemFlowMap(ocs2::ad_scalar_t time, const VecXad& state,
                          const VecXad& input,
                          const VecXad& parameters) const override {
-        VecXad dxdt(state_dim_);
-        size_t ix = 0;
-        size_t iu = 0;
+        VecXad dxdt(dims_.x());
 
-        // Concatenate the dynamics for each of the constituent robots
-        for (int i = 0; i < dynamics_.size(); ++i) {
-            const RobotDimensions& robot_dims = dims_.robot(i);
-            VecXad x = state.segment(ix, robot_dims.x);
-            VecXad u = input.segment(iu, robot_dims.u);
+        // Robot dynamics
+        VecXad x_robot = state.head(dims_.robot.x);
+        VecXad u_robot = input.head(dims_.robot.u);
+        dxdt.head(dims_.robot.x) =
+            robot_dynamics_.flowmap(time, x_robot, u_robot, parameters);
 
-            dxdt.segment(ix, robot_dims.x) =
-                dynamics_[i].flowmap(time, x, u, parameters);
-
-            ix += robot_dims[i].x;
-            iu += robot_dims[i].u;
+        // Obstacle dynamics
+        for (int i = 0; i < dims_.o; ++i) {
+            VecXad x_obs = state.segment(dims_.robot.x + i * 9, 9);
+            dxdt.segment(dims_.robot.x + i * 9, 9) =
+                obstacle_dynamics_.flowmap(time, x_obs, parameters);
         }
         return dxdt;
     }
@@ -83,8 +101,10 @@ class SystemDynamics final : public ocs2::SystemDynamicsBaseAD {
     // Dimensions of the problem (incl. each constituent robot)
     OptimizationDimensions dims_;
 
-    // Subsystem dynamics
-    std::vector<Dynamics<ad_scalar_t>*> dynamics_;
+    // Robot dynamics
+    Dynamics robot_dynamics_;
+
+    ObstacleDynamics<ocs2::ad_scalar_t> obstacle_dynamics_;
 };
 
 }  // namespace upright

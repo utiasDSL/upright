@@ -18,7 +18,7 @@ NonholonomicDynamics::NonholonomicDynamics(
 VecXad NonholonomicDynamics::systemFlowMap(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
-    const RobotDimensions& r = dims_.robot(0);
+    const RobotDimensions& r = dims_.robot;
 
     ocs2::ad_scalar_t yaw = state(2);
     VecXad v = state.segment(r.q, r.v);

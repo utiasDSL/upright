@@ -51,7 +51,7 @@ tracking:
 #     orientation: [0.0, 0.0, 0.0, 1.0]
 
 static_obstacles:
-  enabled: true
+  enabled: false
   constraint_type: hard
 
   # relaxed barrier function parameters
@@ -59,7 +59,7 @@ static_obstacles:
   delta: 1e-3
 
 dynamic_obstacles:
-  enabled: true
+  enabled: false
   position: [0, -1, 0]
   velocity: [0, 1, 2]
   acceleration: [0, 0, -2]

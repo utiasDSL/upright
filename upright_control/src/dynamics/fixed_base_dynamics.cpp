@@ -18,7 +18,7 @@ VecXad FixedBaseDynamics::systemFlowMap(ocs2::ad_scalar_t time,
                                         const VecXad& state,
                                         const VecXad& input,
                                         const VecXad& parameters) const {
-    const RobotDimensions& r = dims_.robot(0);
+    const RobotDimensions& r = dims_.robot;
     VecXad dqdt = state.segment(r.q, r.v);
     VecXad dvdt = state.tail(r.v);
     VecXad dadt = input.head(r.u);

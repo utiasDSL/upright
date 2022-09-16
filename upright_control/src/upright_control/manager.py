@@ -109,8 +109,8 @@ class ControllerManager:
         self.mpc.reset(self.ref)
 
         self.last_planning_time = -np.infty
-        self.x_opt = np.zeros(self.model.settings.dims.ox)
-        self.ou_opt = np.zeros(self.model.settings.dims.ou)
+        self.x_opt = np.zeros(self.model.settings.dims.x())
+        self.ou_opt = np.zeros(self.model.settings.dims.u())
 
         # time at which replanning was done
         self.replanning_times = []
@@ -132,7 +132,7 @@ class ControllerManager:
 
         # reference pose trajectory
         ref_trajectory = TargetTrajectories.from_config(
-            config, r_ew_w, Q_we, np.zeros(model.settings.dims.ou)
+            config, r_ew_w, Q_we, np.zeros(model.settings.dims.u())
         )
         return cls(model, ref_trajectory, timestep)
 
@@ -144,7 +144,7 @@ class ControllerManager:
     def warmstart(self):
         """Do the first optimize to get things warmed up."""
         x0 = self.model.settings.initial_state
-        ou0 = np.zeros(self.model.settings.dims.ou)
+        ou0 = np.zeros(self.model.settings.dims.u())
         self.mpc.setObservation(0, x0, ou0)
 
         self.mpc.advanceMpc()

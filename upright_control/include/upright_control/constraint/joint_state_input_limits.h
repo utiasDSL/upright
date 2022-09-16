@@ -49,7 +49,7 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
     }
 
     size_t getNumConstraints(ocs2::scalar_t time) const override {
-        return dims_.robot(0).x + dims_.robot(0).u;
+        return dims_.robot.x + dims_.robot.u;
     }
 
     // Suppose we have x = [x_1, x_2] and u = [u_1, u_2] and our function value
@@ -58,7 +58,7 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
     VecXd getValue(ocs2::scalar_t time, const VecXd& state, const VecXd& input,
                    const ocs2::PreComputation&) const override {
         VecXd value(getNumConstraints(time));
-        value << state.head(dims_.robot(0).x), input.head(dims_.robot(0).u);
+        value << state.head(dims_.robot.x), input.head(dims_.robot.u);
         return value;
     }
 
@@ -76,9 +76,9 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
 
         limits.f = getValue(time, state, input, precomp);
         limits.dfdx.setZero();
-        limits.dfdx.topLeftCorner(dims_.robot(0).x, dims_.robot(0).x).setIdentity();
+        limits.dfdx.topLeftCorner(dims_.robot.x, dims_.robot.x).setIdentity();
         limits.dfdu.setZero();
-        limits.dfdu.bottomLeftCorner(dims_.robot(0).u, dims_.robot(0).u).setIdentity();
+        limits.dfdu.bottomLeftCorner(dims_.robot.u, dims_.robot.u).setIdentity();
 
         return limits;
     }
@@ -100,8 +100,8 @@ class JointStateInputConstraint final : public ocs2::StateInputConstraint {
                               const VecXd& input_limit_upper)
         : ocs2::StateInputConstraint(ocs2::ConstraintOrder::Linear),
           dims_(dims) {
-        size_t rx = dims.robot(0).x;
-        size_t ru = dims.robot(0).u;
+        size_t rx = dims.robot.x;
+        size_t ru = dims.robot.u;
 
         // f = C * x + D * u
         //   = | I 0| * x + | 0 0| * u

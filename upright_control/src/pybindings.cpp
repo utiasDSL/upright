@@ -137,8 +137,9 @@ PYBIND11_MODULE(bindings, m) {
 
     pybind11::class_<OptimizationDimensions>(m, "OptimizationDimensions")
         .def(pybind11::init<>())
-        .def("push_back", &OptimizationDimensions::push_back)
-        .def("set_num_contacts", &OptimizationDimensions::set_num_contacts)
+        .def_readwrite("robot", &OptimizationDimensions::robot)
+        .def_readwrite("o", &OptimizationDimensions::o)
+        .def_readwrite("c", &OptimizationDimensions::c)
         .def("q", &OptimizationDimensions::q)
         .def("v", &OptimizationDimensions::v)
         .def("x", &OptimizationDimensions::x)

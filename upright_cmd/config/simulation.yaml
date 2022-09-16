@@ -22,7 +22,7 @@ video:
       name: view1
 
 static_obstacles:
-  enabled: true
+  enabled: false
   urdf:
     package: "upright_assets"
     path: "thing/urdf/obstacles.urdf"

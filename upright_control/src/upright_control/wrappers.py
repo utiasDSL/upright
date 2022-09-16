@@ -80,6 +80,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
 
 class ControllerSettings(bindings.ControllerSettings):
     """Wrapper around ControllerSettings binding."""
+
     def __init__(self, config, x0=None, operating_trajectory=None):
         super().__init__()
 
@@ -96,12 +97,11 @@ class ControllerSettings(bindings.ControllerSettings):
         # gravity
         self.gravity = config["gravity"]
 
-        # dimensions
-        # note that dims.f (number of contact forces) is set below
-        self.dims.q = config["robot"]["dims"]["q"]
-        self.dims.v = config["robot"]["dims"]["v"]
-        self.dims.x = config["robot"]["dims"]["x"]
-        self.dims.u = config["robot"]["dims"]["u"]
+        # robot dimensions
+        self.dims.robot.q = config["robot"]["dims"]["q"]
+        self.dims.robot.v = config["robot"]["dims"]["v"]
+        self.dims.robot.x = config["robot"]["dims"]["x"]
+        self.dims.robot.u = config["robot"]["dims"]["u"]
 
         # initial state can be passed in directly (for example to match exactly
         # a simulation) or parsed from the config
@@ -109,7 +109,7 @@ class ControllerSettings(bindings.ControllerSettings):
             self.initial_state = core.parsing.parse_array(config["robot"]["x0"])
         else:
             self.initial_state = x0
-        assert self.initial_state.shape == (self.dims.x,)
+        assert self.initial_state.shape == (self.dims.x(),)
 
         # weights for state, input, and EE pose
         self.input_weight = core.parsing.parse_diag_matrix_dict(
@@ -121,8 +121,8 @@ class ControllerSettings(bindings.ControllerSettings):
         self.end_effector_weight = core.parsing.parse_diag_matrix_dict(
             config["weights"]["end_effector"]
         )
-        assert self.input_weight.shape == (self.dims.u, self.dims.u)
-        assert self.state_weight.shape == (self.dims.x, self.dims.x)
+        assert self.input_weight.shape == (self.dims.robot.u, self.dims.robot.u)
+        assert self.state_weight.shape == (self.dims.robot.x, self.dims.robot.x)
         assert self.end_effector_weight.shape == (6, 6)
 
         # input limits
@@ -135,8 +135,8 @@ class ControllerSettings(bindings.ControllerSettings):
         self.input_limit_upper = core.parsing.parse_array(
             config["limits"]["input"]["upper"]
         )
-        assert self.input_limit_lower.shape == (self.dims.u,)
-        assert self.input_limit_upper.shape == (self.dims.u,)
+        assert self.input_limit_lower.shape == (self.dims.robot.u,)
+        assert self.input_limit_upper.shape == (self.dims.robot.u,)
 
         # state limits
         self.state_limit_lower = core.parsing.parse_array(
@@ -145,18 +145,20 @@ class ControllerSettings(bindings.ControllerSettings):
         self.state_limit_upper = core.parsing.parse_array(
             config["limits"]["state"]["upper"]
         )
-        assert self.state_limit_lower.shape == (self.dims.x,)
-        assert self.state_limit_upper.shape == (self.dims.x,)
+        assert self.state_limit_lower.shape == (self.dims.robot.x,)
+        assert self.state_limit_upper.shape == (self.dims.robot.x,)
 
         # tracking gain
         self.Kp = core.parsing.parse_diag_matrix_dict(config["tracking"]["Kp"])
-        assert self.Kp.shape == (self.dims.q, self.dims.q)
+        assert self.Kp.shape == (self.dims.robot.q, self.dims.robot.q)
 
         # rate for tracking controller
         self.rate = core.parsing.parse_number(config["tracking"]["rate"])
 
         # URDFs
-        self.robot_urdf_path = core.parsing.parse_and_compile_urdf(config["robot"]["urdf"])
+        self.robot_urdf_path = core.parsing.parse_and_compile_urdf(
+            config["robot"]["urdf"]
+        )
         self.obstacle_urdf_path = core.parsing.parse_and_compile_urdf(
             config["static_obstacles"]["urdf"]
         )
@@ -176,7 +178,9 @@ class ControllerSettings(bindings.ControllerSettings):
 
         # tray balance settings
         self.balancing_settings.enabled = config["balancing"]["enabled"]
-        self.balancing_settings.use_force_constraints = config["balancing"]["use_force_constraints"]
+        self.balancing_settings.use_force_constraints = config["balancing"][
+            "use_force_constraints"
+        ]
         self.balancing_settings.constraint_type = bindings.constraint_type_from_string(
             config["balancing"]["constraint_type"]
         )
@@ -191,7 +195,7 @@ class ControllerSettings(bindings.ControllerSettings):
         ctrl_objects, contacts = core.parsing.parse_control_objects(config)
         self.balancing_settings.objects = ctrl_objects
         self.balancing_settings.contacts = contacts
-        self.dims.f = len(contacts)
+        self.dims.c = len(contacts)
 
         self.balancing_settings.constraints_enabled.normal = config["balancing"][
             "enable_normal_constraint"
@@ -220,7 +224,7 @@ class ControllerSettings(bindings.ControllerSettings):
                 -1
             ].body.com_ellipsoid.center()  # TODO could specify index in config
 
-        # collision avoidance settings
+        # static obstacle settings
         self.static_obstacle_settings.enabled = config["static_obstacles"]["enabled"]
         self.static_obstacle_settings.constraint_type = (
             bindings.constraint_type_from_string(
@@ -245,7 +249,10 @@ class ControllerSettings(bindings.ControllerSettings):
         # dynamic obstacle settings
         self.dynamic_obstacle_settings.enabled = config["dynamic_obstacles"]["enabled"]
         if self.dynamic_obstacle_settings.enabled:
-            self.dynamic_obstacle_settings.obstacle_radius = config["dynamic_obstacles"]["radius"]
+            self.dynamic_obstacle_settings.obstacle_radius = config[
+                "dynamic_obstacles"
+            ]["radius"]
+            self.dims.o = 1  # TODO
             self.dynamic_obstacle_settings.mu = 1e-2
             self.dynamic_obstacle_settings.delta = 1e-3
 

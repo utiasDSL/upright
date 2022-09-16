@@ -9,8 +9,9 @@
 
 #include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/controller_interface.h>
-#include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
-#include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
+#include <upright_control/dynamics/combined_pinocchio_mapping.h>
+// #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
+// #include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
 
 namespace upright {
 
@@ -22,24 +23,29 @@ class BalancingConstraintWrapper {
             settings, settings.robot_urdf_path, settings.obstacle_urdf_path));
 
         std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::ad_scalar_t>>
-            pinocchio_mapping_ptr;
-        if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
-            pinocchio_mapping_ptr.reset(
-                new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
-                    settings.dims));
-        } else {
-            pinocchio_mapping_ptr.reset(
-                new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(
-                    settings.dims));
-        }
+            pinocchio_mapping_ptr(new CombinedPinocchioMapping<
+                                  IntegratorPinocchioMapping<ocs2::ad_scalar_t>,
+                                  ocs2::ad_scalar_t>(settings.dims));
+
+        // std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::ad_scalar_t>>
+        //     pinocchio_mapping_ptr;
+        // if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
+        //     pinocchio_mapping_ptr.reset(
+        //         new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
+        //             settings.dims));
+        // } else {
+        //     pinocchio_mapping_ptr.reset(
+        //         new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(
+        //             settings.dims));
+        // }
 
         bool recompileLibraries = true;
 
         ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
             interface, *pinocchio_mapping_ptr,
-            {settings.end_effector_link_name}, settings.dims.ox(), settings.dims.ou(),
-            "end_effector_kinematics", settings.lib_folder, recompileLibraries,
-            false);
+            {settings.end_effector_link_name}, settings.dims.x(),
+            settings.dims.u(), "end_effector_kinematics", settings.lib_folder,
+            recompileLibraries, false);
 
         constraints_.reset(new BoundedBalancingConstraints(
             end_effector_kinematics, settings.balancing_settings,
