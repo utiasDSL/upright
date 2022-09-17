@@ -43,6 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <ocs2_robotic_tools/common/RobotInterface.h>
+#include <ocs2_self_collision/PinocchioGeometryInterface.h>
 #include <ocs2_sqp/MultipleShootingSettings.h>
 
 #include <upright_control/constraint/obstacle_constraint.h>
@@ -104,18 +105,18 @@ class ControllerInterface final : public ocs2::RobotInterface {
             end_effector_kinematics);
 
     // Hard static obstacle avoidance constraint.
-    std::unique_ptr<ocs2::StateConstraint> get_static_obstacle_constraint(
-        ocs2::PinocchioInterface& pinocchioInterface,
-        const StaticObstacleSettings& settings,
-        const std::string& obstacle_urdf_path, bool useCaching,
-        const std::string& libraryFolder, bool recompileLibraries);
+    std::unique_ptr<ocs2::StateConstraint> get_obstacle_constraint(
+        ocs2::PinocchioInterface& pinocchio_interface,
+        ocs2::PinocchioGeometryInterface& geom_interface,
+        const ObstacleSettings& settings, const std::string& library_folder,
+        bool recompile_libraries);
 
     // Soft static obstacle avoidance constraint.
-    std::unique_ptr<ocs2::StateCost> get_soft_static_obstacle_constraint(
-        ocs2::PinocchioInterface pinocchioInterface,
-        const StaticObstacleSettings& settings,
-        const std::string& obstacle_urdf_path, bool useCaching,
-        const std::string& libraryFolder, bool recompileLibraries);
+    std::unique_ptr<ocs2::StateCost> get_soft_obstacle_constraint(
+        ocs2::PinocchioInterface& pinocchio_interface,
+        ocs2::PinocchioGeometryInterface& geom_interface,
+        const ObstacleSettings& settings, const std::string& library_folder,
+        bool recompile_libraries);
 
     // Hard state and input limits.
     std::unique_ptr<ocs2::StateInputConstraint>

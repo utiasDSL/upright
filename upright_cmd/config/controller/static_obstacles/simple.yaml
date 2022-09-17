@@ -4,11 +4,6 @@ urdf:
   includes:
     - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
 
-# extra margin between objects
-# Important: this needs to be > 0 for the resulting constraint to be
-# differentiable
-minimum_distance: 0.01
-
 # check collisions between these pairs of objects
 collision_pairs:
   # wrist and sphere

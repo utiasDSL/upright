@@ -63,6 +63,7 @@ inline Quatd get_target_orientation(const VecXd& target) {
 //     target.segment<3>(7) = position;
 // }
 
+// TODO get rid of these
 inline Vec3d get_obstacle_position(const VecXd& target) {
     return target.segment<3>(7);
 }

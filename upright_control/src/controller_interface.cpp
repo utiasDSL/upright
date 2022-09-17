@@ -27,9 +27,13 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
+// NOTE: pinocchio needs to be included before other things to prevent the
+// compiler fussing
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
+#include <pinocchio/algorithm/model.hpp>
 #include <pinocchio/fwd.hpp>
+#include <pinocchio/multibody/geometry.hpp>
 #include <pinocchio/multibody/joint/joint-composite.hpp>
 #include <pinocchio/multibody/model.hpp>
 
@@ -50,7 +54,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
+#include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <ocs2_pinocchio_interface/urdf.h>
+#include <ocs2_self_collision/PinocchioGeometryInterface.h>
 #include <ocs2_self_collision/SelfCollisionConstraint.h>
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 #include <ocs2_sqp/MultipleShootingMpc.h>
@@ -75,6 +81,35 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "upright_control/controller_interface.h"
 
 namespace upright {
+
+std::tuple<pinocchio::Model, pinocchio::GeometryModel>
+build_dynamic_obstacle_model(const DynamicObstacle& obstacle) {
+    pinocchio::Model model;
+    model.name = obstacle.name;
+
+    // free-floating joint
+    std::string joint_name = obstacle.name + "_joint";
+    auto joint_placement = pinocchio::SE3::Identity();
+    auto joint_id = model.addJoint(0, pinocchio::JointModelTranslation(),
+                                   joint_placement, joint_name);
+
+    // body
+    ocs2::scalar_t mass = 1.0;
+    auto body_placement = pinocchio::SE3::Identity();
+    auto inertia = pinocchio::Inertia::FromSphere(mass, obstacle.radius);
+    model.appendBodyToJoint(joint_id, inertia, body_placement);
+
+    // collision model
+    pinocchio::GeometryModel geom_model;
+    pinocchio::GeometryObject::CollisionGeometryPtr shape_ptr(
+        new hpp::fcl::Sphere(obstacle.radius));
+    pinocchio::GeometryObject geom_obj(obstacle.name, joint_id, shape_ptr,
+                                       body_placement);
+    geom_model.addGeometryObject(geom_obj);
+
+    return std::tuple<pinocchio::Model, pinocchio::GeometryModel>(model,
+                                                                  geom_model);
+}
 
 ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     : settings_(settings) {
@@ -122,7 +157,6 @@ void ControllerInterface::loadSettings() {
      * URDF files
      */
     std::cerr << "Robot URDF: " << settings_.robot_urdf_path << std::endl;
-    std::cerr << "Obstacle URDF: " << settings_.obstacle_urdf_path << std::endl;
 
     pinocchioInterfacePtr_.reset(new ocs2::PinocchioInterface(
         build_pinocchio_interface(settings_.robot_urdf_path)));
@@ -203,11 +237,9 @@ void ControllerInterface::loadSettings() {
                           getQuadraticStateInputCost(taskFile));
 
     // Build the end effector kinematics
-    std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::ad_scalar_t>>
-        pinocchio_mapping_ptr(
-            new CombinedPinocchioMapping<
-                IntegratorPinocchioMapping<ocs2::ad_scalar_t>,
-                ocs2::ad_scalar_t>(settings_.dims));
+    CombinedPinocchioMapping<IntegratorPinocchioMapping<ocs2::ad_scalar_t>,
+                             ocs2::ad_scalar_t>
+        mapping(settings_.dims);
     // if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
     //     pinocchio_mapping_ptr.reset(
     //         new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
@@ -219,10 +251,9 @@ void ControllerInterface::loadSettings() {
     // }
 
     ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
-        *pinocchioInterfacePtr_, *pinocchio_mapping_ptr,
-        {settings_.end_effector_link_name}, settings_.dims.x(),
-        settings_.dims.u(), "end_effector_kinematics", libraryFolder,
-        recompileLibraries, false);
+        *pinocchioInterfacePtr_, mapping, {settings_.end_effector_link_name},
+        settings_.dims.x(), settings_.dims.u(), "end_effector_kinematics",
+        libraryFolder, recompileLibraries, false);
 
     problem_.stateCostPtr->add("end_effector_cost",
                                getEndEffectorCost(end_effector_kinematics));
@@ -256,34 +287,66 @@ void ControllerInterface::loadSettings() {
         std::cerr << "Hard state and input limits are enabled." << std::endl;
     }
 
-    // Self-collision avoidance and collision avoidance with static obstacles
-    if (settings_.static_obstacle_settings.enabled) {
-        if (settings_.static_obstacle_settings.constraint_type ==
+    // Collision avoidance
+    if (settings_.obstacle_settings.enabled) {
+        ocs2::PinocchioGeometryInterface geom_interface(
+            *pinocchioInterfacePtr_);
+
+        // Add obstacle collision objects to the geometry model, so we can check
+        // them against the robot.
+        std::string obs_urdf_path =
+            settings_.obstacle_settings.obstacle_urdf_path;
+        if (obs_urdf_path.size() > 0) {
+            std::cout << "Obstacle URDF: " << obs_urdf_path << std::endl;
+            pinocchio::GeometryModel obs_geom_model =
+                build_geometry_model(obs_urdf_path);
+            geom_interface.addGeometryObjects(obs_geom_model);
+        }
+
+        // Add dynamic obstacles.
+        if (settings_.obstacle_settings.dynamic_obstacles.size() > 0) {
+            ocs2::PinocchioInterface::Model dyn_obs_model;
+            pinocchio::GeometryModel dyn_obs_geom_model;
+
+            // TODO generalize to multiple dynamic obstacles
+            std::tie(dyn_obs_model, dyn_obs_geom_model) =
+                build_dynamic_obstacle_model(
+                    settings_.obstacle_settings.dynamic_obstacles[0]);
+
+            // Update models
+            const auto& model = pinocchioInterfacePtr_->getModel();
+            pinocchio::Model new_model = pinocchio::appendModel(
+                model, dyn_obs_model, 0, pinocchio::SE3::Identity());
+            pinocchioInterfacePtr_.reset(
+                new ocs2::PinocchioInterface(new_model));
+            geom_interface.addGeometryObjects(dyn_obs_geom_model);
+        }
+
+        std::cout << pinocchioInterfacePtr_->getModel() << std::endl;
+
+        if (settings_.obstacle_settings.constraint_type ==
             ConstraintType::Soft) {
             problem_.stateSoftConstraintPtr->add(
-                "static_obstacle_avoidance",
-                get_soft_static_obstacle_constraint(
-                    *pinocchioInterfacePtr_, settings_.static_obstacle_settings,
-                    settings_.obstacle_urdf_path, usePreComputation,
-                    libraryFolder, recompileLibraries));
-            std::cerr
-                << "Soft static obstacle avoidance constraints are enabled."
-                << std::endl;
+                "obstacle_avoidance",
+                get_soft_obstacle_constraint(
+                    *pinocchioInterfacePtr_, geom_interface,
+                    settings_.obstacle_settings, libraryFolder,
+                    recompileLibraries));
+            std::cerr << "Soft obstacle avoidance constraints are enabled."
+                      << std::endl;
         } else {
             // Get the usual state constraint
-            std::unique_ptr<ocs2::StateConstraint> static_obstacle_constraint =
-                get_static_obstacle_constraint(
-                    *pinocchioInterfacePtr_, settings_.static_obstacle_settings,
-                    settings_.obstacle_urdf_path, usePreComputation,
-                    libraryFolder, recompileLibraries);
+            std::unique_ptr<ocs2::StateConstraint> obstacle_constraint =
+                get_obstacle_constraint(*pinocchioInterfacePtr_, geom_interface,
+                                        settings_.obstacle_settings,
+                                        libraryFolder, recompileLibraries);
 
             // Map it to a state-input constraint so it works with the current
             // implementation of the hard inequality constraints
             problem_.inequalityConstraintPtr->add(
-                "static_obstacle_avoidance",
+                "obstacle_avoidance",
                 std::unique_ptr<ocs2::StateInputConstraint>(
-                    new StateToStateInputConstraint(
-                        *static_obstacle_constraint)));
+                    new StateToStateInputConstraint(*obstacle_constraint)));
             std::cerr
                 << "Hard static obstacle avoidance constraints are enabled."
                 << std::endl;
@@ -294,16 +357,16 @@ void ControllerInterface::loadSettings() {
 
     // Collision avoidance with dynamic obstacles specified via the reference
     // trajectory
-    if (settings_.dynamic_obstacle_settings.enabled) {
-        std::cerr << "Dynamic obstacle avoidance is enabled." << std::endl;
-        problem_.stateSoftConstraintPtr->add(
-            "dynamic_obstacle_avoidance",
-            getDynamicObstacleConstraint(
-                *pinocchioInterfacePtr_, settings_.dynamic_obstacle_settings,
-                usePreComputation, libraryFolder, recompileLibraries));
-    } else {
-        std::cerr << "Dynamic obstacle avoidance is disabled." << std::endl;
-    }
+    // if (settings_.dynamic_obstacle_settings.enabled) {
+    //     std::cerr << "Dynamic obstacle avoidance is enabled." << std::endl;
+    //     problem_.stateSoftConstraintPtr->add(
+    //         "dynamic_obstacle_avoidance",
+    //         getDynamicObstacleConstraint(
+    //             *pinocchioInterfacePtr_, settings_.dynamic_obstacle_settings,
+    //             usePreComputation, libraryFolder, recompileLibraries));
+    // } else {
+    //     std::cerr << "Dynamic obstacle avoidance is disabled." << std::endl;
+    // }
 
     // TODO we're getting too nested here
     if (settings_.balancing_settings.enabled) {
@@ -449,10 +512,9 @@ ControllerInterface::getDynamicObstacleConstraint(
     //             settings_.dims.robot));
     // }
     std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::ad_scalar_t>>
-        pinocchio_mapping_ptr(
-            new CombinedPinocchioMapping<
-                IntegratorPinocchioMapping<ocs2::ad_scalar_t>,
-                ocs2::ad_scalar_t>(settings_.dims));
+        pinocchio_mapping_ptr(new CombinedPinocchioMapping<
+                              IntegratorPinocchioMapping<ocs2::ad_scalar_t>,
+                              ocs2::ad_scalar_t>(settings_.dims));
 
     ocs2::PinocchioEndEffectorKinematicsCppAd object_ee_kinematics(
         pinocchioInterface, *pinocchio_mapping_ptr,
@@ -579,111 +641,89 @@ ControllerInterface::get_soft_contact_force_constraint(
 }
 
 std::unique_ptr<ocs2::StateConstraint>
-ControllerInterface::get_static_obstacle_constraint(
-    ocs2::PinocchioInterface& pinocchioInterface,
-    const StaticObstacleSettings& settings,
-    const std::string& obstacle_urdf_path, bool usePreComputation,
-    const std::string& libraryFolder, bool recompileLibraries) {
-    // only specifying link pairs (i.e. by name)
-    ocs2::PinocchioGeometryInterface geometryInterface(pinocchioInterface);
+ControllerInterface::get_obstacle_constraint(
+    ocs2::PinocchioInterface& pinocchio_interface,
+    ocs2::PinocchioGeometryInterface& geom_interface,
+    const ObstacleSettings& settings, const std::string& library_folder,
+    bool recompile_libraries) {
+    // ocs2::PinocchioGeometryInterface geometryInterface(pinocchioInterface);
 
     // Add obstacle collision objects to the geometry model, so we can check
     // them against the robot.
-    pinocchio::GeometryModel obs_geom_model =
-        build_geometry_model(obstacle_urdf_path);
-    geometryInterface.addGeometryObjects(obs_geom_model);
+    // pinocchio::GeometryModel obs_geom_model =
+    //     build_geometry_model(obstacle_urdf_path);
+    // geometryInterface.addGeometryObjects(obs_geom_model);
 
-    const auto& model = pinocchioInterface.getModel();
-    auto& data = pinocchioInterface.getData();
+    // const auto& model = pinocchioInterface.getModel();
+    // auto& data = pinocchioInterface.getData();
     // const auto q = pinocchioMapping_.getPinocchioJointPosition(x);
     // pinocchio::forwardKinematics(model, data, q);
     // pinocchio::updateFramePlacements(model, data);
 
-    Mat3d R = Mat3d::Identity();
+    // Mat3d R = Mat3d::Identity();
+    //
+    // std::cerr << "Number of extra collision spheres = "
+    //           << settings.extra_spheres.size() << std::endl;
+    //
+    // std::vector<pinocchio::GeometryObject> extra_spheres;
+    // for (const auto& sphere : settings.extra_spheres) {
+    //     // The collision sphere is specified relative to a link, but the
+    //     // geometry interface works relative to joints. Thus we need to find
+    //     // the parent joint and the sphere's transform w.r.t. it.
+    //     // TODO if possible, it would be better to specify w.r.t. to a joint
+    //     pinocchio::FrameIndex parent_frame_id =
+    //         model.getFrameId(sphere.parent_frame_name);
+    //     pinocchio::Frame parent_frame = model.frames[parent_frame_id];
+    //
+    //     pinocchio::JointIndex parent_joint_id = parent_frame.parent;
+    //     pinocchio::SE3 T_jf = parent_frame.placement;
+    //     pinocchio::SE3 T_fs(R, sphere.offset);
+    //     pinocchio::SE3 T_js = T_jf * T_fs;  // sphere relative to joint
+    //
+    //     pinocchio::GeometryObject::CollisionGeometryPtr geom_ptr(
+    //         new hpp::fcl::Sphere(sphere.radius));
+    //     extra_spheres.push_back(pinocchio::GeometryObject(
+    //         sphere.name, parent_joint_id, geom_ptr, T_js));
+    // }
+    // geometryInterface.addGeometryObjects(extra_spheres);
 
-    std::cerr << "Number of extra collision spheres = "
-              << settings.extra_spheres.size() << std::endl;
-
-    std::vector<pinocchio::GeometryObject> extra_spheres;
-    for (const auto& sphere : settings.extra_spheres) {
-        // The collision sphere is specified relative to a link, but the
-        // geometry interface works relative to joints. Thus we need to find
-        // the parent joint and the sphere's transform w.r.t. it.
-        // TODO if possible, it would be better to specify w.r.t. to a joint
-        pinocchio::FrameIndex parent_frame_id =
-            model.getFrameId(sphere.parent_frame_name);
-        pinocchio::Frame parent_frame = model.frames[parent_frame_id];
-
-        pinocchio::JointIndex parent_joint_id = parent_frame.parent;
-        pinocchio::SE3 T_jf = parent_frame.placement;
-        pinocchio::SE3 T_fs(R, sphere.offset);
-        pinocchio::SE3 T_js = T_jf * T_fs;  // sphere relative to joint
-
-        pinocchio::GeometryObject::CollisionGeometryPtr geom_ptr(
-            new hpp::fcl::Sphere(sphere.radius));
-        extra_spheres.push_back(pinocchio::GeometryObject(
-            sphere.name, parent_joint_id, geom_ptr, T_js));
+    pinocchio::GeometryModel& geom_model = geom_interface.getGeometryModel();
+    for (int i = 0; i < geom_model.ngeoms; ++i) {
+        std::cout << geom_model.geometryObjects[i].name << std::endl;
     }
-    geometryInterface.addGeometryObjects(extra_spheres);
 
-    pinocchio::GeometryModel& geometry_model =
-        geometryInterface.getGeometryModel();
-    for (int i = 0; i < geometry_model.ngeoms; ++i) {
-        std::cout << geometry_model.geometryObjects[i].name << std::endl;
-    }
+    geom_interface.addCollisionPairsByName(settings.collision_link_pairs);
 
-    geometryInterface.addCollisionPairsByName(settings.collision_link_pairs);
-
-    const size_t numCollisionPairs = geometryInterface.getNumCollisionPairs();
-    std::cerr << "SelfCollision: Testing for " << numCollisionPairs
-              << " collision pairs\n";
+    const size_t numCollisionPairs = geom_interface.getNumCollisionPairs();
+    std::cerr << "Testing for " << numCollisionPairs << " collision pairs."
+              << std::endl;
 
     std::vector<hpp::fcl::DistanceResult> distances =
-        geometryInterface.computeDistances(pinocchioInterface);
+        geom_interface.computeDistances(pinocchio_interface);
     for (int i = 0; i < distances.size(); ++i) {
         std::cout << "dist = " << distances[i].min_distance << std::endl;
     }
 
-    // std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::scalar_t>>
-    //     pinocchio_mapping_ptr;
-    // if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
-    //     pinocchio_mapping_ptr.reset(
-    //         new OmnidirectionalPinocchioMapping<ocs2::scalar_t>(
-    //             settings_.dims.robot));
-    // } else {
-    //     pinocchio_mapping_ptr.reset(
-    //         new FixedBasePinocchioMapping<ocs2::scalar_t>(
-    //             settings_.dims.robot));
-    // }
-    std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::scalar_t>>
-        pinocchio_mapping_ptr(
-            new CombinedPinocchioMapping<
-                IntegratorPinocchioMapping<ocs2::scalar_t>,
-                ocs2::scalar_t>(settings_.dims));
+    CombinedPinocchioMapping<IntegratorPinocchioMapping<ocs2::scalar_t>,
+                             ocs2::scalar_t>
+        mapping(settings_.dims);
 
     return std::unique_ptr<ocs2::StateConstraint>(
         new ocs2::SelfCollisionConstraintCppAd(
-            pinocchioInterface, *pinocchio_mapping_ptr,
-            std::move(geometryInterface), settings.minimum_distance,
-            "static_obstacle_avoidance", libraryFolder, recompileLibraries,
-            false));
-    // TODO need precomp for this apparently
-    // return std::unique_ptr<ocs2::StateConstraint>(
-    //     new ocs2::SelfCollisionConstraint(*pinocchio_mapping_ptr,
-    //                                            std::move(geometryInterface),
-    //                                            settings.minimum_distance));
+            pinocchio_interface, mapping, geom_interface,
+            settings.minimum_distance, "obstacle_avoidance", library_folder,
+            recompile_libraries, false));
 }
 
 std::unique_ptr<ocs2::StateCost>
-ControllerInterface::get_soft_static_obstacle_constraint(
-    ocs2::PinocchioInterface pinocchioInterface,
-    const StaticObstacleSettings& settings,
-    const std::string& obstacle_urdf_path, bool usePreComputation,
-    const std::string& libraryFolder, bool recompileLibraries) {
+ControllerInterface::get_soft_obstacle_constraint(
+    ocs2::PinocchioInterface& pinocchio_interface,
+    ocs2::PinocchioGeometryInterface& geom_interface,
+    const ObstacleSettings& settings, const std::string& library_folder,
+    bool recompile_libraries) {
     std::unique_ptr<ocs2::StateConstraint> constraint =
-        get_static_obstacle_constraint(pinocchioInterface, settings,
-                                       obstacle_urdf_path, usePreComputation,
-                                       libraryFolder, recompileLibraries);
+        get_obstacle_constraint(pinocchio_interface, geom_interface, settings,
+                                library_folder, recompile_libraries);
 
     std::unique_ptr<ocs2::PenaltyBase> penalty(
         new ocs2::RelaxedBarrierPenalty({settings.mu, settings.delta}));

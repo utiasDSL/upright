@@ -14,8 +14,8 @@
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/controller_python_interface.h>
 #include <upright_control/controller_settings.h>
-#include <upright_control/dynamics/base_type.h>
 #include <upright_control/dimensions.h>
+#include <upright_control/dynamics/base_type.h>
 #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
 #include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
 
@@ -105,28 +105,37 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("offset", &CollisionSphere<scalar_t>::offset)
         .def_readwrite("radius", &CollisionSphere<scalar_t>::radius);
 
-    pybind11::class_<StaticObstacleSettings>(m, "StaticObstacleSettings")
+    pybind11::class_<DynamicObstacle>(m, "DynamicObstacle")
         .def(pybind11::init<>())
-        .def_readwrite("enabled", &StaticObstacleSettings::enabled)
-        .def_readwrite("collision_link_pairs",
-                       &StaticObstacleSettings::collision_link_pairs)
-        .def_readwrite("minimum_distance",
-                       &StaticObstacleSettings::minimum_distance)
-        .def_readwrite("constraint_type",
-                       &StaticObstacleSettings::constraint_type)
-        .def_readwrite("mu", &StaticObstacleSettings::mu)
-        .def_readwrite("delta", &StaticObstacleSettings::delta)
-        .def_readwrite("extra_spheres", &StaticObstacleSettings::extra_spheres);
+        .def_readwrite("radius", &DynamicObstacle::radius)
+        .def_readwrite("position", &DynamicObstacle::position)
+        .def_readwrite("velocity", &DynamicObstacle::velocity)
+        .def_readwrite("acceleration", &DynamicObstacle::acceleration);
 
-    pybind11::class_<DynamicObstacleSettings>(m, "DynamicObstacleSettings")
+    pybind11::class_<ObstacleSettings>(m, "ObstacleSettings")
         .def(pybind11::init<>())
-        .def_readwrite("enabled", &DynamicObstacleSettings::enabled)
-        .def_readwrite("obstacle_radius",
-                       &DynamicObstacleSettings::obstacle_radius)
-        .def_readwrite("mu", &DynamicObstacleSettings::mu)
-        .def_readwrite("delta", &DynamicObstacleSettings::delta)
-        .def_readwrite("collision_spheres",
-                       &DynamicObstacleSettings::collision_spheres);
+        .def_readwrite("enabled", &ObstacleSettings::enabled)
+        .def_readwrite("collision_link_pairs",
+                       &ObstacleSettings::collision_link_pairs)
+        .def_readwrite("minimum_distance", &ObstacleSettings::minimum_distance)
+        .def_readwrite("constraint_type", &ObstacleSettings::constraint_type)
+        .def_readwrite("mu", &ObstacleSettings::mu)
+        .def_readwrite("delta", &ObstacleSettings::delta)
+        .def_readwrite("obstacle_urdf_path",
+                       &ObstacleSettings::obstacle_urdf_path)
+        .def_readwrite("dynamic_obstacles",
+                       &ObstacleSettings::dynamic_obstacles)
+        .def_readwrite("extra_spheres", &ObstacleSettings::extra_spheres);
+
+    // pybind11::class_<DynamicObstacleSettings>(m, "DynamicObstacleSettings")
+    //     .def(pybind11::init<>())
+    //     .def_readwrite("enabled", &DynamicObstacleSettings::enabled)
+    //     .def_readwrite("obstacle_radius",
+    //                    &DynamicObstacleSettings::obstacle_radius)
+    //     .def_readwrite("mu", &DynamicObstacleSettings::mu)
+    //     .def_readwrite("delta", &DynamicObstacleSettings::delta)
+    //     .def_readwrite("collision_spheres",
+    //                    &DynamicObstacleSettings::collision_spheres);
 
     pybind11::class_<RobotDimensions>(m, "RobotDimensions")
         .def(pybind11::init<>())
@@ -167,10 +176,10 @@ PYBIND11_MODULE(bindings, m) {
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("gravity", &ControllerSettings::gravity)
         .def_readwrite("solver_method", &ControllerSettings::solver_method)
-        .def_readwrite("dynamic_obstacle_settings",
-                       &ControllerSettings::dynamic_obstacle_settings)
-        .def_readwrite("static_obstacle_settings",
-                       &ControllerSettings::static_obstacle_settings)
+        // .def_readwrite("dynamic_obstacle_settings",
+        //                &ControllerSettings::dynamic_obstacle_settings)
+        .def_readwrite("obstacle_settings",
+                       &ControllerSettings::obstacle_settings)
         .def_readwrite("balancing_settings",
                        &ControllerSettings::balancing_settings)
         .def_readwrite("initial_state", &ControllerSettings::initial_state)
@@ -195,8 +204,6 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("state_limit_delta",
                        &ControllerSettings::state_limit_delta)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
-        .def_readwrite("obstacle_urdf_path",
-                       &ControllerSettings::obstacle_urdf_path)
         .def_readwrite("ocs2_config_path",
                        &ControllerSettings::ocs2_config_path)
         .def_readwrite("lib_folder", &ControllerSettings::lib_folder)

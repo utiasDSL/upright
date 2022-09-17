@@ -59,7 +59,6 @@ struct ControllerSettings {
 
     // URDFs
     std::string robot_urdf_path;
-    std::string obstacle_urdf_path;
 
     // OCS2 settings
     std::string ocs2_config_path;
@@ -73,8 +72,7 @@ struct ControllerSettings {
     // Additional settings for constraints
     BalancingSettings balancing_settings;
     InertialAlignmentSettings inertial_alignment_settings;
-    DynamicObstacleSettings dynamic_obstacle_settings;
-    StaticObstacleSettings static_obstacle_settings;
+    ObstacleSettings obstacle_settings;
 
     static ControllerSettings::SolverMethod solver_method_from_string(
         const std::string& s) {

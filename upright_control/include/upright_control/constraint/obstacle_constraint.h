@@ -75,7 +75,19 @@ struct CollisionSphere {
     Scalar radius;
 };
 
-struct StaticObstacleSettings {
+struct DynamicObstacle {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    // DynamicObstacle(ocs2::scalar_t radius, Vec3d position, Vec3d velocity, Vec3d
+
+    std::string name;
+    ocs2::scalar_t radius = 0;
+    Vec3d position;
+    Vec3d velocity;
+    Vec3d acceleration;
+};
+
+struct ObstacleSettings {
     bool enabled = false;
 
     // List of pairs of collision objects to check
@@ -89,6 +101,12 @@ struct StaticObstacleSettings {
     // Relaxed barrier function parameters
     ocs2::scalar_t mu = 1e-2;
     ocs2::scalar_t delta = 1e-3;
+
+    // URDF of static obstacles
+    std::string obstacle_urdf_path;
+
+    // List of dynamic obstacles
+    std::vector<DynamicObstacle> dynamic_obstacles;
 
     // Extra collision spheres to attach to the robot body for collision
     // avoidance.

@@ -101,10 +101,10 @@ def main():
         # MPC timestep has been exceeded
         try:
             xd, u = ctrl_manager.step(t, x_noisy)
-            xd_robot = x[:dims.robot.x]
-            u_robot = u[:dims.robot.u]
+            xd_robot = x[: dims.robot.x]
+            u_robot = u[: dims.robot.u]
             # u = ou[: model.settings.dims.u]
-            f = u[-dims.f():]
+            f = u[-dims.f() :]
         except RuntimeError as e:
             print(e)
             print("exit the interpreter to proceed to plots")
@@ -159,23 +159,23 @@ def main():
             logger.append("orn_err", model.angle_between_acc_and_normal())
             logger.append("balancing_constraints", model.balancing_constraints())
 
-            if model.settings.static_obstacle_settings.enabled:
+            if model.settings.obstacle_settings.enabled:
                 if (
-                    model.settings.static_obstacle_settings.constraint_type
+                    model.settings.obstacle_settings.constraint_type
                     == ctrl.bindings.ConstraintType.Soft
                 ):
-                    static_obs_constraints = (
+                    obs_constraints = (
                         ctrl_manager.mpc.getSoftStateInequalityConstraintValue(
-                            "static_obstacle_avoidance", t, x
+                            "obstacle_avoidance", t, x
                         )
                     )
                 else:
-                    static_obs_constraints = (
+                    obs_constraints = (
                         ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                            "static_obstacle_avoidance", t, x, u
+                            "obstacle_avoidance", t, x, u
                         )
                     )
-                logger.append("collision_pair_distances", static_obs_constraints)
+                logger.append("collision_pair_distances", obs_constraints)
 
             # TODO eventually it would be nice to also compute this directly
             # via the core library

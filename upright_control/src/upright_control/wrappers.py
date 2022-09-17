@@ -28,21 +28,12 @@ class TargetTrajectories(bindings.TargetTrajectories):
         ts = []
         xs = []
         us = []
-
-        if config["dynamic_obstacles"]["enabled"]:
-            r0 = config["dynamic_obstacles"]["position"]
-            v0 = config["dynamic_obstacles"]["velocity"]
-            a0 = config["dynamic_obstacles"]["acceleration"]
-            x_obs = np.concatenate((r0, v0, a0))
-        else:
-            x_obs = np.zeros(9)
-
         for waypoint in config["waypoints"]:
             t = waypoint["time"]
 
             r_ew_w_d = r_ew_w + waypoint["position"]
             Q_we_d = core.math.quat_multiply(Q_we, waypoint["orientation"])
-            x = np.concatenate((r_ew_w_d, Q_we_d, x_obs))
+            x = np.concatenate((r_ew_w_d, Q_we_d))
 
             ts.append(t)
             us.append(np.copy(u))
@@ -159,9 +150,6 @@ class ControllerSettings(bindings.ControllerSettings):
         self.robot_urdf_path = core.parsing.parse_and_compile_urdf(
             config["robot"]["urdf"]
         )
-        self.obstacle_urdf_path = core.parsing.parse_and_compile_urdf(
-            config["static_obstacles"]["urdf"]
-        )
 
         # task info file (Boost property tree format)
         self.ocs2_config_path = core.parsing.parse_ros_path(config["infofile"])
@@ -224,66 +212,44 @@ class ControllerSettings(bindings.ControllerSettings):
                 -1
             ].body.com_ellipsoid.center()  # TODO could specify index in config
 
-        # static obstacle settings
-        self.static_obstacle_settings.enabled = config["static_obstacles"]["enabled"]
-        self.static_obstacle_settings.constraint_type = (
-            bindings.constraint_type_from_string(
-                config["static_obstacles"]["constraint_type"]
-            )
-        )
-        if config["static_obstacles"]["collision_pairs"] is not None:
-            for pair in config["static_obstacles"]["collision_pairs"]:
-                self.static_obstacle_settings.collision_link_pairs.push_back(
-                    tuple(pair)
+        # obstacle settings
+        self.obstacle_settings.enabled = config["obstacles"]["enabled"]
+        if self.obstacle_settings.enabled:
+            self.obstacle_settings.constraint_type = (
+                bindings.constraint_type_from_string(
+                    config["obstacles"]["constraint_type"]
                 )
-        self.static_obstacle_settings.minimum_distance = config["static_obstacles"][
-            "minimum_distance"
-        ]
-        self.static_obstacle_settings.mu = core.parsing.parse_number(
-            config["static_obstacles"]["mu"]
-        )
-        self.static_obstacle_settings.delta = core.parsing.parse_number(
-            config["static_obstacles"]["delta"]
-        )
+            )
+            if config["obstacles"]["collision_pairs"] is not None:
+                for pair in config["obstacles"]["collision_pairs"]:
+                    self.obstacle_settings.collision_link_pairs.push_back(tuple(pair))
+            self.obstacle_settings.minimum_distance = config["obstacles"][
+                "minimum_distance"
+            ]
+            self.obstacle_settings.mu = core.parsing.parse_number(
+                config["obstacles"]["mu"]
+            )
+            self.obstacle_settings.delta = core.parsing.parse_number(
+                config["obstacles"]["delta"]
+            )
 
-        # dynamic obstacle settings
-        self.dynamic_obstacle_settings.enabled = config["dynamic_obstacles"]["enabled"]
-        if self.dynamic_obstacle_settings.enabled:
-            self.dynamic_obstacle_settings.obstacle_radius = config[
-                "dynamic_obstacles"
-            ]["radius"]
-            self.dims.o = 1  # TODO
-            self.dynamic_obstacle_settings.mu = 1e-2
-            self.dynamic_obstacle_settings.delta = 1e-3
+            if "urdf" in config["obstacles"]:
+                self.obstacle_settings.obstacle_urdf_path = (
+                    core.parsing.parse_and_compile_urdf(
+                        config["obstacles"]["urdf"]
+                    )
+                )
 
-        # TODO not happy about this
-        for sphere in [
-            bindings.CollisionSphere(
-                name="elbow_collision_link",
-                parent_frame_name="ur10_arm_forearm_link",
-                offset=np.zeros(3),
-                radius=0.15,
-            ),
-            bindings.CollisionSphere(
-                name="forearm_collision_sphere_link1",
-                parent_frame_name="ur10_arm_forearm_link",
-                offset=np.array([0, 0, 0.2]),
-                radius=0.15,
-            ),
-            bindings.CollisionSphere(
-                name="forearm_collision_sphere_link2",
-                parent_frame_name="ur10_arm_forearm_link",
-                offset=np.array([0, 0, 0.4]),
-                radius=0.15,
-            ),
-            bindings.CollisionSphere(
-                name="wrist_collision_link",
-                parent_frame_name="ur10_arm_wrist_3_link",
-                offset=np.zeros(3),
-                radius=0.15,
-            ),
-        ]:
-            self.dynamic_obstacle_settings.collision_spheres.push_back(sphere)
+            if "dynamic" in config["obstacles"]:
+                self.dims.o = len(config["obstacles"]["dynamic"])
+                for obs_config in config["obstacles"]["dynamic"]:
+                    obs = bindings.DynamicObstacle()
+                    obs.name = obstacles["name"]
+                    obs.radius = obs_config["radius"]
+                    obs.position = np.array(obs_config["position"])
+                    obs.velocity = np.array(obs_config["velocity"])
+                    obs.acceleration = np.array(obs_config["acceleration"])
+                    self.obstacle_settings.push_back(obs)
 
     @classmethod
     def from_config_file(cls, config_path):
