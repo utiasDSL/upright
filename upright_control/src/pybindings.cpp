@@ -32,6 +32,7 @@ using StringPairVector = std::vector<std::pair<std::string, std::string>>;
 
 PYBIND11_MAKE_OPAQUE(CollisionSphereVector)
 PYBIND11_MAKE_OPAQUE(StringPairVector)
+PYBIND11_MAKE_OPAQUE(std::vector<DynamicObstacle>)
 
 /* create a python module */
 PYBIND11_MODULE(bindings, m) {
@@ -42,6 +43,7 @@ PYBIND11_MODULE(bindings, m) {
 
     VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
+    VECTOR_TYPE_BINDING(std::vector<DynamicObstacle>, "DynamicObstacleVector")
 
     pybind11::class_<FixedBasePinocchioMapping<scalar_t>>(
         m, "FixedBasePinocchioMapping")
@@ -107,6 +109,7 @@ PYBIND11_MODULE(bindings, m) {
 
     pybind11::class_<DynamicObstacle>(m, "DynamicObstacle")
         .def(pybind11::init<>())
+        .def_readwrite("name", &DynamicObstacle::name)
         .def_readwrite("radius", &DynamicObstacle::radius)
         .def_readwrite("position", &DynamicObstacle::position)
         .def_readwrite("velocity", &DynamicObstacle::velocity)

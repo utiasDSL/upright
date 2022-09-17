@@ -64,11 +64,6 @@ template <typename Scalar>
 static const IntegratorPinocchioMapping<Scalar> OBSTACLE_PINOCCHIO_MAPPING{
     OBSTACLE_DIMENSIONS};
 
-// template <typename Scalar>
-// IntegratorPinocchioMapping<Scalar> ObstaclePinocchioMapping() {
-//     return IntegratorPinocchioMapping<Scalar>({x});
-// }
-
 template <typename Mapping, typename Scalar>
 class CombinedPinocchioMapping final
     : public ocs2::PinocchioStateInputMapping<Scalar> {
@@ -146,13 +141,15 @@ class CombinedPinocchioMapping final
         return a_pin;
     }
 
-    // NOTE: maps the Jacobians of an arbitrary function f w.r.t q and v
-    // (generalized positions and velocities), as provided by Pinocchio as Jq
-    // and Jv, to the Jacobian of the state dfdx and Jacobian of the input
+    // Maps the Jacobians of an arbitrary function f w.r.t q and v (generalized
+    // positions and velocities), as provided by Pinocchio as Jq_pin and
+    // Jv_pin, to the Jacobian of the state dfdx and Jacobian of the input
     // dfdu.
     std::pair<MatXs, MatXs> getOcs2Jacobian(
         const VecXs& state, const MatXs& Jq_pin,
         const MatXs& Jv_pin) const override {
+        // TODO this is not correct b.c of different ordering of q, v in
+        // Pinocchio
         const auto output_dim = Jq_pin.rows();
         MatXs dfdx(output_dim, dims_.x());
         MatXs dfdu(output_dim, dims_.u());
@@ -172,8 +169,9 @@ class CombinedPinocchioMapping final
         }
 
         VecXs x_robot = state.head(dims_.robot.x);
-        MatXs Jq_pin_robot = Jq_pin.leftCols(dims_.robot.q);
-        MatXs Jv_pin_robot = Jv_pin.leftCols(dims_.robot.v);
+        // Recall that robot q, v are after the obstacle q, v in Pinocchio
+        MatXs Jq_pin_robot = Jq_pin.rightCols(dims_.robot.q);
+        MatXs Jv_pin_robot = Jv_pin.rightCols(dims_.robot.v);
         MatXs dfdx_robot, dfdu_robot;
         std::tie(dfdx_robot, dfdu_robot) =
             robot_mapping_.getOcs2Jacobian(x_robot, Jq_pin_robot, Jv_pin_robot);

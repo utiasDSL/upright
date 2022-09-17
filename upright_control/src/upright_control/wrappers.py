@@ -41,7 +41,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
         return cls(ts, xs, us)
 
     @classmethod
-    def from_config_file(cls, config_path, x0):
+    def from_config_file(cls, config_path, x0_robot):
         """Load the trajectory directly from a config file.
 
         This is convenient for loading from C++, for example in the MRT node.
@@ -49,7 +49,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
         config = core.parsing.load_config(config_path)
         ctrl_config = config["controller"]
         robot = PinocchioRobot(config=ctrl_config["robot"])
-        robot.forward(x0)
+        robot.forward(x0_robot)
         r_ew_w, Q_we = robot.link_pose()
         u0 = np.zeros(robot.dims.ou)
         return cls.from_config(ctrl_config, r_ew_w, Q_we, u0)
@@ -93,14 +93,6 @@ class ControllerSettings(bindings.ControllerSettings):
         self.dims.robot.v = config["robot"]["dims"]["v"]
         self.dims.robot.x = config["robot"]["dims"]["x"]
         self.dims.robot.u = config["robot"]["dims"]["u"]
-
-        # initial state can be passed in directly (for example to match exactly
-        # a simulation) or parsed from the config
-        if x0 is None:
-            self.initial_state = core.parsing.parse_array(config["robot"]["x0"])
-        else:
-            self.initial_state = x0
-        assert self.initial_state.shape == (self.dims.x(),)
 
         # weights for state, input, and EE pose
         self.input_weight = core.parsing.parse_diag_matrix_dict(
@@ -213,6 +205,7 @@ class ControllerSettings(bindings.ControllerSettings):
             ].body.com_ellipsoid.center()  # TODO could specify index in config
 
         # obstacle settings
+        x0_obs = []
         self.obstacle_settings.enabled = config["obstacles"]["enabled"]
         if self.obstacle_settings.enabled:
             self.obstacle_settings.constraint_type = (
@@ -244,12 +237,28 @@ class ControllerSettings(bindings.ControllerSettings):
                 self.dims.o = len(config["obstacles"]["dynamic"])
                 for obs_config in config["obstacles"]["dynamic"]:
                     obs = bindings.DynamicObstacle()
-                    obs.name = obstacles["name"]
+                    obs.name = obs_config["name"]
                     obs.radius = obs_config["radius"]
                     obs.position = np.array(obs_config["position"])
                     obs.velocity = np.array(obs_config["velocity"])
                     obs.acceleration = np.array(obs_config["acceleration"])
-                    self.obstacle_settings.push_back(obs)
+                    self.obstacle_settings.dynamic_obstacles.push_back(obs)
+
+                    # also construct initial state for the obstacles
+                    x0_obs.append(np.concatenate((obs.position, obs.velocity, obs.acceleration)))
+                x0_obs = np.concatenate(x0_obs)
+
+        # initial state can be passed in directly (for example to match exactly
+        # a simulation) or parsed from the config
+        # we do this at the end to properly account for dynamic obstacles added
+        # to the state
+        if x0 is None:
+            x0_robot = core.parsing.parse_array(config["robot"]["x0"])
+            assert x0_robot.shape == (self.dims.robot.x,)
+            self.initial_state = np.concatenate((x0_robot, x0_obs))
+        else:
+            self.initial_state = x0
+        assert self.initial_state.shape == (self.dims.x(),)
 
     @classmethod
     def from_config_file(cls, config_path):

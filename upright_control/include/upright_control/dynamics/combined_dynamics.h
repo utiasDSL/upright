@@ -7,22 +7,6 @@
 
 namespace upright {
 
-// TODO might we use a templated approach (which assumes one robot) as we
-// do in the pinocchio mapping?
-
-// template <typename Scalar>
-// class Dynamics {
-//    public:
-//     Dynamics(const RobotDimensions& dims) : dims_(dims) {}
-//
-//     virtual VecX<Scalar> flowmap(Scalar t, const VecX<Scalar>& x,
-//                                  const VecX<Scalar>& u,
-//                                  const VecX<Scalar>& p) const = 0;
-//
-//    protected:
-//     RobotDimensions dims_;
-// };
-
 template <typename Scalar>
 class IntegratorDynamics {
    public:

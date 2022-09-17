@@ -233,39 +233,12 @@ void ControllerInterface::loadSettings() {
     problem_.dynamicsPtr = std::move(dynamicsPtr);
 
     // Cost
-    problem_.costPtr->add("state_input_cost",
-                          getQuadraticStateInputCost(taskFile));
+    problem_.costPtr->add("state_input_cost", getQuadraticStateInputCost());
 
     // Build the end effector kinematics
     CombinedPinocchioMapping<IntegratorPinocchioMapping<ocs2::ad_scalar_t>,
                              ocs2::ad_scalar_t>
         mapping(settings_.dims);
-    // if (settings_.robot_base_type == RobotBaseType::Omnidirectional) {
-    //     pinocchio_mapping_ptr.reset(
-    //         new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
-    //             settings_.dims.robot));
-    // } else {
-    //     pinocchio_mapping_ptr.reset(
-    //         new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(
-    //             settings_.dims.robot));
-    // }
-
-    ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
-        *pinocchioInterfacePtr_, mapping, {settings_.end_effector_link_name},
-        settings_.dims.x(), settings_.dims.u(), "end_effector_kinematics",
-        libraryFolder, recompileLibraries, false);
-
-    problem_.stateCostPtr->add("end_effector_cost",
-                               getEndEffectorCost(end_effector_kinematics));
-
-    if (settings_.inertial_alignment_settings.enabled) {
-        std::unique_ptr<ocs2::StateInputCost> inertial_alignment_cost(
-            new InertialAlignmentCost(end_effector_kinematics,
-                                      settings_.inertial_alignment_settings,
-                                      settings_.gravity, settings_.dims, true));
-        problem_.costPtr->add("inertial_alignment_cost",
-                              std::move(inertial_alignment_cost));
-    }
 
     /* Constraints */
     if (settings_.limit_constraint_type == ConstraintType::Soft) {
@@ -355,18 +328,22 @@ void ControllerInterface::loadSettings() {
         std::cerr << "Static obstacle avoidance is disabled." << std::endl;
     }
 
-    // Collision avoidance with dynamic obstacles specified via the reference
-    // trajectory
-    // if (settings_.dynamic_obstacle_settings.enabled) {
-    //     std::cerr << "Dynamic obstacle avoidance is enabled." << std::endl;
-    //     problem_.stateSoftConstraintPtr->add(
-    //         "dynamic_obstacle_avoidance",
-    //         getDynamicObstacleConstraint(
-    //             *pinocchioInterfacePtr_, settings_.dynamic_obstacle_settings,
-    //             usePreComputation, libraryFolder, recompileLibraries));
-    // } else {
-    //     std::cerr << "Dynamic obstacle avoidance is disabled." << std::endl;
-    // }
+    ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
+        *pinocchioInterfacePtr_, mapping, {settings_.end_effector_link_name},
+        settings_.dims.x(), settings_.dims.u(), "end_effector_kinematics",
+        libraryFolder, recompileLibraries, false);
+
+    problem_.stateCostPtr->add("end_effector_cost",
+                               getEndEffectorCost(end_effector_kinematics));
+
+    if (settings_.inertial_alignment_settings.enabled) {
+        std::unique_ptr<ocs2::StateInputCost> inertial_alignment_cost(
+            new InertialAlignmentCost(end_effector_kinematics,
+                                      settings_.inertial_alignment_settings,
+                                      settings_.gravity, settings_.dims, true));
+        problem_.costPtr->add("inertial_alignment_cost",
+                              std::move(inertial_alignment_cost));
+    }
 
     // TODO we're getting too nested here
     if (settings_.balancing_settings.enabled) {
@@ -452,20 +429,24 @@ std::unique_ptr<ocs2::MPC_BASE> ControllerInterface::getMpc() {
 }
 
 std::unique_ptr<ocs2::StateInputCost>
-ControllerInterface::getQuadraticStateInputCost(const std::string& taskFile) {
-    MatXd Q = settings_.state_weight;
-    MatXd R = settings_.input_weight;
-
+ControllerInterface::getQuadraticStateInputCost() {
     // augment R with cost on the contact forces
-    MatXd Rf = settings_.balancing_settings.force_weight *
-               MatXd::Identity(settings_.dims.u(), settings_.dims.u());
-    Rf.topLeftCorner(R.rows(), R.cols()) = R;
+    MatXd input_weight =
+        settings_.balancing_settings.force_weight *
+        MatXd::Identity(settings_.dims.u(), settings_.dims.u());
+    input_weight.topLeftCorner(settings_.dims.robot.u, settings_.dims.robot.u) =
+        settings_.input_weight;
 
-    std::cout << "Q: " << Q << std::endl;
-    std::cout << "Rf: " << Rf << std::endl;
+    // TODO do I need weight on obstacle dynamics?
+    MatXd state_weight = MatXd::Zero(settings_.dims.x(), settings_.dims.x());
+    state_weight.topLeftCorner(settings_.dims.robot.x, settings_.dims.robot.x) =
+        settings_.state_weight;
+
+    std::cout << "Q: " << state_weight << std::endl;
+    std::cout << "R: " << input_weight << std::endl;
 
     return std::unique_ptr<ocs2::StateInputCost>(
-        new QuadraticJointStateInputCost(Q, Rf));
+        new QuadraticJointStateInputCost(state_weight, input_weight));
 }
 
 std::unique_ptr<ocs2::StateCost>

@@ -78,6 +78,7 @@ struct CollisionSphere {
 struct DynamicObstacle {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+    DynamicObstacle() {}
     // DynamicObstacle(ocs2::scalar_t radius, Vec3d position, Vec3d velocity, Vec3d
 
     std::string name;

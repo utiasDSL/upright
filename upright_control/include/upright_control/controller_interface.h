@@ -97,8 +97,7 @@ class ControllerInterface final : public ocs2::RobotInterface {
         const std::string& urdf_path);
 
    private:
-    std::unique_ptr<ocs2::StateInputCost> getQuadraticStateInputCost(
-        const std::string& taskFile);
+    std::unique_ptr<ocs2::StateInputCost> getQuadraticStateInputCost();
 
     std::unique_ptr<ocs2::StateCost> getEndEffectorCost(
         const ocs2::PinocchioEndEffectorKinematicsCppAd&

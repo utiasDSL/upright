@@ -43,9 +43,9 @@ class BalancingConstraintWrapper {
         if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
             // add 3 DOF for wheelbase
             pinocchio::JointModelComposite root_joint(3);
-            rootJoint.addJoint(pinocchio::JointModelPX());
-            rootJoint.addJoint(pinocchio::JointModelPY());
-            rootJoint.addJoint(pinocchio::JointModelRZ());
+            root_joint.addJoint(pinocchio::JointModelPX());
+            root_joint.addJoint(pinocchio::JointModelPY());
+            root_joint.addJoint(pinocchio::JointModelRZ());
 
             return ocs2::getPinocchioInterfaceFromUrdfFile(urdf_path,
                                                            root_joint);

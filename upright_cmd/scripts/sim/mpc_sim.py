@@ -34,6 +34,7 @@ def main():
     )
 
     # settle sim to make sure everything is touching comfortably
+    # TODO we need to adjust the offset here too
     sim.settle(5.0)
     sim.launch_dynamic_obstacles(offset=sim.robot.link_pose()[0])
 
@@ -41,7 +42,8 @@ def main():
     t = 0.0
     q, v = sim.robot.joint_states()
     a = np.zeros(sim.robot.nv)
-    x = np.concatenate((q, v, a))
+    x_obs = sim.dynamic_obstacle_state()
+    x = np.concatenate((q, v, a, x_obs))
     u = np.zeros(sim.robot.nu)
 
     # controller
@@ -86,24 +88,26 @@ def main():
     while t <= sim.duration:
         # get the true robot feedback
         q, v = sim.robot.joint_states(add_noise=False)
-        x = np.concatenate((q, v, a_ff))
+        x_obs = sim.dynamic_obstacle_state()
+
+        x = np.concatenate((q, v, a_ff, x_obs))
 
         # now get the noisy version for use in the controller
         # we can choose to use v_ff rather than v_noisy if we can to avoid
         # noisy velocity feedback
         q_noisy, v_noisy = sim.robot.joint_states(add_noise=True)
         if use_velocity_feedback:
-            x_noisy = np.concatenate((q_noisy, v_noisy, a_ff))
+            x_noisy = np.concatenate((q_noisy, v_noisy, a_ff, x_obs))
         else:
-            x_noisy = np.concatenate((q_noisy, v_ff, a_ff))
+            x_noisy = np.concatenate((q_noisy, v_ff, a_ff, x_obs))
 
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
         try:
+            # TODO add x_obs
             xd, u = ctrl_manager.step(t, x_noisy)
             xd_robot = x[: dims.robot.x]
             u_robot = u[: dims.robot.u]
-            # u = ou[: model.settings.dims.u]
             f = u[-dims.f() :]
         except RuntimeError as e:
             print(e)
@@ -209,8 +213,6 @@ def main():
                 )
 
         t = sim.step(t, step_robot=False)
-        # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
-        #     obstacle.step()
 
     try:
         print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")

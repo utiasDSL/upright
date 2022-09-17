@@ -27,7 +27,13 @@ class ControllerModel:
 
     def update(self, x, u=None):
         """Update model with state x and input u. Required before calling other methods."""
-        self.robot.forward(x, u)
+        x_robot = x[:self.robot.dims.x]
+        if u is None:
+            u_robot = None
+        else:
+            u_robot = u[:self.robot.dims.u]
+
+        self.robot.forward(x_robot, u_robot)
 
     def is_using_force_constraints(self):
         return self.settings.balancing_settings.use_force_constraints
@@ -144,8 +150,8 @@ class ControllerManager:
     def warmstart(self):
         """Do the first optimize to get things warmed up."""
         x0 = self.model.settings.initial_state
-        ou0 = np.zeros(self.model.settings.dims.u())
-        self.mpc.setObservation(0, x0, ou0)
+        u0 = np.zeros(self.model.settings.dims.u())
+        self.mpc.setObservation(0, x0, u0)
 
         self.mpc.advanceMpc()
         self.last_planning_time = 0

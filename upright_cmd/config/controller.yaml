@@ -3,7 +3,7 @@ include:
     package: upright_cmd
     path: config/arrangements.yaml
   -
-    key: static_obstacles
+    key: obstacles
     package: upright_cmd
     path: config/controller/static_obstacles/simple.yaml
 
@@ -51,7 +51,7 @@ tracking:
 #     orientation: [0.0, 0.0, 0.0, 1.0]
 
 obstacles:
-  enabled: false
+  enabled: true
   constraint_type: hard
 
   # extra margin between objects
@@ -67,8 +67,8 @@ obstacles:
     -
       name: dynobs1
       position: [0, -1, 0]
-      velocity: [0, 1, 2]
-      acceleration: [0, 0, -2]
+      velocity: [0, 1, 0]
+      acceleration: [0, 0, 0]
       radius: 0.1
 
 infofile:
