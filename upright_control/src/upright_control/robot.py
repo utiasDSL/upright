@@ -79,6 +79,7 @@ class PinocchioGeometry:
 
 
 # TODO revise to inherit from RobotKinematics in mm_central
+# TODO it would be nice to have a generic wrapper around the Pinocchio model
 class PinocchioRobot:
     def __init__(self, config):
         # dimensions

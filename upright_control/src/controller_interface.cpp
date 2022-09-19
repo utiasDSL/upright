@@ -99,6 +99,9 @@ build_dynamic_obstacle_model(const DynamicObstacle& obstacle) {
     auto inertia = pinocchio::Inertia::FromSphere(mass, obstacle.radius);
     model.appendBodyToJoint(joint_id, inertia, body_placement);
 
+    // NOTE: this adds a frame to the model but doesn't fix the model
+    // model.addBodyFrame(obstacle.name, joint_id, body_placement);
+
     // collision model
     pinocchio::GeometryModel geom_model;
     pinocchio::GeometryObject::CollisionGeometryPtr shape_ptr(
@@ -107,8 +110,7 @@ build_dynamic_obstacle_model(const DynamicObstacle& obstacle) {
                                        body_placement);
     geom_model.addGeometryObject(geom_obj);
 
-    return std::tuple<pinocchio::Model, pinocchio::GeometryModel>(model,
-                                                                  geom_model);
+    return {model, geom_model};
 }
 
 ControllerInterface::ControllerInterface(const ControllerSettings& settings)
@@ -160,7 +162,7 @@ void ControllerInterface::loadSettings() {
 
     pinocchioInterfacePtr_.reset(new ocs2::PinocchioInterface(
         build_pinocchio_interface(settings_.robot_urdf_path)));
-    std::cerr << *pinocchioInterfacePtr_;
+    // std::cerr << *pinocchioInterfacePtr_;
 
     /*
      * Model settings
@@ -278,24 +280,32 @@ void ControllerInterface::loadSettings() {
 
         // Add dynamic obstacles.
         if (settings_.obstacle_settings.dynamic_obstacles.size() > 0) {
-            ocs2::PinocchioInterface::Model dyn_obs_model;
-            pinocchio::GeometryModel dyn_obs_geom_model;
+            ocs2::PinocchioInterface::Model dyn_obs_model, new_model;
+            pinocchio::GeometryModel dyn_obs_geom_model, new_geom_model;
 
             // TODO generalize to multiple dynamic obstacles
             std::tie(dyn_obs_model, dyn_obs_geom_model) =
                 build_dynamic_obstacle_model(
                     settings_.obstacle_settings.dynamic_obstacles[0]);
 
+            std::cout << dyn_obs_model << std::endl;
+
             // Update models
             const auto& model = pinocchioInterfacePtr_->getModel();
-            pinocchio::Model new_model = pinocchio::appendModel(
-                model, dyn_obs_model, 0, pinocchio::SE3::Identity());
+            const auto& geom_model = geom_interface.getGeometryModel();
+            // pinocchio::Model new_model = pinocchio::appendModel(
+            //     model, dyn_obs_model, 0, pinocchio::SE3::Identity());
+
+            pinocchio::appendModel(
+                model, dyn_obs_model, geom_model, dyn_obs_geom_model, 0,
+                pinocchio::SE3::Identity(), new_model, new_geom_model);
+
             pinocchioInterfacePtr_.reset(
                 new ocs2::PinocchioInterface(new_model));
-            geom_interface.addGeometryObjects(dyn_obs_geom_model);
+            geom_interface = ocs2::PinocchioGeometryInterface(new_geom_model);
         }
 
-        std::cout << pinocchioInterfacePtr_->getModel() << std::endl;
+        std::cout << *pinocchioInterfacePtr_ << std::endl;
 
         if (settings_.obstacle_settings.constraint_type ==
             ConstraintType::Soft) {
@@ -438,7 +448,8 @@ ControllerInterface::getQuadraticStateInputCost() {
         settings_.input_weight;
 
     // TODO do I need weight on obstacle dynamics?
-    MatXd state_weight = MatXd::Zero(settings_.dims.x(), settings_.dims.x());
+    MatXd state_weight =
+        MatXd::Identity(settings_.dims.x(), settings_.dims.x());
     state_weight.topLeftCorner(settings_.dims.robot.x, settings_.dims.robot.x) =
         settings_.state_weight;
 
@@ -668,7 +679,7 @@ ControllerInterface::get_obstacle_constraint(
     // }
     // geometryInterface.addGeometryObjects(extra_spheres);
 
-    pinocchio::GeometryModel& geom_model = geom_interface.getGeometryModel();
+    const auto& geom_model = geom_interface.getGeometryModel();
     for (int i = 0; i < geom_model.ngeoms; ++i) {
         std::cout << geom_model.geometryObjects[i].name << std::endl;
     }

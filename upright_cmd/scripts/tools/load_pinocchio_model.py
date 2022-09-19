@@ -18,7 +18,9 @@ def obstacle_model():
     # free-floating joint
     joint_name = "obstacle_joint"
     joint_placement = pinocchio.SE3.Identity()
-    joint_id = model.addJoint(0, pinocchio.JointModelTranslation(), joint_placement, joint_name)
+    joint_id = model.addJoint(
+        0, pinocchio.JointModelTranslation(), joint_placement, joint_name
+    )
 
     # body
     mass = 1.0
@@ -50,30 +52,93 @@ def main():
     model = ctrl.manager.ControllerModel.from_config(config)
     robot = model.robot
 
+    geom = ctrl.robot.PinocchioGeometry(robot)
+
     obs_model, obs_geom_model = obstacle_model()
-    new_model = pinocchio.appendModel(
+    new_model, new_geom_model = pinocchio.appendModel(
         robot.model,
         obs_model,
-        # geom.visual_model,
-        # obs_geom_model,
+        geom.collision_model,
+        obs_geom_model,
         0,
         pinocchio.SE3.Identity(),
     )
+
+    for i in range(obs_geom_model.ngeoms):
+        geom.collision_model.addGeometryObject(obs_geom_model.geometryObjects[i])
+    new_geom_model = geom.collision_model
+
+    data = new_model.createData()
+
+    x = model.settings.initial_state
+    q = np.concatenate((x[robot.dims.x : robot.dims.x + 3], x[: robot.dims.q]))
+
+    pinocchio.forwardKinematics(new_model, data, q)
+    pinocchio.updateFramePlacements(new_model, data)
+
+    r = data.oMf[robot.tool_idx].translation.copy()
+    # q[-3:] += r
+    q[:3] = r
+
+    q = np.array(
+        [
+            1.394,
+            -0.043,
+            0.756,
+            -0.0,
+            0.0,
+            0.0,
+            1.571,
+            -0.785,
+            1.571,
+            -0.785,
+            1.571,
+            1.312,
+        ]
+    )
+
+    pinocchio.forwardKinematics(new_model, data, q)
+    pinocchio.updateFramePlacements(new_model, data)
+
+    geom_data = pinocchio.GeometryData(new_geom_model)
+    pinocchio.updateGeometryPlacements(new_model, data, new_geom_model, geom_data)
+    pinocchio.computeDistances(new_geom_model, geom_data)
+    d1s = np.array([result.min_distance for result in geom_data.distanceResults])
+
+    # q[:3] += [0, -1, 0]
+    # pinocchio.forwardKinematics(new_model, data, q)
+    # pinocchio.updateFramePlacements(new_model, data)
+    # pinocchio.updateGeometryPlacements(new_model, data, new_geom_model, geom_data)
+    # pinocchio.computeDistances(new_geom_model, geom_data)
+    # d2s = np.array([result.min_distance for result in geom_data.distanceResults])
+
+    viz = pinocchio.visualize.MeshcatVisualizer(
+        new_model, new_geom_model, new_geom_model
+    )
+    viz.initViewer()
+    viz.loadViewerModel()
+    viz.display(q)
+
     IPython.embed()
+    return
+
     # robot.model = new_model
     # robot.dims.x += 9
     # robot.dims.q += 3
     # robot.dims.v += 3
 
-    x = np.concatenate((model.settings.initial_state, np.zeros(9)))
-    u = np.zeros(robot.dims.u)
+    x = model.settings.initial_state
+    u = np.zeros(model.settings.dims.u())
+
+    x_robot = x[: robot.dims.x]
+    u_robot = u[: robot.dims.u]
 
     # create geometry interface
     geom = ctrl.robot.PinocchioGeometry(robot)
     geom.add_geometry_objects_from_config(config["static_obstacles"])
     geom.add_collision_pairs(config["static_obstacles"]["collision_pairs"])
 
-    robot.forward(x, u)
+    robot.forward(x_robot, u_robot)
 
     # compute distances between collision pairs
     dists = geom.compute_distances()

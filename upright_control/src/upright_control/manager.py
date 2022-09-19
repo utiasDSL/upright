@@ -116,7 +116,7 @@ class ControllerManager:
 
         self.last_planning_time = -np.infty
         self.x_opt = np.zeros(self.model.settings.dims.x())
-        self.ou_opt = np.zeros(self.model.settings.dims.u())
+        self.u_opt = np.zeros(self.model.settings.dims.u())
 
         # time at which replanning was done
         self.replanning_times = []
@@ -158,7 +158,7 @@ class ControllerManager:
 
     def step(self, t, x):
         """Evaluate MPC at a single timestep, replanning if needed."""
-        self.mpc.setObservation(t, x, self.ou_opt)
+        self.mpc.setObservation(t, x, self.u_opt)
 
         # replan if `timestep` has elapsed since the last time
         if t >= self.last_planning_time + self.timestep:
@@ -172,11 +172,19 @@ class ControllerManager:
 
         # evaluate the current solution
         try:
-            self.mpc.evaluateMpcSolution(t, x, self.x_opt, self.ou_opt)
+            self.mpc.evaluateMpcSolution(t, x, self.x_opt, self.u_opt)
         except:
             IPython.embed()
 
-        return self.x_opt, self.ou_opt
+        return self.x_opt, self.u_opt
+
+    def get_mpc_trajectory(self):
+        """Get the full optimal trajectory found by MPC."""
+        ts = bindings.scalar_array()
+        xs = bindings.vector_array()
+        us = bindings.vector_array()
+        self.mpc.getMpcSolution(ts, xs, us)
+        return np.array(ts), np.array(xs), np.array(us)
 
     def plan(self, timestep, duration):
         """Construct a new plan by rolling out the MPC.

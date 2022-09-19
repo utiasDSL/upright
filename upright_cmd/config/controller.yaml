@@ -57,7 +57,7 @@ obstacles:
   # extra margin between objects
   # Important: this needs to be > 0 for the resulting constraint to be
   # differentiable
-  minimum_distance: 0.01
+  minimum_distance: 0.1
 
   # relaxed barrier function parameters
   mu: 1e-2
@@ -67,7 +67,7 @@ obstacles:
     -
       name: dynobs1
       position: [0, -1, 0]
-      velocity: [0, 1, 0]
+      velocity: [0, 2, 0]
       acceleration: [0, 0, 0]
       radius: 0.1
 

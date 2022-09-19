@@ -104,11 +104,16 @@ def main():
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
         try:
-            # TODO add x_obs
             xd, u = ctrl_manager.step(t, x_noisy)
             xd_robot = x[: dims.robot.x]
+            # xd_obs = x[dims.robot.x:]
+            # x_obs = xd_obs
+            # print(f"r_obs = {xd_obs[:3]}")
             u_robot = u[: dims.robot.u]
             f = u[-dims.f() :]
+
+            # ts_full, xs_full, us_full = ctrl_manager.get_mpc_trajectory()
+            # IPython.embed()
         except RuntimeError as e:
             print(e)
             print("exit the interpreter to proceed to plots")
@@ -119,6 +124,10 @@ def main():
             print("nan value in input!")
             IPython.embed()
             break
+
+        # if t >= 1.0:
+        #     ts_full, xs_full, us_full = ctrl_manager.get_mpc_trajectory()
+        #     IPython.embed()
 
         # TODO why is this better than using the zero-order hold?
         # here we use the input u to generate the feedforward signal---using

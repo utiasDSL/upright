@@ -339,7 +339,7 @@ class BulletSimulation:
         xs = []
         for obs in self.dynamic_obstacles:
             r, v = obs.joint_state()
-            x = np.concatenate((r, v, obs.a0))
+            x = np.concatenate((r, obs.v0, obs.a0))  # NOTE v0
             xs.append(x)
         return np.concatenate(xs)
 

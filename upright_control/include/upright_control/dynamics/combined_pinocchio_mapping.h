@@ -48,8 +48,7 @@ class IntegratorPinocchioMapping final
 
         // NOTE: this isn't used for collision avoidance (which is the only
         // place this method is called)
-        MatXs dfdu(output_dim, dims_.u);
-        dfdu.setZero();
+        MatXs dfdu = MatXs::Zero(output_dim, dims_.u);
 
         return {dfdx, dfdu};
     }
@@ -185,7 +184,6 @@ class CombinedPinocchioMapping final
    private:
     OptimizationDimensions dims_;
     Mapping robot_mapping_;
-    // ObstaclePinocchioMapping<Scalar> obstacle_mapping_;
 };
 
 }  // namespace upright
