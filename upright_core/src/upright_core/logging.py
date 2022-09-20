@@ -317,6 +317,16 @@ class DataPlotter:
             title="Joint Accelerations vs. Time",
         )
 
+        # plot the obstacle position if available
+        if self.data["xs"].shape[1] > self.data["nx"]:
+            self.plot_value_vs_time(
+                "xs",
+                indices=range(self.data["nx"], self.data["nx"] + 3),
+                legend_prefix="r",
+                ylabel="Obstacle position (m)",
+                title="Obstacle Position",
+            )
+
     def show(self):
         plt.show()
 

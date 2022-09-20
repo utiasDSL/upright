@@ -31,14 +31,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_core/constraint/StateInputConstraint.h>
 
-#include <upright_control/dynamics/dimensions.h>
+#include <upright_control/dimensions.h>
 #include <upright_control/types.h>
 
 namespace upright {
 
 class JointStateInputLimits final : public ocs2::StateInputConstraint {
    public:
-    JointStateInputLimits(const RobotDimensions& dims)
+    JointStateInputLimits(const OptimizationDimensions& dims)
         : ocs2::StateInputConstraint(ocs2::ConstraintOrder::Linear),
           dims_(dims) {}
 
@@ -49,16 +49,25 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
     }
 
     size_t getNumConstraints(ocs2::scalar_t time) const override {
-        return dims_.x + dims_.u;
+        return dims_.robot.x + dims_.robot.u;
     }
 
+    // Suppose we have x = [x_1, x_2] and u = [u_1, u_2] and our function value
+    // is thus f = [x_1, u_1] (i.e., the part of the state and input we want to
+    // limit)
     VecXd getValue(ocs2::scalar_t time, const VecXd& state, const VecXd& input,
                    const ocs2::PreComputation&) const override {
         VecXd value(getNumConstraints(time));
-        value << state, input.head(dims_.u);
+        value << state.head(dims_.robot.x), input.head(dims_.robot.u);
         return value;
     }
 
+    // Following from the above, we have
+    //   df/dx = [df/dx_1 df/dx_2] = |dx_1/dx_1 dx_1/dx_2| = |I 0|
+    //                               |du_1/dx_1 du_1/dx_2|   |0 0|
+    // and
+    //   df/du = [df/du_1 df/du_2] = |dx_1/du_1 dx_1/du_2| = |0 0|
+    //                               |du_1/du_1 du_1/du_2|   |I 0|
     ocs2::VectorFunctionLinearApproximation getLinearApproximation(
         ocs2::scalar_t time, const VecXd& state, const VecXd& input,
         const ocs2::PreComputation& precomp) const override {
@@ -67,9 +76,9 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
 
         limits.f = getValue(time, state, input, precomp);
         limits.dfdx.setZero();
-        limits.dfdx.topRows(state.rows()).setIdentity();
+        limits.dfdx.topLeftCorner(dims_.robot.x, dims_.robot.x).setIdentity();
         limits.dfdu.setZero();
-        limits.dfdu.bottomLeftCorner(dims_.u, dims_.u).setIdentity();
+        limits.dfdu.bottomLeftCorner(dims_.robot.u, dims_.robot.u).setIdentity();
 
         return limits;
     }
@@ -77,31 +86,39 @@ class JointStateInputLimits final : public ocs2::StateInputConstraint {
    private:
     JointStateInputLimits(const JointStateInputLimits& other) = default;
 
-    RobotDimensions dims_;
+    OptimizationDimensions dims_;
 };
 
 // For hard inequalities. TODO: these should be replaced with box constraints
 // eventually.
 class JointStateInputConstraint final : public ocs2::StateInputConstraint {
    public:
-    JointStateInputConstraint(const RobotDimensions& dims,
+    JointStateInputConstraint(const OptimizationDimensions& dims,
                               const VecXd& state_limit_lower,
                               const VecXd& state_limit_upper,
                               const VecXd& input_limit_lower,
                               const VecXd& input_limit_upper)
         : ocs2::StateInputConstraint(ocs2::ConstraintOrder::Linear),
           dims_(dims) {
-        size_t n = 2 * (dims.x + dims.u);
-        MatXd Ix = MatXd::Identity(dims.x, dims.x);
-        MatXd Iu = MatXd::Identity(dims.u, dims.u);
+        size_t rx = dims.robot.x;
+        size_t ru = dims.robot.u;
 
-        C_ = MatXd::Zero(n, dims.x);
-        C_.topRows(dims.x) = Ix;
-        C_.middleRows(dims.x, dims.x) = -Ix;
+        // f = C * x + D * u
+        //   = | I 0| * x + | 0 0| * u
+        //     |-I 0|       | 0 0|
+        //     | 0 0|       | I 0|
+        //     | 0 0|       |-I 0|
+        size_t n = 2 * (rx + ru);
+        MatXd Ix = MatXd::Identity(rx, rx);
+        MatXd Iu = MatXd::Identity(ru, ru);
 
-        D_ = MatXd::Zero(n, dims.ou());
-        D_.block(2 * dims.x, 0, dims.u, dims.u) = Iu;
-        D_.bottomLeftCorner(dims.u, dims.u) = -Iu;
+        C_ = MatXd::Zero(n, dims.x());
+        C_.topLeftCorner(rx, rx) = Ix;
+        C_.block(rx, 0, rx, rx) = -Ix;
+
+        D_ = MatXd::Zero(n, dims.u());
+        D_.block(2 * rx, 0, ru, ru) = Iu;
+        D_.bottomLeftCorner(ru, ru) = -Iu;
 
         e_ = VecXd::Zero(n);
         e_ << -state_limit_lower, state_limit_upper, -input_limit_lower,
@@ -142,7 +159,7 @@ class JointStateInputConstraint final : public ocs2::StateInputConstraint {
    private:
     JointStateInputConstraint(const JointStateInputConstraint& other) = default;
 
-    RobotDimensions dims_;
+    OptimizationDimensions dims_;
     MatXd C_;
     MatXd D_;
     VecXd e_;

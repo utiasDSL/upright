@@ -6,7 +6,7 @@
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
-#include <upright_control/dynamics/dimensions.h>
+#include <upright_control/dimensions.h>
 #include <upright_control/types.h>
 #include <upright_core/bounded.h>
 #include <upright_core/bounded_constraints.h>
@@ -41,12 +41,12 @@ class InertialAlignmentCost final : public ocs2::StateInputCostCppAd {
     InertialAlignmentCost(
         const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const InertialAlignmentSettings& settings, const Vec3d& gravity,
-        const RobotDimensions& dims, bool recompileLibraries)
+        const OptimizationDimensions& dims, bool recompileLibraries)
         : pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
           settings_(settings),
           gravity_(gravity),
           dims_(dims) {
-        initialize(dims.ox(), dims.ou(), 0, "inertial_alignment_cost",
+        initialize(dims.x(), dims.u(), 0, "inertial_alignment_cost",
                    "/tmp/ocs2", recompileLibraries, true);
     }
 
@@ -94,7 +94,7 @@ class InertialAlignmentCost final : public ocs2::StateInputCostCppAd {
         pinocchioEEKinPtr_;
     InertialAlignmentSettings settings_;
     Vec3d gravity_;
-    RobotDimensions dims_;
+    OptimizationDimensions dims_;
 };
 
 }  // namespace upright

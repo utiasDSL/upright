@@ -3,14 +3,13 @@
 #include <pinocchio/multibody/model.hpp>
 
 #include <ocs2_core/PreComputation.h>
-#include <ocs2_core/Types.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
-#include <ocs2_pinocchio_interface/urdf.h>
 
 #include <upright_control/constraint/bounded_balancing_constraints.h>
-#include <upright_control/controller_interface.h>
-#include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
-#include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
+#include <upright_control/controller_settings.h>
+#include <upright_control/dynamics/system_pinocchio_mapping.h>
+#include <upright_control/types.h>
+#include <upright_control/util.h>
 
 namespace upright {
 
@@ -18,48 +17,24 @@ namespace upright {
 class BalancingConstraintWrapper {
    public:
     BalancingConstraintWrapper(const ControllerSettings& settings) {
-        ocs2::PinocchioInterface interface(buildPinocchioInterface(
-            settings, settings.robot_urdf_path, settings.obstacle_urdf_path));
+        ocs2::PinocchioInterface interface(build_pinocchio_interface(
+            settings.robot_urdf_path, settings.robot_base_type));
 
-        std::unique_ptr<ocs2::PinocchioStateInputMapping<ocs2::ad_scalar_t>>
-            pinocchio_mapping_ptr;
-        if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
-            pinocchio_mapping_ptr.reset(
-                new OmnidirectionalPinocchioMapping<ocs2::ad_scalar_t>(
-                    settings.dims));
-        } else {
-            pinocchio_mapping_ptr.reset(
-                new FixedBasePinocchioMapping<ocs2::ad_scalar_t>(
-                    settings.dims));
-        }
+        SystemPinocchioMapping<
+            TripleIntegratorPinocchioMapping<ocs2::ad_scalar_t>,
+            ocs2::ad_scalar_t>
+            mapping(settings.dims);
 
-        bool recompileLibraries = true;
+        bool recompile_libraries = true;
 
         ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
-            interface, *pinocchio_mapping_ptr,
-            {settings.end_effector_link_name}, settings.dims.ox(), settings.dims.ou(),
-            "end_effector_kinematics", settings.lib_folder, recompileLibraries,
-            false);
+            interface, mapping, {settings.end_effector_link_name},
+            settings.dims.x(), settings.dims.u(), "end_effector_kinematics",
+            settings.lib_folder, recompile_libraries, false);
 
         constraints_.reset(new BoundedBalancingConstraints(
             end_effector_kinematics, settings.balancing_settings,
-            settings.gravity, settings.dims, recompileLibraries));
-    }
-
-    ocs2::PinocchioInterface buildPinocchioInterface(
-        const ControllerSettings& settings, const std::string& urdfPath,
-        const std::string& obstacle_urdfPath) {
-        if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
-            // add 3 DOF for wheelbase
-            pinocchio::JointModelComposite rootJoint(3);
-            rootJoint.addJoint(pinocchio::JointModelPX());
-            rootJoint.addJoint(pinocchio::JointModelPY());
-            rootJoint.addJoint(pinocchio::JointModelRZ());
-
-            return ocs2::getPinocchioInterfaceFromUrdfFile(urdfPath, rootJoint);
-        }
-        // Fixed base
-        return ocs2::getPinocchioInterfaceFromUrdfFile(urdfPath);
+            settings.gravity, settings.dims, recompile_libraries));
     }
 
     ocs2::VectorFunctionLinearApproximation getLinearApproximation(

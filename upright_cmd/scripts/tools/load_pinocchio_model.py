@@ -1,11 +1,60 @@
 #!/usr/bin/env python3
 import argparse
 import numpy as np
+import pinocchio
+import hppfcl as fcl
 
 import upright_core as core
 import upright_control as ctrl
 
 import IPython
+
+
+def build_obstacle_model(obstacles):
+    model = pinocchio.Model()
+    model.name = "dynamic_obstacles"
+    geom_model = pinocchio.GeometryModel()
+
+    for obstacle in obstacles:
+        # free-floating joint
+        joint_name = obstacle.name + "_joint"
+        joint_placement = pinocchio.SE3.Identity()
+        joint_id = model.addJoint(
+            0, pinocchio.JointModelTranslation(), joint_placement, joint_name
+        )
+
+        # body
+        mass = 1.0
+        inertia = pinocchio.Inertia.FromSphere(mass, obstacle.radius)
+        body_placement = pinocchio.SE3.Identity()
+        model.appendBodyToJoint(joint_id, inertia, body_placement)
+
+        # visual model
+        shape = fcl.Sphere(obstacle.radius)
+        geom_obj = pinocchio.GeometryObject(obstacle.name, joint_id, shape, body_placement)
+        geom_obj.meshColor = np.ones((4))
+        geom_model.addGeometryObject(geom_obj)
+
+    return model, geom_model
+
+
+def append_model(
+    robot, geom, model, geom_model, frame_index=0, placement=pinocchio.SE3.Identity()
+):
+    new_model, new_collision_model = pinocchio.appendModel(
+        robot.model, model, geom.collision_model, geom_model, 0, placement
+    )
+    _, new_visual_model = pinocchio.appendModel(
+        robot.model, model, geom.visual_model, geom_model, 0, placement
+    )
+
+    new_robot = ctrl.robot.PinocchioRobot(
+        new_model, robot.mapping, robot.tool_link_name
+    )
+    new_geom = ctrl.robot.PinocchioGeometry(
+        new_robot, new_collision_model, new_visual_model
+    )
+    return new_robot, new_geom
 
 
 def main():
@@ -14,35 +63,40 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("config", help="Path to YAML config file.")
-    # parser.add_argument(
-    #     "--visualize",
-    #     help="Visualize the scene in meshcat",
-    #     action="store_true",
-    # )
     args = parser.parse_args()
 
     # get config path from command line argument
     config = core.parsing.load_config(args.config)["controller"]
-    model = ctrl.manager.ControllerModel.from_config(config)
-    robot = model.robot
+    ctrl_model = ctrl.manager.ControllerModel.from_config(config)
+    settings = ctrl_model.settings
+    robot = ctrl_model.robot
+    geom = ctrl.robot.PinocchioGeometry.from_robot_and_urdf(
+        robot, settings.robot_urdf_path
+    )
 
-    x = model.settings.initial_state
-    u = np.zeros(robot.dims.u)
+    obs_model, obs_geom_model = build_obstacle_model(settings.obstacle_settings.dynamic_obstacles)
+    robot, geom = append_model(robot, geom, obs_model, obs_geom_model)
 
-    # create geometry interface
-    geom = ctrl.robot.PinocchioGeometry(robot)
-    geom.add_geometry_objects_from_config(config["static_obstacles"])
-    geom.add_collision_pairs(config["static_obstacles"]["collision_pairs"])
+    x = settings.initial_state
+    u = np.zeros(settings.dims.u())
+    q = robot.mapping.get_pinocchio_joint_position(x)
 
-    robot.forward(x, u)
+    # add offset to the dynamic obstacles
+    robot.forward(x)
+    r = robot.link_pose()[0]
+    for i in range(settings.dims.o):
+        q[i*3:(i+1)*3] += r
 
-    # compute distances between collision pairs
+    robot.forward_qva(q)
+
+    geom.add_geometry_objects_from_config(config["obstacles"])
+    if config["obstacles"]["collision_pairs"] is not None:
+        geom.add_collision_pairs(config["obstacles"]["collision_pairs"])
+
     dists = geom.compute_distances()
-    print(f"Collision distances = {dists}")
+    geom.visualize(q)
 
-    # visualize the robot
-    q = x[:robot.dims.q]
-    viz = geom.visualize(q)
+    print(f"Collision distances = {dists}")
 
     # forward kinematics (position, velocity, acceleration)
     r, Q = robot.link_pose()

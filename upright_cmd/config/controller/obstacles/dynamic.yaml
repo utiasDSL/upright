@@ -1,0 +1,7 @@
+collision_pairs:
+  # wrist and shoulder
+  # - ["wrist_collision_link_0", "shoulder_collision_link_0"]
+
+  # NOTE: lack of _0 at end of dynobs1
+  - ["balanced_object_collision_link_0", "dynobs1"]
+  - ["wrist_collision_link_0", "dynobs1"]

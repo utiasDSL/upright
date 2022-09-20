@@ -39,18 +39,21 @@ using Mat3 = Eigen::Matrix<Scalar, 3, 3>;
 
 template <typename Scalar>
 struct Pose {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Mat3<Scalar> orientation;
     Vec3<Scalar> position;
 };
 
 template <typename Scalar>
 struct Twist {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Vec3<Scalar> linear;
     Vec3<Scalar> angular;
 };
 
 template <typename Scalar>
 struct Wrench {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Vec3<Scalar> force;
     Vec3<Scalar> torque;
 };

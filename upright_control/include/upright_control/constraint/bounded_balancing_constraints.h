@@ -4,7 +4,7 @@
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 
 #include <upright_control/constraint/constraint_type.h>
-#include <upright_control/dynamics/dimensions.h>
+#include <upright_control/dimensions.h>
 #include <upright_control/types.h>
 #include <upright_core/bounded.h>
 #include <upright_core/contact.h>
@@ -43,7 +43,7 @@ class BoundedBalancingConstraints final
     BoundedBalancingConstraints(
         const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const BalancingSettings& settings, const Vec3d& gravity,
-        const RobotDimensions& dims, bool recompileLibraries);
+        const OptimizationDimensions& dims, bool recompileLibraries);
 
     BoundedBalancingConstraints* clone() const override {
         // Always pass recompileLibraries = false to avoid recompiling the same
@@ -75,7 +75,7 @@ class BoundedBalancingConstraints final
     std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>
         pinocchioEEKinPtr_;
     BalancingSettings settings_;
-    RobotDimensions dims_;
+    OptimizationDimensions dims_;
     Vec3d gravity_;
     size_t num_constraints_;
 };
@@ -89,7 +89,7 @@ class ContactForceBalancingConstraints final
     ContactForceBalancingConstraints(
         const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const BalancingSettings& settings, const Vec3d& gravity,
-        const RobotDimensions& dims, bool recompileLibraries);
+        const OptimizationDimensions& dims, bool recompileLibraries);
 
     ContactForceBalancingConstraints* clone() const override {
         // Always pass recompileLibraries = false to avoid recompiling the same
@@ -121,7 +121,7 @@ class ContactForceBalancingConstraints final
     std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>
         pinocchioEEKinPtr_;
     BalancingSettings settings_;
-    RobotDimensions dims_;
+    OptimizationDimensions dims_;
     Vec3d gravity_;
     size_t num_constraints_;
 };
@@ -136,7 +136,7 @@ class ObjectDynamicsConstraints final
     ObjectDynamicsConstraints(
         const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const BalancingSettings& settings, const Vec3d& gravity,
-        const RobotDimensions& dims, bool recompileLibraries);
+        const OptimizationDimensions& dims, bool recompileLibraries);
 
     ObjectDynamicsConstraints* clone() const override {
         // Always pass recompileLibraries = false to avoid recompiling the same
@@ -168,7 +168,7 @@ class ObjectDynamicsConstraints final
     std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>
         pinocchioEEKinPtr_;
     BalancingSettings settings_;
-    RobotDimensions dims_;
+    OptimizationDimensions dims_;
     Vec3d gravity_;
     size_t num_constraints_;
 };

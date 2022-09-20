@@ -24,7 +24,7 @@ std::ostream& operator<<(std::ostream& out, const BalancingSettings& settings) {
 BoundedBalancingConstraints::BoundedBalancingConstraints(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
     const BalancingSettings& settings, const Vec3d& gravity,
-    const RobotDimensions& dims, bool recompileLibraries)
+    const OptimizationDimensions& dims, bool recompileLibraries)
     : ocs2::StateInputConstraintCppAd(ocs2::ConstraintOrder::Linear),
       pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
       gravity_(gravity),
@@ -37,7 +37,7 @@ BoundedBalancingConstraints::BoundedBalancingConstraints(
     }
 
     // compile the CppAD library
-    initialize(dims.ox(), dims.ou(), 0, "upright_bounded_balancing_constraints",
+    initialize(dims.x(), dims.u(), 0, "upright_bounded_balancing_constraints",
                "/tmp/ocs2", recompileLibraries, true);
 
     num_constraints_ = num_balancing_constraints(settings_.objects);
@@ -68,7 +68,7 @@ VecXad BoundedBalancingConstraints::constraintFunction(
 ContactForceBalancingConstraints::ContactForceBalancingConstraints(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
     const BalancingSettings& settings, const Vec3d& gravity,
-    const RobotDimensions& dims, bool recompileLibraries)
+    const OptimizationDimensions& dims, bool recompileLibraries)
     : ocs2::StateInputConstraintCppAd(ocs2::ConstraintOrder::Linear),
       pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
       gravity_(gravity),
@@ -86,7 +86,7 @@ ContactForceBalancingConstraints::ContactForceBalancingConstraints(
                        NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT;
 
     // compile the CppAD library
-    initialize(dims.ox(), dims.ou(), 0, "upright_contact_force_constraints",
+    initialize(dims.x(), dims.u(), 0, "upright_contact_force_constraints",
                "/tmp/ocs2", recompileLibraries, true);
 }
 
@@ -94,7 +94,7 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
     // All forces are expressed in the EE frame
-    VecXad forces = input.tail(3 * dims_.f);
+    VecXad forces = input.tail(dims_.f());
 
     std::vector<ContactPoint<ocs2::ad_scalar_t>> ad_contacts;
     for (auto& contact : settings_.contacts) {
@@ -107,7 +107,7 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
 ObjectDynamicsConstraints::ObjectDynamicsConstraints(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
     const BalancingSettings& settings, const Vec3d& gravity,
-    const RobotDimensions& dims, bool recompileLibraries)
+    const OptimizationDimensions& dims, bool recompileLibraries)
     : ocs2::StateInputConstraintCppAd(ocs2::ConstraintOrder::Linear),
       pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
       gravity_(gravity),
@@ -124,7 +124,7 @@ ObjectDynamicsConstraints::ObjectDynamicsConstraints(
         settings_.objects.size() * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT;
 
     // compile the CppAD library
-    initialize(dims.ox(), dims.ou(), 0, "upright_object_dynamics_constraints",
+    initialize(dims.x(), dims.u(), 0, "upright_object_dynamics_constraints",
                "/tmp/ocs2", recompileLibraries, true);
 }
 
@@ -149,7 +149,7 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
     // All forces are expressed in the EE frame
-    VecXad forces = input.tail(3 * dims_.f);
+    VecXad forces = input.tail(dims_.f());
 
     RigidBodyState<ocs2::ad_scalar_t> X =
         get_rigid_body_state(pinocchioEEKinPtr_, state, input);

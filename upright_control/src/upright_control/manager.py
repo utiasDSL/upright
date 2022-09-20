@@ -14,20 +14,25 @@ import IPython
 class ControllerModel:
     """Contains system model: robot, objects, and other settings."""
 
-    def __init__(self, settings, robot):
+    def __init__(self, settings):
         self.settings = settings
         self.objects = list(settings.objects.values())
-        self.robot = robot
+        self.robot = PinocchioRobot.from_ctrl_settings(settings)
 
     @classmethod
     def from_config(cls, config, x0=None):
         settings = ControllerSettings(config=config, x0=x0)
-        robot = PinocchioRobot(config=config["robot"])
-        return cls(settings, robot)
+        return cls(settings)
 
     def update(self, x, u=None):
         """Update model with state x and input u. Required before calling other methods."""
-        self.robot.forward(x, u)
+        x_robot = x[:self.robot.dims.x]
+        if u is None:
+            u_robot = None
+        else:
+            u_robot = u[:self.robot.dims.u]
+
+        self.robot.forward(x_robot, u_robot)
 
     def is_using_force_constraints(self):
         return self.settings.balancing_settings.use_force_constraints
@@ -109,8 +114,8 @@ class ControllerManager:
         self.mpc.reset(self.ref)
 
         self.last_planning_time = -np.infty
-        self.x_opt = np.zeros(self.model.settings.dims.ox)
-        self.ou_opt = np.zeros(self.model.settings.dims.ou)
+        self.x_opt = np.zeros(self.model.settings.dims.x())
+        self.u_opt = np.zeros(self.model.settings.dims.u())
 
         # time at which replanning was done
         self.replanning_times = []
@@ -132,7 +137,7 @@ class ControllerManager:
 
         # reference pose trajectory
         ref_trajectory = TargetTrajectories.from_config(
-            config, r_ew_w, Q_we, np.zeros(model.settings.dims.ou)
+            config, r_ew_w, Q_we, np.zeros(model.settings.dims.u())
         )
         return cls(model, ref_trajectory, timestep)
 
@@ -144,15 +149,15 @@ class ControllerManager:
     def warmstart(self):
         """Do the first optimize to get things warmed up."""
         x0 = self.model.settings.initial_state
-        ou0 = np.zeros(self.model.settings.dims.ou)
-        self.mpc.setObservation(0, x0, ou0)
+        u0 = np.zeros(self.model.settings.dims.u())
+        self.mpc.setObservation(0, x0, u0)
 
         self.mpc.advanceMpc()
         self.last_planning_time = 0
 
     def step(self, t, x):
         """Evaluate MPC at a single timestep, replanning if needed."""
-        self.mpc.setObservation(t, x, self.ou_opt)
+        self.mpc.setObservation(t, x, self.u_opt)
 
         # replan if `timestep` has elapsed since the last time
         if t >= self.last_planning_time + self.timestep:
@@ -166,11 +171,19 @@ class ControllerManager:
 
         # evaluate the current solution
         try:
-            self.mpc.evaluateMpcSolution(t, x, self.x_opt, self.ou_opt)
+            self.mpc.evaluateMpcSolution(t, x, self.x_opt, self.u_opt)
         except:
             IPython.embed()
 
-        return self.x_opt, self.ou_opt
+        return self.x_opt, self.u_opt
+
+    def get_mpc_trajectory(self):
+        """Get the full optimal trajectory found by MPC."""
+        ts = bindings.scalar_array()
+        xs = bindings.vector_array()
+        us = bindings.vector_array()
+        self.mpc.getMpcSolution(ts, xs, us)
+        return np.array(ts), np.array(xs), np.array(us)
 
     def plan(self, timestep, duration):
         """Construct a new plan by rolling out the MPC.

@@ -19,6 +19,7 @@ set(CATKIN_PACKAGE_DEPENDENCIES
   ocs2_ddp
   ocs2_mpc
   ocs2_sqp
+  ocs2_oc
   ocs2_robotic_tools
   ocs2_pinocchio_interface
   ocs2_self_collision
@@ -86,9 +87,6 @@ link_directories(
 
 # upright_control interface library
 add_library(${PROJECT_NAME}
-  src/dynamics/omnidirectional_dynamics.cpp
-  src/dynamics/fixed_base_dynamics.cpp
-  src/dynamics/nonholonomic_dynamics.cpp
   src/controller_interface.cpp
   src/constraint/bounded_balancing_constraints.cpp
 )

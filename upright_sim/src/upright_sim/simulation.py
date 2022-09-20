@@ -46,6 +46,10 @@ class BulletBody:
         pos, orn = pyb.getBasePositionAndOrientation(self.uid)
         return np.array(pos), np.array(orn)
 
+    def get_velocity(self):
+        v, ω = pyb.getBaseVelocity(self.uid)
+        return np.array(v), np.array(ω)
+
     def reset_pose(self, position=None, orientation=None):
         """Reset the pose of the object in the simulation."""
         current_pos, current_orn = self.get_pose()
@@ -191,6 +195,11 @@ class BulletDynamicObstacle:
         vd = self.v0 + t * self.a0
         return rd, vd
 
+    def joint_state(self):
+        r = self.body.get_pose()[0]
+        v = self.body.get_velocity()[0]
+        return r, v
+
     def step(self, t):
         """Step the object forward in time."""
         # velocity needs to be reset at each step of the simulation to negate
@@ -325,6 +334,17 @@ class BulletSimulation:
             for c in self.config["dynamic_obstacles"]["obstacles"]:
                 obstacle = BulletDynamicObstacle.from_config(c, offset=offset)
                 self.dynamic_obstacles.append(obstacle)
+
+    def dynamic_obstacle_state(self):
+        if len(self.dynamic_obstacles) == 0:
+            return np.array([])
+
+        xs = []
+        for obs in self.dynamic_obstacles:
+            r, v = obs.joint_state()
+            x = np.concatenate((r, obs.v0, obs.a0))  # NOTE v0
+            xs.append(x)
+        return np.concatenate(xs)
 
     def step(self, t, step_robot=True):
         """Step the simulation forward one timestep."""

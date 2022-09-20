@@ -22,7 +22,7 @@ video:
       name: view1
 
 static_obstacles:
-  enabled: true
+  enabled: false
   urdf:
     package: "upright_assets"
     path: "thing/urdf/obstacles.urdf"
@@ -35,8 +35,8 @@ dynamic_obstacles:
     -
       controlled: true
       position: [0, -1, 0]
-      velocity: [0, 1, 2]
-      acceleration: [0, 0, -2]
+      velocity: [0, 2, 0]
+      acceleration: [0, 0, 0]
       radius: 0.1
 
 objects:

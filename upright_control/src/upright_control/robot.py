@@ -6,12 +6,21 @@ from upright_control import bindings
 
 
 class PinocchioGeometry:
-    def __init__(self, robot):
+    def __init__(self, robot, collision_model, visual_model):
         self.robot = robot
-        self.collision_model = pinocchio.GeometryModel()
-        self.visual_model = pinocchio.GeometryModel()
+        self.collision_model = collision_model
+        self.visual_model = visual_model
 
-        self.add_geometry_objects_from_urdf(robot.urdf_path, model=robot.model)
+        # get rid of automatically-added collision pairs
+        self.collision_model.removeAllCollisionPairs()
+
+    @classmethod
+    def from_robot_and_urdf(cls, robot, urdf_path):
+        collision_model = pinocchio.GeometryModel()
+        visual_model = pinocchio.GeometryModel()
+        geom = cls(robot, collision_model, visual_model)
+        geom.add_geometry_objects_from_urdf(urdf_path, model=robot.model)
+        return geom
 
     def add_collision_objects(self, geoms):
         """Add a list of geometry objects to the model."""
@@ -78,49 +87,54 @@ class PinocchioGeometry:
         return viz
 
 
+def build_pinocchio_model(urdf_path, base_type):
+    if base_type == bindings.RobotBaseType.Fixed:
+        model = pinocchio.buildModelFromUrdf(self.urdf_path)
+    elif base_type == bindings.RobotBaseType.Omnidirectional:
+        root_joint = pinocchio.JointModelComposite(3)
+        root_joint.addJoint(pinocchio.JointModelPX())
+        root_joint.addJoint(pinocchio.JointModelPY())
+        root_joint.addJoint(pinocchio.JointModelRZ())
+        model = pinocchio.buildModelFromUrdf(urdf_path, root_joint)
+    else:
+        raise ValueError(f"Invalid base type {base_type}.")
+    return model
+
+
 # TODO revise to inherit from RobotKinematics in mm_central
 class PinocchioRobot:
-    def __init__(self, config):
-        # dimensions
-        self.dims = bindings.RobotDimensions()
-        self.dims.q = config["dims"]["q"]  # num positions
-        self.dims.v = config["dims"]["v"]  # num velocities
-        self.dims.x = config["dims"]["x"]  # num states
-        self.dims.u = config["dims"]["u"]  # num inputs
-
-        # create the model
-        self.urdf_path = core.parsing.parse_and_compile_urdf(config["urdf"])
-        base_type = config["base_type"]
-        if base_type == "fixed":
-            self.model = pinocchio.buildModelFromUrdf(self.urdf_path)
-            self.mapping = bindings.FixedBasePinocchioMapping(self.dims)
-        elif base_type == "omnidirectional":
-            root_joint = pinocchio.JointModelComposite(3)
-            root_joint.addJoint(pinocchio.JointModelPX())
-            root_joint.addJoint(pinocchio.JointModelPY())
-            root_joint.addJoint(pinocchio.JointModelRZ())
-            # root_joint.addJoint(pinocchio.JointModelRUBZ())
-            # root_joint = pinocchio.JointModelPlanar()
-            self.model = pinocchio.buildModelFromUrdf(self.urdf_path, root_joint)
-            self.mapping = bindings.OmnidirectionalPinocchioMapping(self.dims)
-        else:
-            raise ValueError(f"Invalid base type {base_type}.")
-
+    def __init__(self, model, mapping, tool_link_name):
+        self.model = model
+        self.mapping = mapping
         self.data = self.model.createData()
+        self.tool_link_name = tool_link_name
+        self.tool_idx = self.model.getBodyId(tool_link_name)
+        self.nq = self.model.nq
+        self.nv = self.model.nv
 
-        self.tool_idx = self.model.getBodyId(config["tool_link_name"])
+    @classmethod
+    def from_ctrl_settings(cls, settings):
+        model = build_pinocchio_model(
+            settings.robot_urdf_path, base_type=settings.robot_base_type
+        )
+        mapping = bindings.SystemPinocchioMapping(settings.dims)
+        return cls(
+            model=model,
+            mapping=mapping,
+            tool_link_name=settings.end_effector_link_name,
+        )
 
     def forward_qva(self, q, v=None, a=None):
         """Forward kinematics using (q, v, a) all in the world frame (i.e.,
         corresponding directly to the Pinocchio model."""
         if v is None:
-            v = np.zeros(self.dims.v)
+            v = np.zeros(self.nv)
         if a is None:
-            a = np.zeros(self.dims.v)
+            a = np.zeros(self.nv)
 
-        assert q.shape == (self.dims.q,)
-        assert v.shape == (self.dims.v,)
-        assert a.shape == (self.dims.v,)
+        assert q.shape == (self.nq,)
+        assert v.shape == (self.nv,)
+        assert a.shape == (self.nv,)
 
         pinocchio.forwardKinematics(self.model, self.data, q, v, a)
         pinocchio.updateFramePlacements(self.model, self.data)
@@ -130,11 +144,11 @@ class PinocchioRobot:
         the world frame (i.e., corresponding directly to the Pinocchio
         model."""
         if a is None:
-            a = np.zeros(self.dims.v)
+            a = np.zeros(self.nv)
 
-        assert q.shape == (self.dims.q,)
-        assert v.shape == (self.dims.v,)
-        assert a.shape == (self.dims.v,)
+        assert q.shape == (self.nq,)
+        assert v.shape == (self.nv,)
+        assert a.shape == (self.nv,)
 
         pinocchio.computeForwardKinematicsDerivatives(self.model, self.data, q, v, a)
 
@@ -142,10 +156,7 @@ class PinocchioRobot:
         """Forward kinematics. Must be called before the link pose, velocity,
         or acceleration methods."""
         if u is None:
-            u = np.zeros(self.dims.u)
-
-        assert x.shape == (self.dims.x,)
-        assert u.shape == (self.dims.u,)
+            u = np.zeros(self.nv)
 
         # get values in Pinocchio coordinates
         q = self.mapping.get_pinocchio_joint_position(x)
@@ -155,12 +166,6 @@ class PinocchioRobot:
         self.forward_qva(q, v, a)
 
     def forward_derivatives(self, x, u=None):
-        if u is None:
-            u = np.zeros(self.dims.u)
-
-        assert x.shape == (self.dims.x,)
-        assert u.shape == (self.dims.u,)
-
         # get values in Pinocchio coordinates
         q = self.mapping.get_pinocchio_joint_position(x)
         v = self.mapping.get_pinocchio_joint_velocity(x, u)
@@ -243,8 +248,8 @@ class PinocchioRobot:
         dcdv = (np.cross(dwdv.T, dr) + np.cross(ω, ddrdv.T)).T
 
         # add the coriolis term to the spatial acceleration
-        dAs_dq = dAdq + np.vstack((dcdq, np.zeros((3, self.dims.q))))
-        dAs_dv = dAdv + np.vstack((dcdv, np.zeros((3, self.dims.v))))
+        dAs_dq = dAdq + np.vstack((dcdq, np.zeros((3, self.nq))))
+        dAs_dv = dAdv + np.vstack((dcdv, np.zeros((3, self.nv))))
         dAs_da = dAda
 
         return dAs_dq, dAs_dv, dAs_da
@@ -260,19 +265,3 @@ class PinocchioRobot:
             pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
         )
         return dAdq, dAdv, dAda
-
-    # TODO need to update these methods from previous iteration of the model
-    # def tangent(self, x, u):
-    #     """Tangent vector dx = f(x, u)."""
-    #     B = block_diag(rot2d(x[2], np=jnp), jnp.eye(7))
-    #     return jnp.concatenate((x[self.ni :], B @ u))
-    #
-    # def simulate(self, x, u):
-    #     """Forward simulate the model."""
-    #     # TODO not sure if I can somehow use RK4 for part and not for
-    #     # all---we'd have to split base and arm
-    #     k1 = self.tangent(x, u)
-    #     k2 = self.tangent(x + self.dt * k1 / 2, u)
-    #     k3 = self.tangent(x + self.dt * k2 / 2, u)
-    #     k4 = self.tangent(x + self.dt * k3, u)
-    #     return x + self.dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6

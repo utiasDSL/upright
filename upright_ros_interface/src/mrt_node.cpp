@@ -1,8 +1,8 @@
 #include <iostream>
 
+#include <pybind11/embed.h>
 #include <ros/init.h>
 #include <ros/package.h>
-#include <pybind11/embed.h>
 
 #include <ocs2_mpc/SystemObservation.h>
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
@@ -13,7 +13,6 @@
 #include <upright_ros_interface/parsing.h>
 
 using namespace upright;
-
 
 // Double integration using semi-implicit Euler method
 std::tuple<VecXd, VecXd> double_integrate(const VecXd& v, const VecXd& a,
@@ -91,11 +90,11 @@ int main(int argc, char** argv) {
     std::cout << "Received feedback from robot." << std::endl;
 
     // update to the real initial state
-    x0.head(settings.dims.q) = robot_ptr->q();
+    x0.head(settings.dims.robot.q) = robot_ptr->q();
 
     ocs2::SystemObservation initial_observation;
     initial_observation.state = x0;
-    initial_observation.input.setZero(settings.dims.ou());
+    initial_observation.input.setZero(settings.dims.u());
     initial_observation.time = ros::Time::now().toSec();
 
     // reset MPC
@@ -118,16 +117,16 @@ int main(int argc, char** argv) {
 
     VecXd x = x0;
     VecXd xd = VecXd::Zero(x.size());
-    VecXd ou = VecXd::Zero(settings.dims.ou());
+    VecXd ou = VecXd::Zero(settings.dims.u());
     size_t mode = 0;
     ocs2::SystemObservation observation = initial_observation;
 
-    VecXd v_ff = VecXd::Zero(settings.dims.v);
-    VecXd a_ff = VecXd::Zero(settings.dims.v);
+    VecXd v_ff = VecXd::Zero(settings.dims.robot.v);
+    VecXd a_ff = VecXd::Zero(settings.dims.robot.v);
 
     ros::Time now = ros::Time::now();
     ros::Time last_policy_update_time = now;
-    ros::Duration policy_update_delay(0.05); // TODO note
+    ros::Duration policy_update_delay(0.05);  // TODO note
 
     ocs2::scalar_t t = now.toSec();
     ocs2::scalar_t last_t = t;
@@ -144,16 +143,16 @@ int main(int argc, char** argv) {
 
         // Integrate our internal model to get velocity and acceleration
         // "feedback"
-        VecXd u = ou.head(settings.dims.u);
+        VecXd u = ou.head(settings.dims.robot.u);
         std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u, dt);
 
         // Current state is built from robot feedback for q and v; for
         // acceleration we just assume we are tracking well since we don't get
         // good feedback on this
-        x.head(settings.dims.q) = q;
-        x.segment(settings.dims.q, settings.dims.v) =
-            v_ff;  // xd.segment(settings.dims.q, settings.dims.v);
-        x.tail(settings.dims.v) = a_ff;  // xd.tail(settings.dims.v);
+        x.head(settings.dims.robot.q) = q;
+        x.segment(settings.dims.robot.q, settings.dims.robot.v) = v_ff;
+        x.segment(settings.dims.robot.q + settings.dims.robot.v,
+                  settings.dims.robot.v) = a_ff;
 
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, ou, mode);

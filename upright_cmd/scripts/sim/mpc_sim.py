@@ -34,6 +34,7 @@ def main():
     )
 
     # settle sim to make sure everything is touching comfortably
+    # TODO we need to adjust the offset here too
     sim.settle(5.0)
     sim.launch_dynamic_obstacles(offset=sim.robot.link_pose()[0])
 
@@ -41,7 +42,8 @@ def main():
     t = 0.0
     q, v = sim.robot.joint_states()
     a = np.zeros(sim.robot.nv)
-    x = np.concatenate((q, v, a))
+    x_obs = sim.dynamic_obstacle_state()
+    x = np.concatenate((q, v, a, x_obs))
     u = np.zeros(sim.robot.nu)
 
     # controller
@@ -49,9 +51,10 @@ def main():
 
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
     model = ctrl_manager.model
+    dims = model.settings.dims
     ref = ctrl_manager.ref
     Kp = model.settings.Kp
-    mapping = ctrl.trajectory.StateInputMapping(model.settings.dims)
+    mapping = ctrl.trajectory.StateInputMapping(model.settings.dims.robot)
 
     # data logging
     logger = DataLogger(config)
@@ -85,23 +88,32 @@ def main():
     while t <= sim.duration:
         # get the true robot feedback
         q, v = sim.robot.joint_states(add_noise=False)
-        x = np.concatenate((q, v, a_ff))
+        x_obs = sim.dynamic_obstacle_state()
+
+        x = np.concatenate((q, v, a_ff, x_obs))
 
         # now get the noisy version for use in the controller
         # we can choose to use v_ff rather than v_noisy if we can to avoid
         # noisy velocity feedback
         q_noisy, v_noisy = sim.robot.joint_states(add_noise=True)
         if use_velocity_feedback:
-            x_noisy = np.concatenate((q_noisy, v_noisy, a_ff))
+            x_noisy = np.concatenate((q_noisy, v_noisy, a_ff, x_obs))
         else:
-            x_noisy = np.concatenate((q_noisy, v_ff, a_ff))
+            x_noisy = np.concatenate((q_noisy, v_ff, a_ff, x_obs))
 
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
         try:
-            xd, ou = ctrl_manager.step(t, x_noisy)
-            u = ou[: model.settings.dims.u]
-            f = ou[model.settings.dims.u :]
+            xd, u = ctrl_manager.step(t, x_noisy)
+            xd_robot = x[: dims.robot.x]
+            # xd_obs = x[dims.robot.x:]
+            # x_obs = xd_obs
+            # print(f"r_obs = {xd_obs[:3]}")
+            u_robot = u[: dims.robot.u]
+            f = u[-dims.f() :]
+
+            # ts_full, xs_full, us_full = ctrl_manager.get_mpc_trajectory()
+            # IPython.embed()
         except RuntimeError as e:
             print(e)
             print("exit the interpreter to proceed to plots")
@@ -113,13 +125,17 @@ def main():
             IPython.embed()
             break
 
+        # if t >= 1.0:
+        #     ts_full, xs_full, us_full = ctrl_manager.get_mpc_trajectory()
+        #     IPython.embed()
+
         # TODO why is this better than using the zero-order hold?
         # here we use the input u to generate the feedforward signal---using
         # the jerk level ensures smoothness at the velocity level
-        qd, vd, _ = mapping.xu2qva(xd)
+        qd, vd, _ = mapping.xu2qva(xd_robot)
 
         if use_direct_velocity_command:
-            v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u, sim.timestep)
+            v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, sim.timestep)
             v_cmd = Kp @ (qd - q_noisy) + vd
         else:
             # ud = Kp @ (qd - q_noisy) + u
@@ -131,11 +147,6 @@ def main():
 
         # TODO more logger reforms to come
         if logger.ready(t):
-            # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
-            #     recorder.dynamic_obs_distance[idx, :] = mpc.getStateInequalityConstraintValue(
-            #         "dynamic_obstacle_avoidance", t, x
-            #     )
-
             # log sim stuff
             r_ew_w, Q_we = sim.robot.link_pose()
             v_ew_w, ω_ew_w = sim.robot.link_velocity()
@@ -162,23 +173,23 @@ def main():
             logger.append("orn_err", model.angle_between_acc_and_normal())
             logger.append("balancing_constraints", model.balancing_constraints())
 
-            if model.settings.static_obstacle_settings.enabled:
+            if model.settings.obstacle_settings.enabled:
                 if (
-                    model.settings.static_obstacle_settings.constraint_type
+                    model.settings.obstacle_settings.constraint_type
                     == ctrl.bindings.ConstraintType.Soft
                 ):
-                    static_obs_constraints = (
+                    obs_constraints = (
                         ctrl_manager.mpc.getSoftStateInequalityConstraintValue(
-                            "static_obstacle_avoidance", t, x
+                            "obstacle_avoidance", t, x
                         )
                     )
                 else:
-                    static_obs_constraints = (
+                    obs_constraints = (
                         ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                            "static_obstacle_avoidance", t, x, ou
+                            "obstacle_avoidance", t, x, u
                         )
                     )
-                logger.append("collision_pair_distances", static_obs_constraints)
+                logger.append("collision_pair_distances", obs_constraints)
 
             # TODO eventually it would be nice to also compute this directly
             # via the core library
@@ -189,21 +200,21 @@ def main():
                 ):
                     contact_force_constraints = (
                         ctrl_manager.mpc.getSoftStateInputInequalityConstraintValue(
-                            "contact_forces", t, x, ou
+                            "contact_forces", t, x, u
                         )
                     )
                 else:
                     contact_force_constraints = (
                         ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                            "contact_forces", t, x, ou
+                            "contact_forces", t, x, u
                         )
                     )
                 object_dynamics_constraints = (
                     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
-                        "object_dynamics", t, x, ou
+                        "object_dynamics", t, x, u
                     )
                 )
-                logger.append("cost", ctrl_manager.mpc.cost(t, x, ou))
+                logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
 
                 logger.append("contact_force_constraints", contact_force_constraints)
                 logger.append("contact_forces", f)
@@ -212,8 +223,6 @@ def main():
                 )
 
         t = sim.step(t, step_robot=False)
-        # if ctrl_manager.settings.dynamic_obstacle_settings.enabled:
-        #     obstacle.step()
 
     try:
         print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")

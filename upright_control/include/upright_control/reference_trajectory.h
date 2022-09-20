@@ -36,35 +36,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace upright {
 
-inline VecXd make_target(const Vec3d& ee_position, const Quatd& ee_orientation,
-                         const Vec3d& obs_position) {
-    VecXd target(10);
-    target << ee_position, ee_orientation.coeffs(), obs_position;
-    return target;
-}
-
-inline void set_target_position(VecXd& target, const Vec3d& position) {
-    target.head<3>() = position;
-}
-
 inline Vec3d get_target_position(const VecXd& target) {
     return target.head<3>();
 }
 
-inline void set_target_orientation(VecXd& target, const Quatd& orientation) {
-    target.segment<4>(3) = orientation.coeffs();
-}
-
 inline Quatd get_target_orientation(const VecXd& target) {
     return Quatd(target.segment<4>(3));
-}
-
-inline void set_obstacle_position(VecXd& target, const Vec3d& position) {
-    target.segment<3>(7) = position;
-}
-
-inline Vec3d get_obstacle_position(const VecXd& target) {
-    return target.segment<3>(7);
 }
 
 inline std::pair<VecXd, Quatd> interpolateEndEffectorPose(
@@ -96,33 +73,6 @@ inline std::pair<VecXd, Quatd> interpolateEndEffectorPose(
     }
 
     return {position, orientation};
-}
-
-// Interpolate position of obstacle over time.
-inline Vec3d interpolate_obstacle_position(
-    ocs2::scalar_t time, const ocs2::TargetTrajectories& targetTrajectories) {
-    const auto& timeTrajectory = targetTrajectories.timeTrajectory;
-    const auto& stateTrajectory = targetTrajectories.stateTrajectory;
-
-    Vec3d position;
-
-    if (stateTrajectory.size() > 1) {
-        // Normal interpolation case
-        int index;
-        ocs2::scalar_t alpha;
-        std::tie(index, alpha) =
-            ocs2::LinearInterpolation::timeSegment(time, timeTrajectory);
-
-        const auto& lhs = stateTrajectory[index];
-        const auto& rhs = stateTrajectory[index + 1];
-
-        position = alpha * get_obstacle_position(lhs) +
-                   (1.0 - alpha) * get_obstacle_position(rhs);
-    } else {  // stateTrajectory.size() == 1
-        position = get_obstacle_position(stateTrajectory.front());
-    }
-
-    return position;
 }
 
 }  // namespace upright

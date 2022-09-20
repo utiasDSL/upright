@@ -3,9 +3,9 @@ include:
     package: upright_cmd
     path: config/arrangements.yaml
   -
-    key: static_obstacles
+    key: obstacles
     package: upright_cmd
-    path: config/controller/static_obstacles/simple.yaml
+    path: config/controller/obstacles/simple.yaml
 
 
 # compute a new control policy every `control_period` seconds
@@ -50,16 +50,26 @@ tracking:
 #     position: [2.0, 0.0, 0.0]
 #     orientation: [0.0, 0.0, 0.0, 1.0]
 
-static_obstacles:
+obstacles:
   enabled: true
   constraint_type: hard
+
+  # extra margin between objects
+  # Important: this needs to be > 0 for the resulting constraint to be
+  # differentiable
+  minimum_distance: 0.1
 
   # relaxed barrier function parameters
   mu: 1e-2
   delta: 1e-3
 
-dynamic_obstacles:
-  enabled: false
+  dynamic:
+    -
+      name: dynobs1
+      position: [0, -1, 0]
+      velocity: [0, 2, 0]
+      acceleration: [0, 0, 0]
+      radius: 0.1
 
 infofile:
   package: "upright_control"

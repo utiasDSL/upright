@@ -6,7 +6,7 @@
 
 #include <upright_control/cost/inertial_alignment_cost.h>
 #include <upright_control/dynamics/base_type.h>
-#include <upright_control/dynamics/dimensions.h>
+#include <upright_control/dimensions.h>
 #include <upright_control/constraint/constraint_type.h>
 #include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/constraint/obstacle_constraint.h>
@@ -59,7 +59,6 @@ struct ControllerSettings {
 
     // URDFs
     std::string robot_urdf_path;
-    std::string obstacle_urdf_path;
 
     // OCS2 settings
     std::string ocs2_config_path;
@@ -67,14 +66,13 @@ struct ControllerSettings {
 
     // Robot settings
     RobotBaseType robot_base_type = RobotBaseType::Fixed;
-    RobotDimensions dims;
+    OptimizationDimensions dims;
     std::string end_effector_link_name;
 
     // Additional settings for constraints
     BalancingSettings balancing_settings;
     InertialAlignmentSettings inertial_alignment_settings;
-    DynamicObstacleSettings dynamic_obstacle_settings;
-    StaticObstacleSettings static_obstacle_settings;
+    ObstacleSettings obstacle_settings;
 
     static ControllerSettings::SolverMethod solver_method_from_string(
         const std::string& s) {

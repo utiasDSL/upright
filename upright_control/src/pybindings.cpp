@@ -14,10 +14,9 @@
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/controller_python_interface.h>
 #include <upright_control/controller_settings.h>
+#include <upright_control/dimensions.h>
 #include <upright_control/dynamics/base_type.h>
-#include <upright_control/dynamics/dimensions.h>
-#include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
-#include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
+#include <upright_control/dynamics/system_pinocchio_mapping.h>
 
 using namespace upright;
 using namespace ocs2;  // TODO perhaps avoid using
@@ -30,8 +29,13 @@ PYBIND11_MAKE_OPAQUE(ocs2::matrix_array_t)
 using CollisionSphereVector = std::vector<CollisionSphere<scalar_t>>;
 using StringPairVector = std::vector<std::pair<std::string, std::string>>;
 
+using SystemMapping =
+    SystemPinocchioMapping<TripleIntegratorPinocchioMapping<ocs2::scalar_t>,
+                           ocs2::scalar_t>;
+
 PYBIND11_MAKE_OPAQUE(CollisionSphereVector)
 PYBIND11_MAKE_OPAQUE(StringPairVector)
+PYBIND11_MAKE_OPAQUE(std::vector<DynamicObstacle>)
 
 /* create a python module */
 PYBIND11_MODULE(bindings, m) {
@@ -42,36 +46,18 @@ PYBIND11_MODULE(bindings, m) {
 
     VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
+    VECTOR_TYPE_BINDING(std::vector<DynamicObstacle>, "DynamicObstacleVector")
 
-    pybind11::class_<FixedBasePinocchioMapping<scalar_t>>(
-        m, "FixedBasePinocchioMapping")
-        .def(pybind11::init<const RobotDimensions &>(), "dims")
+    pybind11::class_<SystemMapping>(m, "SystemPinocchioMapping")
+        .def(pybind11::init<const OptimizationDimensions &>(), "dims")
         .def("get_pinocchio_joint_position",
-             &FixedBasePinocchioMapping<scalar_t>::getPinocchioJointPosition,
-             "state"_a)
+             &SystemMapping::getPinocchioJointPosition, "state"_a)
         .def("get_pinocchio_joint_velocity",
-             &FixedBasePinocchioMapping<scalar_t>::getPinocchioJointVelocity,
-             "state"_a, "input"_a)
-        .def(
-            "get_pinocchio_joint_acceleration",
-            &FixedBasePinocchioMapping<scalar_t>::getPinocchioJointAcceleration,
-            "state"_a, "input"_a);
-
-    pybind11::class_<OmnidirectionalPinocchioMapping<scalar_t>>(
-        m, "OmnidirectionalPinocchioMapping")
-        .def(pybind11::init<const RobotDimensions &>(), "dims")
-        .def("get_pinocchio_joint_position",
-             &OmnidirectionalPinocchioMapping<
-                 scalar_t>::getPinocchioJointPosition,
-             "state"_a)
-        .def("get_pinocchio_joint_velocity",
-             &OmnidirectionalPinocchioMapping<
-                 scalar_t>::getPinocchioJointVelocity,
-             "state"_a, "input"_a)
+             &SystemMapping::getPinocchioJointVelocity, "state"_a,
+             "input"_a)
         .def("get_pinocchio_joint_acceleration",
-             &OmnidirectionalPinocchioMapping<
-                 scalar_t>::getPinocchioJointAcceleration,
-             "state"_a, "input"_a);
+             &SystemMapping::getPinocchioJointAcceleration, "state"_a,
+             "input"_a);
 
     pybind11::class_<BalancingSettings>(m, "BalancingSettings")
         .def(pybind11::init<>())
@@ -105,38 +91,56 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("offset", &CollisionSphere<scalar_t>::offset)
         .def_readwrite("radius", &CollisionSphere<scalar_t>::radius);
 
-    pybind11::class_<StaticObstacleSettings>(m, "StaticObstacleSettings")
+    pybind11::class_<DynamicObstacle>(m, "DynamicObstacle")
         .def(pybind11::init<>())
-        .def_readwrite("enabled", &StaticObstacleSettings::enabled)
-        .def_readwrite("collision_link_pairs",
-                       &StaticObstacleSettings::collision_link_pairs)
-        .def_readwrite("minimum_distance",
-                       &StaticObstacleSettings::minimum_distance)
-        .def_readwrite("constraint_type",
-                       &StaticObstacleSettings::constraint_type)
-        .def_readwrite("mu", &StaticObstacleSettings::mu)
-        .def_readwrite("delta", &StaticObstacleSettings::delta)
-        .def_readwrite("extra_spheres", &StaticObstacleSettings::extra_spheres);
+        .def_readwrite("name", &DynamicObstacle::name)
+        .def_readwrite("radius", &DynamicObstacle::radius)
+        .def_readwrite("position", &DynamicObstacle::position)
+        .def_readwrite("velocity", &DynamicObstacle::velocity)
+        .def_readwrite("acceleration", &DynamicObstacle::acceleration);
 
-    pybind11::class_<DynamicObstacleSettings>(m, "DynamicObstacleSettings")
+    pybind11::class_<ObstacleSettings>(m, "ObstacleSettings")
         .def(pybind11::init<>())
-        .def_readwrite("enabled", &DynamicObstacleSettings::enabled)
-        .def_readwrite("obstacle_radius",
-                       &DynamicObstacleSettings::obstacle_radius)
-        .def_readwrite("mu", &DynamicObstacleSettings::mu)
-        .def_readwrite("delta", &DynamicObstacleSettings::delta)
-        .def_readwrite("collision_spheres",
-                       &DynamicObstacleSettings::collision_spheres);
+        .def_readwrite("enabled", &ObstacleSettings::enabled)
+        .def_readwrite("collision_link_pairs",
+                       &ObstacleSettings::collision_link_pairs)
+        .def_readwrite("minimum_distance", &ObstacleSettings::minimum_distance)
+        .def_readwrite("constraint_type", &ObstacleSettings::constraint_type)
+        .def_readwrite("mu", &ObstacleSettings::mu)
+        .def_readwrite("delta", &ObstacleSettings::delta)
+        .def_readwrite("obstacle_urdf_path",
+                       &ObstacleSettings::obstacle_urdf_path)
+        .def_readwrite("dynamic_obstacles",
+                       &ObstacleSettings::dynamic_obstacles)
+        .def_readwrite("extra_spheres", &ObstacleSettings::extra_spheres);
+
+    // pybind11::class_<DynamicObstacleSettings>(m, "DynamicObstacleSettings")
+    //     .def(pybind11::init<>())
+    //     .def_readwrite("enabled", &DynamicObstacleSettings::enabled)
+    //     .def_readwrite("obstacle_radius",
+    //                    &DynamicObstacleSettings::obstacle_radius)
+    //     .def_readwrite("mu", &DynamicObstacleSettings::mu)
+    //     .def_readwrite("delta", &DynamicObstacleSettings::delta)
+    //     .def_readwrite("collision_spheres",
+    //                    &DynamicObstacleSettings::collision_spheres);
 
     pybind11::class_<RobotDimensions>(m, "RobotDimensions")
         .def(pybind11::init<>())
         .def_readwrite("q", &RobotDimensions::q)
         .def_readwrite("v", &RobotDimensions::v)
         .def_readwrite("x", &RobotDimensions::x)
-        .def_readwrite("u", &RobotDimensions::u)
-        .def_readwrite("f", &RobotDimensions::f)
-        .def_property_readonly("ox", &RobotDimensions::ox)
-        .def_property_readonly("ou", &RobotDimensions::ou);
+        .def_readwrite("u", &RobotDimensions::u);
+
+    pybind11::class_<OptimizationDimensions>(m, "OptimizationDimensions")
+        .def(pybind11::init<>())
+        .def_readwrite("robot", &OptimizationDimensions::robot)
+        .def_readwrite("o", &OptimizationDimensions::o)
+        .def_readwrite("c", &OptimizationDimensions::c)
+        .def("q", &OptimizationDimensions::q)
+        .def("v", &OptimizationDimensions::v)
+        .def("x", &OptimizationDimensions::x)
+        .def("u", &OptimizationDimensions::u)
+        .def("f", &OptimizationDimensions::f);
 
     pybind11::enum_<RobotBaseType>(m, "RobotBaseType")
         .value("Fixed", RobotBaseType::Fixed)
@@ -159,10 +163,10 @@ PYBIND11_MODULE(bindings, m) {
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("gravity", &ControllerSettings::gravity)
         .def_readwrite("solver_method", &ControllerSettings::solver_method)
-        .def_readwrite("dynamic_obstacle_settings",
-                       &ControllerSettings::dynamic_obstacle_settings)
-        .def_readwrite("static_obstacle_settings",
-                       &ControllerSettings::static_obstacle_settings)
+        // .def_readwrite("dynamic_obstacle_settings",
+        //                &ControllerSettings::dynamic_obstacle_settings)
+        .def_readwrite("obstacle_settings",
+                       &ControllerSettings::obstacle_settings)
         .def_readwrite("balancing_settings",
                        &ControllerSettings::balancing_settings)
         .def_readwrite("initial_state", &ControllerSettings::initial_state)
@@ -187,8 +191,6 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("state_limit_delta",
                        &ControllerSettings::state_limit_delta)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
-        .def_readwrite("obstacle_urdf_path",
-                       &ControllerSettings::obstacle_urdf_path)
         .def_readwrite("ocs2_config_path",
                        &ControllerSettings::ocs2_config_path)
         .def_readwrite("lib_folder", &ControllerSettings::lib_folder)

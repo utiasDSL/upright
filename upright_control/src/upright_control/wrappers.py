@@ -33,8 +33,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
 
             r_ew_w_d = r_ew_w + waypoint["position"]
             Q_we_d = core.math.quat_multiply(Q_we, waypoint["orientation"])
-            r_obs = np.zeros(3)
-            x = np.concatenate((r_ew_w_d, Q_we_d, r_obs))
+            x = np.concatenate((r_ew_w_d, Q_we_d))
 
             ts.append(t)
             us.append(np.copy(u))
@@ -42,7 +41,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
         return cls(ts, xs, us)
 
     @classmethod
-    def from_config_file(cls, config_path, x0):
+    def from_config_file(cls, config_path, x0_robot):
         """Load the trajectory directly from a config file.
 
         This is convenient for loading from C++, for example in the MRT node.
@@ -50,7 +49,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
         config = core.parsing.load_config(config_path)
         ctrl_config = config["controller"]
         robot = PinocchioRobot(config=ctrl_config["robot"])
-        robot.forward(x0)
+        robot.forward(x0_robot)
         r_ew_w, Q_we = robot.link_pose()
         u0 = np.zeros(robot.dims.ou)
         return cls.from_config(ctrl_config, r_ew_w, Q_we, u0)
@@ -72,6 +71,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
 
 class ControllerSettings(bindings.ControllerSettings):
     """Wrapper around ControllerSettings binding."""
+
     def __init__(self, config, x0=None, operating_trajectory=None):
         super().__init__()
 
@@ -88,20 +88,11 @@ class ControllerSettings(bindings.ControllerSettings):
         # gravity
         self.gravity = config["gravity"]
 
-        # dimensions
-        # note that dims.f (number of contact forces) is set below
-        self.dims.q = config["robot"]["dims"]["q"]
-        self.dims.v = config["robot"]["dims"]["v"]
-        self.dims.x = config["robot"]["dims"]["x"]
-        self.dims.u = config["robot"]["dims"]["u"]
-
-        # initial state can be passed in directly (for example to match exactly
-        # a simulation) or parsed from the config
-        if x0 is None:
-            self.initial_state = core.parsing.parse_array(config["robot"]["x0"])
-        else:
-            self.initial_state = x0
-        assert self.initial_state.shape == (self.dims.x,)
+        # robot dimensions
+        self.dims.robot.q = config["robot"]["dims"]["q"]
+        self.dims.robot.v = config["robot"]["dims"]["v"]
+        self.dims.robot.x = config["robot"]["dims"]["x"]
+        self.dims.robot.u = config["robot"]["dims"]["u"]
 
         # weights for state, input, and EE pose
         self.input_weight = core.parsing.parse_diag_matrix_dict(
@@ -113,8 +104,8 @@ class ControllerSettings(bindings.ControllerSettings):
         self.end_effector_weight = core.parsing.parse_diag_matrix_dict(
             config["weights"]["end_effector"]
         )
-        assert self.input_weight.shape == (self.dims.u, self.dims.u)
-        assert self.state_weight.shape == (self.dims.x, self.dims.x)
+        assert self.input_weight.shape == (self.dims.robot.u, self.dims.robot.u)
+        assert self.state_weight.shape == (self.dims.robot.x, self.dims.robot.x)
         assert self.end_effector_weight.shape == (6, 6)
 
         # input limits
@@ -127,8 +118,8 @@ class ControllerSettings(bindings.ControllerSettings):
         self.input_limit_upper = core.parsing.parse_array(
             config["limits"]["input"]["upper"]
         )
-        assert self.input_limit_lower.shape == (self.dims.u,)
-        assert self.input_limit_upper.shape == (self.dims.u,)
+        assert self.input_limit_lower.shape == (self.dims.robot.u,)
+        assert self.input_limit_upper.shape == (self.dims.robot.u,)
 
         # state limits
         self.state_limit_lower = core.parsing.parse_array(
@@ -137,20 +128,19 @@ class ControllerSettings(bindings.ControllerSettings):
         self.state_limit_upper = core.parsing.parse_array(
             config["limits"]["state"]["upper"]
         )
-        assert self.state_limit_lower.shape == (self.dims.x,)
-        assert self.state_limit_upper.shape == (self.dims.x,)
+        assert self.state_limit_lower.shape == (self.dims.robot.x,)
+        assert self.state_limit_upper.shape == (self.dims.robot.x,)
 
         # tracking gain
         self.Kp = core.parsing.parse_diag_matrix_dict(config["tracking"]["Kp"])
-        assert self.Kp.shape == (self.dims.q, self.dims.q)
+        assert self.Kp.shape == (self.dims.robot.q, self.dims.robot.q)
 
         # rate for tracking controller
         self.rate = core.parsing.parse_number(config["tracking"]["rate"])
 
         # URDFs
-        self.robot_urdf_path = core.parsing.parse_and_compile_urdf(config["robot"]["urdf"])
-        self.obstacle_urdf_path = core.parsing.parse_and_compile_urdf(
-            config["static_obstacles"]["urdf"]
+        self.robot_urdf_path = core.parsing.parse_and_compile_urdf(
+            config["robot"]["urdf"]
         )
 
         # task info file (Boost property tree format)
@@ -168,7 +158,9 @@ class ControllerSettings(bindings.ControllerSettings):
 
         # tray balance settings
         self.balancing_settings.enabled = config["balancing"]["enabled"]
-        self.balancing_settings.use_force_constraints = config["balancing"]["use_force_constraints"]
+        self.balancing_settings.use_force_constraints = config["balancing"][
+            "use_force_constraints"
+        ]
         self.balancing_settings.constraint_type = bindings.constraint_type_from_string(
             config["balancing"]["constraint_type"]
         )
@@ -183,7 +175,7 @@ class ControllerSettings(bindings.ControllerSettings):
         ctrl_objects, contacts = core.parsing.parse_control_objects(config)
         self.balancing_settings.objects = ctrl_objects
         self.balancing_settings.contacts = contacts
-        self.dims.f = len(contacts)
+        self.dims.c = len(contacts)
 
         self.balancing_settings.constraints_enabled.normal = config["balancing"][
             "enable_normal_constraint"
@@ -212,61 +204,61 @@ class ControllerSettings(bindings.ControllerSettings):
                 -1
             ].body.com_ellipsoid.center()  # TODO could specify index in config
 
-        # collision avoidance settings
-        self.static_obstacle_settings.enabled = config["static_obstacles"]["enabled"]
-        self.static_obstacle_settings.constraint_type = (
-            bindings.constraint_type_from_string(
-                config["static_obstacles"]["constraint_type"]
-            )
-        )
-        if config["static_obstacles"]["collision_pairs"] is not None:
-            for pair in config["static_obstacles"]["collision_pairs"]:
-                self.static_obstacle_settings.collision_link_pairs.push_back(
-                    tuple(pair)
+        # obstacle settings
+        x0_obs = []
+        self.obstacle_settings.enabled = config["obstacles"]["enabled"]
+        if self.obstacle_settings.enabled:
+            self.obstacle_settings.constraint_type = (
+                bindings.constraint_type_from_string(
+                    config["obstacles"]["constraint_type"]
                 )
-        self.static_obstacle_settings.minimum_distance = config["static_obstacles"][
-            "minimum_distance"
-        ]
-        self.static_obstacle_settings.mu = core.parsing.parse_number(
-            config["static_obstacles"]["mu"]
-        )
-        self.static_obstacle_settings.delta = core.parsing.parse_number(
-            config["static_obstacles"]["delta"]
-        )
+            )
+            if config["obstacles"]["collision_pairs"] is not None:
+                for pair in config["obstacles"]["collision_pairs"]:
+                    self.obstacle_settings.collision_link_pairs.push_back(tuple(pair))
+            self.obstacle_settings.minimum_distance = config["obstacles"][
+                "minimum_distance"
+            ]
+            self.obstacle_settings.mu = core.parsing.parse_number(
+                config["obstacles"]["mu"]
+            )
+            self.obstacle_settings.delta = core.parsing.parse_number(
+                config["obstacles"]["delta"]
+            )
 
-        # dynamic obstacle settings
-        self.dynamic_obstacle_settings.enabled = False
-        self.dynamic_obstacle_settings.obstacle_radius = 0.1
-        self.dynamic_obstacle_settings.mu = 1e-2
-        self.dynamic_obstacle_settings.delta = 1e-3
+            if "urdf" in config["obstacles"]:
+                self.obstacle_settings.obstacle_urdf_path = (
+                    core.parsing.parse_and_compile_urdf(
+                        config["obstacles"]["urdf"]
+                    )
+                )
 
-        for sphere in [
-            bindings.CollisionSphere(
-                name="elbow_collision_link",
-                parent_frame_name="ur10_arm_forearm_link",
-                offset=np.zeros(3),
-                radius=0.15,
-            ),
-            bindings.CollisionSphere(
-                name="forearm_collision_sphere_link1",
-                parent_frame_name="ur10_arm_forearm_link",
-                offset=np.array([0, 0, 0.2]),
-                radius=0.15,
-            ),
-            bindings.CollisionSphere(
-                name="forearm_collision_sphere_link2",
-                parent_frame_name="ur10_arm_forearm_link",
-                offset=np.array([0, 0, 0.4]),
-                radius=0.15,
-            ),
-            bindings.CollisionSphere(
-                name="wrist_collision_link",
-                parent_frame_name="ur10_arm_wrist_3_link",
-                offset=np.zeros(3),
-                radius=0.15,
-            ),
-        ]:
-            self.dynamic_obstacle_settings.collision_spheres.push_back(sphere)
+            if "dynamic" in config["obstacles"]:
+                self.dims.o = len(config["obstacles"]["dynamic"])
+                for obs_config in config["obstacles"]["dynamic"]:
+                    obs = bindings.DynamicObstacle()
+                    obs.name = obs_config["name"]
+                    obs.radius = obs_config["radius"]
+                    obs.position = np.array(obs_config["position"])
+                    obs.velocity = np.array(obs_config["velocity"])
+                    obs.acceleration = np.array(obs_config["acceleration"])
+                    self.obstacle_settings.dynamic_obstacles.push_back(obs)
+
+                    # also construct initial state for the obstacles
+                    x0_obs.append(np.concatenate((obs.position, obs.velocity, obs.acceleration)))
+                x0_obs = np.concatenate(x0_obs)
+
+        # initial state can be passed in directly (for example to match exactly
+        # a simulation) or parsed from the config
+        # we do this at the end to properly account for dynamic obstacles added
+        # to the state
+        if x0 is None:
+            x0_robot = core.parsing.parse_array(config["robot"]["x0"])
+            assert x0_robot.shape == (self.dims.robot.x,)
+            self.initial_state = np.concatenate((x0_robot, x0_obs))
+        else:
+            self.initial_state = x0
+        assert self.initial_state.shape == (self.dims.x(),)
 
     @classmethod
     def from_config_file(cls, config_path):
