@@ -318,7 +318,7 @@ class DataPlotter:
         )
 
         # plot the obstacle position if available
-        if self.data["xs"].shape[0] > self.data["nx"]:
+        if self.data["xs"].shape[1] > self.data["nx"]:
             self.plot_value_vs_time(
                 "xs",
                 indices=range(self.data["nx"], self.data["nx"] + 3),

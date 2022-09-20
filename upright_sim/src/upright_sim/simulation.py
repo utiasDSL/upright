@@ -336,6 +336,9 @@ class BulletSimulation:
                 self.dynamic_obstacles.append(obstacle)
 
     def dynamic_obstacle_state(self):
+        if len(self.dynamic_obstacles) == 0:
+            return np.array([])
+
         xs = []
         for obs in self.dynamic_obstacles:
             r, v = obs.joint_state()
