@@ -14,16 +14,15 @@ import IPython
 class ControllerModel:
     """Contains system model: robot, objects, and other settings."""
 
-    def __init__(self, settings, robot):
+    def __init__(self, settings):
         self.settings = settings
         self.objects = list(settings.objects.values())
-        self.robot = robot
+        self.robot = PinocchioRobot.from_ctrl_settings(settings)
 
     @classmethod
     def from_config(cls, config, x0=None):
         settings = ControllerSettings(config=config, x0=x0)
-        robot = PinocchioRobot(config=config["robot"])
-        return cls(settings, robot)
+        return cls(settings)
 
     def update(self, x, u=None):
         """Update model with state x and input u. Required before calling other methods."""

@@ -51,7 +51,7 @@ tracking:
 #     orientation: [0.0, 0.0, 0.0, 1.0]
 
 obstacles:
-  enabled: false
+  enabled: true
   constraint_type: hard
 
   # extra margin between objects

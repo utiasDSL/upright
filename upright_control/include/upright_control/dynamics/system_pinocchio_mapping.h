@@ -3,24 +3,23 @@
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 
 #include <upright_control/dimensions.h>
-#include <upright_control/dynamics/obstacle_pinocchio_mapping.h>
 
 namespace upright {
 
 // TODO more accurately: TripleIntegrator
 template <typename Scalar>
-class IntegratorPinocchioMapping final
+class TripleIntegratorPinocchioMapping final
     : public ocs2::PinocchioStateInputMapping<Scalar> {
    public:
     using VecXs = VecX<Scalar>;
     using MatXs = MatX<Scalar>;
 
-    IntegratorPinocchioMapping(const RobotDimensions& dims) : dims_(dims) {}
+    TripleIntegratorPinocchioMapping(const RobotDimensions& dims) : dims_(dims) {}
 
-    ~IntegratorPinocchioMapping() override = default;
+    ~TripleIntegratorPinocchioMapping() override = default;
 
-    IntegratorPinocchioMapping<Scalar>* clone() const override {
-        return new IntegratorPinocchioMapping<Scalar>(*this);
+    TripleIntegratorPinocchioMapping<Scalar>* clone() const override {
+        return new TripleIntegratorPinocchioMapping<Scalar>(*this);
     }
 
     VecXs getPinocchioJointPosition(const VecXs& state) const override {
@@ -60,23 +59,23 @@ class IntegratorPinocchioMapping final
 static const RobotDimensions OBSTACLE_DIMENSIONS{3, 3, 9, 0};
 
 template <typename Scalar>
-static const IntegratorPinocchioMapping<Scalar> OBSTACLE_PINOCCHIO_MAPPING{
+static const TripleIntegratorPinocchioMapping<Scalar> OBSTACLE_PINOCCHIO_MAPPING{
     OBSTACLE_DIMENSIONS};
 
 template <typename Mapping, typename Scalar>
-class CombinedPinocchioMapping final
+class SystemPinocchioMapping final
     : public ocs2::PinocchioStateInputMapping<Scalar> {
    public:
     using VecXs = VecX<Scalar>;
     using MatXs = MatX<Scalar>;
 
-    explicit CombinedPinocchioMapping(const OptimizationDimensions& dims)
+    explicit SystemPinocchioMapping(const OptimizationDimensions& dims)
         : dims_(dims), robot_mapping_(dims.robot) {}
 
-    ~CombinedPinocchioMapping() override = default;
+    ~SystemPinocchioMapping() override = default;
 
-    CombinedPinocchioMapping<Mapping, Scalar>* clone() const override {
-        return new CombinedPinocchioMapping<Mapping, Scalar>(*this);
+    SystemPinocchioMapping<Mapping, Scalar>* clone() const override {
+        return new SystemPinocchioMapping<Mapping, Scalar>(*this);
     }
 
     VecXs getPinocchioJointPosition(const VecXs& state) const override {
@@ -147,8 +146,6 @@ class CombinedPinocchioMapping final
     std::pair<MatXs, MatXs> getOcs2Jacobian(
         const VecXs& state, const MatXs& Jq_pin,
         const MatXs& Jv_pin) const override {
-        // TODO this is not correct b.c of different ordering of q, v in
-        // Pinocchio
         const auto output_dim = Jq_pin.rows();
         MatXs dfdx(output_dim, dims_.x());
         MatXs dfdu(output_dim, dims_.u());

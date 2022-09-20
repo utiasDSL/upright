@@ -3,15 +3,13 @@
 #include <pinocchio/multibody/model.hpp>
 
 #include <ocs2_core/PreComputation.h>
-#include <ocs2_core/Types.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
-#include <ocs2_pinocchio_interface/urdf.h>
 
 #include <upright_control/constraint/bounded_balancing_constraints.h>
-#include <upright_control/controller_interface.h>
-#include <upright_control/dynamics/combined_pinocchio_mapping.h>
-// #include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
-// #include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
+#include <upright_control/controller_settings.h>
+#include <upright_control/dynamics/system_pinocchio_mapping.h>
+#include <upright_control/types.h>
+#include <upright_control/util.h>
 
 namespace upright {
 
@@ -19,11 +17,12 @@ namespace upright {
 class BalancingConstraintWrapper {
    public:
     BalancingConstraintWrapper(const ControllerSettings& settings) {
-        ocs2::PinocchioInterface interface(
-            buildPinocchioInterface(settings, settings.robot_urdf_path));
+        ocs2::PinocchioInterface interface(build_pinocchio_interface(
+            settings.robot_urdf_path, settings.robot_base_type));
 
-        CombinedPinocchioMapping<IntegratorPinocchioMapping<ocs2::ad_scalar_t>,
-                                 ocs2::ad_scalar_t>
+        SystemPinocchioMapping<
+            TripleIntegratorPinocchioMapping<ocs2::ad_scalar_t>,
+            ocs2::ad_scalar_t>
             mapping(settings.dims);
 
         bool recompile_libraries = true;
@@ -36,22 +35,6 @@ class BalancingConstraintWrapper {
         constraints_.reset(new BoundedBalancingConstraints(
             end_effector_kinematics, settings.balancing_settings,
             settings.gravity, settings.dims, recompile_libraries));
-    }
-
-    ocs2::PinocchioInterface buildPinocchioInterface(
-        const ControllerSettings& settings, const std::string& urdf_path) {
-        if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
-            // add 3 DOF for wheelbase
-            pinocchio::JointModelComposite root_joint(3);
-            root_joint.addJoint(pinocchio::JointModelPX());
-            root_joint.addJoint(pinocchio::JointModelPY());
-            root_joint.addJoint(pinocchio::JointModelRZ());
-
-            return ocs2::getPinocchioInterfaceFromUrdfFile(urdf_path,
-                                                           root_joint);
-        }
-        // Fixed base
-        return ocs2::getPinocchioInterfaceFromUrdfFile(urdf_path);
     }
 
     ocs2::VectorFunctionLinearApproximation getLinearApproximation(

@@ -10,33 +10,51 @@ import upright_control as ctrl
 import IPython
 
 
-def obstacle_model():
+def build_obstacle_model(obstacles):
     model = pinocchio.Model()
-    model.name = "obstacle"
+    model.name = "dynamic_obstacles"
     geom_model = pinocchio.GeometryModel()
 
-    # free-floating joint
-    joint_name = "obstacle_joint"
-    joint_placement = pinocchio.SE3.Identity()
-    joint_id = model.addJoint(
-        0, pinocchio.JointModelTranslation(), joint_placement, joint_name
-    )
+    for obstacle in obstacles:
+        # free-floating joint
+        joint_name = obstacle.name + "_joint"
+        joint_placement = pinocchio.SE3.Identity()
+        joint_id = model.addJoint(
+            0, pinocchio.JointModelTranslation(), joint_placement, joint_name
+        )
 
-    # body
-    mass = 1.0
-    radius = 0.1
-    inertia = pinocchio.Inertia.FromSphere(mass, radius)
-    body_placement = pinocchio.SE3.Identity()
-    model.appendBodyToJoint(joint_id, inertia, body_placement)
+        # body
+        mass = 1.0
+        inertia = pinocchio.Inertia.FromSphere(mass, obstacle.radius)
+        body_placement = pinocchio.SE3.Identity()
+        model.appendBodyToJoint(joint_id, inertia, body_placement)
 
-    # visual model
-    geom_name = "obstacle"
-    shape = fcl.Sphere(radius)
-    geom_obj = pinocchio.GeometryObject(geom_name, joint_id, shape, body_placement)
-    geom_obj.meshColor = np.ones((4))
-    geom_model.addGeometryObject(geom_obj)
+        # visual model
+        shape = fcl.Sphere(obstacle.radius)
+        geom_obj = pinocchio.GeometryObject(obstacle.name, joint_id, shape, body_placement)
+        geom_obj.meshColor = np.ones((4))
+        geom_model.addGeometryObject(geom_obj)
 
     return model, geom_model
+
+
+def append_model(
+    robot, geom, model, geom_model, frame_index=0, placement=pinocchio.SE3.Identity()
+):
+    new_model, new_collision_model = pinocchio.appendModel(
+        robot.model, model, geom.collision_model, geom_model, 0, placement
+    )
+    _, new_visual_model = pinocchio.appendModel(
+        robot.model, model, geom.visual_model, geom_model, 0, placement
+    )
+
+    new_robot = ctrl.robot.PinocchioRobot(
+        new_model, robot.mapping, robot.tool_link_name
+    )
+    new_geom = ctrl.robot.PinocchioGeometry(
+        new_robot, new_collision_model, new_visual_model
+    )
+    return new_robot, new_geom
 
 
 def main():
@@ -49,104 +67,36 @@ def main():
 
     # get config path from command line argument
     config = core.parsing.load_config(args.config)["controller"]
-    model = ctrl.manager.ControllerModel.from_config(config)
-    robot = model.robot
-
-    geom = ctrl.robot.PinocchioGeometry(robot)
-
-    obs_model, obs_geom_model = obstacle_model()
-    new_model, new_geom_model = pinocchio.appendModel(
-        robot.model,
-        obs_model,
-        geom.collision_model,
-        obs_geom_model,
-        0,
-        pinocchio.SE3.Identity(),
+    ctrl_model = ctrl.manager.ControllerModel.from_config(config)
+    settings = ctrl_model.settings
+    robot = ctrl_model.robot
+    geom = ctrl.robot.PinocchioGeometry.from_robot_and_urdf(
+        robot, settings.robot_urdf_path
     )
 
-    for i in range(obs_geom_model.ngeoms):
-        geom.collision_model.addGeometryObject(obs_geom_model.geometryObjects[i])
-    new_geom_model = geom.collision_model
+    obs_model, obs_geom_model = build_obstacle_model(settings.obstacle_settings.dynamic_obstacles)
+    robot, geom = append_model(robot, geom, obs_model, obs_geom_model)
 
-    data = new_model.createData()
+    x = settings.initial_state
+    u = np.zeros(settings.dims.u())
+    q = robot.mapping.get_pinocchio_joint_position(x)
 
-    x = model.settings.initial_state
-    q = np.concatenate((x[robot.dims.x : robot.dims.x + 3], x[: robot.dims.q]))
+    # add offset to the dynamic obstacles
+    robot.forward(x)
+    r = robot.link_pose()[0]
+    for i in range(settings.dims.o):
+        q[i*3:(i+1)*3] += r
 
-    pinocchio.forwardKinematics(new_model, data, q)
-    pinocchio.updateFramePlacements(new_model, data)
+    robot.forward_qva(q)
 
-    r = data.oMf[robot.tool_idx].translation.copy()
-    # q[-3:] += r
-    q[:3] = r
+    geom.add_geometry_objects_from_config(config["obstacles"])
+    if config["obstacles"]["collision_pairs"] is not None:
+        geom.add_collision_pairs(config["obstacles"]["collision_pairs"])
 
-    q = np.array(
-        [
-            1.394,
-            -0.043,
-            0.756,
-            -0.0,
-            0.0,
-            0.0,
-            1.571,
-            -0.785,
-            1.571,
-            -0.785,
-            1.571,
-            1.312,
-        ]
-    )
-
-    pinocchio.forwardKinematics(new_model, data, q)
-    pinocchio.updateFramePlacements(new_model, data)
-
-    geom_data = pinocchio.GeometryData(new_geom_model)
-    pinocchio.updateGeometryPlacements(new_model, data, new_geom_model, geom_data)
-    pinocchio.computeDistances(new_geom_model, geom_data)
-    d1s = np.array([result.min_distance for result in geom_data.distanceResults])
-
-    # q[:3] += [0, -1, 0]
-    # pinocchio.forwardKinematics(new_model, data, q)
-    # pinocchio.updateFramePlacements(new_model, data)
-    # pinocchio.updateGeometryPlacements(new_model, data, new_geom_model, geom_data)
-    # pinocchio.computeDistances(new_geom_model, geom_data)
-    # d2s = np.array([result.min_distance for result in geom_data.distanceResults])
-
-    viz = pinocchio.visualize.MeshcatVisualizer(
-        new_model, new_geom_model, new_geom_model
-    )
-    viz.initViewer()
-    viz.loadViewerModel()
-    viz.display(q)
-
-    IPython.embed()
-    return
-
-    # robot.model = new_model
-    # robot.dims.x += 9
-    # robot.dims.q += 3
-    # robot.dims.v += 3
-
-    x = model.settings.initial_state
-    u = np.zeros(model.settings.dims.u())
-
-    x_robot = x[: robot.dims.x]
-    u_robot = u[: robot.dims.u]
-
-    # create geometry interface
-    geom = ctrl.robot.PinocchioGeometry(robot)
-    geom.add_geometry_objects_from_config(config["static_obstacles"])
-    geom.add_collision_pairs(config["static_obstacles"]["collision_pairs"])
-
-    robot.forward(x_robot, u_robot)
-
-    # compute distances between collision pairs
     dists = geom.compute_distances()
-    print(f"Collision distances = {dists}")
+    geom.visualize(q)
 
-    # visualize the robot
-    q = x[: robot.dims.q]
-    viz = geom.visualize(q)
+    print(f"Collision distances = {dists}")
 
     # forward kinematics (position, velocity, acceleration)
     r, Q = robot.link_pose()

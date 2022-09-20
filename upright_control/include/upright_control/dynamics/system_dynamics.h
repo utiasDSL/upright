@@ -8,9 +8,9 @@
 namespace upright {
 
 template <typename Scalar>
-class IntegratorDynamics {
+class TripleIntegratorDynamics {
    public:
-    IntegratorDynamics(const RobotDimensions& dims) : dims_(dims) {}
+    TripleIntegratorDynamics(const RobotDimensions& dims) : dims_(dims) {}
 
     VecX<Scalar> flowmap(Scalar t, const VecX<Scalar>& x, const VecX<Scalar>& u,
                          const VecX<Scalar>& p) const {
@@ -36,6 +36,30 @@ class ObstacleDynamics {
         dxdt << x.tail(6), VecX<Scalar>::Zero(3);
         return dxdt;
     }
+};
+
+template <typename Scalar>
+class NonholonomicDynamics {
+    NonholonomicDynamics(const RobotDimensions& dims) : dims_(dims) {}
+
+    VecX<Scalar> flowmap(Scalar t, const VecX<Scalar>& x, const VecX<Scalar>& u,
+                         const VecX<Scalar>& p) const {
+        Scalar yaw = x(2);
+        VecX<Scalar> v = x.segment(dims_.q, dims_.v);
+
+        VecX<Scalar> dqdt(dims_.q);
+        dqdt << cos(yaw) * v(0), sin(yaw) * v(0), v.tail(dims_.v - 1);
+
+        VecX<Scalar> dvdt = x.tail(dims_.v);
+        VecX<Scalar> dadt = u;
+
+        VecX<Scalar> dxdt(dims_.x);
+        dxdt << dqdt, dvdt, dadt;
+        return dxdt;
+    }
+
+   private:
+    RobotDimensions dims_;
 };
 
 template <typename Dynamics>

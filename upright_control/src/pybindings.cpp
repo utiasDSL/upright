@@ -16,8 +16,7 @@
 #include <upright_control/controller_settings.h>
 #include <upright_control/dimensions.h>
 #include <upright_control/dynamics/base_type.h>
-#include <upright_control/dynamics/fixed_base_pinocchio_mapping.h>
-#include <upright_control/dynamics/omnidirectional_pinocchio_mapping.h>
+#include <upright_control/dynamics/system_pinocchio_mapping.h>
 
 using namespace upright;
 using namespace ocs2;  // TODO perhaps avoid using
@@ -29,6 +28,10 @@ PYBIND11_MAKE_OPAQUE(ocs2::matrix_array_t)
 
 using CollisionSphereVector = std::vector<CollisionSphere<scalar_t>>;
 using StringPairVector = std::vector<std::pair<std::string, std::string>>;
+
+using SystemMapping =
+    SystemPinocchioMapping<TripleIntegratorPinocchioMapping<ocs2::scalar_t>,
+                           ocs2::scalar_t>;
 
 PYBIND11_MAKE_OPAQUE(CollisionSphereVector)
 PYBIND11_MAKE_OPAQUE(StringPairVector)
@@ -45,35 +48,16 @@ PYBIND11_MODULE(bindings, m) {
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
     VECTOR_TYPE_BINDING(std::vector<DynamicObstacle>, "DynamicObstacleVector")
 
-    pybind11::class_<FixedBasePinocchioMapping<scalar_t>>(
-        m, "FixedBasePinocchioMapping")
-        .def(pybind11::init<const RobotDimensions &>(), "dims")
+    pybind11::class_<SystemMapping>(m, "SystemPinocchioMapping")
+        .def(pybind11::init<const OptimizationDimensions &>(), "dims")
         .def("get_pinocchio_joint_position",
-             &FixedBasePinocchioMapping<scalar_t>::getPinocchioJointPosition,
-             "state"_a)
+             &SystemMapping::getPinocchioJointPosition, "state"_a)
         .def("get_pinocchio_joint_velocity",
-             &FixedBasePinocchioMapping<scalar_t>::getPinocchioJointVelocity,
-             "state"_a, "input"_a)
-        .def(
-            "get_pinocchio_joint_acceleration",
-            &FixedBasePinocchioMapping<scalar_t>::getPinocchioJointAcceleration,
-            "state"_a, "input"_a);
-
-    pybind11::class_<OmnidirectionalPinocchioMapping<scalar_t>>(
-        m, "OmnidirectionalPinocchioMapping")
-        .def(pybind11::init<const RobotDimensions &>(), "dims")
-        .def("get_pinocchio_joint_position",
-             &OmnidirectionalPinocchioMapping<
-                 scalar_t>::getPinocchioJointPosition,
-             "state"_a)
-        .def("get_pinocchio_joint_velocity",
-             &OmnidirectionalPinocchioMapping<
-                 scalar_t>::getPinocchioJointVelocity,
-             "state"_a, "input"_a)
+             &SystemMapping::getPinocchioJointVelocity, "state"_a,
+             "input"_a)
         .def("get_pinocchio_joint_acceleration",
-             &OmnidirectionalPinocchioMapping<
-                 scalar_t>::getPinocchioJointAcceleration,
-             "state"_a, "input"_a);
+             &SystemMapping::getPinocchioJointAcceleration, "state"_a,
+             "input"_a);
 
     pybind11::class_<BalancingSettings>(m, "BalancingSettings")
         .def(pybind11::init<>())
