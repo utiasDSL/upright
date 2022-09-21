@@ -1,11 +1,113 @@
 import numpy as np
 import pinocchio
+import hppfcl as fcl
 
 import upright_core as core
 from upright_control import bindings
 
+import IPython
+
+
+def _build_pinocchio_model(urdf_path, base_type):
+    """Build Pinocchio robot model."""
+    if base_type == bindings.RobotBaseType.Fixed:
+        model = pinocchio.buildModelFromUrdf(self.urdf_path)
+    elif base_type == bindings.RobotBaseType.Omnidirectional:
+        root_joint = pinocchio.JointModelComposite(3)
+        root_joint.addJoint(pinocchio.JointModelPX())
+        root_joint.addJoint(pinocchio.JointModelPY())
+        root_joint.addJoint(pinocchio.JointModelRZ())
+        model = pinocchio.buildModelFromUrdf(urdf_path, root_joint)
+    else:
+        raise ValueError(f"Invalid base type {base_type}.")
+    return model
+
+
+def _build_obstacle_model(obstacles):
+    """Build model of dynamic obstacles."""
+    model = pinocchio.Model()
+    model.name = "dynamic_obstacles"
+    geom_model = pinocchio.GeometryModel()
+
+    for obstacle in obstacles:
+        # free-floating joint
+        joint_name = obstacle.name + "_joint"
+        joint_placement = pinocchio.SE3.Identity()
+        joint_id = model.addJoint(
+            0, pinocchio.JointModelTranslation(), joint_placement, joint_name
+        )
+
+        # body
+        mass = 1.0
+        inertia = pinocchio.Inertia.FromSphere(mass, obstacle.radius)
+        body_placement = pinocchio.SE3.Identity()
+        model.appendBodyToJoint(joint_id, inertia, body_placement)
+
+        # visual model
+        shape = fcl.Sphere(obstacle.radius)
+        geom_obj = pinocchio.GeometryObject(
+            obstacle.name, joint_id, shape, body_placement
+        )
+        geom_obj.meshColor = np.ones((4))
+        geom_model.addGeometryObject(geom_obj)
+
+    return model, geom_model
+
+
+def _append_model(
+    robot, geom, model, geom_model, frame_index=0, placement=pinocchio.SE3.Identity()
+):
+    """Append models to create new models."""
+    new_model, new_collision_model = pinocchio.appendModel(
+        robot.model, model, geom.collision_model, geom_model, 0, placement
+    )
+    _, new_visual_model = pinocchio.appendModel(
+        robot.model, model, geom.visual_model, geom_model, 0, placement
+    )
+
+    new_robot = PinocchioRobot(new_model, robot.mapping, robot.tool_link_name)
+    new_geom = PinocchioGeometry(new_robot, new_collision_model, new_visual_model)
+    return new_robot, new_geom
+
+
+def build_robot_interfaces(settings):
+    """Build robot and geometry interface from control settings."""
+    # build robot
+    model = _build_pinocchio_model(
+        settings.robot_urdf_path, base_type=settings.robot_base_type
+    )
+    mapping = bindings.SystemPinocchioMapping(settings.dims)
+    robot = PinocchioRobot(
+        model=model,
+        mapping=mapping,
+        tool_link_name=settings.end_effector_link_name,
+    )
+
+    # build geometry
+    geom = PinocchioGeometry.from_robot_and_urdf(robot, settings.robot_urdf_path)
+
+    # add dynamic obstacles
+    if len(settings.obstacle_settings.dynamic_obstacles) > 0:
+        obs_model, obs_geom_model = _build_obstacle_model(
+            settings.obstacle_settings.dynamic_obstacles
+        )
+        robot, geom = _append_model(robot, geom, obs_model, obs_geom_model)
+
+    # add static obstacles
+    if len(settings.obstacle_settings.obstacle_urdf_path) > 0:
+        geom.add_geometry_objects_from_urdf(
+            settings.obstacle_settings.obstacle_urdf_path
+        )
+
+    # add link pairs to check for collision
+    pairs = [pair for pair in settings.obstacle_settings.collision_link_pairs]
+    geom.add_collision_pairs(pairs)
+
+    return robot, geom
+
 
 class PinocchioGeometry:
+    """Visual and collision geometry models for a robot and environment."""
     def __init__(self, robot, collision_model, visual_model):
         self.robot = robot
         self.collision_model = collision_model
@@ -47,14 +149,6 @@ class PinocchioGeometry:
         pinocchio.buildGeomFromUrdf(model, urdf_path, pinocchio.VISUAL, geom_model)
         self.add_visual_objects(geom_model.geometryObjects)
 
-    def add_geometry_objects_from_config(self, config):
-        """Add geometry objects from a config dict.
-
-        Expects the config to have a key "urdf" with the usual sub-dict.
-        """
-        urdf_path = core.parsing.parse_and_compile_urdf(config["urdf"])
-        self.add_geometry_objects_from_urdf(urdf_path)
-
     def add_collision_pairs(self, pairs):
         """Add collision pairs to the model."""
         for pair in pairs:
@@ -87,20 +181,6 @@ class PinocchioGeometry:
         return viz
 
 
-def build_pinocchio_model(urdf_path, base_type):
-    if base_type == bindings.RobotBaseType.Fixed:
-        model = pinocchio.buildModelFromUrdf(self.urdf_path)
-    elif base_type == bindings.RobotBaseType.Omnidirectional:
-        root_joint = pinocchio.JointModelComposite(3)
-        root_joint.addJoint(pinocchio.JointModelPX())
-        root_joint.addJoint(pinocchio.JointModelPY())
-        root_joint.addJoint(pinocchio.JointModelRZ())
-        model = pinocchio.buildModelFromUrdf(urdf_path, root_joint)
-    else:
-        raise ValueError(f"Invalid base type {base_type}.")
-    return model
-
-
 # TODO revise to inherit from RobotKinematics in mm_central
 class PinocchioRobot:
     def __init__(self, model, mapping, tool_link_name):
@@ -111,18 +191,6 @@ class PinocchioRobot:
         self.tool_idx = self.model.getBodyId(tool_link_name)
         self.nq = self.model.nq
         self.nv = self.model.nv
-
-    @classmethod
-    def from_ctrl_settings(cls, settings):
-        model = build_pinocchio_model(
-            settings.robot_urdf_path, base_type=settings.robot_base_type
-        )
-        mapping = bindings.SystemPinocchioMapping(settings.dims)
-        return cls(
-            model=model,
-            mapping=mapping,
-            tool_link_name=settings.end_effector_link_name,
-        )
 
     def forward_qva(self, q, v=None, a=None):
         """Forward kinematics using (q, v, a) all in the world frame (i.e.,

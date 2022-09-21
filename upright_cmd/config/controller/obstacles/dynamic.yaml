@@ -1,7 +1,16 @@
+dynamic:
+  -
+    name: dynobs1
+    position: [0, -1, 0]
+    velocity: [0, 2, 0]
+    acceleration: [0, 0, 0]
+    radius: 0.1
+
 collision_pairs:
   # wrist and shoulder
-  # - ["wrist_collision_link_0", "shoulder_collision_link_0"]
+  # - ["wrist1_collision_link_0", "shoulder_collision_link_0"]
 
-  # NOTE: lack of _0 at end of dynobs1
+  # arm and dynamic obstacles
   - ["balanced_object_collision_link_0", "dynobs1"]
-  - ["wrist_collision_link_0", "dynobs1"]
+  - ["wrist3_collision_link_0", "dynobs1"]
+

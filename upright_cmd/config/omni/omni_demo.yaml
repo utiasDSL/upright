@@ -38,7 +38,7 @@ controller:
   waypoints:
     -
       time: 0
-      position: [1.0, 0, 0]
+      position: [0, 0, 0]
       orientation: [0, 0, 0, 1]
     # -
     #   time: 0

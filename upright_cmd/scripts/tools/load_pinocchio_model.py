@@ -10,53 +10,6 @@ import upright_control as ctrl
 import IPython
 
 
-def build_obstacle_model(obstacles):
-    model = pinocchio.Model()
-    model.name = "dynamic_obstacles"
-    geom_model = pinocchio.GeometryModel()
-
-    for obstacle in obstacles:
-        # free-floating joint
-        joint_name = obstacle.name + "_joint"
-        joint_placement = pinocchio.SE3.Identity()
-        joint_id = model.addJoint(
-            0, pinocchio.JointModelTranslation(), joint_placement, joint_name
-        )
-
-        # body
-        mass = 1.0
-        inertia = pinocchio.Inertia.FromSphere(mass, obstacle.radius)
-        body_placement = pinocchio.SE3.Identity()
-        model.appendBodyToJoint(joint_id, inertia, body_placement)
-
-        # visual model
-        shape = fcl.Sphere(obstacle.radius)
-        geom_obj = pinocchio.GeometryObject(obstacle.name, joint_id, shape, body_placement)
-        geom_obj.meshColor = np.ones((4))
-        geom_model.addGeometryObject(geom_obj)
-
-    return model, geom_model
-
-
-def append_model(
-    robot, geom, model, geom_model, frame_index=0, placement=pinocchio.SE3.Identity()
-):
-    new_model, new_collision_model = pinocchio.appendModel(
-        robot.model, model, geom.collision_model, geom_model, 0, placement
-    )
-    _, new_visual_model = pinocchio.appendModel(
-        robot.model, model, geom.visual_model, geom_model, 0, placement
-    )
-
-    new_robot = ctrl.robot.PinocchioRobot(
-        new_model, robot.mapping, robot.tool_link_name
-    )
-    new_geom = ctrl.robot.PinocchioGeometry(
-        new_robot, new_collision_model, new_visual_model
-    )
-    return new_robot, new_geom
-
-
 def main():
     np.random.seed(0)
     np.set_printoptions(precision=3, suppress=True)
@@ -70,12 +23,7 @@ def main():
     ctrl_model = ctrl.manager.ControllerModel.from_config(config)
     settings = ctrl_model.settings
     robot = ctrl_model.robot
-    geom = ctrl.robot.PinocchioGeometry.from_robot_and_urdf(
-        robot, settings.robot_urdf_path
-    )
-
-    obs_model, obs_geom_model = build_obstacle_model(settings.obstacle_settings.dynamic_obstacles)
-    robot, geom = append_model(robot, geom, obs_model, obs_geom_model)
+    geom = ctrl_model.geom
 
     x = settings.initial_state
     u = np.zeros(settings.dims.u())
@@ -89,10 +37,6 @@ def main():
 
     robot.forward_qva(q)
 
-    geom.add_geometry_objects_from_config(config["obstacles"])
-    if config["obstacles"]["collision_pairs"] is not None:
-        geom.add_collision_pairs(config["obstacles"]["collision_pairs"])
-
     dists = geom.compute_distances()
     geom.visualize(q)
 
@@ -102,6 +46,8 @@ def main():
     r, Q = robot.link_pose()
     dr, ω = robot.link_velocity()
     J = robot.jacobian(q)
+
+    print(f"Tool pose: r = {r}, Q = {Q}")
 
     # note that this is the classical acceleration, not the spatial acceleration
     ddr, α = robot.link_acceleration()

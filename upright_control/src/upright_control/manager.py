@@ -4,7 +4,7 @@ import numpy as np
 
 import upright_core as core
 from upright_control import bindings
-from upright_control.robot import PinocchioRobot
+from upright_control.robot import build_robot_interfaces
 from upright_control.wrappers import TargetTrajectories, ControllerSettings
 from upright_control.trajectory import StateInputTrajectory
 
@@ -17,7 +17,7 @@ class ControllerModel:
     def __init__(self, settings):
         self.settings = settings
         self.objects = list(settings.objects.values())
-        self.robot = PinocchioRobot.from_ctrl_settings(settings)
+        self.robot, self.geom = build_robot_interfaces(settings)
 
     @classmethod
     def from_config(cls, config, x0=None):
@@ -26,13 +26,7 @@ class ControllerModel:
 
     def update(self, x, u=None):
         """Update model with state x and input u. Required before calling other methods."""
-        x_robot = x[:self.robot.dims.x]
-        if u is None:
-            u_robot = None
-        else:
-            u_robot = u[:self.robot.dims.u]
-
-        self.robot.forward(x_robot, u_robot)
+        self.robot.forward(x, u)
 
     def is_using_force_constraints(self):
         return self.settings.balancing_settings.use_force_constraints
