@@ -157,6 +157,7 @@ class BulletDynamicObstacle:
     def __init__(
         self, position, velocity, acceleration=None, radius=0.1, controlled=False
     ):
+        self.t0 = None
         self.r0 = np.array(position)
         self.v0 = np.array(velocity)
         self.a0 = np.array(acceleration) if acceleration is not None else np.zeros(3)
@@ -165,10 +166,6 @@ class BulletDynamicObstacle:
         self.K = np.eye(3)  # position gain
 
         self.body = BulletBody.sphere(mass=1, mu=1, radius=radius)
-        self.body.add_to_sim(position)
-
-        # self.reset_velocity(velocity)
-        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
 
     @classmethod
     def from_config(cls, config, offset=None):
@@ -190,12 +187,26 @@ class BulletDynamicObstacle:
             controlled=config["controlled"],
         )
 
+    def start(self, t0):
+        """Add the obstacle to the simulation."""
+        self.t0 = t0
+        self.body.add_to_sim(list(self.r0))
+        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
+
     def _desired_state(self, t):
-        rd = self.r0 + t * self.v0 + 0.5 * t ** 2 * self.a0
-        vd = self.v0 + t * self.a0
+        dt = t - self.t0
+        rd = self.r0 + dt * self.v0 + 0.5 * dt ** 2 * self.a0
+        vd = self.v0 + dt * self.a0
         return rd, vd
 
     def joint_state(self):
+        """Get the joint state (position, velocity) of the obstacle.
+
+        If the obstacle has not yet been started, the nominal starting state is
+        given.
+        """
+        if self.t0 is None:
+            return self.r0, self.v0
         r = self.body.get_pose()[0]
         v = self.body.get_velocity()[0]
         return r, v
@@ -275,19 +286,26 @@ class BulletSimulation:
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
         pyb.loadURDF("plane.urdf", [0, 0, 0])
 
+        # setup robot
+        self.robot = SimulatedRobot(config)
+        self.robot.reset_joint_configuration(self.robot.home)
+
+        # simulate briefly to let the robot settle down after being positioned
+        self.settle(1.0)
+
         # setup obstacles
         if config["static_obstacles"]["enabled"]:
             obstacles_uid = pyb.loadURDF(
                 parsing.parse_and_compile_urdf(config["static_obstacles"]["urdf"])
             )
             pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
+
         self.dynamic_obstacles = []
-
-        self.robot = SimulatedRobot(config)
-        self.robot.reset_joint_configuration(self.robot.home)
-
-        # simulate briefly to let the robot settle down after being positioned
-        self.settle(1.0)
+        if self.config["dynamic_obstacles"]["enabled"]:
+            offset = self.robot.link_pose()[0]
+            for c in self.config["dynamic_obstacles"]["obstacles"]:
+                obstacle = BulletDynamicObstacle.from_config(c, offset=offset)
+                self.dynamic_obstacles.append(obstacle)
 
         # setup balanced objects
         r_ew_w, Q_we = self.robot.link_pose()
@@ -329,11 +347,9 @@ class BulletSimulation:
             pyb.stepSimulation()
             t += self.timestep
 
-    def launch_dynamic_obstacles(self, offset=None):
-        if self.config["dynamic_obstacles"]["enabled"]:
-            for c in self.config["dynamic_obstacles"]["obstacles"]:
-                obstacle = BulletDynamicObstacle.from_config(c, offset=offset)
-                self.dynamic_obstacles.append(obstacle)
+    def launch_dynamic_obstacles(self, t0=0):
+        for obstacle in self.dynamic_obstacles:
+            obstacle.start(t0=t0)
 
     def dynamic_obstacle_state(self):
         if len(self.dynamic_obstacles) == 0:

@@ -21,7 +21,7 @@ simulation:
 
 controller:
   balancing:
-    enabled: true
+    enabled: false
     arrangement: foam_die2
     constraint_type: hard
     use_force_constraints: false

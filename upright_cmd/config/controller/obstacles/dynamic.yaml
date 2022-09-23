@@ -1,8 +1,9 @@
+# these values are either updated by the simulation environment or by Vicon
 dynamic:
   -
     name: dynobs1
-    position: [0, -1, 0]
-    velocity: [0, 2, 0]
+    position: [0, -10, 0]  # out of the way
+    velocity: [0, 0, 0]
     acceleration: [0, 0, 0]
     radius: 0.1
 

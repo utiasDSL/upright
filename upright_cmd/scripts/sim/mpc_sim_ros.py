@@ -1,17 +1,10 @@
 #!/usr/bin/env python3
-"""PyBullet simulation using the bounded balancing constraints"""
-import argparse
+"""Closed-loop upright simulation using Pybullet over ROS."""
 import time
 import datetime
-import sys
-import os
-from pathlib import Path
 
 import rospy
-
 import numpy as np
-import matplotlib.pyplot as plt
-import pybullet as pyb
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
@@ -21,7 +14,11 @@ import upright_core as core
 import upright_control as ctrl
 import upright_cmd as cmd
 
-from mobile_manipulation_central import SimulatedUR10ROSInterface, SimulatedMobileManipulatorROSInterface
+from mobile_manipulation_central import (
+    SimulatedUR10ROSInterface,
+    SimulatedMobileManipulatorROSInterface,
+    SimulatedViconObjectInterface,
+)
 
 import IPython
 
@@ -50,8 +47,11 @@ def main():
     t = 0.0
     q, v = sim.robot.joint_states()
     a = np.zeros(sim.robot.nv)
-    x = np.concatenate((q, v, a))
+    x_obs = sim.dynamic_obstacle_state()
+    x = np.concatenate((q, v, a, x_obs))
     u = np.zeros(sim.robot.nu)
+
+    Q_obs = np.array([0, 0, 0, 1])
 
     # data logging
     logger = DataLogger(config)
@@ -65,7 +65,7 @@ def main():
     logger.add("nx", ctrl_config["robot"]["dims"]["x"])
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
-    model = ctrl.manager.ControllerModel.from_config(ctrl_config)
+    model = ctrl.manager.ControllerModel.from_config(ctrl_config, x0=x)
 
     # reference pose trajectory
     model.update(x=model.settings.initial_state)
@@ -84,6 +84,8 @@ def main():
         ros_interface = SimulatedMobileManipulatorROSInterface()
     else:
         raise ValueError("Unsupported robot base type.")
+    if len(sim.dynamic_obstacles) > 0:
+        projectile_ros_interface = SimulatedViconObjectInterface("Projectile")
     ros_interface.publish_time(t)
 
     # wait until a command has been received
@@ -100,12 +102,21 @@ def main():
     print("Command received. Executing...")
     t0 = t
 
+    # add dynamic obstacles and start them moving
+    sim.launch_dynamic_obstacles(t0=t0)
+
     # simulation loop
     while not rospy.is_shutdown() and t - t0 <= sim.duration:
         # feedback is in the world frame
         v_prev = v
         q, v = sim.robot.joint_states(add_noise=True, bodyframe=False)
         ros_interface.publish_feedback(t, q, v)
+
+        # publish feedback on dynamic obstacles if using
+        if len(sim.dynamic_obstacles) > 0:
+            x_obs = sim.dynamic_obstacle_state()
+            r_obs = x_obs[:3]
+            projectile_ros_interface.publish_pose(t, r_obs, Q_obs)
 
         # commands are always in the body frame (to match the real robot)
         sim.robot.command_velocity(ros_interface.cmd_vel, bodyframe=True)
@@ -114,7 +125,7 @@ def main():
             # NOTE: we can try to approximate acceleration using finite
             # differences, but it is extremely inaccurate
             # a = (v - v_prev) / sim.timestep
-            x = np.concatenate((q, v, a))
+            x = np.concatenate((q, v, a, x_obs))
 
             # log sim stuff
             r_ew_w, Q_we = sim.robot.link_pose()
@@ -141,9 +152,6 @@ def main():
             logger.append("balancing_constraints", model.balancing_constraints())
             logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
-
-            # if (model.balancing_constraints() < -0.1).any():
-            #     IPython.embed()
 
         t = sim.step(t, step_robot=False)
         ros_interface.publish_time(t)

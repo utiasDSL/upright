@@ -4,7 +4,7 @@ import numpy as np
 
 import upright_core as core
 from upright_control import bindings
-from upright_control.robot import PinocchioRobot
+from upright_control.robot import build_robot_interfaces
 from upright_control.trajectory import StateInputTrajectory
 
 import IPython
@@ -41,18 +41,25 @@ class TargetTrajectories(bindings.TargetTrajectories):
         return cls(ts, xs, us)
 
     @classmethod
-    def from_config_file(cls, config_path, x0_robot):
+    def from_config_file(cls, config_path, x0):
         """Load the trajectory directly from a config file.
 
         This is convenient for loading from C++, for example in the MRT node.
         """
-        config = core.parsing.load_config(config_path)
-        ctrl_config = config["controller"]
-        robot = PinocchioRobot(config=ctrl_config["robot"])
-        robot.forward(x0_robot)
+        config = core.parsing.load_config(config_path)["controller"]
+        settings = ControllerSettings(config, x0=x0)
+
+        # update the state of the robot to match the actual (supplied) state;
+        # we don't care about the dynamic obstacle state here because we're
+        # only after the EE pose
+        # x0 = settings.initial_state
+        # x0[:settings.dims.robot.x] = x0_robot
+
+        robot, _ = build_robot_interfaces(settings)
+        robot.forward(x0)
         r_ew_w, Q_we = robot.link_pose()
-        u0 = np.zeros(robot.dims.ou)
-        return cls.from_config(ctrl_config, r_ew_w, Q_we, u0)
+        u0 = np.zeros(settings.dims.robot.u)
+        return cls.from_config(config, r_ew_w, Q_we, u0)
 
     @staticmethod
     def _state_to_pose(x):
@@ -244,8 +251,12 @@ class ControllerSettings(bindings.ControllerSettings):
                     obs.acceleration = np.array(obs_config["acceleration"])
                     self.obstacle_settings.dynamic_obstacles.push_back(obs)
 
-                    # also construct initial state for the obstacles
-                    x0_obs.append(np.concatenate((obs.position, obs.velocity, obs.acceleration)))
+                    # the initial state for the obstacles has zero velocity and
+                    # acceleration, so they are static. It is expected that the
+                    # simulation or real sensors would update this when
+                    # appropriate
+                    x0_obs.append(np.concatenate((obs.position, np.zeros(6))))
+
                 x0_obs = np.concatenate(x0_obs)
 
         # initial state can be passed in directly (for example to match exactly

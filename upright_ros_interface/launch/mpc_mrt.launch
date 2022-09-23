@@ -14,4 +14,6 @@
 
   <!-- MRT -->
   <node pkg="upright_ros_interface" type="mrt_node" name="mrt_node" output="screen" required="True" args="$(arg config)" />
+
+  <node pkg="mobile_manipulation_central" type="projectile_vicon_estimator_node" name="projectile_vicon_estimator_node" output="screen" required="True"/>
 </launch>

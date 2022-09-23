@@ -1,10 +1,14 @@
 #!/bin/sh
-BAG_DIR=/media/adam/Data/PhD/Data/upright/real-thing/bags/$(date +"%Y-%m-%d")
-mkdir -p "$BAG_DIR"
+LOG_DIR=/media/adam/Data/PhD/Data/upright/experiments/thing/bags/$(date +"%Y-%m-%d")/$(date +"%H-%M-%S")
+mkdir -p "$LOG_DIR"
 
-rosbag record -o "$BAG_DIR/$1" \
-  /clock /ur10_joint_states /ur10_cmd_vel \
-  /ridgeback_velocity_controller/cmd_vel \
-  /ridgeback_velocity_controller/odom \
-  --regex "/scaled_vel_joint_traj_controller/(.*)" \
+# save configuration dictionary
+rosrun upright_cmd save_config.py --config "$1" --output "$LOG_DIR"/config.yaml
+
+rosbag record -o "$LOG_DIR/bag" \
+  /clock \
+  --regex "/ridgeback/(.*)" \
+  --regex "/ridgeback_velocity_controller/(.*)" \
+  --regex "/ur10/(.*)" \
+  --regex "/vicon/(.*)" \
   --regex "/mobile_manipulator_(.*)"

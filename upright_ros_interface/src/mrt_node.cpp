@@ -8,6 +8,7 @@
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
 
 #include <mobile_manipulation_central/robot_interfaces.h>
+#include <mobile_manipulation_central/projectile.h>
 
 #include <upright_control/controller_interface.h>
 #include <upright_ros_interface/parsing.h>
@@ -35,6 +36,34 @@ std::tuple<VecXd, VecXd> double_integrate_repeated(const VecXd& v,
         std::tie(v_new, a_new) = double_integrate(v_new, a_new, u, dt);
     }
     return std::tuple<VecXd, VecXd>(v_new, a_new);
+}
+
+bool limits_violated(const ControllerSettings& settings, const VecXd& x,
+                     const VecXd& u) {
+    VecXd x_robot = x.head(settings.dims.robot.x);
+    VecXd u_robot = u.head(settings.dims.robot.u);
+
+    if (((x_robot - settings.state_limit_lower).array() < 0).any()) {
+        std::cout << "x = " << x_robot.transpose() << std::endl;
+        std::cout << "State violated lower limits!" << std::endl;
+        return true;
+    }
+    if (((settings.state_limit_upper - x_robot).array() < 0).any()) {
+        std::cout << "x = " << x_robot.transpose() << std::endl;
+        std::cout << "State violated upper limits!" << std::endl;
+        return true;
+    }
+    if (((u_robot - settings.input_limit_lower).array() < 0).any()) {
+        std::cout << "u = " << u_robot.transpose() << std::endl;
+        std::cout << "Input violated lower limits!" << std::endl;
+        return true;
+    }
+    if (((settings.input_limit_upper - u_robot).array() < 0).any()) {
+        std::cout << "u = " << u_robot.transpose() << std::endl;
+        std::cout << "Input violated upper limits!" << std::endl;
+        return true;
+    }
+    return false;
 }
 
 int main(int argc, char** argv) {
@@ -76,6 +105,10 @@ int main(int argc, char** argv) {
         throw std::runtime_error("Unsupported base type.");
     }
 
+    // Initialize interface to dynamic obstacle estimator
+    mm::ProjectileROSInterface projectile(nh, "projectile");
+    bool avoid_dynamic_obstacle = false;
+
     ocs2::scalar_t timestep = 1.0 / settings.rate;
     ros::Rate rate(settings.rate);
 
@@ -92,26 +125,25 @@ int main(int argc, char** argv) {
     // update to the real initial state
     x0.head(settings.dims.robot.q) = robot_ptr->q();
 
-    ocs2::SystemObservation initial_observation;
-    initial_observation.state = x0;
-    initial_observation.input.setZero(settings.dims.u());
-    initial_observation.time = ros::Time::now().toSec();
-
     // reset MPC
     ocs2::TargetTrajectories target = parse_target_trajectory(config_path, x0);
     mrt.resetMpcNode(target);
-    mrt.setCurrentObservation(initial_observation);
+
+    ocs2::SystemObservation observation;
+    observation.state = x0;
+    observation.input.setZero(settings.dims.u());
+    observation.time = ros::Time::now().toSec();
+    mrt.setCurrentObservation(observation);
 
     // Let MPC generate the initial plan
     while (ros::ok() && ros::master::check()) {
         mrt.spinMRT();
-        mrt.setCurrentObservation(initial_observation);
         if (mrt.initialPolicyReceived()) {
             break;
         }
         rate.sleep();
     }
-    mrt.updatePolicy();  // TODO not sure if needed
+    mrt.updatePolicy();
 
     std::cout << "Received first policy." << std::endl;
 
@@ -119,7 +151,6 @@ int main(int argc, char** argv) {
     VecXd xd = VecXd::Zero(x.size());
     VecXd ou = VecXd::Zero(settings.dims.u());
     size_t mode = 0;
-    ocs2::SystemObservation observation = initial_observation;
 
     VecXd v_ff = VecXd::Zero(settings.dims.robot.v);
     VecXd a_ff = VecXd::Zero(settings.dims.robot.v);
@@ -137,6 +168,9 @@ int main(int argc, char** argv) {
         t = now.toSec();
         ocs2::scalar_t dt = t - last_t;
 
+        // Re-evaluate the policy to forward simulate the obstacle
+        // mrt.evaluatePolicy(t, x, xd, ou, mode);
+
         // Robot feedback
         VecXd q = robot_ptr->q();
         // VecXd v = robot.get_joint_velocity_raw();
@@ -149,38 +183,35 @@ int main(int argc, char** argv) {
         // Current state is built from robot feedback for q and v; for
         // acceleration we just assume we are tracking well since we don't get
         // good feedback on this
-        x.head(settings.dims.robot.q) = q;
-        x.segment(settings.dims.robot.q, settings.dims.robot.v) = v_ff;
-        x.segment(settings.dims.robot.q + settings.dims.robot.v,
-                  settings.dims.robot.v) = a_ff;
+        x.head(settings.dims.robot.x) << q, v_ff, a_ff;
+
+        // Dynamic obstacle
+        if (settings.dims.o > 0 && projectile.ready()) {
+            Vec3d q_obs = projectile.q();
+            std::cout << "q_obs = " << q_obs.transpose() << std::endl;
+            if (q_obs(2) > 0.5) {  // TODO
+                avoid_dynamic_obstacle = true;
+            }
+
+            // TODO we could also have this trigger a case where we now assume
+            // the trajectory of the object is perfect
+
+            if (avoid_dynamic_obstacle) {
+                Vec3d v_obs = projectile.v();
+                std::cout << "v_obs = " << v_obs.transpose() << std::endl;
+                Vec3d a_obs = settings.obstacle_settings.dynamic_obstacles[0].acceleration;
+                x.tail(9) << q_obs, v_obs, a_obs;
+            }
+        }
 
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, ou, mode);
 
-        // Check that the cntroller has provided sane values.
-        if (((xd - settings.state_limit_lower).array() < 0).any()) {
-            std::cout << "State violated lower limits!" << std::endl;
-            break;
-        }
-        if (((settings.state_limit_upper - xd).array() < 0).any()) {
-            std::cout << "State violated upper limits!" << std::endl;
-            break;
-        }
-        if (((u - settings.input_limit_lower).array() < 0).any()) {
-            std::cout << "Input violated lower limits!" << std::endl;
-            break;
-        }
-        if (((settings.input_limit_upper - u).array() < 0).any()) {
-            std::cout << "Input violated upper limits!" << std::endl;
-            break;
-        }
+        // Check that the controller has provided sane values.
+        // if (limits_violated(settings, xd, ou)) {
+        //     break;
+        // }
 
-        // PD controller to generate robot command
-        // VecXd qd = xd.head(settings.dims.q);
-        // VecXd vd = xd.segment(settings.dims.q, settings.dims.v);
-        // VecXd v_cmd = Kp * (qd - q) + v_ff;
-        // VecXd v_cmd = v_ff;
-        // TODO: experimental
         if (ros::isShuttingDown()) {
             robot_ptr->brake();
         } else {

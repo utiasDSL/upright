@@ -5,9 +5,9 @@
 
 #include <ros/ros.h>
 
+#include <pybind11/eigen.h>
 #include <pybind11/embed.h>
 #include <pybind11/pybind11.h>
-#include <pybind11/eigen.h>
 
 #include <upright_control/controller_settings.h>
 #include <upright_control/types.h>
@@ -36,6 +36,5 @@ ocs2::TargetTrajectories parse_target_trajectory(const std::string& config_path,
     return PyTargetTrajectories.attr("from_config_file")(config_path, x0)
         .cast<ocs2::TargetTrajectories>();
 }
-
 
 }  // namespace upright
