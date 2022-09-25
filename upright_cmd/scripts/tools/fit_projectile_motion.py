@@ -12,10 +12,10 @@ import IPython
 
 # we only use data above this height
 H = 1.11
-DRAG = 0.05
 
 
 def rollout_drag(ts, b, r0, v0, g):
+    """Roll out model including a nonlinear drag term with coefficient b."""
     n = ts.shape[0]
     rs = np.zeros((n, 3))
     vs = np.zeros((n, 3))
@@ -44,6 +44,65 @@ def identify_drag(ts, rs, r0, v0, g, method="trf", p0=[0.01]):
     return res.x[0]
 
 
+def rollout_numerical_diff(ts, rs, r0, v0, τ):
+    """Rollout velocity using exponential smoothing."""
+    n = ts.shape[0]
+    vs = np.zeros((n, 3))
+    vs[0, :] = v0
+
+    for i in range(1, n):
+        dt = ts[i] - ts[i - 1]
+        α = 1 - np.exp(-dt / τ)
+        v_meas = (rs[i, :] - rs[i - 1, :]) / dt
+        vs[i, :] = α * v_meas + (1 - α) * vs[i - 1, :]
+    return vs
+
+
+def rollout_kalman(ts, rs, r0, v0, g):
+    """Estimate ball trajectory using a Kalman filter."""
+    n = ts.shape[0]
+
+    # noise covariance
+    Q = 1e-2 * np.eye(6)
+    R = np.diag([1e-2, 1e-2, 1e-2, 1, 1, 1])
+
+    # (linear) motion model
+    A = np.zeros((6, 6))
+    A[:3, 3:] = np.eye(3)
+    B = np.zeros((6, 3))
+    B[3:, :] = np.eye(3)
+
+    # initial state
+    xs = np.zeros((n, 6))
+    xc = np.concatenate((r0, v0))
+    Pc = R
+
+    xs[0, :] = xc
+
+    for i in range(1, n):
+        dt = ts[i] - ts[i - 1]
+
+        # predictor
+        Pc = dt ** 2 * A @ Pc @ A.T + Q
+        xc = xs[i - 1, :] + dt * (A @ xs[i - 1, :] + B @ g)
+
+        # velocity portion of R can be directly calculated from the position
+        # portion, since velocity is computed directly from position
+        R[3:, 3:] = R[0, 0] * 2 * np.eye(3) / dt
+
+        # measurement
+        r = rs[i, :]
+        v = (rs[i, :] - rs[i - 1, :]) / dt
+        y = np.concatenate((r, v))
+
+        # corrector
+        K = Pc @ np.linalg.inv(Pc + R)
+        P = (np.eye(6) - K) @ Pc
+        xs[i, :] = xc + K @ (y - xc)
+
+    return xs
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("bagfile", help="Bag file to plot.")
@@ -59,63 +118,104 @@ def main():
     positions = np.array(positions)
     times = ros_utils.parse_time(msgs)
 
+    # find portion of the ball undergoing projectile motion
     idx = np.flatnonzero(positions[:, 2] >= H)
     rp = positions[idx, :]
     tp = times[idx]
 
-    i = 2
-    r0 = rp[0, :]
-    v0 = (rp[i, :] - r0) / (tp[i] - tp[0])
-    a0 = np.array([0, 0, -9.81])
+    # use the first two timesteps to estimate initial state
+    r0 = rp[1, :]
+    v0 = (rp[1, :] - rp[0, :]) / (tp[1] - tp[0])
+    g = np.array([0, 0, -9.81])
 
+    # discard first timestep now that we've "used it up"
+    rp = rp[1:, :]
+    tp = tp[1:]
+
+    # nominal model (perfect projectile motion)
     tm = (tp - tp[0])[:, None]
-    rm = r0 + v0 * tm + 0.5 * tm ** 2 * a0
+    rm = r0 + v0 * tm + 0.5 * tm ** 2 * g
+    vm = v0 + tm * g
 
-    b = identify_drag(tp, rp, r0, v0, a0)
+    # drag model
+    b = identify_drag(tp, rp, r0, v0, g)
     print(f"b = {b}")
-    rd, _ = rollout_drag(tp, b, r0, v0, a0)
+    rd, vd = rollout_drag(tp, b, r0, v0, g)
+
+    # numerical diff to get velocity
+    vn = rollout_numerical_diff(tp, rp, r0, v0, τ=0.05)
+
+    # rollout with Kalman filter
+    xk = rollout_kalman(tp, rp, r0, v0, g)
+    rk, vk = xk[:, :3], xk[:, 3:]
+
+    # Position models
 
     plt.figure()
-    plt.plot(tp, rp[:, 0], label="x")
-    plt.plot(tp, rp[:, 1], label="y")
-    plt.plot(tp, rp[:, 2], label="z")
-    # plt.plot(tp, rm[:, 0], label="x_m")
-    # plt.plot(tp, rm[:, 1], label="y_m")
-    # plt.plot(tp, rm[:, 2], label="z_m")
-    plt.plot(tp, rd[:, 0], label="x_d")
-    plt.plot(tp, rd[:, 1], label="y_d")
-    plt.plot(tp, rd[:, 2], label="z_d")
+
+    # ground truth
+    plt.plot(tp, rp[:, 0], label="x", color="r")
+    plt.plot(tp, rp[:, 1], label="y", color="g")
+    plt.plot(tp, rp[:, 2], label="z", color="b")
+
+    # assume perfect projectile motion
+    plt.plot(tp, rm[:, 0], label="x_m", color="r", linestyle=":")
+    plt.plot(tp, rm[:, 1], label="y_m", color="g", linestyle=":")
+    plt.plot(tp, rm[:, 2], label="z_m", color="b", linestyle=":")
+
+    # Kalman filter (no drag)
+    plt.plot(tp, rd[:, 0], label="x_k", color="r", linestyle="--")
+    plt.plot(tp, rd[:, 1], label="y_k", color="g", linestyle="--")
+    plt.plot(tp, rd[:, 2], label="z_k", color="b", linestyle="--")
+
     plt.xlabel("Time (s)")
     plt.ylabel("Position (m)")
     plt.title("Projectile position vs. time")
     plt.legend()
     plt.grid()
 
-    # # x, y, z position vs. time
-    # plt.figure()
-    # plt.plot(times, positions[:, 0], label="x")
-    # plt.plot(times, positions[:, 1], label="y")
-    # plt.plot(times, positions[:, 2], label="z")
-    # plt.xlabel("Time (s)")
-    # plt.ylabel("Position (m)")
-    # plt.title("Projectile position vs. time")
-    # plt.legend()
-    # plt.grid()
-    #
-    # # x, y, z position in 3D space
-    # fig = plt.figure()
-    # ax = fig.add_subplot(projection="3d")
-    # ax.plot(positions[:, 0], positions[:, 1], zs=positions[:, 2])
-    # ax.plot(positions[0, 0], positions[0, 1], positions[0, 2], "o", color="g", label="Start")
-    # ax.plot(positions[-1, 0], positions[-1, 1], positions[-1, 2], "o", color="r", label="End")
-    # ax.grid()
-    # ax.legend()
-    # ax.set_xlabel("x (m)")
-    # ax.set_ylabel("y (m)")
-    # ax.set_zlabel("z (m)")
-    #
-    # ax.set_xlim([-3, 3])
-    # ax.set_ylim([-3, 3])
+    # Position model with drag
+
+    plt.figure()
+
+    # ground truth
+    plt.plot(tp, rp[:, 0], label="x", color="r")
+    plt.plot(tp, rp[:, 1], label="y", color="g")
+    plt.plot(tp, rp[:, 2], label="z", color="b")
+
+    # assume perfect projectile motion
+    plt.plot(tp, rm[:, 0], label="x_m", color="r", linestyle=":")
+    plt.plot(tp, rm[:, 1], label="y_m", color="g", linestyle=":")
+    plt.plot(tp, rm[:, 2], label="z_m", color="b", linestyle=":")
+
+    # projectile motion with drag
+    plt.plot(tp, rd[:, 0], label="x_d", color="r", linestyle="-.")
+    plt.plot(tp, rd[:, 1], label="y_d", color="g", linestyle="-.")
+    plt.plot(tp, rd[:, 2], label="z_d", color="b", linestyle="-.")
+
+    plt.xlabel("Time (s)")
+    plt.ylabel("Position (m)")
+    plt.title("Projectile position vs. time: drag")
+    plt.legend()
+    plt.grid()
+
+    # Velocity models
+
+    plt.figure()
+    plt.plot(tp, vm[:, 0], label="x_m", color="r")
+    plt.plot(tp, vm[:, 1], label="y_m", color="g")
+    plt.plot(tp, vm[:, 2], label="z_m", color="b")
+    plt.plot(tp, vn[:, 0], label="x_n", color="r", linestyle=":")
+    plt.plot(tp, vn[:, 1], label="y_n", color="g", linestyle=":")
+    plt.plot(tp, vn[:, 2], label="z_n", color="b", linestyle=":")
+    plt.plot(tp, vk[:, 0], label="x_k", color="r", linestyle="--")
+    plt.plot(tp, vk[:, 1], label="y_k", color="g", linestyle="--")
+    plt.plot(tp, vk[:, 2], label="z_k", color="b", linestyle="--")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Velocity (m/s)")
+    plt.title("Projectile velocity vs. time")
+    plt.legend()
+    plt.grid()
 
     plt.show()
 
