@@ -11,4 +11,6 @@ rosbag record -o "$LOG_DIR/bag" \
   --regex "/ridgeback_velocity_controller/(.*)" \
   --regex "/ur10/(.*)" \
   --regex "/vicon/(.*)" \
+  --regex "/projectile/(.*)" \
+  --regex "/Projectile/(.*)" \
   --regex "/mobile_manipulator_(.*)"

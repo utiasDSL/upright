@@ -117,6 +117,7 @@ def main():
             x_obs = sim.dynamic_obstacle_state()
             r_obs = x_obs[:3]
             projectile_ros_interface.publish_pose(t, r_obs, Q_obs)
+            projectile_ros_interface.publish_ground_truth(t, r_obs, x_obs[3:6])
 
         # commands are always in the body frame (to match the real robot)
         sim.robot.command_velocity(ros_interface.cmd_vel, bodyframe=True)

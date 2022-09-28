@@ -2,9 +2,12 @@
 dynamic:
   -
     name: dynobs1
+    # NOTE: these are *initial conditions*. In real experiment, the position is
+    # relative to the origin of the world frame. In simulation, position and
+    # velocity are (typically) (re-)set by the simulator for maximum accuracy.
     position: [0, -10, 0]  # out of the way
     velocity: [0, 0, 0]
-    acceleration: [0, 0, 0]
+    acceleration: [0, 0, -9.81]
     radius: 0.1
 
 collision_pairs:

@@ -13,18 +13,18 @@ class DoubleIntegrator:
         A = np.block([[Z, I], [Z, Z]])
         B = np.vstack((Z, I))
 
-        self.M = np.block([[A, B], [np.zeros((n, 2*n)), Z]])
+        self.M = np.block([[A, B], [np.zeros((n, 2 * n)), Z]])
 
     def integrate(self, v, a, u, dt):
         # TODO for some reason this causes non-smooth behaviour
         x = np.concatenate((v, a))
         Md = expm(dt * self.M)
-        Ad = Md[:2*self.n, :2*self.n]
-        Bd = Md[:2*self.n, 2*self.n:]
+        Ad = Md[: 2 * self.n, : 2 * self.n]
+        Bd = Md[: 2 * self.n, 2 * self.n :]
         x_new = Ad @ x + Bd @ u
 
-        v = x_new[:self.n]
-        a = x_new[self.n:]
+        v = x_new[: self.n]
+        a = x_new[self.n :]
         return v, a
 
     def integrate_approx(self, v, a, u, dt):
@@ -33,9 +33,9 @@ class DoubleIntegrator:
         return v_new, a_new
 
 
-
 class StateInputTrajectory:
     """Generic state-input trajectory."""
+
     def __init__(self, ts, xs, us):
         assert len(ts) == len(xs) == len(us)
 
@@ -63,6 +63,7 @@ class StateInputTrajectory:
 
 class StateInputMapping:
     """Mapping to/from (state, input) and (position, velocity, acceleration)."""
+
     def __init__(self, dims):
         self.dims = dims
 

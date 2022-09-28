@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
     }
 
     // Initialize interface to dynamic obstacle estimator
-    mm::ProjectileROSInterface projectile(nh, "projectile");
+    mm::ProjectileROSInterface projectile(nh, "Projectile");
     bool avoid_dynamic_obstacle = false;
 
     ocs2::scalar_t timestep = 1.0 / settings.rate;
@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
 
     VecXd x = x0;
     VecXd xd = VecXd::Zero(x.size());
-    VecXd ou = VecXd::Zero(settings.dims.u());
+    VecXd u = VecXd::Zero(settings.dims.u());
     size_t mode = 0;
 
     VecXd v_ff = VecXd::Zero(settings.dims.robot.v);
@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
 
     ros::Time now = ros::Time::now();
     ros::Time last_policy_update_time = now;
-    ros::Duration policy_update_delay(0.05);  // TODO note
+    ros::Duration policy_update_delay(0.01);  // TODO note
 
     ocs2::scalar_t t = now.toSec();
     ocs2::scalar_t last_t = t;
@@ -177,8 +177,8 @@ int main(int argc, char** argv) {
 
         // Integrate our internal model to get velocity and acceleration
         // "feedback"
-        VecXd u = ou.head(settings.dims.robot.u);
-        std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u, dt);
+        VecXd u_robot = u.head(settings.dims.robot.u);
+        std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u_robot, dt);
 
         // Current state is built from robot feedback for q and v; for
         // acceleration we just assume we are tracking well since we don't get
@@ -188,29 +188,31 @@ int main(int argc, char** argv) {
         // Dynamic obstacle
         if (settings.dims.o > 0 && projectile.ready()) {
             Vec3d q_obs = projectile.q();
-            std::cout << "q_obs = " << q_obs.transpose() << std::endl;
             if (q_obs(2) > 0.5) {  // TODO
                 avoid_dynamic_obstacle = true;
             }
 
             // TODO we could also have this trigger a case where we now assume
             // the trajectory of the object is perfect
+            //
+            // TODO we could have the MPC reset if the projectile was inside
+            // the "awareness zone" but then leaves, such that the robot is
+            // ready for the next throw
 
             if (avoid_dynamic_obstacle) {
                 Vec3d v_obs = projectile.v();
-                std::cout << "v_obs = " << v_obs.transpose() << std::endl;
                 Vec3d a_obs = settings.obstacle_settings.dynamic_obstacles[0].acceleration;
                 x.tail(9) << q_obs, v_obs, a_obs;
             }
         }
 
         // Compute optimal state and input using current policy
-        mrt.evaluatePolicy(t, x, xd, ou, mode);
+        mrt.evaluatePolicy(t, x, xd, u, mode);
 
         // Check that the controller has provided sane values.
-        // if (limits_violated(settings, xd, ou)) {
-        //     break;
-        // }
+        if (limits_violated(settings, xd, u)) {
+            break;
+        }
 
         if (ros::isShuttingDown()) {
             robot_ptr->brake();
@@ -221,7 +223,7 @@ int main(int argc, char** argv) {
         // Send observation to MPC
         observation.time = t;
         observation.state = x;
-        observation.input = ou;
+        observation.input = u;
         mrt.setCurrentObservation(observation);
 
         ros::spinOnce();

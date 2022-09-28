@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Plot position of Vicon objects from a ROS bag."""
 import argparse
 from scipy import optimize

@@ -193,6 +193,16 @@ class BulletDynamicObstacle:
         self.body.add_to_sim(list(self.r0))
         pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
 
+    def reset(self, t, r=None, v=None):
+        self.t0 = t
+        if r is not None:
+            self.r0 = r
+        if v is not None:
+            self.v0 = v
+
+        pyb.resetBasePositionAndOrientation(self.body.uid, list(self.r0), [0, 0, 0, 1])
+        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
+
     def _desired_state(self, t):
         dt = t - self.t0
         rd = self.r0 + dt * self.v0 + 0.5 * dt ** 2 * self.a0
@@ -348,17 +358,22 @@ class BulletSimulation:
             t += self.timestep
 
     def launch_dynamic_obstacles(self, t0=0):
+        """Start the dynamic obstacles.
+
+        This adds each obstacle to the simulation at its initial state.
+        """
         for obstacle in self.dynamic_obstacles:
             obstacle.start(t0=t0)
 
     def dynamic_obstacle_state(self):
+        """Get the state vector of all dynamics obstacles."""
         if len(self.dynamic_obstacles) == 0:
             return np.array([])
 
         xs = []
         for obs in self.dynamic_obstacles:
             r, v = obs.joint_state()
-            x = np.concatenate((r, obs.v0, obs.a0))  # NOTE v0
+            x = np.concatenate((r, v, obs.a0))
             xs.append(x)
         return np.concatenate(xs)
 

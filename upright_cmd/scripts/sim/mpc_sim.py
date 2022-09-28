@@ -35,7 +35,7 @@ def main():
 
     # settle sim to make sure everything is touching comfortably
     sim.settle(5.0)
-    sim.launch_dynamic_obstacles(offset=sim.robot.link_pose()[0])
+    sim.launch_dynamic_obstacles()
 
     # initial time, state, input
     t = 0.0
@@ -83,12 +83,15 @@ def main():
     use_direct_velocity_command = False
     use_velocity_feedback = False
 
+    embedded = False
+
+    num_obs_resets = 0
+
     # simulation loop
     while t <= sim.duration:
         # get the true robot feedback
         q, v = sim.robot.joint_states(add_noise=False)
         x_obs = sim.dynamic_obstacle_state()
-
         x = np.concatenate((q, v, a_ff, x_obs))
 
         # now get the noisy version for use in the controller
@@ -118,6 +121,10 @@ def main():
             IPython.embed()
             break
 
+        # if t > 2.2 and not embedded:
+        #     IPython.embed()
+        #     embedded = True
+
         # TODO why is this better than using the zero-order hold?
         # here we use the input u to generate the feedforward signal---using
         # the jerk level ensures smoothness at the velocity level
@@ -127,7 +134,6 @@ def main():
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, sim.timestep)
             v_cmd = Kp @ (qd - q_noisy) + vd
         else:
-            # ud = Kp @ (qd - q_noisy) + u
             ud = u
             v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, ud, sim.timestep)
             v_cmd = v_ff
@@ -210,6 +216,14 @@ def main():
                 logger.append(
                     "object_dynamics_constraints", object_dynamics_constraints
                 )
+
+        if len(sim.dynamic_obstacles) > 0 and t >= (num_obs_resets + 1) * 2.0:
+            num_obs_resets += 1
+            obs = sim.dynamic_obstacles[0]
+            obs.reset(t, r=r_ew_w + [0, -1, 0])
+
+            # TODO: Ideally, we could remain stable in spite of large resets
+            ctrl_manager.mpc.reset(ctrl_manager.ref)
 
         t = sim.step(t, step_robot=False)
 
