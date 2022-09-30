@@ -52,9 +52,6 @@ class TargetTrajectories(bindings.TargetTrajectories):
         # update the state of the robot to match the actual (supplied) state;
         # we don't care about the dynamic obstacle state here because we're
         # only after the EE pose
-        # x0 = settings.initial_state
-        # x0[:settings.dims.robot.x] = x0_robot
-
         robot, _ = build_robot_interfaces(settings)
         robot.forward(x0)
         r_ew_w, Q_we = robot.link_pose()

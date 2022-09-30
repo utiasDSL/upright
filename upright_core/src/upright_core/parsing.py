@@ -316,7 +316,11 @@ class BalancedObjectConfigWrapper:
         return contacts
 
     def update_parent_contact_points(self, parent, contacts):
-        """Update base contact points with parent information."""
+        """Update base contact points of this object with parent's information.
+
+        The base contact points of this object are in contact with the (top of
+        the) parent.
+        """
         # need diff between my (child) CoM and parent's CoM
         Δ = self.position - parent.position
         for contact in contacts:

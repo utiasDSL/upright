@@ -22,6 +22,14 @@ arrangements:
       type: cube
       parent: box1
 
+  # experimental_boxes:
+  #   -
+  #     name: box1
+  #     type: cube
+  #     position: [0, 0, 0]  # relative to EE
+  #     neighbours:
+  #
+
   # single water bottle
   bottle:
     -

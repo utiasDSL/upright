@@ -5,6 +5,7 @@ import hppfcl as fcl
 import scipy
 from scipy.spatial import ConvexHull
 from scipy.optimize import minimize
+from scipy.spatial.distance import pdist, squareform
 from functools import partial
 
 import IPython
@@ -122,115 +123,122 @@ def two_object_contact_points(s1, s2, T1, T2):
     return points
 
 
+def low_dim_convex_hull(points):
+    c = np.mean(points, axis=0)
+    _, d, VT = scipy.linalg.svd(points - c)
+    r = np.sum(d > 1e-5)
+    V = VT.T
+    X = (points @ V)[:, :r]
+
+    # only take the points that are at the vertices of the constraint manifold
+    hull = ConvexHull(X)
+    return points[hull.vertices]
+
+
 def nearest_distance(o1, o2):
     req = fcl.DistanceRequest()
     res = fcl.DistanceResult()
     dist = fcl.distance(o1, o2, req, res)
-    return dist, res.getNearestPoint2()
+    return dist, res.getNearestPoint2(), res.normal
 
 
-def two_object_opt(s1, s2, T1, T2):
-    c1 = T1.transform(np.zeros(3))
-    c2 = T2.transform(np.zeros(3))
-    o1 = s1.collision_object(T1)
-    o2 = s2.collision_object(T2)
+def solve_lp(o1, o2, c, x0):
+    C = np.concatenate((c, -c))
+    def cost(x):
+        return C @ x
 
-    d, p = nearest_distance(o1, o2)
-    if d > 1e-6:
-        print("not in contact")
-        return []
-
-    def cost(x, ps):
-        n = ps.shape[0]
-        # cost1 = -0.5 * n * x[:3] @ x[:3] + np.sum(ps @ x[:3]) - 0.5 * np.sum(ps * ps)
-        # cost2 = -0.5 * n * x[3:] @ x[3:] + np.sum(ps @ x[3:]) - 0.5 * np.sum(ps * ps)
-        # return cost1 + cost2
-
-        return -0.5 * n * x @ x + np.sum(ps @ x) - np.sum(ps * ps)
-        # Δ = x - p
-        # return -0.5 * Δ @ Δ
-
-    def jac(x, ps):
-        n = ps.shape[0]
-        # J1 = -n * x[:3] + np.sum(ps, axis=0)
-        # J2 = -n * x[3:] + np.sum(ps, axis=0)
-        # J = np.concatenate((J1, J2))
-        # print(f"ps = {ps}")
-        # print(f"J = {J}")
-        # return J
-        return -n * x + np.sum(ps, axis=0)
-        # return -0.5 * x + p
+    def jac(x):
+        return C
 
     def ineq_con(x):
-        # d1, _ = point_object_distance(x, o1)
-        # d2, _ = point_object_distance(x, o2)
-        # return -np.array([d1, d2]) + 1e-6
-        # con1 = s1.constraints(x[:3], c1)
-        # con2 = s2.constraints(x[3:], c2)
-        # return np.concatenate((con1, con2)) + 1e-6
-        con1 = s1.constraints(x, c1)
-        con2 = s2.constraints(x, c2)
-        return np.concatenate((con1, con2))
+        d11 = point_object_distance(x[:3], o1)[0]
+        d12 = point_object_distance(x[:3], o2)[0]
+        d21 = point_object_distance(x[3:], o1)[0]
+        d22 = point_object_distance(x[3:], o2)[0]
+        return -np.array([d11, d12, d21, d22]) + 1e-6
 
-    def ineq_con_jac(x):
-        J1 = s1.constraints_jac(x, c1)
-        J2 = s2.constraints_jac(x, c2)
-        return np.vstack((J1, J2))
-        # J1 = s1.constraints_jac(x[:3], c1)
-        # J2 = s2.constraints_jac(x[3:], c2)
-        # J = np.zeros((12, 6))
-        # J[:6, :3] = J1
-        # J[6:, 3:] = J2
-        # return J
-
-    def eq_con(x):
-        return x[:3] - x[3:]
-
-    ps = p[None, :]
     res = minimize(
         cost,
-        x0=p + np.random.random(3),
-        # x0=np.concatenate((ps[0, :], ps[0, :])),
-        args=(ps,),
-        method="slsqp",
         jac=jac,
-        constraints=[{"type": "ineq", "fun": ineq_con, "jac": ineq_con_jac}],
-        # constraints=[{"type": "ineq", "fun": ineq_con, "jac": ineq_con_jac}, {"type": "eq", "fun": eq_con}],
-    )
-
-    print("one")
-
-    ps = res.x[None, :3]
-    res = minimize(
-        cost,
-        x0=p,
-        # x0=np.concatenate((ps[0, :], ps[0, :])) + 0.1 * np.random.random(6),
-        args=(ps,),
+        x0=np.concatenate((x0, x0)),
         method="slsqp",
-        jac=jac,
-        constraints=[{"type": "ineq", "fun": ineq_con, "jac": ineq_con_jac}],
-        # constraints=[{"type": "ineq", "fun": ineq_con, "jac": ineq_con_jac}, {"type": "eq", "fun": eq_con}],
+        constraints=[{"type": "ineq", "fun": ineq_con}],
     )
+    return res.x.reshape((2, 3))
 
-    # print("two")
-    #
-    # ps = np.vstack((ps, res.x[:3]))
-    # res = minimize(
-    #     cost,
-    #     # x0=ps[0, :],
-    #     x0=np.concatenate((ps[0, :], ps[0, :])) + 0.1 * np.random.random(6),
-    #     args=(ps,),
-    #     method="slsqp",
-    #     jac=jac,
-    #     # constraints=[{"type": "ineq", "fun": ineq_con, "jac": ineq_con_jac}],
-    #     constraints=[{"type": "ineq", "fun": ineq_con, "jac": ineq_con_jac}, {"type": "eq", "fun": eq_con}],
-    # )
 
-    IPython.embed()
+
+def two_object_opt(o1, o2):
+    d, p, n = nearest_distance(o1, o2)
+    if d > 1e-6:
+        print("not in contact")
+        return [], n
+
+    x = np.array([1, 0, 0])
+    y = np.array([0, 1, 0])
+    c = np.cross(n, x)
+    if np.linalg.norm(c) <= 1e-3:
+        c = np.cross(n, y)
+
+    # first find eight candidate vertices (they are all points on the boundary)
+    # TODO we could solve this is a single optimization, since all the C are
+    # computed beforehand
+    c1 = c / np.linalg.norm(c)
+    X1 = solve_lp(o1, o2, c1, p)
+
+    c2 = np.cross(n, c1)
+    X2 = solve_lp(o1, o2, c2, p)
+
+    c3 = (c1 + c2) / np.linalg.norm(c1 + c2)
+    X3 = solve_lp(o1, o2, c3, p)
+
+    c4 = np.cross(n, c3)
+    X4 = solve_lp(o1, o2, c4, p)
+
+    X = np.vstack((X1, X2, X3, X4))
+
+    # the two points farthest apart are definitely vertices (unless they are
+    # the same point)
+    D = squareform(pdist(X))
+    idx = np.unravel_index(np.argmax(D), D.shape)
+    max_dist = D[idx]
+
+    tol = 1e-3
+    if max_dist < tol:
+        indices = [idx[0]]
+    else:
+        indices = list(idx)
+        ds = np.sum(D[:, idx], axis=1)
+        other_idx = np.argpartition(ds, 2)[-2:]
+
+        for i in range(2):
+            if ds[other_idx[i]] > max_dist + tol:
+                indices.append(other_idx[i])
+
+    vertices = X[indices, :]
+
+    return vertices, n
+
+
+def box(side_lengths, position, color):
+    side_lengths = np.array(side_lengths)
+    position = np.array(position)
+
+    box = simulation.BulletBody.cuboid(MASS, MU, side_lengths, color=color)
+    box.add_to_sim(position)
+    return fcl.CollisionObject(fcl.Box(*side_lengths), fcl.Transform3f(position))
+
+
+def cylinder(radius, height, position, color):
+    position = np.array(position)
+
+    cy = simulation.BulletBody.cylinder(MASS, MU, radius, height, color=color)
+    cy.add_to_sim(position)
+    return fcl.CollisionObject(fcl.Cylinder(radius, height), fcl.Transform3f(position))
 
 
 def main():
-    np.set_printoptions(precision=3, suppress=True)
+    np.set_printoptions(precision=8, suppress=True)
 
     pyb.connect(pyb.GUI, options="--width=1280 --height=720")
     pyb.resetDebugVisualizerCamera(
@@ -241,56 +249,26 @@ def main():
     )
     pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
 
-    box1 = simulation.BulletBody.cuboid(MASS, MU, [0.2, 0.2, 0.2], color=(1, 0, 0, 0.5))
-    box2 = simulation.BulletBody.cuboid(MASS, MU, [0.2, 0.2, 0.2], color=(0, 0, 1, 0.5))
-    cy1 = simulation.BulletBody.cylinder(MASS, MU, 0.1, 0.2, color=(0, 1, 0, 0.5))
+    # o1 = box([0.2, 0.2, 0.2], [0, 0, 0.1], color=(1, 0, 0, 0.5))
+    # o2 = box([0.2, 0.2, 0.2], [0.2, 0.1, 0.1], color=(0, 0, 1, 0.5))
+    # o3 = cylinder(0.1, 0.2, [0, 0.2, 0.1], color=(0, 1, 0, 0.5))
+    #
+    # vs1, n = two_object_opt(o1, o2)
+    # vs2, _ = two_object_opt(o1, o3)
+    # vs3, _ = two_object_opt(o2, o3)
 
-    box1.add_to_sim([0, 0, 0.1])
-    box2.add_to_sim([0.2, 0, 0.1])
-    cy1.add_to_sim([0, 0.2, 0.1])
+    o1 = box([0.2, 0.2, 0.2], [0, 0, 0.1], color=(1, 0, 0, 0.5))
+    o2 = box([0.2, 0.2, 0.2], [0.3, 0.1, 0.1], color=(0, 0, 1, 0.5))
+    o3 = box([0.4, 0.2, 0.1], [0.2, 0, 0.25], color=(0, 1, 0, 0.5))
 
-    o1 = fcl.CollisionObject(
-        fcl.Box(0.2, 0.2, 0.2), fcl.Transform3f(np.array([0, 0, 0.1]))
-    )
-    o2 = fcl.CollisionObject(
-        fcl.Box(0.2, 0.2, 0.2), fcl.Transform3f(np.array([0.2, 0, 0.1]))
-    )
+    vs1, _ = two_object_opt(o1, o2)
+    vs2, _ = two_object_opt(o1, o3)
+    vs3, _ = two_object_opt(o2, o3)
 
-    box1 = Box([0.2, 0.2, 0.2])
-    box2 = Box([0.2, 0.2, 0.2])
-    cy1 = Cylinder(0.1, 0.2)
-    two_object_opt(
-        box1,
-        box2,
-        fcl.Transform3f(np.array([0, 0, -0.1])),
-        fcl.Transform3f(np.array([0.2, 0, -0.1])),
-    )
-    # two_object_contact_points(box1, cy1, fcl.Transform3f(np.array([0, 0, 0.1])), fcl.Transform3f(np.array([0.2, 0, 0.1])))
-    return
+    vs = np.vstack((vs2, vs3))
 
-    request = fcl.CollisionRequest(fcl.CONTACT, 10000)
-    result = fcl.CollisionResult()
-    ret = fcl.collide(o1, o2, request, result)
-    print(ret)
-
-    pyb.performCollisionDetection()
-    contact_points = pyb.getContactPoints(
-        # box1.uid,
-        # cy1.uid,
-    )
-    # TODO: can we special case the (upright) cylinder?
-    # find a contact point, then search the line in the z-direction from top to
-    # bottom of the cylinder
-    # but we'd also like to handle a cylinder on top of another object
-    # can I actually replace it with cuboids to find the points?
-    xs = [p[5] for p in contact_points]
-    # for p in contact_points:
-    #     if p[1] == cy1 or p[2] == cy1:
-    #         x = p[5]
-    #         IPython.embed()
-    colors = [[0, 0, 0] for _ in contact_points]
-
-    pyb.addUserDebugPoints(xs, colors, pointSize=10)
+    colors = [[0, 0, 0] for _ in vs]
+    pyb.addUserDebugPoints(vs, colors, pointSize=10)
 
     IPython.embed()
 
