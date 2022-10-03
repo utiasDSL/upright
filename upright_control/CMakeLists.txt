@@ -39,7 +39,9 @@ find_package(Boost REQUIRED COMPONENTS
 )
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(pinocchio REQUIRED pinocchio)
+# pkg_check_modules(pinocchio REQUIRED pinocchio)
+find_package(pinocchio REQUIRED)
+find_package(hpp-fcl REQUIRED)
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
@@ -63,7 +65,7 @@ catkin_package(
 ## Build ##
 ###########
 
-set(FLAGS ${OCS2_CXX_FLAGS} ${pinocchio_CFLAGS_OTHER} -Wno-invalid-partial-specialization)
+set(FLAGS ${OCS2_CXX_FLAGS} ${pinocchio_CFLAGS_OTHER} -Wno-invalid-partial-specialization -DPINOCCHIO_WITH_HPP_FCL)
 
 # setting CMAKE_CXX_STANDARD is the most "powerful" way to enforce a particular
 # C++ version, in that it overwrites other options such as set_compile
@@ -79,6 +81,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   ${pinocchio_INCLUDE_DIRS}
+  ${hpp-fcl_INCLUDE_DIRS}
 )
 
 link_directories(

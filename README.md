@@ -25,15 +25,32 @@ natively.
 
 ## Setup and Installation
 
-First, clone the repo and required dependencies into a catkin workspace. Build
-the workspace:
+Install required apt packages (TODO: this list is not exhaustive):
 ```
+sudo apt install ros-noetic-eigenpy ros-noetic-hpp-fcl
+```
+
+TODO Python dependencies
+
+Clone and build [pinocchio](https://github.com/stack-of-tasks/pinocchio) in a
+separate folder outside of the catkin workspace. It can be built with catkin,
+but I prefer not to because (1) if you ever clean and rebuild the workspace,
+compiling pinocchio takes ages, and (2) I ran into an issue where it would
+cause sourcing `devel/setup.bash` not to work properly (`ROS_PACKAGE_PATH`
+wasn't set). Be sure to build it with hpp-fcl support (this can be done by
+either editing the CMakeLists.txt or passing the compile option
+`-DPINOCCHIO_WITH_HPP_FCL`), as well as the correct Python binary.
+
+Clone dependencies into the `src` folder of your catkin workspace (I like to
+put them in a subfolder called `tps` for "third-party software"):
+* [OCS2](https://github.com/leggedrobotics/ocs2)
+* [mobile_manipulation_central](https://github.com/utiasDSL/dsl__projects__mobile_manipulation_central)
+* TODO more dependencies required for experiments
+
+Clone this repo and build the workspace:
+```
+git clone https://github.com/utiasDSL/dsl__projects__tray_balance
 catkin build
-```
-Generate the required URDFs:
-```
-cd upright_assets/thing
-./compile_xacro.sh
 ```
 
 ## Simulation
@@ -42,31 +59,4 @@ Simulation scripts are in `upright_cmd/scripts/sim`.
 
 ## Hardware
 
-### UR10
-Following
-[this](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver#prepare-the-ros-pc),
-make sure you've extracted the factory calibration information at some point:
-```
-roslaunch upright_ros_interface ur10_calibration.launch
-```
-Then start the driver:
-```
-roslaunch upright_ros_interface ur10.launch
-```
-Finally, start the program on the Polyscope interface. The driver should print
-that it has connected to the robot. The robot is now ready to accept commands.
-
-Start the MPC node:
-```
-roslaunch upright_ros_interface mpc.launch
-```
-
-### Robotiq Gripper
-```bash
-# connect to the gripper
-roslaunch upright_ros_interface robotiq.launch
-
-# Open the gripper if <cmd> is "o", else close it, after waiting for <delay>
-# seconds.
-rosrun upright_ros_interface gripper.py <cmd> <delay>
-```
+Interaction with hardware is done over ROS via mobile_manipulation_central.
