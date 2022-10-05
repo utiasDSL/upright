@@ -17,12 +17,12 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: foam_die2
+  arrangement: experimental_boxes
 
 controller:
   balancing:
     enabled: false
-    arrangement: foam_die2
+    arrangement: experimental_boxes
     constraint_type: hard
     use_force_constraints: false
     enable_normal_constraint: true

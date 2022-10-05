@@ -188,8 +188,11 @@ int main(int argc, char** argv) {
         // Dynamic obstacle
         if (settings.dims.o > 0 && projectile.ready()) {
             Vec3d q_obs = projectile.q();
-            if (q_obs(2) > 0.5) {  // TODO
+            if (q_obs(2) > 1.0) {  // TODO
                 avoid_dynamic_obstacle = true;
+                std::cout << "  q_obs = " << q_obs.transpose() << std::endl;
+            } else {
+                std::cout << "~ q_obs = " << q_obs.transpose() << std::endl;
             }
 
             // TODO we could also have this trigger a case where we now assume

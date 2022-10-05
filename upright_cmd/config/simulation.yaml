@@ -30,7 +30,7 @@ static_obstacles:
       - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
 
 dynamic_obstacles:
-  enabled: true
+  enabled: false
   obstacles:
     # -
     #   controlled: true
@@ -67,21 +67,6 @@ objects:
     radius: 0.04
     color: [1, 0, 0, 1]
 
-  cup_heavy:
-    shape: cylinder
-    mass: 1
-    mu: 0.5
-    height: 0.2
-    radius: 0.04
-    color: [1, 0, 0, 1]
-
-  box:
-    shape: "cuboid"
-    mass: 1
-    mu: 0.5
-    side_lengths: [0.08, 0.08, 0.15]
-    color: [1, 0, 0, 1]
-
   bottle:
     shape: "cuboid"
     mass: 0.5
@@ -96,53 +81,25 @@ objects:
     side_lengths: [0.065, 0.065, 0.065]
     color: [0, 0, 1, 1]
 
-  box2:
+  wood_block:
     shape: "cuboid"
-    mass: 0.5
-    mu: 0.5
-    side_lengths: [0.08, 0.08, 0.15]
-    color: [1, 0, 0, 1]
+    mass: 0.18
+    mu: 0.27
+    side_lengths: [0.103, 0.09, 0.038]
+    color: [1, 0, 0, 0.9]
 
-  box3:
-    shape: "cuboid"
-    mass: 1
-    mu: 0.5
-    side_lengths: [0.08, 0.08, 0.15]
-    color: [1, 0, 0, 1]
+  # TODO it would be nice 
+  # wood_block_long:
+  #   shape: "cuboid"
+  #   mass: 0.18
+  #   mu: 0.27
+  #   side_lengths: [0.103, 0.09, 0.038]
+  #   color: [1, 0, 0, 0.75]
 
-  box4:
-    shape: "cuboid"
-    mass: 2.0
-    mu: 0.5
-    side_lengths: [0.08, 0.08, 0.15]
-    color: [1, 0, 0, 1]
 
   cube:
     shape: cuboid
     mass: 1.0
     mu: 1.0
     side_lengths: [0.1, 0.1, 0.05]
-    color: [1, 0, 0, 1]
-
-  tall_box:
-    shape: "cuboid"
-    mass: 1.0
-    mu: 0.5
-    side_lengths: [0.06, 0.06, 0.5]
-    com_offset: [0, 0, 0]  # offset of CoM from object centroid
-    color: [0, 1, 0, 1]
-
-  cylinder_stack_base:
-    shape: "cylinder"
-    mass: 0.75
-    mu: 0.25
-    height: 0.1
-    radius: 0.15
-    color: [0, 0, 1, 1]
-
-  cuboid1_stack:
-    shape: "cuboid"
-    mass: 0.75
-    mu: 0.25
-    side_lengths: [0.15, 0.15, 0.15]
     color: [1, 0, 0, 1]

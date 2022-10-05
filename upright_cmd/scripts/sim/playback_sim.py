@@ -4,7 +4,9 @@ import time
 import datetime
 
 import rospy
+import rosbag
 import numpy as np
+import pybullet as pyb
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
@@ -30,7 +32,9 @@ USE_REAL_VICON = True
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    cli_args = cmd.cli.sim_arg_parser().parse_args()
+    parser = cmd.cli.sim_arg_parser()
+    parser.add_argument("--bag", help="Bag file to play back.", required=True)
+    cli_args = parser.parse_args()
 
     # load configuration
     config = core.parsing.load_config(cli_args.config)
@@ -73,7 +77,7 @@ def main():
     logger.add("nx", ctrl_config["robot"]["dims"]["x"])
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
-    model = ctrl.manager.ControllerModel.from_config(ctrl_config, x0=x)
+    model = ctrl.manager.ControllerModel.from_config(ctrl_config)
 
     # reference pose trajectory
     model.update(x=model.settings.initial_state)
@@ -84,69 +88,87 @@ def main():
     for r_ew_w_d, Q_we_d in ref.poses():
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
-    # setup the ROS interface
-    rospy.init_node("mpc_sim_ros")
-    if model.settings.robot_base_type == ctrl.bindings.RobotBaseType.Fixed:
-        ros_interface = SimulatedUR10ROSInterface()
-    elif model.settings.robot_base_type == ctrl.bindings.RobotBaseType.Omnidirectional:
-        ros_interface = SimulatedMobileManipulatorROSInterface()
-    else:
-        raise ValueError("Unsupported robot base type.")
-    if use_projectile_interface:
-        projectile_ros_interface = SimulatedViconObjectInterface("Projectile")
-    ros_interface.publish_time(t)
+    # TODO read the bag
+    bag = rosbag.Bag(cli_args.bag)
+    base_cmd_msgs = [msg for _, msg, _ in bag.read_messages("/ridgeback/cmd_vel")]
+    base_cmd_vels = np.array(
+        [[msg.linear.x, msg.linear.y, msg.angular.z] for msg in base_cmd_msgs]
+    )
+    base_cmd_ts = np.array(
+        [t.to_sec() for _, _, t in bag.read_messages("/ridgeback/cmd_vel")]
+    )
+    t0 = base_cmd_ts[0]
+    base_cmd_ts -= t0
+    base_cmd_index = 0
 
-    # wait until a command has been received
-    # note that we use real time here since this sim directly controls sim time
-    print("Waiting for a command to be received...")
-    while not ros_interface.ready():
-        ros_interface.publish_feedback(t, q, v)
-        ros_interface.publish_time(t)
-        t += sim.timestep
-        time.sleep(sim.timestep)
-        if rospy.is_shutdown():
-            return
+    arm_cmd_msgs = [msg for _, msg, _ in bag.read_messages("/ur10/cmd_vel")]
+    arm_cmd_vels = np.array([msg.data for msg in arm_cmd_msgs])
+    arm_cmd_ts = np.array(
+        [t.to_sec() for _, _, t in bag.read_messages("/ur10/cmd_vel")]
+    )
+    arm_cmd_ts -= t0
+    arm_cmd_index = 0
 
-    print("Command received. Executing...")
-    t0 = t
+    projectile_msgs = [
+        msg for _, msg, _ in bag.read_messages("/Projectile/joint_states")
+    ]
+    projectile_positions = np.array([msg.position for msg in projectile_msgs])
+    projectile_velocities = np.array([msg.velocity for msg in projectile_msgs])
+    projectile_ts = np.array([msg.header.stamp.to_sec() for msg in projectile_msgs])
+    projectile_ts -= t0
+    projectile = simulation.BulletDynamicObstacle(
+        projectile_positions[0, :], projectile_velocities[0, :]
+    )
+    projectile.start(0)
+    projectile_index = 0
+    K_proj = 100
+
+    IPython.embed()
+
+    t = 0
+    duration = arm_cmd_ts[-1]
 
     # add dynamic obstacles and start them moving
-    sim.launch_dynamic_obstacles(t0=t0)
+    # sim.launch_dynamic_obstacles(t0=t0)
 
     # simulation loop
-    while not rospy.is_shutdown() and t - t0 <= sim.duration:
+    while not rospy.is_shutdown() and t <= duration:
         # feedback is in the world frame
-        v_prev = v
         q, v = sim.robot.joint_states(add_noise=True, bodyframe=False)
-        ros_interface.publish_feedback(t, q, v)
-
-        # publish feedback on dynamic obstacles if using
-        if use_projectile_interface:
-            x_obs = sim.dynamic_obstacle_state()
-            r_obs = x_obs[:3]
-            projectile_ros_interface.publish_pose(t, r_obs, Q_obs)
-            projectile_ros_interface.publish_ground_truth(t, r_obs, x_obs[3:6])
 
         # commands are always in the body frame (to match the real robot)
-        sim.robot.command_velocity(ros_interface.cmd_vel, bodyframe=True)
+        while base_cmd_ts[base_cmd_index + 1] <= t:
+            base_cmd_index += 1
+        while arm_cmd_ts[arm_cmd_index + 1] <= t:
+            arm_cmd_index += 1
+        while projectile_ts[projectile_index + 1] <= t:
+            projectile_index += 1
+        cmd_vel = np.concatenate(
+            (base_cmd_vels[base_cmd_index, :], arm_cmd_vels[arm_cmd_index, :])
+        )
+        sim.robot.command_velocity(cmd_vel, bodyframe=True)
+
+        projectile_cmd_vel = (
+            K_proj
+            * (projectile_positions[projectile_index, :] - projectile.joint_state()[0])
+            + projectile_velocities[projectile_index, :]
+        )
+        pyb.resetBaseVelocity(projectile.body.uid, linearVelocity=list(projectile_cmd_vel))
 
         if logger.ready(t):
-            # NOTE: we can try to approximate acceleration using finite
-            # differences, but it is extremely inaccurate
-            # a = (v - v_prev) / sim.timestep
             x = np.concatenate((q, v, a, x_obs))
 
             # log sim stuff
             r_ew_w, Q_we = sim.robot.link_pose()
             v_ew_w, ω_ew_w = sim.robot.link_velocity()
             r_ow_ws, Q_wos = sim.object_poses()
-            logger.append("ts", t - t0)
+            logger.append("ts", t)
             logger.append("xs", x)
             logger.append("r_ew_ws", r_ew_w)
             logger.append("Q_wes", Q_we)
             logger.append("v_ew_ws", v_ew_w)
             logger.append("ω_ew_ws", ω_ew_w)
-            logger.append("cmd_vels", ros_interface.cmd_vel)
+            logger.append("cmd_vels", cmd_vel)
             logger.append("r_ow_ws", r_ow_ws)
             logger.append("Q_wos", Q_wos)
 
@@ -163,7 +185,6 @@ def main():
             logger.append("orn_err", model.angle_between_acc_and_normal())
 
         t = sim.step(t, step_robot=False)
-        ros_interface.publish_time(t)
 
     try:
         print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")

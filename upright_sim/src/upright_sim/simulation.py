@@ -41,6 +41,9 @@ class BulletBody:
         # Bullet handle this internally
         pyb.changeDynamics(self.uid, -1, lateralFriction=self.mu)
 
+    def get_aabb(self):
+        return np.array(pyb.getAABB(self.uid))
+
     def get_pose(self):
         """Get the pose of the object in the simulation."""
         pos, orn = pyb.getBasePositionAndOrientation(self.uid)
@@ -129,7 +132,7 @@ class BulletBody:
         )
 
     @staticmethod
-    def fromdict(d):
+    def fromdict(d, orientation=None):
         """Construct the object from a dictionary."""
         com_offset = np.array(d["com_offset"]) if "com_offset" in d else np.zeros(3)
         if d["shape"] == "cylinder":
@@ -239,9 +242,14 @@ def balanced_object_setup(r_ew_w, config):
     ee = object_configs["ee"]
 
     objects = {}
-    for d in arrangement:
+    for d in arrangement["objects"]:
         obj_type = d["type"]
         obj_config = config["objects"][obj_type]
+        if "orientation" in d:
+            orientation = np.array(d["orientation"])
+            orientation = orientation / np.linalg.norm(orientation)
+        else:
+            orientation = np.array([0, 0, 0, 1])
         obj = BulletBody.fromdict(obj_config)
 
         if "parent" in d:
@@ -262,7 +270,18 @@ def balanced_object_setup(r_ew_w, config):
         if "offset" in d:
             position[:2] += parsing.parse_support_offset(d["offset"])
 
-        obj.add_to_sim(position)
+        obj.add_to_sim(position, orientation)
+
+        # change the height of the object based on its orientation
+        # it is slightly inelegant to add it to the sim first and then reset
+        # the pose, but it is convenient to rely on Bullet's AABB functionality
+        # to compute the full height automatically
+        aabb = obj.get_aabb()
+        h = np.abs(aabb[0, 2] - aabb[1, 2])
+        position += 0.5 * (h - obj.height)
+        obj.height = h
+        obj.reset_pose(position, orientation)
+
         obj_name = d["name"]
         if obj_name in objects:
             raise ValueError(f"Multiple simulation objects named {obj_name}.")

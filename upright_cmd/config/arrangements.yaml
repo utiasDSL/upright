@@ -22,13 +22,32 @@ arrangements:
       type: cube
       parent: box1
 
-  # experimental_boxes:
-  #   -
-  #     name: box1
-  #     type: cube
-  #     position: [0, 0, 0]  # relative to EE
-  #     neighbours:
-  #
+  experimental_boxes:
+    objects:
+      -
+        name: block1
+        type: wood_block
+        orientation: [0.707, 0, 0, 0.707]
+        offset:
+          x: 0.1
+          y: 0.14
+      -
+        name: block2
+        type: wood_block
+        orientation: [0.707, 0, 0, 0.707]
+        offset:
+          x: 0.08
+          y: 0.1
+      -
+        name: block3
+        type: wood_block
+        orientation: [0, 0, 0.707, 0.707]
+        offset:
+          x: 0
+          y: 0.03
+        parent: block2
+    # contacts:
+    #   -
 
   # single water bottle
   bottle:

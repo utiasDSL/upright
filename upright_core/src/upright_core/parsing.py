@@ -386,7 +386,7 @@ def parse_control_objects(ctrl_config):
     ee = object_configs["ee"]
 
     wrappers = {}
-    for conf in arrangement:
+    for conf in arrangement["objects"]:
         obj_type = conf["type"]
         parent_name = conf["parent"] if "parent" in conf else None
         object_config = object_configs[obj_type]

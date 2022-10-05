@@ -180,6 +180,25 @@ objects:
       ly: 0.05
     height: 0.065
 
+  # TODO this probably only works for a single orientation
+  wood_block:
+    mass:
+      min: 0.18
+      max: 0.18
+    com:
+      height: 0.019
+      half_lengths: [0, 0, 0]
+    radii_of_gyration:
+      use_exact:
+        shape: cuboid
+        side_lengths: [0.103, 0.09, 0.038]
+    mu_min: 0.27
+    support_area:
+      shape: rect
+      lx: 0.103
+      ly: 0.09
+    height: 0.038
+
   tall_box:
     mass:
       min: 1.0
