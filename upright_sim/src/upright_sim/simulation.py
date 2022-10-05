@@ -5,7 +5,7 @@ import pybullet as pyb
 import pybullet_data
 from pyb_utils.frame import debug_frame_world
 
-from upright_core import parsing, math
+from upright_core import parsing, math, geometry
 from upright_sim.robot import SimulatedRobot
 from upright_sim.camera import VideoManager
 
@@ -14,15 +14,32 @@ import IPython
 
 # TODO rename to something like BulletObject
 class BulletBody:
-    def __init__(self, mass, mu, height, collision_uid, visual_uid, com_offset=None):
+    def __init__(self, mass, mu, half_extents, collision_uid, visual_uid, position=None, orientation=None, com_offset=None):
         self.mass = mass
         self.mu = mu
-        self.height = height
+        self.half_extents = half_extents
         self.collision_uid = collision_uid
         self.visual_uid = visual_uid
+
+        self.r0 = position
+        if position is None:
+            self.r0 = np.zeros(3)
+
+        self.q0 = orientation
+        if orientation is None:
+            self.q0 = np.array([0, 0, 0, 1])
+
         self.com_offset = com_offset if com_offset is not None else np.zeros(3)
 
-    def add_to_sim(self, position, orientation=(0, 0, 0, 1)):
+    def box(self):
+        C = math.quat_to_rot(self.q0)
+        return geometry.Box3d(self.half_extents, self.r0, C)
+
+    @property
+    def height(self):
+        return self.box().height()
+
+    def add_to_sim(self):
         """Actually add the object to the simulation."""
         # baseInertialFramePosition is an offset of the inertial frame origin
         # (i.e., center of mass) from the centroid of the object
@@ -32,8 +49,8 @@ class BulletBody:
             baseInertialFramePosition=tuple(self.com_offset),
             baseCollisionShapeIndex=self.collision_uid,
             baseVisualShapeIndex=self.visual_uid,
-            basePosition=position,
-            baseOrientation=orientation,
+            basePosition=tuple(self.r0),
+            baseOrientation=tuple(self.q0),
         )
 
         # set friction
@@ -41,8 +58,8 @@ class BulletBody:
         # Bullet handle this internally
         pyb.changeDynamics(self.uid, -1, lateralFriction=self.mu)
 
-    def get_aabb(self):
-        return np.array(pyb.getAABB(self.uid))
+    # def get_aabb(self):
+    #     return np.array(pyb.getAABB(self.uid))
 
     def get_pose(self):
         """Get the pose of the object in the simulation."""
@@ -66,7 +83,7 @@ class BulletBody:
         pyb.changeVisualShape(self.uid, -1, rgbaColor=list(rgba))
 
     @staticmethod
-    def cylinder(mass, mu, radius, height, com_offset=None, color=(0, 0, 1, 1)):
+    def cylinder(mass, mu, radius, height, orientation=None, com_offset=None, color=(0, 0, 1, 1)):
         """Construct a cylinder object."""
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_CYLINDER,
@@ -82,36 +99,37 @@ class BulletBody:
         return BulletBody(
             mass=mass,
             mu=mu,
-            height=height,
+            half_extents=np.array([radius, radius, 0.5 * half_extents]),
             collision_uid=collision_uid,
             visual_uid=visual_uid,
             com_offset=com_offset,
         )
 
     @staticmethod
-    def cuboid(mass, mu, side_lengths, com_offset=None, color=(0, 0, 1, 1)):
+    def cuboid(mass, mu, side_lengths, orientation=None, com_offset=None, color=(0, 0, 1, 1)):
         """Construct a cuboid object."""
-        half_extents = tuple(0.5 * np.array(side_lengths))
+        half_extents = 0.5 * np.array(side_lengths)
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_BOX,
-            halfExtents=half_extents,
+            halfExtents=tuple(half_extents),
         )
         visual_uid = pyb.createVisualShape(
             shapeType=pyb.GEOM_BOX,
-            halfExtents=half_extents,
+            halfExtents=tuple(half_extents),
             rgbaColor=color,
         )
         return BulletBody(
             mass=mass,
             mu=mu,
-            height=side_lengths[2],
+            half_extents=half_extents,
             collision_uid=collision_uid,
             visual_uid=visual_uid,
+            orientation=orientation,
             com_offset=com_offset,
         )
 
     @staticmethod
-    def sphere(mass, mu, radius, com_offset=None, color=(0, 0, 1, 1)):
+    def sphere(mass, mu, radius, orientation=None, com_offset=None, color=(0, 0, 1, 1)):
         """Construct a cylinder object."""
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_SPHERE,
@@ -125,7 +143,7 @@ class BulletBody:
         return BulletBody(
             mass=mass,
             mu=mu,
-            height=2 * radius,
+            half_extents=np.ones(3) * radius / 2,
             collision_uid=collision_uid,
             visual_uid=visual_uid,
             com_offset=com_offset,
@@ -142,6 +160,7 @@ class BulletBody:
                 radius=d["radius"],
                 height=d["height"],
                 color=d["color"],
+                orientation=orientation,
                 com_offset=com_offset,
             )
         elif d["shape"] == "cuboid":
@@ -150,6 +169,7 @@ class BulletBody:
                 mu=d["mu"],
                 side_lengths=d["side_lengths"],
                 color=d["color"],
+                orientation=orientation,
                 com_offset=com_offset,
             )
         else:
@@ -161,14 +181,14 @@ class BulletDynamicObstacle:
         self, position, velocity, acceleration=None, radius=0.1, controlled=False
     ):
         self.t0 = None
-        self.r0 = np.array(position)
         self.v0 = np.array(velocity)
         self.a0 = np.array(acceleration) if acceleration is not None else np.zeros(3)
 
         self.controlled = controlled
-        self.K = np.eye(3)  # position gain
+        self.K = 10 * np.eye(3)  # position gain
 
         self.body = BulletBody.sphere(mass=1, mu=1, radius=radius)
+        self.body.r0 = np.array(position)
 
     @classmethod
     def from_config(cls, config, offset=None):
@@ -193,23 +213,23 @@ class BulletDynamicObstacle:
     def start(self, t0):
         """Add the obstacle to the simulation."""
         self.t0 = t0
-        self.body.add_to_sim(list(self.r0))
+        self.body.add_to_sim()
         pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
 
     def reset(self, t, r=None, v=None):
         self.t0 = t
         if r is not None:
-            self.r0 = r
+            self.body.r0 = r
         if v is not None:
             self.v0 = v
 
-        pyb.resetBasePositionAndOrientation(self.body.uid, list(self.r0), [0, 0, 0, 1])
+        pyb.resetBasePositionAndOrientation(self.body.uid, list(self.body.r0), [0, 0, 0, 1])
         pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
 
     def _desired_state(self, t):
         dt = t - self.t0
-        rd = self.r0 + dt * self.v0 + 0.5 * dt ** 2 * self.a0
-        vd = self.v0 + dt * self.a0
+        rd = self.body.r0 + dt * self.v0 + 0.5 * dt ** 2 * self.a0
+        vd = self.body.v0 + dt * self.a0
         return rd, vd
 
     def joint_state(self):
@@ -219,7 +239,7 @@ class BulletDynamicObstacle:
         given.
         """
         if self.t0 is None:
-            return self.r0, self.v0
+            return self.body.r0, self.v0
         r = self.body.get_pose()[0]
         v = self.body.get_velocity()[0]
         return r, v
@@ -250,13 +270,13 @@ def balanced_object_setup(r_ew_w, config):
             orientation = orientation / np.linalg.norm(orientation)
         else:
             orientation = np.array([0, 0, 0, 1])
-        obj = BulletBody.fromdict(obj_config)
+
+        obj = BulletBody.fromdict(obj_config, orientation)
 
         if "parent" in d:
             parent = objects[d["parent"]]
-            parent_position, _ = parent.get_pose()
-            position = parent_position
-            position[2] += 0.5 * parent.height + 0.5 * obj.height
+            obj.r0 = parent.r0.copy()
+            obj.r0[2] += 0.5 * parent.height + 0.5 * obj.height
 
             # PyBullet calculates coefficient of friction between two
             # bodies by multiplying them. Thus, to achieve our actual
@@ -264,28 +284,36 @@ def balanced_object_setup(r_ew_w, config):
             # value by the parent value to get the simulated value.
             obj.mu = obj.mu / parent.mu
         else:
-            position = r_ew_w + [0, 0, 0.5 * ee["height"] + 0.5 * obj.height]
+            obj.r0 = r_ew_w + [0, 0, 0.5 * ee["height"] + 0.5 * obj.height]
             obj.mu = obj.mu / ee["mu"]
 
         if "offset" in d:
-            position[:2] += parsing.parse_support_offset(d["offset"])
+            obj.r0[:2] += parsing.parse_support_offset(d["offset"])
 
-        obj.add_to_sim(position, orientation)
-
-        # change the height of the object based on its orientation
-        # it is slightly inelegant to add it to the sim first and then reset
-        # the pose, but it is convenient to rely on Bullet's AABB functionality
-        # to compute the full height automatically
-        aabb = obj.get_aabb()
-        h = np.abs(aabb[0, 2] - aabb[1, 2])
-        position += 0.5 * (h - obj.height)
-        obj.height = h
-        obj.reset_pose(position, orientation)
+        obj.add_to_sim()
 
         obj_name = d["name"]
         if obj_name in objects:
             raise ValueError(f"Multiple simulation objects named {obj_name}.")
         objects[obj_name] = obj
+
+    # for debugging, generate contact points
+    boxes = [obj.box() for obj in objects.values()]
+    tray_box = geometry.Box3d(0.5*np.array([0.23, 0.3, 0.064]), position=r_ew_w+np.array([0.1, 0.13, -0.032]))
+    boxes.append(tray_box)
+
+    contact_points = []
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            points = geometry.box_box_axis_aligned_contact(boxes[i], boxes[j])
+            if points is not None:
+                contact_points.append(points)
+            else:
+                print(f"no contact between objects {i} and {j}")
+
+    contact_points = np.vstack(contact_points)
+    colors = [[0, 0, 0] for _ in contact_points]
+    pyb.addUserDebugPoints([v for v in contact_points], colors, pointSize=10)
 
     return objects
 

@@ -30,7 +30,7 @@ static_obstacles:
       - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
 
 dynamic_obstacles:
-  enabled: false
+  enabled: true
   obstacles:
     # -
     #   controlled: true
