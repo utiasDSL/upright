@@ -118,6 +118,17 @@ pinocchio::GeometryModel build_geometry_model(const std::string& urdf_path) {
     return geom_model;
 }
 
+void add_ground_plane(const ocs2::PinocchioInterface::Model& model,
+                      pinocchio::GeometryModel& geom_model) {
+    auto ground_placement = pinocchio::SE3::Identity();
+    pinocchio::GeometryObject::CollisionGeometryPtr ground_shape_ptr(
+        new hpp::fcl::Halfspace(Vec3d::UnitZ(), 0));
+    std::cout << "parent joint index = " << model.frames[0].parent << std::endl;
+    pinocchio::GeometryObject ground_obj("ground", model.frames[0].parent,
+                                         ground_shape_ptr, ground_placement);
+    geom_model.addGeometryObject(ground_obj);
+}
+
 ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     : settings_(settings) {
     std::string taskFile = settings_.ocs2_config_path;
@@ -221,6 +232,10 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
             geom_interface.addGeometryObjects(obs_geom_model);
         }
 
+        const auto& model = pinocchioInterfacePtr_->getModel();
+        auto& geom_model = geom_interface.getGeometryModel();
+        add_ground_plane(model, geom_model);
+
         // Add dynamic obstacles.
         if (settings_.obstacle_settings.dynamic_obstacles.size() > 0) {
             ocs2::PinocchioInterface::Model dyn_obs_model, new_model;
@@ -231,9 +246,6 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                     settings_.obstacle_settings.dynamic_obstacles);
 
             // Update models
-            const auto& model = pinocchioInterfacePtr_->getModel();
-            const auto& geom_model = geom_interface.getGeometryModel();
-
             pinocchio::appendModel(
                 model, dyn_obs_model, geom_model, dyn_obs_geom_model, 0,
                 pinocchio::SE3::Identity(), new_model, new_geom_model);

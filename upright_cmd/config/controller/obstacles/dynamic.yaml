@@ -13,6 +13,7 @@ dynamic:
 collision_pairs:
   # wrist and shoulder
   # - ["wrist1_collision_link_0", "shoulder_collision_link_0"]
+  - ["wrist3_collision_link_0", "ground"]
 
   # arm and dynamic obstacles
   - ["balanced_object_collision_link_0", "dynobs1"]

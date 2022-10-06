@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Closed-loop upright simulation using Pybullet over ROS."""
-import time
+import argparse
 import datetime
+import glob
+import time
+from pathlib import Path
 
 import rospy
 import rosbag
@@ -16,37 +19,67 @@ import upright_core as core
 import upright_control as ctrl
 import upright_cmd as cmd
 
-from mobile_manipulation_central import (
-    SimulatedUR10ROSInterface,
-    SimulatedMobileManipulatorROSInterface,
-    SimulatedViconObjectInterface,
-)
-
 import IPython
 
 
-# TODO make a CLI arg
-USE_REAL_VICON = True
+def parse_args():
+    """Parse CLI args into the required config and bag file paths."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "directory", help="Directory in which to find config and bag files."
+    )
+    parser.add_argument(
+        "--config_name",
+        help="Name of config file within the given directory.",
+        required=False,
+    )
+    parser.add_argument(
+        "--bag_name",
+        help="Name of bag file within the given directory.",
+        required=False,
+    )
+    cli_args = parser.parse_args()
+
+    dir_path = Path(cli_args.directory)
+
+    if cli_args.config_name is not None:
+        config_path = dir_path / cli_args.config_name
+    else:
+        config_files = glob.glob(dir_path.as_posix() + "/*.yaml")
+        if len(config_files) == 0:
+            raise FileNotFoundError("Error: could not find a config file in the specified directory.")
+        if len(config_files) > 1:
+            raise FileNotFoundError("Error: multiple possible config files in the specified directory. Please specify the name using the `--config_name` option.")
+        config_path = config_files[0]
+
+    if cli_args.bag_name is not None:
+        bag_path = dir_path / cli_args.bag_name
+    else:
+        bag_files = glob.glob(dir_path.as_posix() + "/*.bag")
+        if len(bag_files) == 0:
+            raise FileNotFoundError("Error: could not find a bag file in the specified directory.")
+        if len(config_files) > 1:
+            print(
+                "Error: multiple bag files in the specified directory. Please specify the name using the `--bag_name` option."
+            )
+        bag_path = bag_files[0]
+    return config_path, bag_path
 
 
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    parser = cmd.cli.sim_arg_parser()
-    parser.add_argument("--bag", help="Bag file to play back.", required=True)
-    cli_args = parser.parse_args()
+    config_path, bag_path = parse_args()
 
     # load configuration
-    config = core.parsing.load_config(cli_args.config)
+    config = core.parsing.load_config(config_path)
     sim_config = config["simulation"]
     ctrl_config = config["controller"]
     log_config = config["logging"]
 
     # start the simulation
     timestamp = datetime.datetime.now()
-    sim = simulation.BulletSimulation(
-        config=sim_config, timestamp=timestamp, cli_args=cli_args
-    )
+    sim = simulation.BulletSimulation(config=sim_config, timestamp=timestamp)
 
     # settle sim to make sure everything is touching comfortably
     sim.settle(5.0)
@@ -61,10 +94,6 @@ def main():
 
     Q_obs = np.array([0, 0, 0, 1])
 
-    # we simulate a Vicon end point for the projectile if (1) we are using a
-    # projectile at all and (2) we are not using the real Vicon system
-    use_projectile_interface = len(sim.dynamic_obstacles) > 0 and not USE_REAL_VICON
-
     # data logging
     logger = DataLogger(config)
 
@@ -77,19 +106,11 @@ def main():
     logger.add("nx", ctrl_config["robot"]["dims"]["x"])
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
-    model = ctrl.manager.ControllerModel.from_config(ctrl_config)
+    # TODO the problem is that the simulation does not currently have dynamic
+    # obstacles enabled, I think
+    model = ctrl.manager.ControllerModel.from_config(ctrl_config, x0=x)
 
-    # reference pose trajectory
-    model.update(x=model.settings.initial_state)
-    r_ew_w, Q_we = model.robot.link_pose()
-    ref = ctrl.wrappers.TargetTrajectories.from_config(ctrl_config, r_ew_w, Q_we, u)
-
-    # frames and ghost (i.e., pure visual) objects
-    for r_ew_w_d, Q_we_d in ref.poses():
-        debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
-
-    # TODO read the bag
-    bag = rosbag.Bag(cli_args.bag)
+    bag = rosbag.Bag(bag_path)
     base_cmd_msgs = [msg for _, msg, _ in bag.read_messages("/ridgeback/cmd_vel")]
     base_cmd_vels = np.array(
         [[msg.linear.x, msg.linear.y, msg.angular.z] for msg in base_cmd_msgs]
@@ -109,11 +130,26 @@ def main():
     arm_cmd_ts -= t0
     arm_cmd_index = 0
 
+    # projectile_msgs = [
+    #     msg for _, msg, _ in bag.read_messages("/Projectile/joint_states")
+    # ]
+    # projectile_positions = np.array([msg.position for msg in projectile_msgs])
+    # projectile_velocities = np.array([msg.velocity for msg in projectile_msgs])
     projectile_msgs = [
-        msg for _, msg, _ in bag.read_messages("/Projectile/joint_states")
+        msg for _, msg, _ in bag.read_messages("/vicon/Projectile/Projectile")
     ]
-    projectile_positions = np.array([msg.position for msg in projectile_msgs])
-    projectile_velocities = np.array([msg.velocity for msg in projectile_msgs])
+    projectile_positions = np.array(
+        [
+            [
+                msg.transform.translation.x,
+                msg.transform.translation.y,
+                msg.transform.translation.z,
+            ]
+            for msg in projectile_msgs
+        ]
+    )
+    projectile_velocities = np.zeros_like(projectile_positions)
+
     projectile_ts = np.array([msg.header.stamp.to_sec() for msg in projectile_msgs])
     projectile_ts -= t0
     projectile = simulation.BulletDynamicObstacle(
@@ -123,13 +159,19 @@ def main():
     projectile_index = 0
     K_proj = 100
 
+    # reference pose trajectory
+    model.update(x)
+    r_ew_w, Q_we = model.robot.link_pose()
+    ref = ctrl.wrappers.TargetTrajectories.from_config(ctrl_config, r_ew_w, Q_we, u)
+
+    # frames and ghost (i.e., pure visual) objects
+    for r_ew_w_d, Q_we_d in ref.poses():
+        debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
+
     IPython.embed()
 
     t = 0
     duration = arm_cmd_ts[-1]
-
-    # add dynamic obstacles and start them moving
-    # sim.launch_dynamic_obstacles(t0=t0)
 
     # simulation loop
     while not rospy.is_shutdown() and t <= duration:
@@ -137,23 +179,40 @@ def main():
         q, v = sim.robot.joint_states(add_noise=True, bodyframe=False)
 
         # commands are always in the body frame (to match the real robot)
-        while base_cmd_ts[base_cmd_index + 1] <= t:
+        while (
+            base_cmd_index + 1 < base_cmd_ts.shape[0]
+            and base_cmd_ts[base_cmd_index + 1] <= t
+        ):
             base_cmd_index += 1
-        while arm_cmd_ts[arm_cmd_index + 1] <= t:
+        while (
+            arm_cmd_index + 1 < arm_cmd_ts.shape[0]
+            and arm_cmd_ts[arm_cmd_index + 1] <= t
+        ):
             arm_cmd_index += 1
-        while projectile_ts[projectile_index + 1] <= t:
+        while (
+            projectile_index + 1 < projectile_ts.shape[0]
+            and projectile_ts[projectile_index + 1] <= t
+        ):
             projectile_index += 1
         cmd_vel = np.concatenate(
             (base_cmd_vels[base_cmd_index, :], arm_cmd_vels[arm_cmd_index, :])
         )
         sim.robot.command_velocity(cmd_vel, bodyframe=True)
 
+        # manually steer the projectile
         projectile_cmd_vel = (
             K_proj
             * (projectile_positions[projectile_index, :] - projectile.joint_state()[0])
             + projectile_velocities[projectile_index, :]
         )
-        pyb.resetBaseVelocity(projectile.body.uid, linearVelocity=list(projectile_cmd_vel))
+        # pyb.resetBaseVelocity(
+        #     projectile.body.uid, linearVelocity=list(projectile_cmd_vel)
+        # )
+        pyb.resetBasePositionAndOrientation(
+            projectile.body.uid,
+            list(projectile_positions[projectile_index, :]),
+            [0, 0, 0, 1],
+        )
 
         if logger.ready(t):
             x = np.concatenate((q, v, a, x_obs))
@@ -190,13 +249,6 @@ def main():
         print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")
     except:
         pass
-
-    # save logged data
-    if cli_args.log is not None:
-        logger.save(timestamp, name=cli_args.log)
-
-    if sim.video_manager.save:
-        print(f"Saved video to {sim.video_manager.path}")
 
     # visualize data
     DataPlotter.from_logger(logger).plot_all(show=True)

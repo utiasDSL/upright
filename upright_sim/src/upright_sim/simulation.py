@@ -299,8 +299,12 @@ def balanced_object_setup(r_ew_w, config):
 
     # for debugging, generate contact points
     boxes = [obj.box() for obj in objects.values()]
+    names = [key for key in objects.keys()]
+
+    # add a box for the tray object itself
     tray_box = geometry.Box3d(0.5*np.array([0.23, 0.3, 0.064]), position=r_ew_w+np.array([0.1, 0.13, -0.032]))
     boxes.append(tray_box)
+    names.append("tray_box")
 
     contact_points = []
     for i in range(len(boxes)):
@@ -309,7 +313,7 @@ def balanced_object_setup(r_ew_w, config):
             if points is not None:
                 contact_points.append(points)
             else:
-                print(f"no contact between objects {i} and {j}")
+                print(f"no contact between objects '{names[i]}' and '{names[j]}'")
 
     contact_points = np.vstack(contact_points)
     colors = [[0, 0, 0] for _ in contact_points]
@@ -319,7 +323,7 @@ def balanced_object_setup(r_ew_w, config):
 
 
 class BulletSimulation:
-    def __init__(self, config, timestamp, cli_args):
+    def __init__(self, config, timestamp, cli_args=None):
         self.config = config
 
         self.timestep = config["timestep"]
@@ -372,8 +376,9 @@ class BulletSimulation:
         debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
 
         # video recording
+        video_name = cli_args.video if cli_args is not None else None
         self.video_manager = VideoManager.from_config(
-            video_name=cli_args.video, config=config, timestamp=timestamp, r_ew_w=r_ew_w
+            video_name=video_name, config=config, timestamp=timestamp, r_ew_w=r_ew_w
         )
 
         # ghost objects

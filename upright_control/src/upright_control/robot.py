@@ -23,7 +23,7 @@ def _build_pinocchio_model(urdf_path, base_type):
     return model
 
 
-def _build_obstacle_model(obstacles):
+def _build_dynamic_obstacle_model(obstacles):
     """Build model of dynamic obstacles."""
     model = pinocchio.Model()
     model.name = "dynamic_obstacles"
@@ -86,9 +86,21 @@ def build_robot_interfaces(settings):
     # build geometry
     geom = PinocchioGeometry.from_robot_and_urdf(robot, settings.robot_urdf_path)
 
+    # add a ground plane
+    ground_placement = pinocchio.SE3.Identity()
+    ground_shape = fcl.Halfspace(np.array([0, 0, 1]), 0)
+    ground_geom_obj = pinocchio.GeometryObject(
+        "ground", model.frames[0].parent, ground_shape, ground_placement
+    )
+    ground_geom_obj.meshColor = np.ones((4))
+
+    # we don't add as a visual object because it is not supported by the
+    # meshcat viewer
+    geom.add_collision_objects([ground_geom_obj])
+
     # add dynamic obstacles
     if len(settings.obstacle_settings.dynamic_obstacles) > 0:
-        obs_model, obs_geom_model = _build_obstacle_model(
+        obs_model, obs_geom_model = _build_dynamic_obstacle_model(
             settings.obstacle_settings.dynamic_obstacles
         )
         robot, geom = _append_model(robot, geom, obs_model, obs_geom_model)

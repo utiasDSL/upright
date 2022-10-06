@@ -14,7 +14,7 @@ def main():
 
     bag = rosbag.Bag(args.bagfile)
 
-    est_msgs = [msg for _, msg, _ in bag.read_messages("/projectile/joint_states")]
+    est_msgs = [msg for _, msg, _ in bag.read_messages("/Projectile/joint_states")]
     est_positions = np.array([msg.position for msg in est_msgs])
     est_velocities = np.array([msg.velocity for msg in est_msgs])
 

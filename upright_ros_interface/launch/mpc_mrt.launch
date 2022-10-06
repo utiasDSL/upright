@@ -15,5 +15,10 @@
   <!-- MRT -->
   <node pkg="upright_ros_interface" type="mrt_node" name="mrt_node" output="screen" required="True" args="$(arg config)" />
 
+  <!-- Kalman filter estimator. Set process and measurement noise variance. -->
+  <param name="activation_height" type="double" value="0.8"/>
+  <param name="pos_proc_var" type="double" value="1.0"/>
+  <param name="vel_proc_var" type="double" value="1.0"/>
+  <param name="pos_meas_var" type="double" value="1.0"/>
   <node pkg="mobile_manipulation_central" type="projectile_vicon_estimator_node" name="projectile_vicon_estimator_node" output="screen" required="True"/>
 </launch>

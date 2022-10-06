@@ -2,25 +2,30 @@
 # arrangements are used for both simulation and the controller, but the one
 # used in each can be different
 arrangements:
-  nothing: []
+  nothing:
+    objects: []
+
   one_box:
-    -
-      name: box1
-      type: cube
-      offset:
-        x: 0.1
-        y: 0.1
+    objects:
+      -
+        name: box1
+        type: cube
+        offset:
+          x: 0.1
+          y: 0.1
+
   two_box:
-    -
-      name: box1
-      type: cube
-      offset:
-        x: 0.1
-        y: 0.1
-    -
-      name: box2
-      type: cube
-      parent: box1
+    objects:
+      -
+        name: box1
+        type: cube
+        offset:
+          x: 0.1
+          y: 0.1
+      -
+        name: box2
+        type: cube
+        parent: box1
 
   experimental_boxes:
     objects:
@@ -46,39 +51,40 @@ arrangements:
           x: 0
           y: 0.03
         parent: block2
-    # contacts:
-    #   -
 
   # single water bottle
   bottle:
-    -
-      name: bottle1
-      type: bottle
-      offset:
-        x: 0.1
-        y: 0.07
+    objects:
+      -
+        name: bottle1
+        type: bottle
+        offset:
+          x: 0.1
+          y: 0.07
 
   # single foam die
   foam_die1:
-    -
-      name: foam_die1
-      type: foam_die
-      offset:
-        x: 0.1
-        y: 0.07
+    objects:
+      -
+        name: foam_die1
+        type: foam_die
+        offset:
+          x: 0.1
+          y: 0.07
 
   # two foam dice stacked atop one another
   foam_die2:
-    -
-      name: foam_die1
-      type: foam_die
-      offset:
-        x: 0.1
-        y: 0.07
-    -
-      name: foam_die2
-      type: foam_die
-      parent: foam_die1
+    objects:
+      -
+        name: foam_die1
+        type: foam_die
+        offset:
+          x: 0.1
+          y: 0.07
+      -
+        name: foam_die2
+        type: foam_die
+        parent: foam_die1
 
   # one:
   #   -
