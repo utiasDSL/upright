@@ -15,7 +15,7 @@ from upright_core.bindings import (
     PolygonSupportArea,
     ContactPoint,
 )
-from upright_core import math
+from upright_core import math, geometry
 from upright_core.composition import compose_bounded_objects
 
 import IPython
@@ -195,158 +195,227 @@ def parse_support_offset(d):
     return np.array([x, y])
 
 
-# TODO could possibly convert this to inheriting from BoundedBalancedObject?
-class BalancedObjectConfigWrapper:
-    """Wrapper around the config dict for a balanced object."""
+# # TODO could possibly convert this to inheriting from BoundedBalancedObject?
+# class BalancedObjectConfigWrapper:
+#     """Wrapper around the config dict for a balanced object."""
+#
+#     def __init__(self, config, parent_name, orientation=None):
+#         self.d = config
+#         self.parent_name = parent_name
+#         self.children = []
+#         self.position = None
+#
+#         if orientation is None:
+#             orientation = np.array([0, 0, 0, 1])
+#         self.C0 = math.quat_to_rot(orientation)
+#
+#         # TODO we could just immediately generate the half extents then rotate
+#         # them to generate the support area?
+#         # we also need to rotate the inertia, as well as the CoM offset
+#         self.mass = config["mass"]
+#
+#         # generate half extents (not rotated)
+#         # NOTE: we are assuming a 90 deg rotation here, otherwise things like
+#         # the SA don't work without more sophistication
+#         self.local_half_extents = self.compute_half_extents(config["shape"])
+#         # self.half_extents = self.C0 @ half_extents
+#
+#         # generate (normalized) inertia and rotate it into the body frame
+#         local_R2 = self.compute_normalized_inertia(
+#             config["shape"], config["com_offset"]
+#         )
+#         self.R2 = self.C0 @ local_R2 @ self.C0.T
+#
+#         self._bounded_balanced_object = None
+#
+#     def box(self):
+#         return geometry.Box3d(self.local_half_extents, self.position, self.C0)
+#
+#     @property
+#     def height(self):
+#         return self.box().height()
+#
+#     @staticmethod
+#     def compute_normalized_inertia(shape_config, com_offset):
+#         """Get the inertia matrix divided by mass."""
+#         pass
+#
+#     def compute_support_area(self):
+#         # TODO the most general way to do this is to do the intersection with
+#         # the parent
+#         pass
+#
+#     @property
+#     def offset(self):
+#         # TODO this needs to be dealt with
+#         if "offset" in self.d:
+#             return np.array(self.d["offset"])
+#         return np.zeros(2)
+#
+#     def support_area(self):
+#         config = self.d["support_area"]
+#         shape = config["shape"]
+#         if shape == "eq_tri":
+#             side_length = config["side_length"]
+#             support_area = PolygonSupportArea.equilateral_triangle(side_length)
+#             r_tau = math.equilateral_triangle_r_tau(side_length)
+#         elif shape == "rect":
+#             lx = config["lx"]
+#             ly = config["lx"]
+#             support_area = PolygonSupportArea.axis_aligned_rectangle(lx, ly)
+#             r_tau = math.rectangle_r_tau(lx, ly)
+#         elif shape == "circle":
+#             radius = config["radius"]
+#             support_area = PolygonSupportArea.circle(radius)
+#             r_tau = math.circle_r_tau(radius)
+#         else:
+#             raise ValueError(f"Unsupported support area shape: {shape}")
+#         return support_area, r_tau
+#
+#     def bounded_balanced_object(self):
+#         """Generate a BoundedBalancedObject for this object."""
+#         if self._bounded_balanced_object is not None:
+#             return self._bounded_balanced_object
+#
+#         # parse the bounded rigid body
+#         mass_min = self.d["mass"]["min"]
+#         mass_max = self.d["mass"]["max"]
+#
+#         com_center = self.position
+#         com_half_lengths = np.array(self.d["com"]["half_lengths"])
+#         com_ellipsoid = Ellipsoid(com_center, com_half_lengths, np.eye(3))
+#
+#         # parse the radii of gyration
+#         # this can be specified to be based on the exact inertia matrix for a
+#         # particular shape
+#         if "use_exact" in self.d["radii_of_gyration"]:
+#             shape = self.d["radii_of_gyration"]["use_exact"]["shape"]
+#             if shape == "cylinder":
+#                 radius = self.d["radii_of_gyration"]["use_exact"]["radius"]
+#                 height = self.d["radii_of_gyration"]["use_exact"]["height"]
+#                 inertia = math.cylinder_inertia_matrix(
+#                     mass=1, radius=radius, height=height
+#                 )
+#             elif shape == "cuboid":
+#                 side_lengths = np.array(
+#                     self.d["radii_of_gyration"]["use_exact"]["side_lengths"]
+#                 )
+#                 inertia = math.cuboid_inertia_matrix(mass=1, side_lengths=side_lengths)
+#             else:
+#                 raise ValueError(f"Unrecognized shape {shape}.")
+#             # no need to divide out mass, since we used mass=1 above
+#             radii_of_gyration = np.sqrt(np.diag(inertia))
+#             radii_of_gyration_min = radii_of_gyration
+#             radii_of_gyration_max = radii_of_gyration
+#         else:
+#             radii_of_gyration_min = np.array(self.d["radii_of_gyration"]["min"])
+#             radii_of_gyration_max = np.array(self.d["radii_of_gyration"]["max"])
+#
+#         body = BoundedRigidBody(
+#             mass_min=mass_min,
+#             mass_max=mass_max,
+#             radii_of_gyration_min=radii_of_gyration_min,
+#             radii_of_gyration_max=radii_of_gyration_max,
+#             com_ellipsoid=com_ellipsoid,
+#         )
+#
+#         support_area, r_tau = self.support_area()
+#
+#         com_height = self.d["com"]["height"]
+#         mu_min = self.d["mu_min"]
+#
+#         # cache for later retrieval
+#         self._bounded_balanced_object = BoundedBalancedObject(
+#             body,
+#             com_height=com_height,
+#             support_area_min=support_area,
+#             r_tau_min=r_tau,
+#             mu_min=mu_min,
+#         )
+#         return self._bounded_balanced_object
+#
+#     def base_contact_points(self, name):
+#         """Generate the contact points at the base of this object."""
+#         obj = self.bounded_balanced_object()
+#         vertices = obj.support_area_min.vertices
+#         h = obj.com_height
+#
+#         contacts = []
+#         for vertex in vertices:
+#             contact = ContactPoint()
+#             contact.object1_name = name
+#             contact.mu = obj.mu_min
+#             contact.normal = np.array([0, 0, 1])  # TODO fixed for now
+#             contact.r_co_o1 = np.array([vertex[0], vertex[1], -h])
+#             contacts.append(contact)
+#         return contacts
+#
+#     def update_parent_contact_points(self, parent, contacts):
+#         """Update base contact points of this object with parent's information.
+#
+#         The base contact points of this object are in contact with the (top of
+#         the) parent.
+#         """
+#         # need diff between my (child) CoM and parent's CoM
+#         Δ = self.position - parent.position
+#         for contact in contacts:
+#             contact.r_co_o2 = contact.r_co_o1 + Δ
+#             contact.object2_name = self.parent_name
+#         return contacts
 
-    def __init__(self, config, parent_name):
-        self.d = config
-        self.parent_name = parent_name
-        self.children = []
-        self.position = None
-        self._bounded_balanced_object = None
 
-    @property
-    def height(self):
-        return self.d["height"]
-
-    @property
-    def offset(self):
-        # TODO this needs to be dealt with
-        if "offset" in self.d:
-            return np.array(self.d["offset"])
-        return np.zeros(2)
-
-    def support_area(self):
-        config = self.d["support_area"]
-        shape = config["shape"]
-        if shape == "eq_tri":
-            side_length = config["side_length"]
-            support_area = PolygonSupportArea.equilateral_triangle(side_length)
-            r_tau = math.equilateral_triangle_r_tau(side_length)
-        elif shape == "rect":
-            lx = config["lx"]
-            ly = config["lx"]
-            support_area = PolygonSupportArea.axis_aligned_rectangle(lx, ly)
-            r_tau = math.rectangle_r_tau(lx, ly)
-        elif shape == "circle":
-            radius = config["radius"]
-            support_area = PolygonSupportArea.circle(radius)
-            r_tau = math.circle_r_tau(radius)
-        else:
-            raise ValueError(f"Unsupported support area shape: {shape}")
-        return support_area, r_tau
-
-    def bounded_balanced_object(self):
-        """Generate a BoundedBalancedObject for this object."""
-        if self._bounded_balanced_object is not None:
-            return self._bounded_balanced_object
-
-        # parse the bounded rigid body
-        mass_min = self.d["mass"]["min"]
-        mass_max = self.d["mass"]["max"]
-
-        com_center = self.position
-        com_half_lengths = np.array(self.d["com"]["half_lengths"])
-        com_ellipsoid = Ellipsoid(com_center, com_half_lengths, np.eye(3))
-
-        # parse the radii of gyration
-        # this can be specified to be based on the exact inertia matrix for a
-        # particular shape
-        if "use_exact" in self.d["radii_of_gyration"]:
-            shape = self.d["radii_of_gyration"]["use_exact"]["shape"]
-            if shape == "cylinder":
-                radius = self.d["radii_of_gyration"]["use_exact"]["radius"]
-                height = self.d["radii_of_gyration"]["use_exact"]["height"]
-                inertia = math.cylinder_inertia_matrix(
-                    mass=1, radius=radius, height=height
-                )
-            elif shape == "cuboid":
-                side_lengths = np.array(
-                    self.d["radii_of_gyration"]["use_exact"]["side_lengths"]
-                )
-                inertia = math.cuboid_inertia_matrix(mass=1, side_lengths=side_lengths)
-            else:
-                raise ValueError(f"Unrecognized shape {shape}.")
-            # no need to divide out mass, since we used mass=1 above
-            radii_of_gyration = np.sqrt(np.diag(inertia))
-            radii_of_gyration_min = radii_of_gyration
-            radii_of_gyration_max = radii_of_gyration
-        else:
-            radii_of_gyration_min = np.array(self.d["radii_of_gyration"]["min"])
-            radii_of_gyration_max = np.array(self.d["radii_of_gyration"]["max"])
-
-        body = BoundedRigidBody(
-            mass_min=mass_min,
-            mass_max=mass_max,
-            radii_of_gyration_min=radii_of_gyration_min,
-            radii_of_gyration_max=radii_of_gyration_max,
-            com_ellipsoid=com_ellipsoid,
-        )
-
-        support_area, r_tau = self.support_area()
-
-        com_height = self.d["com"]["height"]
-        mu_min = self.d["mu_min"]
-
-        # cache for later retrieval
-        self._bounded_balanced_object = BoundedBalancedObject(
-            body,
-            com_height=com_height,
-            support_area_min=support_area,
-            r_tau_min=r_tau,
-            mu_min=mu_min,
-        )
-        return self._bounded_balanced_object
-
-    def base_contact_points(self, name):
-        """Generate the contact points at the base of this object."""
-        obj = self.bounded_balanced_object()
-        vertices = obj.support_area_min.vertices
-        h = obj.com_height
-
-        contacts = []
-        for vertex in vertices:
-            contact = ContactPoint()
-            contact.object1_name = name
-            contact.mu = obj.mu_min
-            contact.normal = np.array([0, 0, 1])  # TODO fixed for now
-            contact.r_co_o1 = np.array([vertex[0], vertex[1], -h])
-            contacts.append(contact)
-        return contacts
-
-    def update_parent_contact_points(self, parent, contacts):
-        """Update base contact points of this object with parent's information.
-
-        The base contact points of this object are in contact with the (top of
-        the) parent.
-        """
-        # need diff between my (child) CoM and parent's CoM
-        Δ = self.position - parent.position
-        for contact in contacts:
-            contact.r_co_o2 = contact.r_co_o1 + Δ
-            contact.object2_name = self.parent_name
-        return contacts
+# def _parse_objects_with_contacts_old(wrappers):
+#     contacts = []
+#     for name, wrapper in wrappers.items():
+#         # generate contacts for the base of this object
+#         base_contacts = wrapper.base_contact_points(name)
+#
+#         # if the object has a parent, we need to add the parent info to the
+#         # contact points as well
+#         if wrapper.parent_name is not None:
+#             parent = wrappers[wrapper.parent_name]
+#             wrapper.update_parent_contact_points(parent, base_contacts)
+#
+#         contacts.extend(base_contacts)
+#
+#     unwrapped_objects = {
+#         name: wrapper.bounded_balanced_object() for name, wrapper in wrappers.items()
+#     }
+#     return unwrapped_objects, contacts
 
 
-def _parse_objects_with_contacts(wrappers):
+def _parse_objects_with_contacts(wrappers, contacts):
+    """
+    wrappers is the dict of name: object wrappers
+    neighbours is a list of pairs of names specifying objects in contact
+    """
     contacts = []
-    for name, wrapper in wrappers.items():
-        # generate contacts for the base of this object
-        base_contacts = wrapper.base_contact_points(name)
+    for contact in contacts:
+        name1 = contact["first"]
+        name2 = contact["second"]
+        mu = contact["mu"]
 
-        # if the object has a parent, we need to add the parent info to the
-        # contact points as well
-        if wrapper.parent_name is not None:
-            parent = wrappers[wrapper.parent_name]
-            wrapper.update_parent_contact_points(parent, base_contacts)
+        box1 = wrappers[name1].box
+        box2 = wrappers[name2].box
 
-        contacts.extend(base_contacts)
+        points, normal = geometry.box_box_axis_aligned_contact(box1, box2)
+
+        for i in range(points.shape[0]):
+            contact = ContactPoint()
+            contact.object1_name = name1  # TODO handle EE
+            contact.object2_name = name2
+            contact.mu = mu
+            contact.normal = normal
+            # TODO this also assumes a zero CoM offset
+            contact.r_co_o1 = points[i, :] - box1.position
+            contact.r_co_o2 = points[i, :] - box2.position
+            contacts.append(contact)
 
     unwrapped_objects = {
-        name: wrapper.bounded_balanced_object() for name, wrapper in wrappers.items()
+        name: wrapper.balanced_object for name, wrapper in wrappers.items()
     }
     return unwrapped_objects, contacts
+
 
 def _parse_composite_objects(wrappers):
     # find the direct children of each object
@@ -378,38 +447,215 @@ def _parse_composite_objects(wrappers):
     return composites
 
 
+def parse_local_half_extents(shape_config):
+    type_ = shape_config["type"].lower()
+    if type_ == "cuboid":
+        return 0.5 * np.array(shape_config["side_lengths"])
+    elif type_ == "cylinder":
+        r = shape_config["radius"]
+        h = shape_config["height"]
+        w = np.sqrt(2) * r
+        return np.array([w, w, 0.5 * h])
+    raise ValueError(f"Unsupported shape type: {type_}")
+
+
+def compute_box(shape_config, position=None, rotation=None):
+    if rotation is None:
+        rotation = np.eye(3)
+    C = rotation
+
+    type_ = shape_config["type"].lower()
+    local_half_extents = parse_local_half_extents(shape_config)
+
+    # for the cylinder, we rotate by 45 deg about z so that contacts occur
+    # aligned with x-y axes
+    if type_ == "cylinder":
+        C = C @ math.rotz(np.pi / 4)
+
+    return geometry.Box3d(local_half_extents, position, C)
+
+
+def compute_radii_of_gyration(shape_config, com_offset):
+    # TODO handle the com_offset: this is best done when we can use inertia
+    # matrices straight-up again
+    type_ = shape_config["type"].lower()
+    if type_ == "cylinder":
+        inertia = math.cylinder_inertia_matrix(
+            mass=1, radius=shape_config["radius"], height=shape_config["height"]
+        )
+    elif type_ == "cuboid":
+        inertia = math.cuboid_inertia_matrix(mass=1, side_lengths=shape_config["side_lengths"])
+    r_gyr = np.sqrt(np.diag(inertia))
+    return r_gyr
+
+
+def compute_support_area(box, parent_box, inset, tol=1e-6):
+    """Compute the support area.
+
+    Returns:
+        support area, r_tau
+    """
+    # TODO inset not supported
+    points, _ = geometry.box_box_axis_aligned_contact(box, parent_box)
+    if np.abs(inset) > tol:
+        raise ValueError("Support area inset not currently supported.")
+
+    # only support areas in the x-y plane are supported, check all z
+    # coordinates are the same:
+    z = points[0, 2]
+    assert np.all(np.abs(points[:, 2] - z) < tol)
+
+    # r_tau assumes rectangular for now, check:
+    n = points.shape[0]
+    assert n == 4, f"Support area has {n} points, not 4!"
+    lengths = []
+    for i in range(-1, 3):
+        lengths.append(np.linalg.norm(points[i + 1, :] - points[i, :]))
+    assert (
+        lengths[0] == lengths[2] and lengths[1] == lengths[3]
+    ), f"Support area is not rectangular!"
+
+    # translate points to be relative to the box's centroid
+    local_points = points - box.position
+    local_points_xy = local_points[:, :2]
+
+    support_area = PolygonSupportArea(list(local_points_xy))
+    r_tau = math.rectangle_r_tau(lengths[0], lengths[1])
+    return support_area, r_tau
+
+
+class SimpleWrapper:
+    def __init__(self, balanced_object, box):
+        self.balanced_object = balanced_object
+        self.box = box
+
+
+def parse_balanced_object(config, offset_xy, orientation, parent_box, mu):
+    C0 = math.quat_to_rot(orientation)
+
+    mass = config["mass"]
+
+    # generate (normalized) inertia and rotate it into the body frame
+    local_com_offset = np.array(config["com_offset"])
+    if np.linalg.norm(local_com_offset) > 1e-8:
+        raise ValueError("com_offset not currently supported")
+    local_r_gyr = compute_radii_of_gyration(config["shape"], local_com_offset)
+    # TODO just make the constraints accept an inertia like normal (or an H
+    # matrix)
+    R_gyr = C0 @ np.diag(local_r_gyr) @ C0.T
+    r_gyr = np.diag(R_gyr)
+    assert np.allclose(R_gyr, np.diag(r_gyr)), "Rotated R_gyr is not diagonal!"
+
+    # compute position of the object centroid
+    # TODO things would be somewhat less confusing if the balanced objects
+    # directly supported a centroid (object frame) and CoM as separate things
+    local_box = compute_box(config["shape"], rotation=C0)
+    centroid_position = parent_box.position.copy()
+    centroid_position[:2] += offset_xy
+    centroid_position[2] += 0.5 * (parent_box.height() + local_box.height())
+
+    com_offset = C0 @ local_com_offset  # relative to centroid
+    com_position = centroid_position + com_offset
+    com_height = 0.5 * local_box.height() + com_offset[2]
+
+    # now we recompute the box with the correct centroid position
+    box = compute_box(config["shape"], centroid_position, C0)
+
+    support_area, r_tau = compute_support_area(
+        box, parent_box, config["support_area_inset"]
+    )
+    # TODO is this correct or should it be negative?
+    support_area.offset(com_offset[:2])
+
+    body = BoundedRigidBody(
+        mass_min=mass,
+        mass_max=mass,
+        radii_of_gyration_min=np.diag(R_gyr),
+        radii_of_gyration_max=np.diag(R_gyr),
+        com_ellipsoid=Ellipsoid(com_position, np.zeros(3), np.eye(3)),
+    )
+    balanced_object = BoundedBalancedObject(
+        body,
+        com_height=com_height,
+        support_area_min=support_area,
+        r_tau_min=r_tau,
+        mu_min=mu,
+    )
+    return SimpleWrapper(balanced_object, box)
+
+
 def parse_control_objects(ctrl_config):
     """Parse the control objects and contact points from the configuration."""
     arrangement_name = ctrl_config["balancing"]["arrangement"]
     arrangement = ctrl_config["arrangements"][arrangement_name]
     object_configs = ctrl_config["objects"]
-    ee = object_configs["ee"]
 
-    wrappers = {}
-    for conf in arrangement["objects"]:
-        obj_type = conf["type"]
-        parent_name = conf["parent"] if "parent" in conf else None
-        object_config = object_configs[obj_type]
-        wrapper = BalancedObjectConfigWrapper(object_config, parent_name)
+    ee_config = object_configs["ee"]
+    ee_box = compute_box(ee_config["shape"], ee_config["position"])
+    wrappers = {"ee": SimpleWrapper(None, ee_box)}
 
-        # compute position of the object
-        if wrapper.parent_name is not None:
-            parent = wrappers[wrapper.parent_name]
-            dz = 0.5 * parent.height + 0.5 * wrapper.height
-            wrapper.position = parent.position + [0, 0, dz]
+    # Parse the dict of friction coefficients for each pair of contacting
+    # objects
+    # TODO would be nice to move this elsewhere
+    mus = {}
+    for contact in arrangement["contacts"]:
+        parent_name = contact["first"]
+        child_name = contact["second"]
+        if parent_name in mus:
+            mus[parent_name][child_name] = contact["mu"]
         else:
-            dz = 0.5 * ee["height"] + 0.5 * wrapper.height
-            wrapper.position = np.array([0, 0, dz])
+            mus[parent_name] = {child_name: contact["mu"]}
 
-        # add offset in the x-y (support) plane
-        wrapper.position[:2] += wrapper.offset
-
+    for conf in arrangement["objects"]:
         obj_name = conf["name"]
         if obj_name in wrappers:
             raise ValueError(f"Multiple control objects named {obj_name}.")
+
+        obj_type = conf["type"]
+        object_config = object_configs[obj_type]
+
+        # object orientation (as a quaternion)
+        if "orientation" in conf:
+            orientation = np.array(conf["orientation"])
+            orientation = orientation / np.linalg.norm(orientation)
+        else:
+            orientation = np.array([0, 0, 0, 1])
+
+        # get parent information and the coefficient of friction between the
+        # two objects
+        parent_name = conf["parent"]
+        parent_box = wrappers[parent_name].box
+        mu = mus[parent_name][obj_name]
+
+        # offset in x-y direction w.r.t. to parent
+        offset_xy = np.zeros(2)
+        if "offset" in conf:
+            offset_xy = parse_support_offset(conf["offset"])
+
+        wrapper = parse_balanced_object(object_config, offset_xy, orientation, parent_box, mu)
         wrappers[obj_name] = wrapper
 
+        # wrapper = BalancedObjectConfigWrapper(object_config, parent, orientation)
+        #
+        # # compute position of the object
+        # if wrapper.parent_name is not None:
+        #     parent = wrappers[wrapper.parent_name]
+        #     dz = 0.5 * parent.height + 0.5 * wrapper.height
+        #     wrapper.position = parent.position + [0, 0, dz]
+        # else:
+        #     dz = 0.5 * ee["height"] + 0.5 * wrapper.height
+        #     wrapper.position = np.array([0, 0, dz])
+        #
+        # # add offset in the x-y (support) plane
+        # wrapper.position[:2] += wrapper.offset
+        #
+        # obj_name = conf["name"]
+        # if obj_name in wrappers:
+        #     raise ValueError(f"Multiple control objects named {obj_name}.")
+        # wrappers[obj_name] = wrapper
+
     if ctrl_config["balancing"]["use_force_constraints"]:
+        # TODO remove EE object first
         return _parse_objects_with_contacts(wrappers)
     else:
         composites = _parse_composite_objects(wrappers)

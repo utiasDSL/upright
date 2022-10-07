@@ -48,8 +48,10 @@ dynamic_obstacles:
 objects:
   # EE is a special object
   ee:
-    height: 0.0
-    mu: 1.0
+    shape:
+      type: cuboid
+      side_lengths: [0.23, 0.3, 0.064]
+    position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
 
   tray:
     shape: cylinder

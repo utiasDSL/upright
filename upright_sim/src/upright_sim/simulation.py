@@ -21,13 +21,13 @@ class BulletBody:
         self.collision_uid = collision_uid
         self.visual_uid = visual_uid
 
-        self.r0 = position
         if position is None:
-            self.r0 = np.zeros(3)
+            position = np.zeros(3)
+        self.r0 = position
 
-        self.q0 = orientation
         if orientation is None:
-            self.q0 = np.array([0, 0, 0, 1])
+            orientation = np.array([0, 0, 0, 1])
+        self.q0 = orientation
 
         self.com_offset = com_offset if com_offset is not None else np.zeros(3)
 
@@ -255,13 +255,31 @@ class BulletDynamicObstacle:
             pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(cmd_vel))
 
 
+class EEObject:
+    def __init__(self, position, side_lengths):
+        self.r0 = position
+        self.side_lengths = side_lengths
+        self.mu = 1.0
+
+    @property
+    def height(self):
+        return self.side_lengths[2]
+
+    def box(self):
+        return geometry.Box3d(0.5 * self.side_lengths, self.r0)
+
+
 def balanced_object_setup(r_ew_w, config):
     arrangement_name = config["arrangement"]
     arrangement = config["arrangements"][arrangement_name]
     object_configs = config["objects"]
-    ee = object_configs["ee"]
 
-    objects = {}
+    # make "fake" EE object
+    ee_config = object_configs["ee"]
+    ee_position = r_ew_w + ee_config["position"]
+    ee_side_lengths = np.array(ee_config["shape"]["side_lengths"])
+    objects = {"ee": EEObject(ee_position, ee_side_lengths)}
+
     for d in arrangement["objects"]:
         obj_type = d["type"]
         obj_config = config["objects"][obj_type]
@@ -273,19 +291,15 @@ def balanced_object_setup(r_ew_w, config):
 
         obj = BulletBody.fromdict(obj_config, orientation)
 
-        if "parent" in d:
-            parent = objects[d["parent"]]
-            obj.r0 = parent.r0.copy()
-            obj.r0[2] += 0.5 * parent.height + 0.5 * obj.height
+        parent = objects[d["parent"]]
+        obj.r0 = parent.r0.copy()
+        obj.r0[2] += 0.5 * parent.height + 0.5 * obj.height
 
-            # PyBullet calculates coefficient of friction between two
-            # bodies by multiplying them. Thus, to achieve our actual
-            # desired friction at the support we need to divide the desired
-            # value by the parent value to get the simulated value.
-            obj.mu = obj.mu / parent.mu
-        else:
-            obj.r0 = r_ew_w + [0, 0, 0.5 * ee["height"] + 0.5 * obj.height]
-            obj.mu = obj.mu / ee["mu"]
+        # PyBullet calculates coefficient of friction between two
+        # bodies by multiplying them. Thus, to achieve our actual
+        # desired friction at the support we need to divide the desired
+        # value by the parent value to get the simulated value.
+        obj.mu = obj.mu / parent.mu
 
         if "offset" in d:
             obj.r0[:2] += parsing.parse_support_offset(d["offset"])
@@ -298,26 +312,21 @@ def balanced_object_setup(r_ew_w, config):
         objects[obj_name] = obj
 
     # for debugging, generate contact points
-    boxes = [obj.box() for obj in objects.values()]
-    names = [key for key in objects.keys()]
-
-    # add a box for the tray object itself
-    tray_box = geometry.Box3d(0.5*np.array([0.23, 0.3, 0.064]), position=r_ew_w+np.array([0.1, 0.13, -0.032]))
-    boxes.append(tray_box)
-    names.append("tray_box")
+    boxes = {name: obj.box() for name, obj in objects.items()}
 
     contact_points = []
-    for i in range(len(boxes)):
-        for j in range(i + 1, len(boxes)):
-            points = geometry.box_box_axis_aligned_contact(boxes[i], boxes[j])
-            if points is not None:
-                contact_points.append(points)
-            else:
-                print(f"no contact between objects '{names[i]}' and '{names[j]}'")
+    for contact in arrangement["contacts"]:
+        name1 = contact["first"]
+        name2 = contact["second"]
+        points, _ = geometry.box_box_axis_aligned_contact(boxes[name1], boxes[name2])
+        contact_points.append(points)
 
     contact_points = np.vstack(contact_points)
     colors = [[0, 0, 0] for _ in contact_points]
     pyb.addUserDebugPoints([v for v in contact_points], colors, pointSize=10)
+
+    # get rid of EE "fake" object before returning
+    objects.pop("ee")
 
     return objects
 

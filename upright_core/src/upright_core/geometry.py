@@ -1,6 +1,7 @@
 import numpy as np
 
 
+# TODO check for any of the half_extents = 0
 class Box3d:
     def __init__(self, half_extents, position=None, rotation=None):
         if position is None:
@@ -32,9 +33,12 @@ class Box3d:
         projection = axis @ self.vertices.T
         return np.array([np.min(projection), np.max(projection)])
 
-    def height(self):
+    def length_along_axis(self, axis):
         limits = self.limits_along_axis(np.array([0, 0, 1]))
-        return np.abs(limits[1] - limits[0])
+        return limits[1] - limits[0]
+
+    def height(self):
+        return self.length_along_axis(np.array([0, 0, 1]))
 
     def max_vertex_along_axis(self, axis):
         projection = axis @ self.vertices.T
@@ -179,6 +183,9 @@ def wind_polygon_vertices(V):
     return V[np.argsort(angles), :]
 
 
+# TODO if we want to do a rigorous test (not just axis-aligned contact planes),
+# we need to check all contact normals (6) and pairs of cross products (9); see
+# <https://www.geometrictools.com/Documentation/DynamicCollisionDetection.pdf>
 def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
     axes = np.eye(3)
     axis_idx = None
@@ -196,9 +203,14 @@ def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
         # intersect
         if np.abs(upper - lower) < tol:
             if limits1[0] < limits2[0]:
+                # projection of first box is smaller on this axis
+                # this means we also want to return the normal pointing in the
+                # reverse direction, such that it points into the first box
                 point = box1.max_vertex_along_axis(axis)
+                normal_multiplier = -1
             else:
                 point = box2.max_vertex_along_axis(axis)
+                normal_multiplier = 1
             axis_idx = i
         elif upper < lower:
             # shapes are not intersecting, nothing more to do
@@ -207,9 +219,6 @@ def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
     # shapes are penetrating: this is more complicated, and we don't deal with
     # it here
     if axis_idx is None:
-        if debug:
-            import IPython
-            IPython.embed()
         return None
 
     plane_normal = axes[axis_idx, :]
@@ -225,4 +234,4 @@ def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
     # unproject back into world coordinates
     V = point + Vp @ plane_span
 
-    return V
+    return V, normal_multiplier * plane_normal

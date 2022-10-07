@@ -68,9 +68,12 @@ infofile:
 
 # TODO: ideally would be able to extend other objects for easy experimentation
 objects:
+  # EE is a special object
   ee:
-    height: 0.04
-    mu: 1.0
+    shape:
+      type: cuboid
+      side_lengths: [0.23, 0.3, 0.064]
+    position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
 
   tray:
     mass:
@@ -162,7 +165,7 @@ objects:
       ly: 0.065
     height: 0.15
 
-  foam_die:
+  foam_die_old:
     mass:
       min: 0.02
       max: 0.02
@@ -181,7 +184,7 @@ objects:
     height: 0.065
 
   # TODO this probably only works for a single orientation
-  wood_block:
+  wood_block_old:
     mass:
       min: 0.18
       max: 0.18
@@ -198,6 +201,24 @@ objects:
       lx: 0.103
       ly: 0.09
     height: 0.038
+
+  wood_block:
+    mass: 0.18
+    com_offset: [0, 0, 0]  # relative to centroid of shape
+    shape:
+      type: cuboid
+      side_lengths: [0.103, 0.09, 0.038]
+    support_area_inset: 0.0
+    # for now we assume inertia is exact, but we should use parallel axis
+    # theorem to account for com_offset
+    #
+  foam_die:
+    mass: 0.02
+    com_offset: [0, 0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.065, 0.065, 0.065]
+    support_area_inset: 0.0
 
   tall_box:
     mass:
