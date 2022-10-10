@@ -3,7 +3,6 @@ import argparse
 import yaml
 
 import upright_core as core
-import upright_cmd as cmd
 
 
 def main():

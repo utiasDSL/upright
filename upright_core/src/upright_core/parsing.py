@@ -402,7 +402,7 @@ def _parse_objects_with_contacts(wrappers, contacts):
 
         for i in range(points.shape[0]):
             contact = ContactPoint()
-            contact.object1_name = name1  # TODO handle EE
+            contact.object1_name = name1
             contact.object2_name = name2
             contact.mu = mu
             contact.normal = normal
@@ -411,6 +411,7 @@ def _parse_objects_with_contacts(wrappers, contacts):
             contact.r_co_o2 = points[i, :] - box2.position
             contacts.append(contact)
 
+    wrappers.pop("ee")
     unwrapped_objects = {
         name: wrapper.balanced_object for name, wrapper in wrappers.items()
     }
@@ -418,9 +419,13 @@ def _parse_objects_with_contacts(wrappers, contacts):
 
 
 def _parse_composite_objects(wrappers):
+    # remove the "fake" ee object
+    wrappers.pop("ee")
+
     # find the direct children of each object
     for name, wrapper in wrappers.items():
-        if wrapper.parent_name is not None:
+        wrapper.children = []
+        if wrapper.parent_name != "ee":
             wrappers[wrapper.parent_name].children.append(name)
 
     # convert wrappers to BoundedBalancedObjects as required by the controller
@@ -434,7 +439,7 @@ def _parse_composite_objects(wrappers):
         queue = deque([wrapper])
         while len(queue) > 0:
             desc_wrapper = queue.popleft()
-            descendants.append(desc_wrapper.bounded_balanced_object())
+            descendants.append(desc_wrapper.balanced_object)
             for child_name in desc_wrapper.children:
                 queue.append(wrappers[child_name])
                 descendant_names.append(child_name)
@@ -492,13 +497,22 @@ def compute_radii_of_gyration(shape_config, com_offset):
 def compute_support_area(box, parent_box, inset, tol=1e-6):
     """Compute the support area.
 
+    Currently only a rectangular support area is supported, due to the need to
+    compute a value for r_tau.
+
+    Parameters:
+        box: the collision box of the current object
+        parent_box: the collision box of the parent
+        inset: positive scalar denoting how much to reduce the support area
+
     Returns:
         support area, r_tau
     """
-    # TODO inset not supported
+    # TODO this approach is not too general for cylinders, where we may want
+    # contacts with more than just their boxes
     points, _ = geometry.box_box_axis_aligned_contact(box, parent_box)
-    if np.abs(inset) > tol:
-        raise ValueError("Support area inset not currently supported.")
+    if inset < 0:
+        raise ValueError("Support area inset must be non-negative.")
 
     # only support areas in the x-y plane are supported, check all z
     # coordinates are the same:
@@ -519,7 +533,7 @@ def compute_support_area(box, parent_box, inset, tol=1e-6):
     local_points = points - box.position
     local_points_xy = local_points[:, :2]
 
-    support_area = PolygonSupportArea(list(local_points_xy))
+    support_area = PolygonSupportArea(list(local_points_xy), inset=inset)
     r_tau = math.rectangle_r_tau(lengths[0], lengths[1])
     return support_area, r_tau
 
@@ -564,8 +578,8 @@ def parse_balanced_object(config, offset_xy, orientation, parent_box, mu):
     support_area, r_tau = compute_support_area(
         box, parent_box, config["support_area_inset"]
     )
-    # TODO is this correct or should it be negative?
-    support_area.offset(com_offset[:2])
+    # TODO is this correct or should it be positive?
+    support_area = support_area.offset(-com_offset[:2])
 
     body = BoundedRigidBody(
         mass_min=mass,
@@ -584,6 +598,18 @@ def parse_balanced_object(config, offset_xy, orientation, parent_box, mu):
     return SimpleWrapper(balanced_object, box)
 
 
+def parse_mu_dict(contact_config):
+    mus = {}
+    for contact in contact_config:
+        parent_name = contact["first"]
+        child_name = contact["second"]
+        if parent_name in mus:
+            mus[parent_name][child_name] = contact["mu"]
+        else:
+            mus[parent_name] = {child_name: contact["mu"]}
+    return mus
+
+
 def parse_control_objects(ctrl_config):
     """Parse the control objects and contact points from the configuration."""
     arrangement_name = ctrl_config["balancing"]["arrangement"]
@@ -597,14 +623,7 @@ def parse_control_objects(ctrl_config):
     # Parse the dict of friction coefficients for each pair of contacting
     # objects
     # TODO would be nice to move this elsewhere
-    mus = {}
-    for contact in arrangement["contacts"]:
-        parent_name = contact["first"]
-        child_name = contact["second"]
-        if parent_name in mus:
-            mus[parent_name][child_name] = contact["mu"]
-        else:
-            mus[parent_name] = {child_name: contact["mu"]}
+    mus = parse_mu_dict(arrangement["contacts"])
 
     for conf in arrangement["objects"]:
         obj_name = conf["name"]
@@ -633,6 +652,7 @@ def parse_control_objects(ctrl_config):
             offset_xy = parse_support_offset(conf["offset"])
 
         wrapper = parse_balanced_object(object_config, offset_xy, orientation, parent_box, mu)
+        wrapper.parent_name = parent_name
         wrappers[obj_name] = wrapper
 
         # wrapper = BalancedObjectConfigWrapper(object_config, parent, orientation)
@@ -655,7 +675,6 @@ def parse_control_objects(ctrl_config):
         # wrappers[obj_name] = wrapper
 
     if ctrl_config["balancing"]["use_force_constraints"]:
-        # TODO remove EE object first
         return _parse_objects_with_contacts(wrappers)
     else:
         composites = _parse_composite_objects(wrappers)

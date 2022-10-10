@@ -50,7 +50,7 @@ tracking:
 #     orientation: [0.0, 0.0, 0.0, 1.0]
 
 obstacles:
-  enabled: true
+  enabled: false
   constraint_type: hard
 
   # extra margin between objects
@@ -74,60 +74,6 @@ objects:
       type: cuboid
       side_lengths: [0.23, 0.3, 0.064]
     position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
-
-  tray:
-    mass:
-      min: 0.5
-      max: 0.5
-    com:
-      height: 0.01
-      half_lengths: [0.0, 0.0, 0.0]
-    radii_of_gyration:
-      use_exact:
-        shape: cylinder
-        height: 0.02
-        radius: 0.2
-    mu_min: 2.0
-    support_area:
-      shape: "circle"
-      radius: 0.2
-    height: 0.02
-
-  cup:
-    mass:
-      min: 0.5
-      max: 0.5
-    com:
-      height: 0.1
-      half_lengths: [0.0, 0.0, 0.0]
-    radii_of_gyration:
-      use_exact:
-        shape: cylinder
-        height: 0.2
-        radius: 0.04
-    mu_min: 0.5
-    support_area:
-      shape: "circle"
-      radius: 0.04
-    height: 0.2
-
-  box:
-    mass:
-      min: 1.0
-      max: 1.0
-    com:
-      height: 0.075
-      half_lengths: [0.0, 0.0, 0.0]
-    radii_of_gyration:
-      use_exact:
-        shape: cuboid
-        side_lengths: [0.08, 0.08, 0.15]
-    mu_min: 0.5
-    support_area:
-      shape: "rect"
-      lx: 0.08
-      ly: 0.08
-    height: 0.15
 
   cube:
     mass:
@@ -165,42 +111,41 @@ objects:
       ly: 0.065
     height: 0.15
 
-  foam_die_old:
-    mass:
-      min: 0.02
-      max: 0.02
-    com:
-      height: 0.0325
-      half_lengths: [0, 0, 0]  # these are for the uncertainty
-    radii_of_gyration:
-      use_exact:
-        shape: cuboid
-        side_lengths: [0.065, 0.065, 0.065]
-    mu_min: 0.4
-    support_area:
-      shape: rect
-      lx: 0.05
-      ly: 0.05
-    height: 0.065
+  # foam_die_old:
+  #   mass:
+  #     min: 0.02
+  #     max: 0.02
+  #   com:
+  #     height: 0.0325
+  #     half_lengths: [0, 0, 0]  # these are for the uncertainty
+  #   radii_of_gyration:
+  #     use_exact:
+  #       shape: cuboid
+  #       side_lengths: [0.065, 0.065, 0.065]
+  #   mu_min: 0.4
+  #   support_area:
+  #     shape: rect
+  #     lx: 0.05
+  #     ly: 0.05
+  #   height: 0.065
 
-  # TODO this probably only works for a single orientation
-  wood_block_old:
-    mass:
-      min: 0.18
-      max: 0.18
-    com:
-      height: 0.019
-      half_lengths: [0, 0, 0]
-    radii_of_gyration:
-      use_exact:
-        shape: cuboid
-        side_lengths: [0.103, 0.09, 0.038]
-    mu_min: 0.27
-    support_area:
-      shape: rect
-      lx: 0.103
-      ly: 0.09
-    height: 0.038
+  # wood_block_old:
+  #   mass:
+  #     min: 0.18
+  #     max: 0.18
+  #   com:
+  #     height: 0.019
+  #     half_lengths: [0, 0, 0]
+  #   radii_of_gyration:
+  #     use_exact:
+  #       shape: cuboid
+  #       side_lengths: [0.103, 0.09, 0.038]
+  #   mu_min: 0.27
+  #   support_area:
+  #     shape: rect
+  #     lx: 0.103
+  #     ly: 0.09
+  #   height: 0.038
 
   wood_block:
     mass: 0.18
@@ -211,7 +156,9 @@ objects:
     support_area_inset: 0.0
     # for now we assume inertia is exact, but we should use parallel axis
     # theorem to account for com_offset
-    #
+
+  # TODO: do we want inset a property of the object class or the particular
+  # instance in an arrangement?
   foam_die:
     mass: 0.02
     com_offset: [0, 0, 0]
@@ -219,61 +166,3 @@ objects:
       type: cuboid
       side_lengths: [0.065, 0.065, 0.065]
     support_area_inset: 0.0
-
-  tall_box:
-    mass:
-      min: 1.0
-      max: 1.0
-    com:
-      height: 0.25
-      half_lengths: [0.0, 0.0, 0.0]
-    radii_of_gyration:
-      use_exact:
-        shape: cuboid
-        side_lengths: [0.06, 0.06, 0.5]
-    mu_min: 0.5
-    support_area:
-      shape: "rect"
-      lx: 0.06
-      ly: 0.06
-    height: 0.5
-
-  cylinder_stack_base:
-    mass:
-      min: 0.75
-      max: 0.75
-    com:
-      height: 0.05
-      half_lengths: [0.0, 0.0, 0.0]
-    radii_of_gyration:
-      use_exact:  # TODO still not sure about this format
-        shape: cylinder
-        height: 0.1
-        radius: 0.15
-      min: [0, 0, 0]
-      max: [0.15, 0.15, 0.15]
-    mu_min: 0.25
-    support_area:
-      shape: "eq_tri"
-      side_length: 0.2
-    height: 0.1  # this is only used to compute relative heights
-
-  cuboid1_stack:
-    mass:
-      min: 0.75
-      max: 0.75
-    com:
-      height: 0.075
-      half_lengths: [0.0, 0.0, 0.0]
-    radii_of_gyration:
-      use_exact:
-        shape: cuboid
-        side_lengths: [0.15, 0.15, 0.15]
-      min: [0, 0, 0]
-      max: [0.075, 0.075, 0.075]
-    mu_min: 0.25
-    support_area:
-      shape: "rect"
-      lx: 0.15
-      ly: 0.15
-    height: 0.15

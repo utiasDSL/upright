@@ -59,55 +59,60 @@ struct PolygonSupportArea {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
    public:
-    PolygonSupportArea(const std::vector<Vec2<Scalar>>& vertices)
-        : vertices(vertices) {}
-
-    size_t num_constraints() const { return vertices.size(); }
+    PolygonSupportArea(const std::vector<Vec2<Scalar>>& vertices,
+                       Scalar inset = Scalar(0))
+        : vertices_(vertices), inset_(inset) {}
 
     PolygonSupportArea* clone() const {
-        return new PolygonSupportArea(vertices);
+        return new PolygonSupportArea(vertices_, inset_);
     }
 
-    size_t num_parameters() const { return vertices.size() * 2; }
+    size_t num_constraints() const { return vertices_.size(); }
+
+    size_t num_parameters() const { return vertices_.size() * 2 + 1; }
+
+    const std::vector<Vec2<Scalar>>& vertices() const {
+        return vertices_;
+    }
+
+    Scalar inset() const {
+        return inset_;
+    }
 
     // Get the edges of the polygon composing the support area
     std::vector<PolygonEdge<Scalar>> edges() const {
         std::vector<PolygonEdge<Scalar>> es;
-        for (int i = 0; i < vertices.size() - 1; ++i) {
-            es.push_back(PolygonEdge<Scalar>(vertices[i], vertices[i + 1]));
+        for (int i = 0; i < vertices_.size() - 1; ++i) {
+            es.push_back(PolygonEdge<Scalar>(vertices_[i], vertices_[i + 1]));
         }
-        es.push_back(PolygonEdge<Scalar>(vertices.back(), vertices.front()));
+        es.push_back(PolygonEdge<Scalar>(vertices_.back(), vertices_.front()));
         return es;
     }
 
     // TODO combine and generalize with implementation of distance outside
     // polygon below
-    Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp,
-                                   const Scalar& margin = Scalar(0)) const;
+    Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp) const;
 
+    // This is used in the bindings
     Scalar distance_outside(const Vec2<Scalar>& point) const {
-        Scalar margin = 0;
-        const size_t n = vertices.size();
+        const size_t n = vertices_.size();
         Scalar dist_inside = 100;  // arbitrary large value for now
         Scalar dist_inside_edge = 0;
         for (int i = 0; i < n - 1; ++i) {
-            dist_inside_edge = edge_zmp_constraint(point, vertices[i],
-                                                   vertices[i + 1], margin);
+            dist_inside_edge = edge_zmp_constraint(point, vertices_[i],
+                                                   vertices_[i + 1]);
             if (dist_inside_edge < dist_inside) {
                 dist_inside = dist_inside_edge;
             }
         }
         dist_inside_edge =
-            edge_zmp_constraint(point, vertices[n - 1], vertices[0], margin);
+            edge_zmp_constraint(point, vertices_[n - 1], vertices_[0]);
         if (dist_inside_edge < dist_inside) {
             dist_inside = dist_inside_edge;
         }
         Scalar dist_outside = -dist_inside;
         return dist_outside;
     }
-
-    // Vector<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
-    //                                       Scalar& az) const;
 
     Vector<Scalar> get_parameters() const;
 
@@ -119,25 +124,22 @@ struct PolygonSupportArea {
                                                       const size_t index = 0);
 
     // Square support area approximation to a circle
-    static PolygonSupportArea<Scalar> circle(Scalar radius);
+    static PolygonSupportArea<Scalar> circle(Scalar radius, Scalar inset = 0);
 
     // Equilateral triangle support area
-    static PolygonSupportArea<Scalar> equilateral_triangle(Scalar side_length);
+    static PolygonSupportArea<Scalar> equilateral_triangle(Scalar side_length,
+                                                           Scalar inset = 0);
 
     static PolygonSupportArea<Scalar> axis_aligned_rectangle(Scalar sx,
-                                                             Scalar sy);
-
-    std::vector<Vec2<Scalar>> vertices;
+                                                             Scalar sy,
+                                                             Scalar inset = 0);
 
    private:
     Scalar edge_zmp_constraint(const Vec2<Scalar>& zmp, const Vec2<Scalar>& v1,
-                               const Vec2<Scalar>& v2,
-                               const Scalar& margin) const;
+                               const Vec2<Scalar>& v2) const;
 
-    // Scalar edge_zmp_constraint_scaled(const Vec2<Scalar>& az_zmp,
-    //                                   const Vec2<Scalar>& v1,
-    //                                   const Vec2<Scalar>& v2, Scalar& az)
-    //                                   const;
+    std::vector<Vec2<Scalar>> vertices_;
+    Scalar inset_;
 };
 
 }  // namespace upright

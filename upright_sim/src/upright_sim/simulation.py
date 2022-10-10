@@ -14,7 +14,17 @@ import IPython
 
 # TODO rename to something like BulletObject
 class BulletBody:
-    def __init__(self, mass, mu, half_extents, collision_uid, visual_uid, position=None, orientation=None, com_offset=None):
+    def __init__(
+        self,
+        mass,
+        mu,
+        half_extents,
+        collision_uid,
+        visual_uid,
+        position=None,
+        orientation=None,
+        com_offset=None,
+    ):
         self.mass = mass
         self.mu = mu
         self.half_extents = half_extents
@@ -58,9 +68,6 @@ class BulletBody:
         # Bullet handle this internally
         pyb.changeDynamics(self.uid, -1, lateralFriction=self.mu)
 
-    # def get_aabb(self):
-    #     return np.array(pyb.getAABB(self.uid))
-
     def get_pose(self):
         """Get the pose of the object in the simulation."""
         pos, orn = pyb.getBasePositionAndOrientation(self.uid)
@@ -83,7 +90,9 @@ class BulletBody:
         pyb.changeVisualShape(self.uid, -1, rgbaColor=list(rgba))
 
     @staticmethod
-    def cylinder(mass, mu, radius, height, orientation=None, com_offset=None, color=(0, 0, 1, 1)):
+    def cylinder(
+        mass, mu, radius, height, orientation=None, com_offset=None, color=(0, 0, 1, 1)
+    ):
         """Construct a cylinder object."""
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_CYLINDER,
@@ -106,7 +115,9 @@ class BulletBody:
         )
 
     @staticmethod
-    def cuboid(mass, mu, side_lengths, orientation=None, com_offset=None, color=(0, 0, 1, 1)):
+    def cuboid(
+        mass, mu, side_lengths, orientation=None, com_offset=None, color=(0, 0, 1, 1)
+    ):
         """Construct a cuboid object."""
         half_extents = 0.5 * np.array(side_lengths)
         collision_uid = pyb.createCollisionShape(
@@ -150,13 +161,13 @@ class BulletBody:
         )
 
     @staticmethod
-    def fromdict(d, orientation=None):
+    def from_config(d, mu, orientation=None):
         """Construct the object from a dictionary."""
         com_offset = np.array(d["com_offset"]) if "com_offset" in d else np.zeros(3)
         if d["shape"] == "cylinder":
             return BulletBody.cylinder(
                 mass=d["mass"],
-                mu=d["mu"],
+                mu=mu,
                 radius=d["radius"],
                 height=d["height"],
                 color=d["color"],
@@ -166,7 +177,7 @@ class BulletBody:
         elif d["shape"] == "cuboid":
             return BulletBody.cuboid(
                 mass=d["mass"],
-                mu=d["mu"],
+                mu=mu,
                 side_lengths=d["side_lengths"],
                 color=d["color"],
                 orientation=orientation,
@@ -223,7 +234,9 @@ class BulletDynamicObstacle:
         if v is not None:
             self.v0 = v
 
-        pyb.resetBasePositionAndOrientation(self.body.uid, list(self.body.r0), [0, 0, 0, 1])
+        pyb.resetBasePositionAndOrientation(
+            self.body.uid, list(self.body.r0), [0, 0, 0, 1]
+        )
         pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
 
     def _desired_state(self, t):
@@ -272,43 +285,48 @@ class EEObject:
 def balanced_object_setup(r_ew_w, config):
     arrangement_name = config["arrangement"]
     arrangement = config["arrangements"][arrangement_name]
-    object_configs = config["objects"]
 
     # make "fake" EE object
-    ee_config = object_configs["ee"]
+    ee_config = config["objects"]["ee"]
     ee_position = r_ew_w + ee_config["position"]
     ee_side_lengths = np.array(ee_config["shape"]["side_lengths"])
     objects = {"ee": EEObject(ee_position, ee_side_lengths)}
 
-    for d in arrangement["objects"]:
-        obj_type = d["type"]
-        obj_config = config["objects"][obj_type]
-        if "orientation" in d:
-            orientation = np.array(d["orientation"])
+    mus = parsing.parse_mu_dict(arrangement["contacts"])
+
+    for obj_instance_conf in arrangement["objects"]:
+        obj_name = obj_instance_conf["name"]
+        if obj_name in objects:
+            raise ValueError(f"Multiple simulation objects named {obj_name}.")
+
+        obj_type = obj_instance_conf["type"]
+        obj_type_conf = config["objects"][obj_type]
+
+        if "orientation" in obj_instance_conf:
+            orientation = np.array(obj_instance_conf["orientation"])
             orientation = orientation / np.linalg.norm(orientation)
         else:
             orientation = np.array([0, 0, 0, 1])
 
-        obj = BulletBody.fromdict(obj_config, orientation)
-
-        parent = objects[d["parent"]]
-        obj.r0 = parent.r0.copy()
-        obj.r0[2] += 0.5 * parent.height + 0.5 * obj.height
+        parent_name = obj_instance_conf["parent"]
+        parent = objects[parent_name]
 
         # PyBullet calculates coefficient of friction between two
         # bodies by multiplying them. Thus, to achieve our actual
         # desired friction at the support we need to divide the desired
         # value by the parent value to get the simulated value.
-        obj.mu = obj.mu / parent.mu
+        real_mu = mus[parent_name][obj_name]
+        pyb_mu = real_mu / parent.mu
 
-        if "offset" in d:
-            obj.r0[:2] += parsing.parse_support_offset(d["offset"])
+        obj = BulletBody.from_config(obj_type_conf, mu=pyb_mu, orientation=orientation)
+
+        obj.r0 = parent.r0.copy()
+        obj.r0[2] += 0.5 * parent.height + 0.5 * obj.height
+
+        if "offset" in obj_instance_conf:
+            obj.r0[:2] += parsing.parse_support_offset(obj_instance_conf["offset"])
 
         obj.add_to_sim()
-
-        obj_name = d["name"]
-        if obj_name in objects:
-            raise ValueError(f"Multiple simulation objects named {obj_name}.")
         objects[obj_name] = obj
 
     # for debugging, generate contact points
@@ -325,7 +343,7 @@ def balanced_object_setup(r_ew_w, config):
     colors = [[0, 0, 0] for _ in contact_points]
     pyb.addUserDebugPoints([v for v in contact_points], colors, pointSize=10)
 
-    # get rid of EE "fake" object before returning
+    # get rid of "fake" EE object before returning
     objects.pop("ee")
 
     return objects

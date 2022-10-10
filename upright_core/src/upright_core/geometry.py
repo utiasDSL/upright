@@ -186,6 +186,9 @@ def wind_polygon_vertices(V):
 # TODO if we want to do a rigorous test (not just axis-aligned contact planes),
 # we need to check all contact normals (6) and pairs of cross products (9); see
 # <https://www.geometrictools.com/Documentation/DynamicCollisionDetection.pdf>
+#
+# we can also easily return a maximum penetration distance/minimum separation
+# distance as a generalization
 def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
     axes = np.eye(3)
     axis_idx = None

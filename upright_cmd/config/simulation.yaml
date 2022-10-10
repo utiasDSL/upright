@@ -30,7 +30,7 @@ static_obstacles:
       - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
 
 dynamic_obstacles:
-  enabled: true
+  enabled: false
   obstacles:
     # -
     #   controlled: true
@@ -53,55 +53,26 @@ objects:
       side_lengths: [0.23, 0.3, 0.064]
     position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
 
-  tray:
-    shape: cylinder
-    mass: 0.5
-    mu: 2.0
-    height: 0.02
-    radius: 0.2
-    color: [0, 0, 1, 1]
-
-  cup:
-    shape: cylinder
-    mass: 0.25
-    mu: 0.5
-    height: 0.2
-    radius: 0.04
-    color: [1, 0, 0, 1]
-
   bottle:
-    shape: "cuboid"
+    shape: cuboid
     mass: 0.5
-    mu: 0.15
     side_lengths: [0.065, 0.065, 0.15]
     color: [0, 0, 1, 1]
 
   foam_die:
-    shape: "cuboid"
+    shape: cuboid
     mass: 0.02
-    mu: 0.45
     side_lengths: [0.065, 0.065, 0.065]
     color: [0, 0, 1, 1]
 
   wood_block:
-    shape: "cuboid"
+    shape: cuboid
     mass: 0.18
-    mu: 0.27
     side_lengths: [0.103, 0.09, 0.038]
     color: [1, 0, 0, 0.9]
-
-  # TODO it would be nice 
-  # wood_block_long:
-  #   shape: "cuboid"
-  #   mass: 0.18
-  #   mu: 0.27
-  #   side_lengths: [0.103, 0.09, 0.038]
-  #   color: [1, 0, 0, 0.75]
-
 
   cube:
     shape: cuboid
     mass: 1.0
-    mu: 1.0
     side_lengths: [0.1, 0.1, 0.05]
     color: [1, 0, 0, 1]
