@@ -164,7 +164,8 @@ struct BoundedBalancedObject {
     size_t num_constraints() const {
         const size_t num_normal = 1;
         const size_t num_fric = 4;
-        const size_t num_zmp = 4 * support_area_min.num_constraints();
+        // const size_t num_zmp = 4 * support_area_min.num_constraints();
+        const size_t num_zmp = support_area_min.num_constraints();
         return num_normal + num_fric + num_zmp;
     }
 

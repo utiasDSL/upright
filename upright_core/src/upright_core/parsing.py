@@ -384,13 +384,13 @@ def parse_support_offset(d):
 #     return unwrapped_objects, contacts
 
 
-def _parse_objects_with_contacts(wrappers, contacts):
+def _parse_objects_with_contacts(wrappers, contact_config, inset):
     """
     wrappers is the dict of name: object wrappers
     neighbours is a list of pairs of names specifying objects in contact
     """
-    contacts = []
-    for contact in contacts:
+    contact_points = []
+    for contact in contact_config:
         name1 = contact["first"]
         name2 = contact["second"]
         mu = contact["mu"]
@@ -401,21 +401,29 @@ def _parse_objects_with_contacts(wrappers, contacts):
         points, normal = geometry.box_box_axis_aligned_contact(box1, box2)
 
         for i in range(points.shape[0]):
-            contact = ContactPoint()
-            contact.object1_name = name1
-            contact.object2_name = name2
-            contact.mu = mu
-            contact.normal = normal
+            contact_point = ContactPoint()
+            contact_point.object1_name = name1
+            contact_point.object2_name = name2
+            contact_point.mu = mu
+            contact_point.normal = normal
+
             # TODO this also assumes a zero CoM offset
-            contact.r_co_o1 = points[i, :] - box1.position
-            contact.r_co_o2 = points[i, :] - box2.position
-            contacts.append(contact)
+            r1 = points[i, :] - box1.position
+            r1[:2] = inset_vertex(r1[:2], inset)
+
+            r2 = points[i, :] - box2.position
+            r2[:2] = inset_vertex(r2[:2], inset)
+
+            contact_point.r_co_o1 = r1
+            contact_point.r_co_o2 = r2
+
+            contact_points.append(contact_point)
 
     wrappers.pop("ee")
     unwrapped_objects = {
         name: wrapper.balanced_object for name, wrapper in wrappers.items()
     }
-    return unwrapped_objects, contacts
+    return unwrapped_objects, contact_points
 
 
 def _parse_composite_objects(wrappers):
@@ -489,9 +497,24 @@ def compute_radii_of_gyration(shape_config, com_offset):
             mass=1, radius=shape_config["radius"], height=shape_config["height"]
         )
     elif type_ == "cuboid":
-        inertia = math.cuboid_inertia_matrix(mass=1, side_lengths=shape_config["side_lengths"])
+        inertia = math.cuboid_inertia_matrix(
+            mass=1, side_lengths=shape_config["side_lengths"]
+        )
     r_gyr = np.sqrt(np.diag(inertia))
     return r_gyr
+
+
+def inset_vertex(v, inset):
+    """Move a vertex v closer to the origin by inset distance to the origin
+
+    Raises a ValueError if `inset` is larger than `v`'s norm.
+
+    Returns the inset vertex.
+    """
+    d = np.linalg.norm(v)
+    if d <= inset:
+        raise ValueError(f"Inset of {inset} is too large for the support area.")
+    return (d - inset) * v / d
 
 
 def compute_support_area(box, parent_box, inset, tol=1e-6):
@@ -511,8 +534,7 @@ def compute_support_area(box, parent_box, inset, tol=1e-6):
     # TODO this approach is not too general for cylinders, where we may want
     # contacts with more than just their boxes
     points, _ = geometry.box_box_axis_aligned_contact(box, parent_box)
-    if inset < 0:
-        raise ValueError("Support area inset must be non-negative.")
+    assert inset >= 0, "Support area inset must be non-negative."
 
     # only support areas in the x-y plane are supported, check all z
     # coordinates are the same:
@@ -533,7 +555,12 @@ def compute_support_area(box, parent_box, inset, tol=1e-6):
     local_points = points - box.position
     local_points_xy = local_points[:, :2]
 
-    support_area = PolygonSupportArea(list(local_points_xy), inset=inset)
+    # apply inset
+    # TODO remove it from underlying class
+    for i in range(local_points_xy.shape[0]):
+        local_points_xy[i, :] = inset_vertex(local_points_xy[i, :], inset)
+
+    support_area = PolygonSupportArea(list(local_points_xy))
     r_tau = math.rectangle_r_tau(lengths[0], lengths[1])
     return support_area, r_tau
 
@@ -544,7 +571,7 @@ class SimpleWrapper:
         self.box = box
 
 
-def parse_balanced_object(config, offset_xy, orientation, parent_box, mu):
+def parse_balanced_object(config, offset_xy, orientation, parent_box, mu, sa_inset):
     C0 = math.quat_to_rot(orientation)
 
     mass = config["mass"]
@@ -575,18 +602,17 @@ def parse_balanced_object(config, offset_xy, orientation, parent_box, mu):
     # now we recompute the box with the correct centroid position
     box = compute_box(config["shape"], centroid_position, C0)
 
-    support_area, r_tau = compute_support_area(
-        box, parent_box, config["support_area_inset"]
-    )
+    support_area, r_tau = compute_support_area(box, parent_box, sa_inset)
     # TODO is this correct or should it be positive?
-    support_area = support_area.offset(-com_offset[:2])
+    # support_area = support_area.offset(-com_offset[:2])
+    support_area = support_area.offset(centroid_position[:2])
 
     body = BoundedRigidBody(
         mass_min=mass,
         mass_max=mass,
-        radii_of_gyration_min=np.diag(R_gyr),
-        radii_of_gyration_max=np.diag(R_gyr),
-        com_ellipsoid=Ellipsoid(com_position, np.zeros(3), np.eye(3)),
+        radii_of_gyration_min=r_gyr,
+        radii_of_gyration_max=r_gyr,
+        com_ellipsoid=Ellipsoid.point(com_position),
     )
     balanced_object = BoundedBalancedObject(
         body,
@@ -617,13 +643,15 @@ def parse_control_objects(ctrl_config):
     object_configs = ctrl_config["objects"]
 
     ee_config = object_configs["ee"]
-    ee_box = compute_box(ee_config["shape"], ee_config["position"])
+    ee_box = compute_box(ee_config["shape"], np.array(ee_config["position"]))
     wrappers = {"ee": SimpleWrapper(None, ee_box)}
 
     # Parse the dict of friction coefficients for each pair of contacting
     # objects
     # TODO would be nice to move this elsewhere
-    mus = parse_mu_dict(arrangement["contacts"])
+    contact_config = arrangement["contacts"]
+    mus = parse_mu_dict(contact_config)
+    sa_inset = arrangement.get("support_area_inset", 0)
 
     for conf in arrangement["objects"]:
         obj_name = conf["name"]
@@ -634,11 +662,8 @@ def parse_control_objects(ctrl_config):
         object_config = object_configs[obj_type]
 
         # object orientation (as a quaternion)
-        if "orientation" in conf:
-            orientation = np.array(conf["orientation"])
-            orientation = orientation / np.linalg.norm(orientation)
-        else:
-            orientation = np.array([0, 0, 0, 1])
+        orientation = conf.get("orientation", np.array([0, 0, 0, 1]))
+        orientation = orientation / np.linalg.norm(orientation)
 
         # get parent information and the coefficient of friction between the
         # two objects
@@ -651,7 +676,9 @@ def parse_control_objects(ctrl_config):
         if "offset" in conf:
             offset_xy = parse_support_offset(conf["offset"])
 
-        wrapper = parse_balanced_object(object_config, offset_xy, orientation, parent_box, mu)
+        wrapper = parse_balanced_object(
+            object_config, offset_xy, orientation, parent_box, mu, sa_inset
+        )
         wrapper.parent_name = parent_name
         wrappers[obj_name] = wrapper
 
@@ -675,7 +702,8 @@ def parse_control_objects(ctrl_config):
         # wrappers[obj_name] = wrapper
 
     if ctrl_config["balancing"]["use_force_constraints"]:
-        return _parse_objects_with_contacts(wrappers)
+        return _parse_objects_with_contacts(wrappers, contact_config, inset=sa_inset)
     else:
         composites = _parse_composite_objects(wrappers)
+        IPython.embed()
         return composites, []

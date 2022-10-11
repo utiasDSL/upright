@@ -153,16 +153,12 @@ objects:
     shape:
       type: cuboid
       side_lengths: [0.103, 0.09, 0.038]
-    support_area_inset: 0.0
     # for now we assume inertia is exact, but we should use parallel axis
     # theorem to account for com_offset
 
-  # TODO: do we want inset a property of the object class or the particular
-  # instance in an arrangement?
   foam_die:
     mass: 0.02
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
       side_lengths: [0.065, 0.065, 0.065]
-    support_area_inset: 0.0

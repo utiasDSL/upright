@@ -302,11 +302,8 @@ def balanced_object_setup(r_ew_w, config):
         obj_type = obj_instance_conf["type"]
         obj_type_conf = config["objects"][obj_type]
 
-        if "orientation" in obj_instance_conf:
-            orientation = np.array(obj_instance_conf["orientation"])
-            orientation = orientation / np.linalg.norm(orientation)
-        else:
-            orientation = np.array([0, 0, 0, 1])
+        orientation = obj_instance_conf.get("orientation", np.array([0, 0, 0, 1]))
+        orientation = orientation / np.linalg.norm(orientation)
 
         parent_name = obj_instance_conf["parent"]
         parent = objects[parent_name]
@@ -315,7 +312,7 @@ def balanced_object_setup(r_ew_w, config):
         # bodies by multiplying them. Thus, to achieve our actual
         # desired friction at the support we need to divide the desired
         # value by the parent value to get the simulated value.
-        real_mu = mus[parent_name][obj_name]
+        real_mu = mus[parent_name][obj_name] + 0.05
         pyb_mu = real_mu / parent.mu
 
         obj = BulletBody.from_config(obj_type_conf, mu=pyb_mu, orientation=orientation)

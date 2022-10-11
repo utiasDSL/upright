@@ -130,13 +130,12 @@ def main():
         # the jerk level ensures smoothness at the velocity level
         qd, vd, _ = mapping.xu2qva(xd_robot)
 
-        if use_direct_velocity_command:
-            v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, sim.timestep)
-            v_cmd = Kp @ (qd - q_noisy) + vd
-        else:
-            ud = u
-            v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, ud, sim.timestep)
-            v_cmd = v_ff
+        # if use_direct_velocity_command:
+        #     v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, sim.timestep)
+        #     v_cmd = Kp @ (qd - q_noisy) + vd
+        # else:
+        v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, sim.timestep)
+        v_cmd = v_ff
 
         sim.robot.command_velocity(v_cmd, bodyframe=False)
 

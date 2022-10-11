@@ -71,6 +71,7 @@ arrangements:
         second: block3
         mu: 0.27  # TODO measure
 
+
   # single water bottle
   bottle:
     objects:
@@ -78,8 +79,13 @@ arrangements:
         name: bottle1
         type: bottle
         offset:
-          x: 0.1
-          y: 0.07
+          y: -0.06
+    contacts:
+      -
+        first: ee
+        second: foam_die1
+        mu: 0.15
+
 
   # single foam die
   foam_die1:
@@ -87,20 +93,32 @@ arrangements:
       -
         name: foam_die1
         type: foam_die
+        parent: ee
         offset:
-          x: 0.1
-          y: 0.07
+          x: -0.1
+          y: -0.13
+    contacts:
+      -
+        first: ee
+        second: foam_die1
+        mu: 0.4
+
 
   # two foam dice stacked atop one another
   foam_die2:
+    support_area_inset: 0.01
     objects:
       -
         name: foam_die1
         type: foam_die
         parent: ee
         offset:
-          x: 0
-          y: -0.06
+          # x: 0
+          # y: -0.06
+          x: -0.1
+          y: -0.13
+          # x: -0.1
+          # y: -0.1
       -
         name: foam_die2
         type: foam_die

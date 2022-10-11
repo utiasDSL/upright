@@ -59,6 +59,7 @@ class Box3d:
 
 def orth2d(a):
     """Return vector `a` rotated by 90 degrees counter-clockwise."""
+    # equivalent to np.array([[0, -1], [1, 0]]) @ a
     return np.array([-a[1], a[0]])
 
 

@@ -93,7 +93,7 @@ PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::from_parameters(
     for (int i = 0; i < n / 2; ++i) {
         vertices.push_back(p.template segment<2>(index + i * 2));
     }
-    Scalar inset = p(n - 1);
+    Scalar inset = p(index + n - 1);
     return PolygonSupportArea(vertices, inset);
 }
 
@@ -126,7 +126,7 @@ template <typename Scalar>
 Scalar PolygonSupportArea<Scalar>::edge_zmp_constraint(
     const Vec2<Scalar>& zmp, const Vec2<Scalar>& v1, const Vec2<Scalar>& v2) const {
     Mat2<Scalar> S;
-    S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
+    S << Scalar(0), Scalar(-1), Scalar(1), Scalar(0);
 
     Vec2<Scalar> normal = S * (v2 - v1);  // inward-facing normal vector
 
@@ -135,7 +135,7 @@ Scalar PolygonSupportArea<Scalar>::edge_zmp_constraint(
     // should never be equal, so this should always be well-defined.
     normal = normal / normal.norm();
 
-    return -(zmp - v1).dot(normal) - inset_;
+    return normal.dot(zmp - v1) - inset_;
 }
 
 }  // namespace upright

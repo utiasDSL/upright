@@ -149,6 +149,8 @@ Vector<Scalar> bounded_friction_constraint(
     return friction_constraint;
 }
 
+// TODO can I sub in the nominal ZMP constraint here?
+
 template <typename Scalar>
 Vector<Scalar> bounded_zmp_constraint(
     const Mat3<Scalar>& ddC_we, const Mat3<Scalar>& C_ew,
@@ -156,77 +158,100 @@ Vector<Scalar> bounded_zmp_constraint(
     const Vec3<Scalar>& angular_acc, const Vec3<Scalar>& g,
     const BoundedBalancedObject<Scalar>& object, Scalar eps) {
     // Four constraints per edge
-    std::vector<PolygonEdge<Scalar>> edges = object.support_area_min.edges();
-    Vector<Scalar> zmp_constraints(edges.size() * 4);
+    // std::vector<PolygonEdge<Scalar>> edges = object.support_area_min.edges();
+    // Vector<Scalar> zmp_constraints(edges.size() * 4);
 
-    Vec3<Scalar> z = Vec3<Scalar>::UnitZ();
-    Eigen::Matrix<Scalar, 2, 3> S;
-    S << Scalar(0), Scalar(1), Scalar(0), Scalar(-1), Scalar(0), Scalar(0);
+    // Vec3<Scalar> z = Vec3<Scalar>::UnitZ();
+    // Eigen::Matrix<Scalar, 2, 3> S;
+    // S << Scalar(0), Scalar(1), Scalar(0), Scalar(-1), Scalar(0), Scalar(0);
     Mat3<Scalar> R2 = object.body.radii_of_gyration_matrix();
 
-    for (int i = 0; i < edges.size(); ++i) {
-        Vec3<Scalar> normal3;
-        normal3 << edges[i].normal, Scalar(0);
-        Scalar alpha_xy_max = opt_alpha_projection(
-            normal3, ddC_we, C_ew, linear_acc, g, object, eps, OptType::Max);
+    ////
 
-        // NOTE: very important to use a small epsilon here
-        // TODO: ideally, we could handle this at a lower level in CppAD
-        Scalar r_xy_max = optimize_linear_st_ellipsoid(
-            normal3,
-            -edges[i].normal.dot(object.body.com_ellipsoid.center().head(2) +
-                                 edges[i].v1),
-            object.body.com_ellipsoid, Scalar(1e-6), OptType::Max);
+    // TODO need alpha and beta
+    Scalar m = object.body.mass_min;
+    Vec3<Scalar> com = object.body.com_ellipsoid.center();
+    Vec3<Scalar> alpha =
+        m * C_ew * (linear_acc + ddC_we * com - g);
 
-        Vec3<Scalar> p = S.transpose() * edges[i].normal;
-        Scalar beta_xy_max;
-        if (object.body.has_exact_radii()) {
-            beta_xy_max =
-                beta_projection_exact(p, R2, C_ew, angular_vel, angular_acc);
-        } else {
-            beta_xy_max = max_beta_projection_approx(p, R2, C_ew, angular_vel,
-                                                     angular_acc, Scalar(1e-6));
-        }
+    Mat3<Scalar> C_we = C_we.transpose();
+    Mat3<Scalar> S_angular_vel = skew3<Scalar>(angular_vel);
+    Mat3<Scalar> It = m * R2;
+    Mat3<Scalar> Iw = C_we * It * C_ew;
+    Vec3<Scalar> beta =
+        C_ew * S_angular_vel * Iw * angular_vel + It * C_ew * angular_acc;
 
-        Scalar alpha_z_min = opt_alpha_projection(z, ddC_we, C_ew, linear_acc,
-                                                  g, object, eps, OptType::Min);
-        Scalar alpha_z_max = opt_alpha_projection(z, ddC_we, C_ew, linear_acc,
-                                                  g, object, eps, OptType::Max);
+    Eigen::Matrix<Scalar, 2, 2> S;
+    S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
+    Vec2<Scalar> zmp =
+        (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
+    return object.support_area_min.zmp_constraints(zmp);
 
-        if (object.body.has_exact_radii()) {
-            // When radii of gyration are exact, we remove the negative sign
-            // because we want to use the exact value of beta, rather than an
-            // upper bound. TODO as with the friction case, this can be handled
-            // better
-            zmp_constraints(i * 4) = beta_xy_max -
-                                     object.max_com_height() * alpha_xy_max -
-                                     alpha_z_max * r_xy_max;
-            zmp_constraints(i * 4 + 1) =
-                beta_xy_max - object.min_com_height() * alpha_xy_max -
-                alpha_z_max * r_xy_max;
-            zmp_constraints(i * 4 + 2) =
-                beta_xy_max - object.max_com_height() * alpha_xy_max -
-                alpha_z_min * r_xy_max;
-            zmp_constraints(i * 4 + 3) =
-                beta_xy_max - object.min_com_height() * alpha_xy_max -
-                alpha_z_min * r_xy_max;
-        } else {
-            zmp_constraints(i * 4) = -beta_xy_max -
-                                     object.max_com_height() * alpha_xy_max -
-                                     alpha_z_max * r_xy_max;
-            zmp_constraints(i * 4 + 1) =
-                -beta_xy_max - object.min_com_height() * alpha_xy_max -
-                alpha_z_max * r_xy_max;
-            zmp_constraints(i * 4 + 2) =
-                -beta_xy_max - object.max_com_height() * alpha_xy_max -
-                alpha_z_min * r_xy_max;
-            zmp_constraints(i * 4 + 3) =
-                -beta_xy_max - object.min_com_height() * alpha_xy_max -
-                alpha_z_min * r_xy_max;
-        }
-    }
+    ////
 
-    return zmp_constraints;
+    // for (int i = 0; i < edges.size(); ++i) {
+    //     Vec3<Scalar> normal3;
+    //     normal3 << edges[i].normal, Scalar(0);
+    //     Scalar alpha_xy_max = opt_alpha_projection(
+    //         normal3, ddC_we, C_ew, linear_acc, g, object, eps, OptType::Max);
+    //
+    //     // NOTE: very important to use a small epsilon here
+    //     // TODO: ideally, we could handle this at a lower level in CppAD
+    //     Scalar r_xy_max = optimize_linear_st_ellipsoid(
+    //         normal3,
+    //         -edges[i].normal.dot(object.body.com_ellipsoid.center().head(2) +
+    //                              edges[i].v1),
+    //         object.body.com_ellipsoid, Scalar(1e-6), OptType::Max);
+    //
+    //     Vec3<Scalar> p = S.transpose() * edges[i].normal;
+    //     Scalar beta_xy_max;
+    //     if (object.body.has_exact_radii()) {
+    //         beta_xy_max =
+    //             beta_projection_exact(p, R2, C_ew, angular_vel, angular_acc);
+    //     } else {
+    //         beta_xy_max = max_beta_projection_approx(p, R2, C_ew, angular_vel,
+    //                                                  angular_acc, Scalar(1e-6));
+    //     }
+    //
+    //     Scalar alpha_z_min = opt_alpha_projection(z, ddC_we, C_ew, linear_acc,
+    //                                               g, object, eps, OptType::Min);
+    //     Scalar alpha_z_max = opt_alpha_projection(z, ddC_we, C_ew, linear_acc,
+    //                                               g, object, eps, OptType::Max);
+    //
+    //     if (object.body.has_exact_radii()) {
+    //         // When radii of gyration are exact, we remove the negative sign
+    //         // because we want to use the exact value of beta, rather than an
+    //         // upper bound. TODO as with the friction case, this can be handled
+    //         // better
+    //         zmp_constraints(i * 4) = beta_xy_max -
+    //                                  object.max_com_height() * alpha_xy_max -
+    //                                  alpha_z_max * r_xy_max;
+    //         zmp_constraints(i * 4 + 1) =
+    //             beta_xy_max - object.min_com_height() * alpha_xy_max -
+    //             alpha_z_max * r_xy_max;
+    //         zmp_constraints(i * 4 + 2) =
+    //             beta_xy_max - object.max_com_height() * alpha_xy_max -
+    //             alpha_z_min * r_xy_max;
+    //         zmp_constraints(i * 4 + 3) =
+    //             beta_xy_max - object.min_com_height() * alpha_xy_max -
+    //             alpha_z_min * r_xy_max;
+    //     } else {
+    //         zmp_constraints(i * 4) = -beta_xy_max -
+    //                                  object.max_com_height() * alpha_xy_max -
+    //                                  alpha_z_max * r_xy_max;
+    //         zmp_constraints(i * 4 + 1) =
+    //             -beta_xy_max - object.min_com_height() * alpha_xy_max -
+    //             alpha_z_max * r_xy_max;
+    //         zmp_constraints(i * 4 + 2) =
+    //             -beta_xy_max - object.max_com_height() * alpha_xy_max -
+    //             alpha_z_min * r_xy_max;
+    //         zmp_constraints(i * 4 + 3) =
+    //             -beta_xy_max - object.min_com_height() * alpha_xy_max -
+    //             alpha_z_min * r_xy_max;
+    //     }
+    // }
+    //
+    // return zmp_constraints;
 }
 
 // TODO make this a member of the object class

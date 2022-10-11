@@ -17,9 +17,8 @@ struct ContactPoint {
     // Coefficient of friction
     Scalar mu;
 
-    // Position of the contact point in each object's local frame. The first
-    // object is the one at whose base the forces are acting.
-    // Used to compute the object dynamics.
+    // Position of the contact point in each object's local frame. Used to
+    // compute the object dynamics.
     Vec3<Scalar> r_co_o1;
     Vec3<Scalar> r_co_o2;
 

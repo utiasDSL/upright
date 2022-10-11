@@ -44,14 +44,16 @@ struct PolygonEdge {
 
     PolygonEdge(const Vec2<Scalar>& v1, const Vec2<Scalar>& v2)
         : v1(v1), v2(v2) {
+        // TODO would be nice to revise all this to use inward-facing normals
         Mat2<Scalar> S;
         S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
         normal = S * (v2 - v1);
+        normal = normal / normal.norm();
     }
 
     Vec2<Scalar> v1;
     Vec2<Scalar> v2;
-    Vec2<Scalar> normal;  // inward-facing
+    Vec2<Scalar> normal;  // outward-facing
 };
 
 template <typename Scalar>
