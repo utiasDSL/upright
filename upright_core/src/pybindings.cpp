@@ -42,21 +42,18 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("zmp", &BalanceConstraintsEnabled::zmp);
 
     pybind11::class_<PolygonSupportArea<Scalar>>(m, "PolygonSupportArea")
-        .def(pybind11::init<const std::vector<Vec2<Scalar>>&, Scalar>(),
-             "vertices"_a, "inset"_a = 0)
+        .def(pybind11::init<const std::vector<Vec2<Scalar>>&>(), "vertices"_a)
         .def("offset", &PolygonSupportArea<Scalar>::offset, "offset"_a)
-        .def("inset", &PolygonSupportArea<Scalar>::inset)
         .def("vertices", &PolygonSupportArea<Scalar>::vertices)
         .def("distance_outside", &PolygonSupportArea<Scalar>::distance_outside,
              "point"_a)
-        .def_static("circle", &PolygonSupportArea<Scalar>::circle, "radius"_a,
-                    "inset"_a)
+        .def_static("circle", &PolygonSupportArea<Scalar>::circle, "radius"_a)
         .def_static("equilateral_triangle",
                     &PolygonSupportArea<Scalar>::equilateral_triangle,
-                    "side_length"_a, "inset"_a)
+                    "side_length"_a)
         .def_static("axis_aligned_rectangle",
                     &PolygonSupportArea<Scalar>::axis_aligned_rectangle, "sx"_a,
-                    "sy"_a, "inset"_a);
+                    "sy"_a);
 
     pybind11::class_<Ellipsoid<Scalar>>(m, "Ellipsoid")
         .def(pybind11::init<const Vec3<Scalar>&, const std::vector<Scalar>&,

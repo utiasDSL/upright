@@ -468,7 +468,7 @@ def parse_local_half_extents(shape_config):
         r = shape_config["radius"]
         h = shape_config["height"]
         w = np.sqrt(2) * r
-        return np.array([w, w, 0.5 * h])
+        return 0.5 * np.array([w, w, h])
     raise ValueError(f"Unsupported shape type: {type_}")
 
 
@@ -516,6 +516,9 @@ def inset_vertex(v, inset):
         raise ValueError(f"Inset of {inset} is too large for the support area.")
     return (d - inset) * v / d
 
+def inset_vertex_abs(v, inset):
+    return v - np.sign(v) * inset
+
 
 def compute_support_area(box, parent_box, inset, tol=1e-6):
     """Compute the support area.
@@ -548,7 +551,7 @@ def compute_support_area(box, parent_box, inset, tol=1e-6):
     for i in range(-1, 3):
         lengths.append(np.linalg.norm(points[i + 1, :] - points[i, :]))
     assert (
-        lengths[0] == lengths[2] and lengths[1] == lengths[3]
+        abs(lengths[0] - lengths[2]) < tol and abs(lengths[1] - lengths[3]) < tol
     ), f"Support area is not rectangular!"
 
     # translate points to be relative to the box's centroid
@@ -558,7 +561,8 @@ def compute_support_area(box, parent_box, inset, tol=1e-6):
     # apply inset
     # TODO remove it from underlying class
     for i in range(local_points_xy.shape[0]):
-        local_points_xy[i, :] = inset_vertex(local_points_xy[i, :], inset)
+        # local_points_xy[i, :] = inset_vertex(local_points_xy[i, :], inset)
+        local_points_xy[i, :] = inset_vertex_abs(local_points_xy[i, :], inset)
 
     support_area = PolygonSupportArea(list(local_points_xy))
     r_tau = math.rectangle_r_tau(lengths[0], lengths[1])
@@ -604,8 +608,8 @@ def parse_balanced_object(config, offset_xy, orientation, parent_box, mu, sa_ins
 
     support_area, r_tau = compute_support_area(box, parent_box, sa_inset)
     # TODO is this correct or should it be positive?
-    # support_area = support_area.offset(-com_offset[:2])
-    support_area = support_area.offset(centroid_position[:2])
+    support_area = support_area.offset(-com_offset[:2])
+    # support_area = support_area.offset(centroid_position[:2])
 
     body = BoundedRigidBody(
         mass_min=mass,

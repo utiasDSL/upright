@@ -100,7 +100,6 @@ Vector<Scalar> bounded_friction_constraint(
     Mat3<Scalar> R2 = object.body.radii_of_gyration_matrix();
     Scalar beta_z_max;
     if (object.body.has_exact_radii()) {
-        // std::cerr << "BODY HAS EXACT RADII" << std::endl;
         beta_z_max =
             beta_projection_exact(z, R2, C_ew, angular_vel, angular_acc);
     } else {
@@ -149,8 +148,6 @@ Vector<Scalar> bounded_friction_constraint(
     return friction_constraint;
 }
 
-// TODO can I sub in the nominal ZMP constraint here?
-
 template <typename Scalar>
 Vector<Scalar> bounded_zmp_constraint(
     const Mat3<Scalar>& ddC_we, const Mat3<Scalar>& C_ew,
@@ -168,21 +165,22 @@ Vector<Scalar> bounded_zmp_constraint(
 
     ////
 
-    // TODO need alpha and beta
     Scalar m = object.body.mass_min;
     Vec3<Scalar> com = object.body.com_ellipsoid.center();
-    Vec3<Scalar> alpha =
-        m * C_ew * (linear_acc + ddC_we * com - g);
+    Vec3<Scalar> alpha = m * C_ew * (linear_acc + ddC_we * com - g);
 
     Mat3<Scalar> C_we = C_we.transpose();
     Mat3<Scalar> S_angular_vel = skew3<Scalar>(angular_vel);
-    Mat3<Scalar> It = m * R2;
-    Mat3<Scalar> Iw = C_we * It * C_ew;
+    Mat3<Scalar> Ie = m * R2;
+    Mat3<Scalar> Iw = C_we * Ie * C_ew;
     Vec3<Scalar> beta =
-        C_ew * S_angular_vel * Iw * angular_vel + It * C_ew * angular_acc;
+        C_ew * S_angular_vel * Iw * angular_vel + Ie * C_ew * angular_acc;
 
-    Eigen::Matrix<Scalar, 2, 2> S;
+    Mat2<Scalar> S;
     S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
+    // Vec2<Scalar> az_zmp = -object.com_height * alpha.head(2) - S * beta.head(2);
+    // return object.support_area_min.zmp_constraints_scaled(az_zmp, alpha(2));
+
     Vec2<Scalar> zmp =
         (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
     return object.support_area_min.zmp_constraints(zmp);

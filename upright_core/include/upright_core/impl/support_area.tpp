@@ -65,7 +65,6 @@ Vector<Scalar> PolygonSupportArea<Scalar>::get_parameters() const {
     for (int i = 0; i < vertices_.size(); ++i) {
         p.segment(i * 2, 2) = vertices_[i];
     }
-    p(n - 1) = inset_;
     return p;
 }
 
@@ -76,7 +75,7 @@ PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::offset(
     for (int i = 0; i < vertices_.size(); ++i) {
         offset_vertices.push_back(vertices_[i] + offset);
     }
-    return PolygonSupportArea<Scalar>(offset_vertices, inset_);
+    return PolygonSupportArea<Scalar>(offset_vertices);
 }
 
 template <typename Scalar>
@@ -84,7 +83,7 @@ PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::from_parameters(
     const Vector<Scalar>& p, const size_t index) {
     // Need at least three vertices in the support area
     size_t n = p.size() - index;
-    if (n < 2 * 3 + 1) {
+    if (n < 2 * 3) {
         throw std::runtime_error(
             "[PolygonSupportArea] Parameter vector is too small.");
     }
@@ -93,33 +92,32 @@ PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::from_parameters(
     for (int i = 0; i < n / 2; ++i) {
         vertices.push_back(p.template segment<2>(index + i * 2));
     }
-    Scalar inset = p(index + n - 1);
-    return PolygonSupportArea(vertices, inset);
+    return PolygonSupportArea(vertices);
 }
 
 // Square support area approximation to a circle
 template <typename Scalar>
-PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::circle(Scalar radius, Scalar inset) {
+PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::circle(Scalar radius) {
     Scalar side_length = Scalar(sqrt(2.0)) * radius;
     std::vector<Vec2<Scalar>> vertices =
         cuboid_support_vertices(side_length, side_length);
-    return PolygonSupportArea<Scalar>(vertices, inset);
+    return PolygonSupportArea<Scalar>(vertices);
 }
 
 // Equilateral triangle support area
 template <typename Scalar>
 PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::equilateral_triangle(
-    Scalar side_length, Scalar inset) {
+    Scalar side_length) {
     std::vector<Vec2<Scalar>> vertices =
         equilateral_triangle_support_vertices(side_length);
-    return PolygonSupportArea<Scalar>(vertices, inset);
+    return PolygonSupportArea<Scalar>(vertices);
 }
 
 template <typename Scalar>
 PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::axis_aligned_rectangle(
-    Scalar sx, Scalar sy, Scalar inset) {
+    Scalar sx, Scalar sy) {
     std::vector<Vec2<Scalar>> vertices = cuboid_support_vertices(sx, sy);
-    return PolygonSupportArea<Scalar>(vertices, inset);
+    return PolygonSupportArea<Scalar>(vertices);
 }
 
 template <typename Scalar>
@@ -135,7 +133,7 @@ Scalar PolygonSupportArea<Scalar>::edge_zmp_constraint(
     // should never be equal, so this should always be well-defined.
     normal = normal / normal.norm();
 
-    return normal.dot(zmp - v1) - inset_;
+    return normal.dot(zmp - v1);
 }
 
 }  // namespace upright

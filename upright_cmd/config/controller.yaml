@@ -111,42 +111,6 @@ objects:
       ly: 0.065
     height: 0.15
 
-  # foam_die_old:
-  #   mass:
-  #     min: 0.02
-  #     max: 0.02
-  #   com:
-  #     height: 0.0325
-  #     half_lengths: [0, 0, 0]  # these are for the uncertainty
-  #   radii_of_gyration:
-  #     use_exact:
-  #       shape: cuboid
-  #       side_lengths: [0.065, 0.065, 0.065]
-  #   mu_min: 0.4
-  #   support_area:
-  #     shape: rect
-  #     lx: 0.05
-  #     ly: 0.05
-  #   height: 0.065
-
-  # wood_block_old:
-  #   mass:
-  #     min: 0.18
-  #     max: 0.18
-  #   com:
-  #     height: 0.019
-  #     half_lengths: [0, 0, 0]
-  #   radii_of_gyration:
-  #     use_exact:
-  #       shape: cuboid
-  #       side_lengths: [0.103, 0.09, 0.038]
-  #   mu_min: 0.27
-  #   support_area:
-  #     shape: rect
-  #     lx: 0.103
-  #     ly: 0.09
-  #   height: 0.038
-
   wood_block:
     mass: 0.18
     com_offset: [0, 0, 0]  # relative to centroid of shape
@@ -162,3 +126,10 @@ objects:
     shape:
       type: cuboid
       side_lengths: [0.065, 0.065, 0.065]
+
+  tall_box:
+    mass: 0.04
+    com_offset: [0, 0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.065, 0.065, 0.13]

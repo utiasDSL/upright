@@ -76,3 +76,9 @@ objects:
     mass: 1.0
     side_lengths: [0.1, 0.1, 0.05]
     color: [1, 0, 0, 1]
+
+  tall_box:
+    shape: cuboid
+    mass: 0.04
+    side_lengths: [0.065, 0.065, 0.13]
+    color: [1, 0, 0, 0.9]

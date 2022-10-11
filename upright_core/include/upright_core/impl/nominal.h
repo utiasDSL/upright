@@ -121,10 +121,9 @@ Vec2<Scalar> compute_zmp(const Mat3<Scalar>& orientation,
 
     // tipping constraint
     Eigen::Matrix<Scalar, 2, 2> S;
-    S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
+    S << Scalar(0), Scalar(-1), Scalar(1), Scalar(0);
     Vec2<Scalar> zmp =
         (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
-    // Vector<Scalar> h3 = object.support_area_ptr->zmp_constraints(zmp);
     return zmp;
 }
 

@@ -132,3 +132,19 @@ arrangements:
         first: foam_die1
         second: foam_die2
         mu: 0.4  # TODO measure
+
+  tall_box:
+    support_area_inset: 0.01
+    objects:
+      -
+        name: box1
+        type: tall_box
+        parent: ee
+        offset:
+          x: -0.1
+          y: -0.13
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.4
