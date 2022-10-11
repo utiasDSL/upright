@@ -27,7 +27,7 @@ arrangements:
         type: cube
         parent: box1
 
-  experimental_boxes:
+  box_arch:
     objects:
       -
         name: block1
@@ -35,23 +35,20 @@ arrangements:
         orientation: [0.707, 0, 0, 0.707]
         parent: ee
         offset:
-          x: 0.08
-          y: 0.15
+          y: 0.03
       -
         name: block2
         type: wood_block
         orientation: [0.707, 0, 0, 0.707]
         parent: ee
         offset:
-          x: 0.08
-          y: 0.09
+          y: -0.03
       -
         name: block3
         type: wood_block
         orientation: [0, 0, 0.707, 0.707]
         parent: block2
         offset:
-          x: 0
           y: 0.03
     contacts:
       -
@@ -71,21 +68,20 @@ arrangements:
         second: block3
         mu: 0.27  # TODO measure
 
-
   # single water bottle
   bottle:
     objects:
       -
         name: bottle1
         type: bottle
+        parent: ee
         offset:
           y: -0.06
     contacts:
       -
         first: ee
-        second: foam_die1
+        second: bottle1
         mu: 0.15
-
 
   # single foam die
   foam_die1:
@@ -148,3 +144,29 @@ arrangements:
         first: ee
         second: box1
         mu: 0.4
+
+  bottle_and_tall_box:
+    objects:
+      -
+        name: box1
+        type: tall_box
+        parent: ee
+      -
+        name: bottle1
+        type: bottle
+        parent: ee
+        offset:
+          y: -0.065
+    contacts:
+      -
+        first: ee
+        second: bottle1
+        mu: 0.15
+      -
+        first: ee
+        second: box1
+        mu: 0.4
+      -
+        first: bottle1
+        second: box1
+        mu: 0.15

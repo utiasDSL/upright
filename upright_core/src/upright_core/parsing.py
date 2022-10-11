@@ -606,10 +606,12 @@ def parse_balanced_object(config, offset_xy, orientation, parent_box, mu, sa_ins
     # now we recompute the box with the correct centroid position
     box = compute_box(config["shape"], centroid_position, C0)
 
-    support_area, r_tau = compute_support_area(box, parent_box, sa_inset)
+    try:
+        support_area, r_tau = compute_support_area(box, parent_box, sa_inset)
+    except AssertionError:
+        IPython.embed()
     # TODO is this correct or should it be positive?
     support_area = support_area.offset(-com_offset[:2])
-    # support_area = support_area.offset(centroid_position[:2])
 
     body = BoundedRigidBody(
         mass_min=mass,
@@ -638,6 +640,10 @@ def parse_mu_dict(contact_config):
         else:
             mus[parent_name] = {child_name: contact["mu"]}
     return mus
+
+
+def parse_rigid_body():
+    pass
 
 
 def parse_control_objects(ctrl_config):
@@ -685,25 +691,6 @@ def parse_control_objects(ctrl_config):
         )
         wrapper.parent_name = parent_name
         wrappers[obj_name] = wrapper
-
-        # wrapper = BalancedObjectConfigWrapper(object_config, parent, orientation)
-        #
-        # # compute position of the object
-        # if wrapper.parent_name is not None:
-        #     parent = wrappers[wrapper.parent_name]
-        #     dz = 0.5 * parent.height + 0.5 * wrapper.height
-        #     wrapper.position = parent.position + [0, 0, dz]
-        # else:
-        #     dz = 0.5 * ee["height"] + 0.5 * wrapper.height
-        #     wrapper.position = np.array([0, 0, dz])
-        #
-        # # add offset in the x-y (support) plane
-        # wrapper.position[:2] += wrapper.offset
-        #
-        # obj_name = conf["name"]
-        # if obj_name in wrappers:
-        #     raise ValueError(f"Multiple control objects named {obj_name}.")
-        # wrappers[obj_name] = wrapper
 
     if ctrl_config["balancing"]["use_force_constraints"]:
         return _parse_objects_with_contacts(wrappers, contact_config, inset=sa_inset)

@@ -66,7 +66,8 @@ infofile:
   package: "upright_control"
   path: "config/mpc/task.info"
 
-# TODO: ideally would be able to extend other objects for easy experimentation
+# NOTE: for now we assume inertia is exact, but we should use parallel axis
+# theorem to account for com_offset
 objects:
   # EE is a special object
   ee:
@@ -76,40 +77,19 @@ objects:
     position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
 
   cube:
-    mass:
-      min: 1.0
-      max: 1.0
-    com:
-      height: 0.025
-      half_lengths: [0.0, 0.0, 0.0]
-    radii_of_gyration:
-      use_exact:
-        shape: cuboid
-        side_lengths: [0.1, 0.1, 0.05]
-    mu_min: 0.5
-    support_area:
-      shape: "rect"
-      lx: 0.1
-      ly: 0.1
-    height: 0.05
+    mass: 1.0
+    com_offset: [0, 0, 0]
+    shape:
+        type: cuboid
+        side_lengths: [0.1, 0.1, 0.01]
 
   bottle:
-    mass:
-      min: 0.5
-      max: 0.5
-    com:
-      height: 0.075
-      half_lengths: [0, 0, 0]  # these are for the uncertainty
-    radii_of_gyration:
-      use_exact:
-        shape: cuboid
-        side_lengths: [0.065, 0.065, 0.15]
-    mu_min: 0.15
-    support_area:
-      shape: rect
-      lx: 0.065
-      ly: 0.065
-    height: 0.15
+    mass: 0.5
+    com_offset: [0, 0, 0]
+    shape:
+      type: cylinder
+      radius: 0.0325
+      height: 0.15
 
   wood_block:
     mass: 0.18
@@ -117,8 +97,6 @@ objects:
     shape:
       type: cuboid
       side_lengths: [0.103, 0.09, 0.038]
-    # for now we assume inertia is exact, but we should use parallel axis
-    # theorem to account for com_offset
 
   foam_die:
     mass: 0.02

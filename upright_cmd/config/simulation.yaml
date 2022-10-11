@@ -54,10 +54,11 @@ objects:
     position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
 
   bottle:
-    shape: cuboid
+    shape: cylinder
     mass: 0.5
-    side_lengths: [0.065, 0.065, 0.15]
-    color: [0, 0, 1, 1]
+    radius: 0.0325
+    height: 0.15
+    color: [0, 0, 1, 0.9]
 
   foam_die:
     shape: cuboid

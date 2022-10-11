@@ -94,6 +94,17 @@ class BulletBody:
         mass, mu, radius, height, orientation=None, com_offset=None, color=(0, 0, 1, 1)
     ):
         """Construct a cylinder object."""
+        if orientation is None:
+            orientation = np.array([0, 0, 0, 1])
+
+        # for the cylinder, we rotate by 45 deg about z so that contacts occur
+        # aligned with x-y axes
+        qz = math.rot_to_quat(math.rotz(np.pi / 4))
+        q = math.quat_multiply(orientation, qz)
+
+        w = np.sqrt(2) * radius
+        half_extents = 0.5 * np.array([w, w, height])
+
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_CYLINDER,
             radius=radius,
@@ -108,9 +119,10 @@ class BulletBody:
         return BulletBody(
             mass=mass,
             mu=mu,
-            half_extents=np.array([radius, radius, 0.5 * half_extents]),
+            half_extents=half_extents,
             collision_uid=collision_uid,
             visual_uid=visual_uid,
+            orientation=q,
             com_offset=com_offset,
         )
 
