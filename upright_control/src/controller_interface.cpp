@@ -64,6 +64,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_sqp/MultipleShootingSettings.h>
 
 #include <upright_control/constraint/bounded_balancing_constraints.h>
+#include <upright_control/constraint/end_effector_box_constraint.h>
 #include <upright_control/constraint/joint_state_input_limits.h>
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/constraint/state_to_state_input_constraint.h>
@@ -293,9 +294,29 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         settings_.dims.x(), settings_.dims.u(), "end_effector_kinematics",
         libraryFolder, recompileLibraries, false);
 
+    // End effector pose cost
+    std::unique_ptr<ocs2::StateCost> end_effector_cost(new EndEffectorCost(
+        settings_.end_effector_weight, end_effector_kinematics));
     problem_.stateCostPtr->add("end_effector_cost",
-                               getEndEffectorCost(end_effector_kinematics));
+                               std::move(end_effector_cost));
 
+    // End effector position box constraint
+    // TODO add to settings
+    VecXd xyz_lower(3);
+    xyz_lower << -1, -1, -0.5;
+    VecXd xyz_upper(3);
+    xyz_upper << 1, 1, 0.5;
+
+    std::unique_ptr<ocs2::StateConstraint> end_effector_box_constraint(
+        new EndEffectorBoxConstraint(xyz_lower, xyz_upper,
+                                     end_effector_kinematics,
+                                     *referenceManagerPtr_));
+    problem_.inequalityConstraintPtr->add(
+        "end_effector_box_constraint",
+        std::unique_ptr<ocs2::StateInputConstraint>(
+            new StateToStateInputConstraint(*end_effector_box_constraint)));
+
+    // Inertial alignment cost
     if (settings_.inertial_alignment_settings.enabled) {
         std::unique_ptr<ocs2::StateInputCost> inertial_alignment_cost(
             new InertialAlignmentCost(end_effector_kinematics,
@@ -415,8 +436,8 @@ std::unique_ptr<ocs2::StateCost> ControllerInterface::getEndEffectorCost(
     MatXd W = settings_.end_effector_weight;
     std::cout << "W: " << W << std::endl;
 
-    return std::unique_ptr<ocs2::StateCost>(new EndEffectorCost(
-        std::move(W), end_effector_kinematics, *referenceManagerPtr_));
+    return std::unique_ptr<ocs2::StateCost>(
+        new EndEffectorCost(std::move(W), end_effector_kinematics));
 }
 
 std::unique_ptr<ocs2::StateInputConstraint>
@@ -427,9 +448,9 @@ ControllerInterface::get_balancing_constraint(
         new NominalBalancingConstraints(
             end_effector_kinematics, settings_.balancing_settings,
             settings_.gravity, settings_.dims, recompileLibraries));
-        // new BoundedBalancingConstraints(
-        //     end_effector_kinematics, settings_.balancing_settings,
-        //     settings_.gravity, settings_.dims, recompileLibraries));
+    // new BoundedBalancingConstraints(
+    //     end_effector_kinematics, settings_.balancing_settings,
+    //     settings_.gravity, settings_.dims, recompileLibraries));
 }
 
 std::unique_ptr<ocs2::StateInputCost>

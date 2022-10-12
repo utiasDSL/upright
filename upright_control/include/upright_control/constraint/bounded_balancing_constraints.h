@@ -16,7 +16,6 @@ struct BalancingSettings {
     bool enabled = false;
 
     BalanceConstraintsEnabled constraints_enabled;
-    // std::map<std::string, BoundedBalancedObject<ocs2::scalar_t>> objects;
     std::map<std::string, BalancedObject<ocs2::scalar_t>> objects;
 
     // True if the constraints should be based on contact forces between the
