@@ -110,3 +110,22 @@ def cuboid_inertia_matrix(mass, side_lengths):
     yy = lx ** 2 + lz ** 2
     zz = lx ** 2 + ly ** 2
     return mass * np.diag([xx, yy, zz]) / 12.0
+
+
+def inset_vertex(v, inset):
+    """Move a vertex v closer to the origin by inset distance to the origin
+
+    Raises a ValueError if `inset` is larger than `v`'s norm.
+
+    Returns the inset vertex.
+    """
+    d = np.linalg.norm(v)
+    if d <= inset:
+        raise ValueError(f"Inset of {inset} is too large for the support area.")
+    return (d - inset) * v / d
+
+
+def inset_vertex_abs(v, inset):
+    if (np.abs(v) <= inset).any():
+        raise ValueError(f"Inset of {inset} is too large for the support area.")
+    return v - np.sign(v) * inset

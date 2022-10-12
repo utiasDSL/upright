@@ -161,6 +161,7 @@ VecX<Scalar> bounded_zmp_constraint(
     // Vec3<Scalar> z = Vec3<Scalar>::UnitZ();
     // Eigen::Matrix<Scalar, 2, 3> S;
     // S << Scalar(0), Scalar(1), Scalar(0), Scalar(-1), Scalar(0), Scalar(0);
+    throw std::runtime_error("Bounded ZMP constraint not currently supported!");
     Mat3<Scalar> R2 = object.body.radii_of_gyration_matrix();
 
     ////

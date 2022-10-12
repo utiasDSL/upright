@@ -163,9 +163,7 @@ def main():
 
             model.update(x, u)
             logger.append("ddC_we_norm", model.ddC_we_norm())
-            if not model.is_using_force_constraints():
-                # TODO: SA not current supported in contact force mode
-                logger.append("sa_dists", model.support_area_distances())
+            logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
             logger.append("balancing_constraints", model.balancing_constraints())
 

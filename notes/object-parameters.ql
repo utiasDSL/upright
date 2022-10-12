@@ -1,5 +1,8 @@
 = Object Parameters =
 
+== Restaurant tray ==
+* Mass: 493g
+
 == Fiji water bottle ==
 * Mass: ~500 g (needs confirmation)
 * Width: ~65 mm
