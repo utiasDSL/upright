@@ -12,7 +12,7 @@
 
 // we include this directly here rather than from ellipsoid.h because other
 // compilation units complain about the C++14 features imported there
-#include "upright_core/impl/bounding_ellipsoid.tpp"
+// #include "upright_core/impl/bounding_ellipsoid.tpp"
 
 using namespace pybind11::literals;
 using namespace upright;
@@ -59,57 +59,62 @@ PYBIND11_MODULE(bindings, m) {
                     &PolygonSupportArea<Scalar>::axis_aligned_rectangle, "sx"_a,
                     "sy"_a);
 
-    pybind11::class_<Ellipsoid<Scalar>>(m, "Ellipsoid")
-        .def(pybind11::init<const Vec3<Scalar>&, const std::vector<Scalar>&,
-                            const std::vector<Vec3<Scalar>>&>(),
-             "center"_a, "half_lengths_vec"_a, "directions_vec"_a)
-        .def("center", &Ellipsoid<Scalar>::center)
-        .def("half_lengths", &Ellipsoid<Scalar>::half_lengths)
-        .def("directions", &Ellipsoid<Scalar>::directions)
-        .def("rank", &Ellipsoid<Scalar>::rank)
-        .def("rangespace", &Ellipsoid<Scalar>::rangespace)
-        .def("nullspace", &Ellipsoid<Scalar>::nullspace)
-        .def("E", &Ellipsoid<Scalar>::E)
-        .def("Einv", &Ellipsoid<Scalar>::Einv)
-        .def("scaled", &Ellipsoid<Scalar>::scaled, "a"_a)
-        .def("contains", &Ellipsoid<Scalar>::contains, "x"_a)
-        .def("sample", &Ellipsoid<Scalar>::sample, "boundary"_a = false)
-        .def_static("point", &Ellipsoid<Scalar>::point, "center"_a)
-        .def_static("segment", &Ellipsoid<Scalar>::segment, "v1"_a, "v2"_a)
-        .def_static("bounding", &Ellipsoid<Scalar>::bounding, "points"_a,
-                    "eps"_a);
+    // pybind11::class_<Ellipsoid<Scalar>>(m, "Ellipsoid")
+    //     .def(pybind11::init<const Vec3<Scalar>&, const std::vector<Scalar>&,
+    //                         const std::vector<Vec3<Scalar>>&>(),
+    //          "center"_a, "half_lengths_vec"_a, "directions_vec"_a)
+    //     .def("center", &Ellipsoid<Scalar>::center)
+    //     .def("half_lengths", &Ellipsoid<Scalar>::half_lengths)
+    //     .def("directions", &Ellipsoid<Scalar>::directions)
+    //     .def("rank", &Ellipsoid<Scalar>::rank)
+    //     .def("rangespace", &Ellipsoid<Scalar>::rangespace)
+    //     .def("nullspace", &Ellipsoid<Scalar>::nullspace)
+    //     .def("E", &Ellipsoid<Scalar>::E)
+    //     .def("Einv", &Ellipsoid<Scalar>::Einv)
+    //     .def("scaled", &Ellipsoid<Scalar>::scaled, "a"_a)
+    //     .def("contains", &Ellipsoid<Scalar>::contains, "x"_a)
+    //     .def("sample", &Ellipsoid<Scalar>::sample, "boundary"_a = false)
+    //     .def_static("point", &Ellipsoid<Scalar>::point, "center"_a)
+    //     .def_static("segment", &Ellipsoid<Scalar>::segment, "v1"_a, "v2"_a)
+    //     .def_static("bounding", &Ellipsoid<Scalar>::bounding, "points"_a,
+    //                 "eps"_a);
 
-    pybind11::class_<BoundedRigidBody<Scalar>>(m, "BoundedRigidBody")
-        .def(pybind11::init<const Scalar&, const Scalar&, const Vec3<Scalar>&,
-                            const Vec3<Scalar>&, const Ellipsoid<Scalar>&>(),
-             "mass_min"_a, "mass_max"_a, "radii_of_gyration_min"_a,
-             "radii_of_gyration_max"_a, "com_ellipsoid"_a)
-        .def("sample", &BoundedRigidBody<Scalar>::sample, "boundary"_a = false)
-        .def("is_exact", &BoundedRigidBody<Scalar>::is_exact)
-        .def_static("combined_rank", &BoundedRigidBody<Scalar>::combined_rank,
-                    "bodies"_a)
-        .def_readonly("mass_min", &BoundedRigidBody<Scalar>::mass_min)
-        .def_readonly("mass_max", &BoundedRigidBody<Scalar>::mass_max)
-        .def_readonly("radii_of_gyration_min",
-                      &BoundedRigidBody<Scalar>::radii_of_gyration_min)
-        .def_readonly("radii_of_gyration_max",
-                      &BoundedRigidBody<Scalar>::radii_of_gyration_max)
-        .def_readonly("com_ellipsoid",
-                      &BoundedRigidBody<Scalar>::com_ellipsoid);
-
-    pybind11::class_<BoundedBalancedObject<Scalar>>(m, "BoundedBalancedObject")
-        .def(
-            pybind11::init<const BoundedRigidBody<Scalar>&, Scalar,
-                           const PolygonSupportArea<Scalar>&, Scalar, Scalar>(),
-            "body"_a, "com_height"_a, "support_area_min"_a, "r_tau_min"_a,
-            "mu_min"_a)
-        .def("get_parameters", &BoundedBalancedObject<Scalar>::get_parameters)
-        .def_readonly("body", &BoundedBalancedObject<Scalar>::body)
-        .def_readonly("com_height", &BoundedBalancedObject<Scalar>::com_height)
-        .def_readonly("support_area_min",
-                      &BoundedBalancedObject<Scalar>::support_area_min)
-        .def_readonly("r_tau_min", &BoundedBalancedObject<Scalar>::r_tau_min)
-        .def_readonly("mu_min", &BoundedBalancedObject<Scalar>::mu_min);
+    // pybind11::class_<BoundedRigidBody<Scalar>>(m, "BoundedRigidBody")
+    //     .def(pybind11::init<const Scalar&, const Scalar&, const
+    //     Vec3<Scalar>&,
+    //                         const Vec3<Scalar>&, const Ellipsoid<Scalar>&>(),
+    //          "mass_min"_a, "mass_max"_a, "radii_of_gyration_min"_a,
+    //          "radii_of_gyration_max"_a, "com_ellipsoid"_a)
+    //     .def("sample", &BoundedRigidBody<Scalar>::sample, "boundary"_a =
+    //     false) .def("is_exact", &BoundedRigidBody<Scalar>::is_exact)
+    //     .def_static("combined_rank",
+    //     &BoundedRigidBody<Scalar>::combined_rank,
+    //                 "bodies"_a)
+    //     .def_readonly("mass_min", &BoundedRigidBody<Scalar>::mass_min)
+    //     .def_readonly("mass_max", &BoundedRigidBody<Scalar>::mass_max)
+    //     .def_readonly("radii_of_gyration_min",
+    //                   &BoundedRigidBody<Scalar>::radii_of_gyration_min)
+    //     .def_readonly("radii_of_gyration_max",
+    //                   &BoundedRigidBody<Scalar>::radii_of_gyration_max)
+    //     .def_readonly("com_ellipsoid",
+    //                   &BoundedRigidBody<Scalar>::com_ellipsoid);
+    //
+    // pybind11::class_<BoundedBalancedObject<Scalar>>(m,
+    // "BoundedBalancedObject")
+    //     .def(
+    //         pybind11::init<const BoundedRigidBody<Scalar>&, Scalar,
+    //                        const PolygonSupportArea<Scalar>&, Scalar,
+    //                        Scalar>(),
+    //         "body"_a, "com_height"_a, "support_area_min"_a, "r_tau_min"_a,
+    //         "mu_min"_a)
+    //     .def("get_parameters",
+    //     &BoundedBalancedObject<Scalar>::get_parameters) .def_readonly("body",
+    //     &BoundedBalancedObject<Scalar>::body) .def_readonly("com_height",
+    //     &BoundedBalancedObject<Scalar>::com_height)
+    //     .def_readonly("support_area_min",
+    //                   &BoundedBalancedObject<Scalar>::support_area_min)
+    //     .def_readonly("r_tau_min", &BoundedBalancedObject<Scalar>::r_tau_min)
+    //     .def_readonly("mu_min", &BoundedBalancedObject<Scalar>::mu_min);
 
     pybind11::class_<ContactPoint<Scalar>>(m, "ContactPoint")
         .def(pybind11::init<>())
@@ -120,6 +125,22 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("r_co_o2", &ContactPoint<Scalar>::r_co_o2)
         .def_readwrite("normal", &ContactPoint<Scalar>::normal);
 
+    pybind11::class_<Pose<Scalar>>(m, "Pose")
+        .def(pybind11::init<>())
+        .def_readwrite("position", &Pose<Scalar>::position)
+        .def_readwrite("orientation", &Pose<Scalar>::orientation);
+
+    pybind11::class_<Twist<Scalar>>(m, "Twist")
+        .def(pybind11::init<>())
+        .def_readwrite("linear", &Twist<Scalar>::linear)
+        .def_readwrite("angular", &Twist<Scalar>::angular);
+
+    pybind11::class_<RigidBodyState<Scalar>>(m, "RigidBodyState")
+        .def(pybind11::init<>())
+        .def_readwrite("pose", &RigidBodyState<Scalar>::pose)
+        .def_readwrite("velocity", &RigidBodyState<Scalar>::velocity)
+        .def_readwrite("acceleration", &RigidBodyState<Scalar>::acceleration);
+
     pybind11::class_<BalancedObjectArrangement<Scalar>>(
         m, "BalancedObjectArrangement")
         .def(
@@ -127,17 +148,17 @@ PYBIND11_MODULE(bindings, m) {
                            const Vec3<Scalar>&>())
         .def("balancing_constraints",
              &BalancedObjectArrangement<Scalar>::balancing_constraints,
-             "orientation"_a, "angular_vel"_a, "linear_acc"_a, "angular_acc"_a);
+             "state"_a);
 
-    // Compute balancing constraints for the list of objects given
-    m.def("balancing_constraints",
-          [](const std::vector<BoundedBalancedObject<Scalar>> objects,
-             const Vec3<Scalar>& gravity, const Mat3<Scalar>& orientation,
-             const Vec3<Scalar>& angular_vel, const Vec3<Scalar>& linear_acc,
-             const Vec3<Scalar>& angular_acc) {
-              BalanceConstraintsEnabled enabled;  // default: all enabled
-              return balancing_constraints(objects, gravity, enabled,
-                                           orientation, angular_vel, linear_acc,
-                                           angular_acc);
-          });
+    // // Compute balancing constraints for the list of objects given
+    // m.def("balancing_constraints",
+    //       [](const std::vector<BoundedBalancedObject<Scalar>> objects,
+    //          const Vec3<Scalar>& gravity, const Mat3<Scalar>& orientation,
+    //          const Vec3<Scalar>& angular_vel, const Vec3<Scalar>& linear_acc,
+    //          const Vec3<Scalar>& angular_acc) {
+    //           BalanceConstraintsEnabled enabled;  // default: all enabled
+    //           return balancing_constraints(objects, gravity, enabled,
+    //                                        orientation, angular_vel,
+    //                                        linear_acc, angular_acc);
+    //       });
 }

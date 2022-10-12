@@ -69,12 +69,12 @@ Scalar opt_alpha_projection(const Vec3<Scalar>& p, const Mat3<Scalar>& ddC_we,
 }
 
 template <typename Scalar>
-Vector<Scalar> bounded_contact_constraint(
+VecX<Scalar> bounded_contact_constraint(
     const Mat3<Scalar>& ddC_we, const Mat3<Scalar>& C_ew,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& g,
     const BoundedBalancedObject<Scalar>& object, Scalar eps) {
     Vec3<Scalar> z = Vec3<Scalar>::UnitZ();
-    Vector<Scalar> contact_constraint(1);
+    VecX<Scalar> contact_constraint(1);
     contact_constraint << opt_alpha_projection(z, ddC_we, C_ew, linear_acc, g,
                                                object, eps, OptType::Min);
     return contact_constraint;
@@ -90,7 +90,7 @@ Mat3<Scalar> rotation_matrix_second_derivative(
 }
 
 template <typename Scalar>
-Vector<Scalar> bounded_friction_constraint(
+VecX<Scalar> bounded_friction_constraint(
     const Mat3<Scalar>& ddC_we, const Mat3<Scalar>& C_ew,
     const Vec3<Scalar>& angular_vel, const Vec3<Scalar>& linear_acc,
     const Vec3<Scalar>& angular_acc, const Vec3<Scalar>& g,
@@ -124,7 +124,7 @@ Vector<Scalar> bounded_friction_constraint(
     Scalar min4 = opt_alpha_projection(c4, ddC_we, C_ew, linear_acc, g, object,
                                        eps, OptType::Min);
 
-    Vector<Scalar> friction_constraint = Vector<Scalar>::Ones(4);
+    VecX<Scalar> friction_constraint = VecX<Scalar>::Ones(4);
 
     // TODO hopefully come up with a more elegant way to handle the exact case
     if (object.body.has_exact_radii()) {
@@ -149,14 +149,14 @@ Vector<Scalar> bounded_friction_constraint(
 }
 
 template <typename Scalar>
-Vector<Scalar> bounded_zmp_constraint(
+VecX<Scalar> bounded_zmp_constraint(
     const Mat3<Scalar>& ddC_we, const Mat3<Scalar>& C_ew,
     const Vec3<Scalar>& angular_vel, const Vec3<Scalar>& linear_acc,
     const Vec3<Scalar>& angular_acc, const Vec3<Scalar>& g,
     const BoundedBalancedObject<Scalar>& object, Scalar eps) {
     // Four constraints per edge
     // std::vector<PolygonEdge<Scalar>> edges = object.support_area_min.edges();
-    // Vector<Scalar> zmp_constraints(edges.size() * 4);
+    // VecX<Scalar> zmp_constraints(edges.size() * 4);
 
     // Vec3<Scalar> z = Vec3<Scalar>::UnitZ();
     // Eigen::Matrix<Scalar, 2, 3> S;
@@ -178,8 +178,9 @@ Vector<Scalar> bounded_zmp_constraint(
 
     Mat2<Scalar> S;
     S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
-    // Vec2<Scalar> az_zmp = -object.com_height * alpha.head(2) - S * beta.head(2);
-    // return object.support_area_min.zmp_constraints_scaled(az_zmp, alpha(2));
+    // Vec2<Scalar> az_zmp = -object.com_height * alpha.head(2) - S *
+    // beta.head(2); return
+    // object.support_area_min.zmp_constraints_scaled(az_zmp, alpha(2));
 
     Vec2<Scalar> zmp =
         (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
@@ -207,19 +208,26 @@ Vector<Scalar> bounded_zmp_constraint(
     //         beta_xy_max =
     //             beta_projection_exact(p, R2, C_ew, angular_vel, angular_acc);
     //     } else {
-    //         beta_xy_max = max_beta_projection_approx(p, R2, C_ew, angular_vel,
-    //                                                  angular_acc, Scalar(1e-6));
+    //         beta_xy_max = max_beta_projection_approx(p, R2, C_ew,
+    //         angular_vel,
+    //                                                  angular_acc,
+    //                                                  Scalar(1e-6));
     //     }
     //
-    //     Scalar alpha_z_min = opt_alpha_projection(z, ddC_we, C_ew, linear_acc,
-    //                                               g, object, eps, OptType::Min);
-    //     Scalar alpha_z_max = opt_alpha_projection(z, ddC_we, C_ew, linear_acc,
-    //                                               g, object, eps, OptType::Max);
+    //     Scalar alpha_z_min = opt_alpha_projection(z, ddC_we, C_ew,
+    //     linear_acc,
+    //                                               g, object, eps,
+    //                                               OptType::Min);
+    //     Scalar alpha_z_max = opt_alpha_projection(z, ddC_we, C_ew,
+    //     linear_acc,
+    //                                               g, object, eps,
+    //                                               OptType::Max);
     //
     //     if (object.body.has_exact_radii()) {
     //         // When radii of gyration are exact, we remove the negative sign
     //         // because we want to use the exact value of beta, rather than an
-    //         // upper bound. TODO as with the friction case, this can be handled
+    //         // upper bound. TODO as with the friction case, this can be
+    //         handled
     //         // better
     //         zmp_constraints(i * 4) = beta_xy_max -
     //                                  object.max_com_height() * alpha_xy_max -
@@ -254,7 +262,7 @@ Vector<Scalar> bounded_zmp_constraint(
 
 // TODO make this a member of the object class
 template <typename Scalar>
-Vector<Scalar> bounded_balancing_constraints_single(
+VecX<Scalar> bounded_balancing_constraints_single(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
     const BoundedBalancedObject<Scalar>& object, const Vec3<Scalar>& gravity,
@@ -269,16 +277,16 @@ Vector<Scalar> bounded_balancing_constraints_single(
     Scalar eps(1e-6);
 
     // normal contact constraint
-    Vector<Scalar> g_con = bounded_contact_constraint(ddC_we, C_ew, linear_acc,
-                                                      gravity, object, eps);
+    VecX<Scalar> g_con = bounded_contact_constraint(ddC_we, C_ew, linear_acc,
+                                                    gravity, object, eps);
 
     // friction constraint
-    Vector<Scalar> g_fric =
+    VecX<Scalar> g_fric =
         bounded_friction_constraint(ddC_we, C_ew, angular_vel, linear_acc,
                                     angular_acc, gravity, object, eps);
 
     // tipping constraint
-    Vector<Scalar> g_zmp =
+    VecX<Scalar> g_zmp =
         bounded_zmp_constraint(ddC_we, C_ew, angular_vel, linear_acc,
                                angular_acc, gravity, object, eps);
 
@@ -292,7 +300,7 @@ Vector<Scalar> bounded_balancing_constraints_single(
         g_zmp.setZero();
     }
 
-    Vector<Scalar> g_bal(object.num_constraints());
+    VecX<Scalar> g_bal(object.num_constraints());
     g_bal << g_con, g_fric, g_zmp;
     return g_bal;
 }
@@ -318,16 +326,16 @@ size_t num_balancing_constraints(
 }
 
 template <typename Scalar>
-Vector<Scalar> balancing_constraints(
+VecX<Scalar> balancing_constraints(
     const std::vector<BoundedBalancedObject<Scalar>>& objects,
     const Vec3<Scalar>& gravity, const BalanceConstraintsEnabled& enabled,
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc) {
-    Vector<Scalar> constraints(num_balancing_constraints(objects));
+    VecX<Scalar> constraints(num_balancing_constraints(objects));
 
     size_t index = 0;
     for (const auto& object : objects) {
-        Vector<Scalar> v = bounded_balancing_constraints_single(
+        VecX<Scalar> v = bounded_balancing_constraints_single(
             orientation, angular_vel, linear_acc, angular_acc, object, gravity,
             enabled);
         constraints.segment(index, v.rows()) = v;

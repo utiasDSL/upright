@@ -44,7 +44,7 @@ struct Ellipsoid {
 
         // Fill remaining directions with the nullspace vectors
         if (rank_ < 3) {
-            Matrix<Scalar> kernel =
+            MatX<Scalar> kernel =
                 directions_.leftCols(rank_).transpose().fullPivLu().kernel();
             directions_.rightCols(3 - rank_) = kernel;
         }
@@ -59,9 +59,9 @@ struct Ellipsoid {
     // TODO possibly rename to .matrix() and remove Einv method
     Mat3<Scalar> E() const { return directions_ * D * directions_.transpose(); }
 
-    Matrix<Scalar> rangespace() const { return directions_.leftCols(rank_); }
+    MatX<Scalar> rangespace() const { return directions_.leftCols(rank_); }
 
-    Matrix<Scalar> nullspace() const {
+    MatX<Scalar> nullspace() const {
         return directions_.rightCols(3 - rank_);
     }
 
@@ -95,7 +95,7 @@ struct Ellipsoid {
         Vec3<Scalar> delta = x - center();
         bool outside_nullspace = true;
         if (rank_ < 3) {
-            Vector<Scalar> nullspace_projection =
+            VecX<Scalar> nullspace_projection =
                 nullspace().transpose() * delta;
             outside_nullspace = nullspace_projection.isZero(NEAR_ZERO);
         }
@@ -108,7 +108,7 @@ struct Ellipsoid {
     // sample points from the boundary of the ellipsoid.
     Vec3<Scalar> sample(bool boundary = false) const {
         // Generate a random unit vector in the range space of the ellipsoid
-        Vector<Scalar> rand = Vector<Scalar>::Random(rank_);
+        VecX<Scalar> rand = VecX<Scalar>::Random(rank_);
         Vec3<Scalar> direction =
             (directions_.leftCols(rank_) * rand).normalized();
 
@@ -135,7 +135,7 @@ struct Ellipsoid {
     // their center points.
     static size_t combined_rank(
         const std::vector<Ellipsoid<Scalar>>& ellipsoids) {
-        Matrix<Scalar> A(4 * ellipsoids.size(), 3);
+        MatX<Scalar> A(4 * ellipsoids.size(), 3);
 
         Vec3<Scalar> c = ellipsoids[0].center();
 
@@ -160,18 +160,18 @@ struct Ellipsoid {
 
     static const size_t num_parameters() { return 3 + 3 + 9; }
 
-    Vector<Scalar> get_parameters() const {
-        Vector<Scalar> p(num_parameters());
-        Vector<Scalar> directions_vec(Eigen::Map<const Vector<Scalar>>(
+    VecX<Scalar> get_parameters() const {
+        VecX<Scalar> p(num_parameters());
+        VecX<Scalar> directions_vec(Eigen::Map<const VecX<Scalar>>(
             directions_.data(), directions_.size()));
         p << center_, half_lengths_, directions_vec;
         return p;
     }
 
-    static Ellipsoid<Scalar> from_parameters(const Vector<Scalar>& parameters) {
+    static Ellipsoid<Scalar> from_parameters(const VecX<Scalar>& parameters) {
         Vec3<Scalar> center = parameters.template head<3>();
         Vec3<Scalar> half_lengths = parameters.template segment<3>(3);
-        Vector<Scalar> directions_vec = parameters.template segment<9>(6);
+        VecX<Scalar> directions_vec = parameters.template segment<9>(6);
         Mat3<Scalar> directions(
             Eigen::Map<Mat3<Scalar>>(directions_vec.data(), 3, 3));
 

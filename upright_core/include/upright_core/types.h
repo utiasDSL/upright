@@ -13,13 +13,6 @@ struct BalanceConstraintsEnabled {
 };
 
 template <typename Scalar>
-using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
-
-template <typename Scalar>
-using Matrix = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
-
-// TODO: replace above with below versions
-template <typename Scalar>
 using VecX = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 
 template <typename Scalar>

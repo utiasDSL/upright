@@ -76,19 +76,19 @@ RigidBody<Scalar> RigidBody<Scalar>::compose(
 
 template <typename Scalar>
 RigidBody<Scalar> RigidBody<Scalar>::from_parameters(
-    const Vector<Scalar>& parameters, const size_t index) {
+    const VecX<Scalar>& parameters, const size_t index) {
     Scalar mass(parameters(index));
     Vec3<Scalar> com(parameters.template segment<3>(index + 1));
-    Vector<Scalar> I_vec(parameters.template segment<9>(index + 4));
+    VecX<Scalar> I_vec(parameters.template segment<9>(index + 4));
     Mat3<Scalar> inertia(Eigen::Map<Mat3<Scalar>>(I_vec.data(), 3, 3));
     return RigidBody(mass, inertia, com);
 }
 
 template <typename Scalar>
-Vector<Scalar> RigidBody<Scalar>::get_parameters() const {
-    Vector<Scalar> p(num_parameters());
-    Vector<Scalar> I_vec(
-        Eigen::Map<const Vector<Scalar>>(inertia.data(), inertia.size()));
+VecX<Scalar> RigidBody<Scalar>::get_parameters() const {
+    VecX<Scalar> p(num_parameters());
+    VecX<Scalar> I_vec(
+        Eigen::Map<const VecX<Scalar>>(inertia.data(), inertia.size()));
     p << mass, com, I_vec;
     return p;
 }

@@ -1,1 +1,1 @@
-from upright_core import parsing, math, composition, util
+from upright_core import parsing, math, util

@@ -38,7 +38,14 @@ class ControllerModel:
         _, ω_ew_w = self.robot.link_velocity()
         a_ew_w, α_ew_w = self.robot.link_acceleration()
         C_we = core.math.quat_to_rot(Q_we)
-        return self.arrangement.balancing_constraints(C_we, ω_ew_w, a_ew_w, α_ew_w)
+
+        X = core.bindings.RigidBodyState()
+        X.pose.orientation = C_we
+        X.velocity.angular = ω_ew_w
+        X.acceleration.linear = a_ew_w
+        X.acceleration.angular = α_ew_w
+
+        return self.arrangement.balancing_constraints(X)
 
     def support_area_distances(self):
         """Compute shortest distance of intersection of gravity vector with

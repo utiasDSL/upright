@@ -80,8 +80,8 @@ class BoundedRigidBody {
         return 2 + 6 + Ellipsoid<Scalar>::num_parameters();
     }
 
-    Vector<Scalar> get_parameters() const {
-        Vector<Scalar> p(num_parameters());
+    VecX<Scalar> get_parameters() const {
+        VecX<Scalar> p(num_parameters());
         p << mass_min, mass_max, radii_of_gyration_min, radii_of_gyration_max,
             com_ellipsoid.get_parameters();
         return p;
@@ -105,7 +105,7 @@ class BoundedRigidBody {
 
     // Create a RigidBody from a parameter vector
     static BoundedRigidBody<Scalar> from_parameters(
-        const Vector<Scalar>& parameters, const size_t index = 0) {
+        const VecX<Scalar>& parameters, const size_t index = 0) {
         Scalar mass_min = parameters(index);
         Scalar mass_max = parameters(index + 1);
 
@@ -173,8 +173,8 @@ struct BoundedBalancedObject {
         return 3 + body.num_parameters() + support_area_min.num_parameters();
     }
 
-    Vector<Scalar> get_parameters() const {
-        Vector<Scalar> p(num_parameters());
+    VecX<Scalar> get_parameters() const {
+        VecX<Scalar> p(num_parameters());
         p << com_height, r_tau_min, mu_min, body.get_parameters(),
             support_area_min.get_parameters();
         return p;
@@ -194,7 +194,7 @@ struct BoundedBalancedObject {
     }
 
     static BoundedBalancedObject<Scalar> from_parameters(
-        const Vector<Scalar>& p) {
+        const VecX<Scalar>& p) {
         Scalar com_height = p(0);
         Scalar r_tau_min = p(1);
         Scalar mu_min = p(2);
@@ -213,7 +213,7 @@ struct BoundedBalancedObject {
     // Cast to another underlying scalar type
     template <typename T>
     BoundedBalancedObject<T> cast() const {
-        Vector<Scalar> p = get_parameters();
+        VecX<Scalar> p = get_parameters();
         return BoundedBalancedObject<T>::from_parameters(p.template cast<T>());
     }
 

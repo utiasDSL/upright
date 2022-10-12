@@ -66,13 +66,6 @@ struct BalancedObject {
 };
 
 template <typename Scalar>
-Vec2<Scalar> compute_zmp(const Mat3<Scalar>& orientation,
-                         const Vec3<Scalar>& angular_vel,
-                         const Vec3<Scalar>& linear_acc,
-                         const Vec3<Scalar>& angular_acc,
-                         const BalancedObject<Scalar>& object);
-
-template <typename Scalar>
 struct BalancedObjectArrangement {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -83,7 +76,8 @@ struct BalancedObjectArrangement {
         const BalanceConstraintsEnabled& enabled, const Vec3<Scalar>& gravity)
         : objects(objects), enabled(enabled), gravity(gravity) {}
 
-    // Constructor where all constraints are enabled by default
+    // Constructor where all constraints are enabled by default (useful for
+    // examining constraint values outside of the controller)
     BalancedObjectArrangement(
         const std::map<std::string, BalancedObject<Scalar>>& objects,
         const Vec3<Scalar>& gravity) : objects(objects), gravity(gravity) {}
@@ -102,10 +96,7 @@ struct BalancedObjectArrangement {
     BalancedObjectArrangement<T> cast() const;
 
     // Compute the nominal balancing constraints for this configuration.
-    VecX<Scalar> balancing_constraints(const Mat3<Scalar>& orientation,
-                                       const Vec3<Scalar>& angular_vel,
-                                       const Vec3<Scalar>& linear_acc,
-                                       const Vec3<Scalar>& angular_acc);
+    VecX<Scalar> balancing_constraints(const RigidBodyState<Scalar>& state);
 
     std::map<std::string, BalancedObject<Scalar>> objects;
     BalanceConstraintsEnabled enabled;

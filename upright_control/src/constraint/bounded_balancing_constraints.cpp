@@ -22,6 +22,23 @@ std::ostream& operator<<(std::ostream& out, const BalancingSettings& settings) {
     return out;
 }
 
+RigidBodyState<ocs2::ad_scalar_t> get_rigid_body_state(
+    const std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>&
+        kinematics_ptr,
+    const VecXad& state, const VecXad& input) {
+    RigidBodyState<ocs2::ad_scalar_t> X;
+    X.pose.position = kinematics_ptr->getPositionCppAd(state);
+    X.pose.orientation = kinematics_ptr->getOrientationCppAd(state);
+
+    X.velocity.linear = kinematics_ptr->getVelocityCppAd(state, input);
+    X.velocity.angular = kinematics_ptr->getAngularVelocityCppAd(state, input);
+
+    X.acceleration.linear = kinematics_ptr->getAccelerationCppAd(state, input);
+    X.acceleration.angular =
+        kinematics_ptr->getAngularAccelerationCppAd(state, input);
+    return X;
+}
+
 // BoundedBalancingConstraints::BoundedBalancingConstraints(
 //     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
 //     const BalancingSettings& settings, const Vec3d& gravity,
@@ -90,17 +107,20 @@ NominalBalancingConstraints::NominalBalancingConstraints(
 VecXad NominalBalancingConstraints::constraintFunction(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
-    Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
-    Vec3ad angular_vel =
-        pinocchioEEKinPtr_->getAngularVelocityCppAd(state, input);
-    Vec3ad angular_acc =
-        pinocchioEEKinPtr_->getAngularAccelerationCppAd(state, input);
-    Vec3ad linear_acc = pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
+
+    RigidBodyState<ocs2::ad_scalar_t> X =
+        get_rigid_body_state(pinocchioEEKinPtr_, state, input);
+
+    // Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
+    // Vec3ad angular_vel =
+    //     pinocchioEEKinPtr_->getAngularVelocityCppAd(state, input);
+    // Vec3ad angular_acc =
+    //     pinocchioEEKinPtr_->getAngularAccelerationCppAd(state, input);
+    // Vec3ad linear_acc = pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
     BalancedObjectArrangement<ocs2::ad_scalar_t> ad_arrangement =
         arrangement_.cast<ocs2::ad_scalar_t>();
-    return ad_arrangement.balancing_constraints(C_we, angular_vel, linear_acc,
-                                                angular_acc);
+    return ad_arrangement.balancing_constraints(X);
 }
 
 ContactForceBalancingConstraints::ContactForceBalancingConstraints(
@@ -164,23 +184,6 @@ ObjectDynamicsConstraints::ObjectDynamicsConstraints(
     // compile the CppAD library
     initialize(dims.x(), dims.u(), 0, "upright_object_dynamics_constraints",
                "/tmp/ocs2", recompileLibraries, true);
-}
-
-RigidBodyState<ocs2::ad_scalar_t> get_rigid_body_state(
-    const std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>&
-        kinematics_ptr,
-    const VecXad& state, const VecXad& input) {
-    RigidBodyState<ocs2::ad_scalar_t> X;
-    X.pose.position = kinematics_ptr->getPositionCppAd(state);
-    X.pose.orientation = kinematics_ptr->getOrientationCppAd(state);
-
-    X.velocity.linear = kinematics_ptr->getVelocityCppAd(state, input);
-    X.velocity.angular = kinematics_ptr->getAngularVelocityCppAd(state, input);
-
-    X.acceleration.linear = kinematics_ptr->getAccelerationCppAd(state, input);
-    X.acceleration.angular =
-        kinematics_ptr->getAngularAccelerationCppAd(state, input);
-    return X;
 }
 
 VecXad ObjectDynamicsConstraints::constraintFunction(

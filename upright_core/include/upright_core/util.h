@@ -12,12 +12,12 @@ Scalar squared(Scalar x) {
 }
 
 template <typename Scalar>
-Scalar epsilon_norm(const Matrix<Scalar>& x, const Scalar eps) {
-    Eigen::Map<const Vector<Scalar>> x_vec(x.data(), x.size(), 1);
+Scalar epsilon_norm(const MatX<Scalar>& x, const Scalar eps) {
+    Eigen::Map<const VecX<Scalar>> x_vec(x.data(), x.size(), 1);
     return sqrt(x_vec.dot(x_vec) + eps);
 
     // Unfortunately we cannot diff through this:
-    // Eigen::JacobiSVD<Matrix<Scalar>> svd(x);
+    // Eigen::JacobiSVD<MatX<Scalar>> svd(x);
     // return svd.singularValues()(0);
 }
 

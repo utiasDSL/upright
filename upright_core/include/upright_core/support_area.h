@@ -86,23 +86,23 @@ struct PolygonSupportArea {
     // }
 
     // Constraints on the ZMP
-    Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp) const;
+    VecX<Scalar> zmp_constraints(const Vec2<Scalar>& zmp) const;
 
     // Constraints on the ZMP scaled by normal force az
-    Vector<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
+    VecX<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
                                           Scalar& az) const;
 
     // Compute distance of a point from the support polygon. Negative if inside
     // the polygon.
     Scalar distance(const Vec2<Scalar>& point) const;
 
-    Vector<Scalar> get_parameters() const;
+    VecX<Scalar> get_parameters() const;
 
     // Create a new support polygon with vertices offset by specified amount:
     // new_vertices = old_vertices + offset
     PolygonSupportArea<Scalar> offset(const Vec2<Scalar>& offset) const;
 
-    static PolygonSupportArea<Scalar> from_parameters(const Vector<Scalar>& p,
+    static PolygonSupportArea<Scalar> from_parameters(const VecX<Scalar>& p,
                                                       const size_t index = 0);
 
     // Square support area approximation to a circle

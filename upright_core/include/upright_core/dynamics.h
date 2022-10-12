@@ -33,12 +33,12 @@ struct RigidBody {
         const std::vector<RigidBody<Scalar>>& bodies);
 
     // Create a RigidBody from a parameter vector
-    static RigidBody<Scalar> from_parameters(const Vector<Scalar>& parameters,
+    static RigidBody<Scalar> from_parameters(const VecX<Scalar>& parameters,
                                              const size_t index = 0);
 
     size_t num_parameters() const { return 1 + 3 + 9; }
 
-    Vector<Scalar> get_parameters() const;
+    VecX<Scalar> get_parameters() const;
 
     Scalar mass;
     Mat3<Scalar> inertia;

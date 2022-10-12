@@ -9,11 +9,8 @@ import yaml
 import xacro
 
 from upright_core.bindings import (
-    Ellipsoid,
     RigidBody,
     BalancedObject,
-    # BoundedRigidBody,
-    # BoundedBalancedObject,
     PolygonSupportArea,
     ContactPoint,
 )
@@ -780,5 +777,4 @@ def parse_control_objects(ctrl_conf):
         return _parse_objects_with_contacts(wrappers, contact_conf, inset=sa_inset)
     else:
         composites = _parse_composite_objects(wrappers, contact_conf, inset=sa_inset)
-        IPython.embed()
         return composites, []

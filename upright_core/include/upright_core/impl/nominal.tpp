@@ -68,11 +68,7 @@ BalancedObject<Scalar> BalancedObject<Scalar>::compose(
     Vec3<Scalar> delta = objects[0].body.com - body.com;
     Scalar com_height = objects[0].com_height - delta(2);
 
-    // Using a smart pointer here ensures that the cloned object is cleaned
-    // up after we pass in the reference (which is itself cloned)
-    // std::unique_ptr<SupportAreaBase<Scalar>> support_area_ptr(
-    //     objects[0].support_area_ptr->clone());
-    // support_area_ptr->offset = delta.head(2);
+    // Offset support area relative to new CoM
     PolygonSupportArea<Scalar> support_area =
         objects[0].support_area.offset(delta.head(2));
 
@@ -81,70 +77,30 @@ BalancedObject<Scalar> BalancedObject<Scalar>::compose(
     return composite;
 }
 
-template <typename Scalar>
-Vec2<Scalar> compute_zmp(const Mat3<Scalar>& orientation,
-                         const Vec3<Scalar>& angular_vel,
-                         const Vec3<Scalar>& linear_acc,
-                         const Vec3<Scalar>& angular_acc,
-                         const BalancedObject<Scalar>& object) {
-    // Tray inertia (in the tray's own frame)
-    Mat3<Scalar> It = object.body.inertia;
-
-    Mat3<Scalar> C_we = orientation;
-    Mat3<Scalar> C_ew = C_we.transpose();
-
-    Mat3<Scalar> S_angular_vel = skew3<Scalar>(angular_vel);
-    Mat3<Scalar> S_angular_acc = skew3<Scalar>(angular_acc);
-    Mat3<Scalar> ddC_we =
-        (S_angular_acc + S_angular_vel * S_angular_vel) * C_we;
-
-    Vec3<Scalar> g;
-    g << Scalar(0), Scalar(0), Scalar(-9.81);
-
-    Vec3<Scalar> alpha =
-        object.body.mass * C_ew * (linear_acc + ddC_we * object.body.com - g);
-
-    Mat3<Scalar> Iw = C_we * It * C_ew;
-    Vec3<Scalar> beta =
-        C_ew * S_angular_vel * Iw * angular_vel + It * C_ew * angular_acc;
-
-    // tipping constraint
-    Eigen::Matrix<Scalar, 2, 2> S;
-    S << Scalar(0), Scalar(-1), Scalar(1), Scalar(0);
-    Vec2<Scalar> zmp =
-        (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
-    return zmp;
-}
-
 // USE AT YOUR PERIL
 // The pyramidal (linear) approximation below typically works much better as a
 // constraint in the optimizer
-template <typename Scalar>
-VecX<Scalar> friction_constraint_ellipsoidal(
-    const BalancedObject<Scalar>& object, const Vec3<Scalar>& alpha,
-    const Vec3<Scalar>& beta, const Scalar eps) {
-    /*** Ellipsoidal approximation ***/
-    VecX<Scalar> friction_constraint(1);
-    friction_constraint << object.mu * alpha(2) -
-                               sqrt(squared(alpha(0)) + squared(alpha(1)) +
-                                    squared(beta(2) / object.r_tau) + eps);
-    // Scalar h1 =
-    //     squared(object.mu * alpha(2)) - squared(alpha(0)) + squared(alpha(1))
-    //     -
-    //                                 squared(beta(2) / object.r_tau) + eps;
-    return friction_constraint;
-}
+// template <typename Scalar>
+// VecX<Scalar> friction_constraint_ellipsoidal(
+//     const BalancedObject<Scalar>& object, const Vec3<Scalar>& alpha,
+//     const Vec3<Scalar>& beta, const Scalar eps) {
+//     /*** Ellipsoidal approximation ***/
+//     VecX<Scalar> friction_constraint(1);
+//     friction_constraint << object.mu * alpha(2) -
+//                                sqrt(squared(alpha(0)) + squared(alpha(1)) +
+//                                     squared(beta(2) / object.r_tau) + eps);
+//     return friction_constraint;
+// }
 
+// Pyramidal (linear) approximation to the limit surface
 template <typename Scalar>
-VecX<Scalar> friction_constraint_pyramidal(
-    const BalancedObject<Scalar>& object, const Vec3<Scalar>& alpha,
-    const Vec3<Scalar>& beta, const Scalar eps) {
-    /*** Pyramidal approximation ***/
+VecX<Scalar> friction_constraint_pyramidal(const BalancedObject<Scalar>& object,
+                                           const Wrench<Scalar>& giw) {
     VecX<Scalar> friction_constraint(8);
-    Scalar a = alpha(0);
-    Scalar b = alpha(1);
-    Scalar c = beta(2) / object.r_tau;
-    Scalar d = object.mu * alpha(2);
+    Scalar a = giw.force(0);
+    Scalar b = giw.force(1);
+    Scalar c = giw.torque(2) / object.r_tau;
+    Scalar d = object.mu * giw.force(2);
 
     // clang-format off
     friction_constraint << d - ( a + b + c),
@@ -160,69 +116,59 @@ VecX<Scalar> friction_constraint_pyramidal(
     return friction_constraint;
 }
 
-// TODO alpha + beta is just a wrench
 template <typename Scalar>
 VecX<Scalar> zmp_constraint(const BalancedObject<Scalar>& object,
-                              const Vec3<Scalar>& alpha,
-                              const Vec3<Scalar>& beta, const Scalar eps) {
+                            const Wrench<Scalar>& giw) {
     Eigen::Matrix<Scalar, 2, 2> S;
     S << Scalar(0), Scalar(-1), Scalar(1), Scalar(0);
 
     Vec2<Scalar> zmp =
-        (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
+        (-object.com_height * giw.force.head(2) - S * giw.torque.head(2)) /
+        giw.force(2);
     return object.support_area.zmp_constraints(zmp);
 }
 
 template <typename Scalar>
 VecX<Scalar> balancing_constraints_single(
-    const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
-    const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
-    const Vec3<Scalar>& gravity,
+    const RigidBodyState<Scalar>& state, const Vec3<Scalar>& gravity,
     const BalancedObject<Scalar>& object,
     const BalanceConstraintsEnabled& enabled) {
-    // Tray inertia (in the tray's own frame)
-    Mat3<Scalar> It = object.body.inertia;
-
-    Mat3<Scalar> C_we = orientation;
+    Mat3<Scalar> C_we = state.pose.orientation;
     Mat3<Scalar> C_ew = C_we.transpose();
 
-    Mat3<Scalar> S_angular_vel = skew3<Scalar>(angular_vel);
-    Mat3<Scalar> S_angular_acc = skew3<Scalar>(angular_acc);
-    Mat3<Scalar> ddC_we =
-        (S_angular_acc + S_angular_vel * S_angular_vel) * C_we;
+    Mat3<Scalar> Ie = object.body.inertia;
+    Mat3<Scalar> Iw = C_we * Ie * C_ew;
 
-    Vec3<Scalar> alpha =
-        object.body.mass * C_ew * (linear_acc + ddC_we * object.body.com - gravity);
+    Mat3<Scalar> S_angular_vel = skew3<Scalar>(state.velocity.angular);
+    Mat3<Scalar> ddC_we = dC_dtt(state);
 
-    Mat3<Scalar> Iw = C_we * It * C_ew;
-    Vec3<Scalar> beta =
-        C_ew * S_angular_vel * Iw * angular_vel + It * C_ew * angular_acc;
-
-    // NOTE: SLQ solver with soft constraints is sensitive to constraint
-    // values, so having small values squared makes them too close to zero.
-    Scalar eps(0.01);
+    // gravito-inertial wrench
+    Wrench<Scalar> giw;
+    giw.force =
+        object.body.mass * C_ew *
+        (state.acceleration.linear + ddC_we * object.body.com - gravity);
+    giw.torque = C_ew * S_angular_vel * Iw * state.velocity.angular +
+                 Ie * C_ew * state.acceleration.angular;
 
     // normal contact constraint
     VecX<Scalar> g_con(1);
-    g_con << alpha(2);
+    g_con << giw.force(2);
 
     // friction constraint
-    VecX<Scalar> g_fric =
-        friction_constraint_pyramidal(object, alpha, beta, eps);
-        // friction_constraint_ellipsoidal(object, alpha, beta, eps);
+    VecX<Scalar> g_fric = friction_constraint_pyramidal(object, giw);
 
     // tipping constraint
-    VecX<Scalar> g_zmp = zmp_constraint(object, alpha, beta, eps);
+    VecX<Scalar> g_zmp = zmp_constraint(object, giw);
 
     // Set disabled constraint values to unity so they are always satisfied.
     if (!enabled.friction) {
-        g_fric.setZero();
+        g_fric.setOnes();
     }
     if (!enabled.normal) {
-        g_con.setZero();
+        g_con.setOnes();
     }
     if (!enabled.zmp) {
-        g_zmp.setZero();
+        g_zmp.setOnes();
     }
 
     VecX<Scalar> g_bal(object.num_constraints(enabled));
@@ -264,8 +210,7 @@ VecX<Scalar> BalancedObjectArrangement<Scalar>::get_parameters() const {
 
 template <typename Scalar>
 template <typename T>
-BalancedObjectArrangement<T>
-BalancedObjectArrangement<Scalar>::cast() const {
+BalancedObjectArrangement<T> BalancedObjectArrangement<Scalar>::cast() const {
     VecX<Scalar> parameters = get_parameters();
     VecX<T> parametersT = parameters.template cast<T>();
 
@@ -286,14 +231,13 @@ BalancedObjectArrangement<Scalar>::cast() const {
 
 template <typename Scalar>
 VecX<Scalar> BalancedObjectArrangement<Scalar>::balancing_constraints(
-    const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
-    const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc) {
+    const RigidBodyState<Scalar>& state) {
     VecX<Scalar> constraints(num_constraints());
     size_t index = 0;
     for (const auto& kv : objects) {
         const auto& object = kv.second;
-        VecX<Scalar> v = balancing_constraints_single(
-            orientation, angular_vel, linear_acc, angular_acc, gravity, object, enabled);
+        VecX<Scalar> v =
+            balancing_constraints_single(state, gravity, object, enabled);
         constraints.segment(index, v.rows()) = v;
         index += v.rows();
     }
