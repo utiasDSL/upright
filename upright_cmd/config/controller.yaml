@@ -33,6 +33,11 @@ inertial_alignment:
   use_angular_acceleration: false
   weight: 10
 
+end_effector_box_constraint:
+  enabled: true
+  xyz_lower: [-1., -1., -0.5]
+  xyz_upper: [1., 1., 0.5]
+
 # needs to be implemented for each particular system
 tracking:
   rate: 125
@@ -50,7 +55,7 @@ tracking:
 #     orientation: [0.0, 0.0, 0.0, 1.0]
 
 obstacles:
-  enabled: false
+  enabled: true
   constraint_type: hard
 
   # extra margin between objects

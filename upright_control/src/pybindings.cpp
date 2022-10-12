@@ -190,6 +190,10 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("state_limit_mu", &ControllerSettings::state_limit_mu)
         .def_readwrite("state_limit_delta",
                        &ControllerSettings::state_limit_delta)
+        .def_readwrite("end_effector_box_constraint_enabled",
+                       &ControllerSettings::end_effector_box_constraint_enabled)
+        .def_readwrite("xyz_lower", &ControllerSettings::xyz_lower)
+        .def_readwrite("xyz_upper", &ControllerSettings::xyz_upper)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
         .def_readwrite("ocs2_config_path",
                        &ControllerSettings::ocs2_config_path)

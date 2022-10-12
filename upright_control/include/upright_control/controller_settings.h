@@ -42,6 +42,11 @@ struct ControllerSettings {
     ocs2::scalar_t state_limit_mu = 1e-2;
     ocs2::scalar_t state_limit_delta = 1e-3;
 
+    // End effector position box constraint
+    bool end_effector_box_constraint_enabled = false;
+    VecXd xyz_lower;
+    VecXd xyz_upper;
+
     // Gain matrix for low-level tracking controller.
     MatXd Kp;
 

@@ -22,7 +22,7 @@ simulation:
 controller:
   balancing:
     enabled: true
-    use_force_constraints: true
+    use_force_constraints: false
     arrangement: tall_box
     constraint_type: hard
     enable_normal_constraint: true
@@ -36,14 +36,14 @@ controller:
       diag: [1rep9]
 
   waypoints:
-    # -
-    #   time: 0
-    #   position: [0, 0, 0]
-    #   orientation: [0, 0, 0, 1]
     -
       time: 0
-      position: [2.0, 0.5, 0.25]
+      position: [0, 0, 0]
       orientation: [0, 0, 0, 1]
+    # -
+    #   time: 0
+    #   position: [2.0, 0.5, 0.25]
+    #   orientation: [0, 0, 0, 1]
 
   operating_points:
     enabled: false

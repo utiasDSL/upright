@@ -301,20 +301,19 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                                std::move(end_effector_cost));
 
     // End effector position box constraint
-    // TODO add to settings
-    VecXd xyz_lower(3);
-    xyz_lower << -1, -1, -0.5;
-    VecXd xyz_upper(3);
-    xyz_upper << 1, 1, 0.5;
-
-    std::unique_ptr<ocs2::StateConstraint> end_effector_box_constraint(
-        new EndEffectorBoxConstraint(xyz_lower, xyz_upper,
-                                     end_effector_kinematics,
-                                     *referenceManagerPtr_));
-    problem_.inequalityConstraintPtr->add(
-        "end_effector_box_constraint",
-        std::unique_ptr<ocs2::StateInputConstraint>(
-            new StateToStateInputConstraint(*end_effector_box_constraint)));
+    if (settings_.end_effector_box_constraint_enabled) {
+        std::cout << "End effector box constraint is enabled." << std::endl;
+        std::unique_ptr<ocs2::StateConstraint> end_effector_box_constraint(
+            new EndEffectorBoxConstraint(
+                settings_.xyz_lower, settings_.xyz_upper,
+                end_effector_kinematics, *referenceManagerPtr_));
+        problem_.inequalityConstraintPtr->add(
+            "end_effector_box_constraint",
+            std::unique_ptr<ocs2::StateInputConstraint>(
+                new StateToStateInputConstraint(*end_effector_box_constraint)));
+    } else {
+        std::cout << "End effector box constraint is disabled." << std::endl;
+    }
 
     // Inertial alignment cost
     if (settings_.inertial_alignment_settings.enabled) {

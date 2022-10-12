@@ -135,6 +135,13 @@ class ControllerSettings(bindings.ControllerSettings):
         assert self.state_limit_lower.shape == (self.dims.robot.x,)
         assert self.state_limit_upper.shape == (self.dims.robot.x,)
 
+        # end effector position box constraint
+        self.end_effector_box_constraint_enabled = config["end_effector_box_constraint"]["enabled"]
+        self.xyz_lower = core.parsing.parse_array(config["end_effector_box_constraint"]["xyz_lower"])
+        self.xyz_upper = core.parsing.parse_array(config["end_effector_box_constraint"]["xyz_upper"])
+        assert self.xyz_lower.shape == (3,)
+        assert self.xyz_upper.shape == (3,)
+
         # tracking gain
         self.Kp = core.parsing.parse_diag_matrix_dict(config["tracking"]["Kp"])
         assert self.Kp.shape == (self.dims.robot.q, self.dims.robot.q)

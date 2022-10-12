@@ -22,9 +22,16 @@ class EndEffectorBoxConstraint final : public ocs2::StateConstraint {
           reference_manager_ptr_(&reference_manager) {
         if (end_effector_kinematics.getIds().size() != 1) {
             throw std::runtime_error(
-                "[EndEffectorConstraint] end_effector_kinematics has wrong "
-                "number of "
-                "end effector IDs.");
+                "[EndEffectorBoxConstraint] end_effector_kinematics has wrong "
+                "number of end effector IDs.");
+        }
+        if (xyz_lower.rows() != 3) {
+            throw std::runtime_error(
+                "[EndEffectorBoxConstraint] lower bound must be of length 3.");
+        }
+        if (xyz_upper.rows() != 3) {
+            throw std::runtime_error(
+                "[EndEffectorBoxConstraint] upper bound must be of length 3.");
         }
     }
 
@@ -36,9 +43,7 @@ class EndEffectorBoxConstraint final : public ocs2::StateConstraint {
                                             *reference_manager_ptr_);
     }
 
-    size_t getNumConstraints(ocs2::scalar_t time) const override {
-        return 6;
-    }
+    size_t getNumConstraints(ocs2::scalar_t time) const override { return 6; }
 
     VecXd getValue(ocs2::scalar_t time, const VecXd& state,
                    const ocs2::PreComputation&) const override {
