@@ -105,6 +105,7 @@ arrangements:
 
   tall_box:
     support_area_inset: 0.01
+    mu_margin: 0.01
     objects:
       -
         name: box1

@@ -201,7 +201,7 @@ class _BalancedObjectWrapper:
         self.parent_name = parent_name
 
 
-def _parse_objects_with_contacts(wrappers, contact_conf, inset):
+def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0):
     """
     wrappers is the dict of name: object wrappers
     neighbours is a list of pairs of names specifying objects in contact
@@ -210,14 +210,14 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset):
     for contact in contact_conf:
         name1 = contact["first"]
         name2 = contact["second"]
-        mu = contact["mu"]
+        mu = contact["mu"] - mu_margin
 
         box1 = wrappers[name1].box
         box2 = wrappers[name2].box
+        points, normal = geometry.box_box_axis_aligned_contact(box1, box2)
+
         body1 = wrappers[name1].body
         body2 = wrappers[name2].body
-
-        points, normal = geometry.box_box_axis_aligned_contact(box1, box2)
 
         for i in range(points.shape[0]):
             contact_point = ContactPoint()
@@ -240,7 +240,7 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset):
     # Wrap in balanced objects: not fundamentally necessary for the
     # constraints, but useful for (1) homogeneity of the settings API and (2)
     # allows some additional analysis on e.g. distance from support area
-    mus = parse_mu_dict(contact_conf)
+    mus = parse_mu_dict(contact_conf, margin=mu_margin)
     balanced_objects = {}
     for name, wrapper in wrappers.items():
         if name == "ee":
@@ -278,9 +278,9 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset):
     return balanced_objects, contact_points
 
 
-def _parse_composite_objects(wrappers, contact_conf, inset=0):
+def _parse_composite_objects(wrappers, contact_conf, inset=0, mu_margin=0):
     # coefficients of friction between contacting objects
-    mus = parse_mu_dict(contact_conf)
+    mus = parse_mu_dict(contact_conf, margin=mu_margin)
 
     # build the balanced objects
     descendants = {}
@@ -390,7 +390,7 @@ def compute_support_area(box, parent_box, inset, tol=1e-6):
     return support_area, r_tau
 
 
-def parse_mu_dict(contact_conf):
+def parse_mu_dict(contact_conf, margin=0):
     """Parse a dictionary of coefficients of friction from the contact configuration.
 
     Returns a nested dict with object names as keys and mu as the value.
@@ -399,10 +399,11 @@ def parse_mu_dict(contact_conf):
     for contact in contact_conf:
         parent_name = contact["first"]
         child_name = contact["second"]
+        mu = contact["mu"] - margin
         if parent_name in mus:
-            mus[parent_name][child_name] = contact["mu"]
+            mus[parent_name][child_name] = mu
         else:
-            mus[parent_name] = {child_name: contact["mu"]}
+            mus[parent_name] = {child_name: mu}
     return mus
 
 
@@ -455,6 +456,7 @@ def parse_control_objects(ctrl_conf):
     contact_conf = arrangement["contacts"]
 
     sa_inset = arrangement.get("support_area_inset", 0)
+    mu_margin = arrangement.get("mu_margin", 0)
 
     # placeholder end effector object
     ee_conf = obj_type_confs["ee"]

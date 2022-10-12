@@ -324,7 +324,7 @@ def balanced_object_setup(r_ew_w, config):
         # bodies by multiplying them. Thus, to achieve our actual
         # desired friction at the support we need to divide the desired
         # value by the parent value to get the simulated value.
-        real_mu = mus[parent_name][obj_name] + 0.05
+        real_mu = mus[parent_name][obj_name]
         pyb_mu = real_mu / parent.mu
 
         obj = BulletBody.from_config(obj_type_conf, mu=pyb_mu, orientation=orientation)
