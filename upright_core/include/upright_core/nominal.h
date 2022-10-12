@@ -40,9 +40,9 @@ struct BalancedObject {
 
     size_t num_parameters() const;
 
-    Vector<Scalar> get_parameters() const;
+    VecX<Scalar> get_parameters() const;
 
-    static BalancedObject<Scalar> from_parameters(const Vector<Scalar>& p);
+    static BalancedObject<Scalar> from_parameters(const VecX<Scalar>& p);
 
     // Cast to another underlying scalar type
     template <typename T>
@@ -73,12 +73,20 @@ Vec2<Scalar> compute_zmp(const Mat3<Scalar>& orientation,
                          const BalancedObject<Scalar>& object);
 
 template <typename Scalar>
-struct TrayBalanceConfiguration {
-    TrayBalanceConfiguration() {}
+struct BalancedObjectArrangement {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    TrayBalanceConfiguration(const std::vector<BalancedObject<Scalar>>& objects,
-                             const BalanceConstraintsEnabled& enabled)
-        : objects(objects), enabled(enabled) {}
+    BalancedObjectArrangement() {}
+
+    BalancedObjectArrangement(
+        const std::map<std::string, BalancedObject<Scalar>>& objects,
+        const BalanceConstraintsEnabled& enabled, const Vec3<Scalar>& gravity)
+        : objects(objects), enabled(enabled), gravity(gravity) {}
+
+    // Constructor where all constraints are enabled by default
+    BalancedObjectArrangement(
+        const std::map<std::string, BalancedObject<Scalar>>& objects,
+        const Vec3<Scalar>& gravity) : objects(objects), gravity(gravity) {}
 
     // Number of balancing constraints.
     size_t num_constraints() const;
@@ -87,24 +95,23 @@ struct TrayBalanceConfiguration {
     size_t num_parameters() const;
 
     // Get the parameter vector representing all objects in the configuration.
-    Vector<Scalar> get_parameters() const;
+    VecX<Scalar> get_parameters() const;
 
-    // Cast the configuration to a different underlying scalar type, creating
-    // the objects from the supplied parameter vector.
+    // Cast the configuration to a different underlying scalar type.
     template <typename T>
-    TrayBalanceConfiguration<T> cast_with_parameters(
-        const Vector<T>& parameters) const;
+    BalancedObjectArrangement<T> cast() const;
 
     // Compute the nominal balancing constraints for this configuration.
-    Vector<Scalar> balancing_constraints(const Mat3<Scalar>& orientation,
-                                         const Vec3<Scalar>& angular_vel,
-                                         const Vec3<Scalar>& linear_acc,
-                                         const Vec3<Scalar>& angular_acc);
+    VecX<Scalar> balancing_constraints(const Mat3<Scalar>& orientation,
+                                       const Vec3<Scalar>& angular_vel,
+                                       const Vec3<Scalar>& linear_acc,
+                                       const Vec3<Scalar>& angular_acc);
 
-    std::vector<BalancedObject<Scalar>> objects;
+    std::map<std::string, BalancedObject<Scalar>> objects;
     BalanceConstraintsEnabled enabled;
+    Vec3<Scalar> gravity;
 };
 
 }  // namespace upright
 
-#include "impl/nominal.h"
+#include "impl/nominal.tpp"

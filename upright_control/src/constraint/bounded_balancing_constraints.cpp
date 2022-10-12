@@ -1,4 +1,5 @@
 #include <upright_control/types.h>
+#include <upright_core/nominal.h>
 #include <upright_core/bounded.h>
 #include <upright_core/bounded_constraints.h>
 #include <upright_core/contact.h>
@@ -21,7 +22,51 @@ std::ostream& operator<<(std::ostream& out, const BalancingSettings& settings) {
     return out;
 }
 
-BoundedBalancingConstraints::BoundedBalancingConstraints(
+// BoundedBalancingConstraints::BoundedBalancingConstraints(
+//     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
+//     const BalancingSettings& settings, const Vec3d& gravity,
+//     const OptimizationDimensions& dims, bool recompileLibraries)
+//     : ocs2::StateInputConstraintCppAd(ocs2::ConstraintOrder::Linear),
+//       pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
+//       gravity_(gravity),
+//       settings_(settings),
+//       dims_(dims) {
+//     if (pinocchioEEKinematics.getIds().size() != 1) {
+//         throw std::runtime_error(
+//             "[TrayBalanaceConstraint] endEffectorKinematics has wrong "
+//             "number of end effector IDs.");
+//     }
+//
+//     // compile the CppAD library
+//     initialize(dims.x(), dims.u(), 0, "upright_bounded_balancing_constraints",
+//                "/tmp/ocs2", recompileLibraries, true);
+//
+//     num_constraints_ = num_balancing_constraints(settings_.objects);
+// }
+//
+// VecXad BoundedBalancingConstraints::constraintFunction(
+//     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
+//     const VecXad& parameters) const {
+//     Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
+//     Vec3ad angular_vel =
+//         pinocchioEEKinPtr_->getAngularVelocityCppAd(state, input);
+//     Vec3ad angular_acc =
+//         pinocchioEEKinPtr_->getAngularAccelerationCppAd(state, input);
+//     Vec3ad linear_acc = pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
+//
+//     // Cast to AD scalar type
+//     Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
+//     std::vector<BoundedBalancedObject<ocs2::ad_scalar_t>> ad_objects;
+//     for (const auto& kv : settings_.objects) {
+//         ad_objects.push_back(kv.second.cast<ocs2::ad_scalar_t>());
+//     }
+//
+//     return balancing_constraints(ad_objects, ad_gravity,
+//                                  settings_.constraints_enabled, C_we,
+//                                  angular_vel, linear_acc, angular_acc);
+// }
+
+NominalBalancingConstraints::NominalBalancingConstraints(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
     const BalancingSettings& settings, const Vec3d& gravity,
     const OptimizationDimensions& dims, bool recompileLibraries)
@@ -29,6 +74,7 @@ BoundedBalancingConstraints::BoundedBalancingConstraints(
       pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
       gravity_(gravity),
       settings_(settings),
+      arrangement_(settings.objects, settings.constraints_enabled, gravity),
       dims_(dims) {
     if (pinocchioEEKinematics.getIds().size() != 1) {
         throw std::runtime_error(
@@ -39,11 +85,9 @@ BoundedBalancingConstraints::BoundedBalancingConstraints(
     // compile the CppAD library
     initialize(dims.x(), dims.u(), 0, "upright_bounded_balancing_constraints",
                "/tmp/ocs2", recompileLibraries, true);
-
-    num_constraints_ = num_balancing_constraints(settings_.objects);
 }
 
-VecXad BoundedBalancingConstraints::constraintFunction(
+VecXad NominalBalancingConstraints::constraintFunction(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
     Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
@@ -53,16 +97,10 @@ VecXad BoundedBalancingConstraints::constraintFunction(
         pinocchioEEKinPtr_->getAngularAccelerationCppAd(state, input);
     Vec3ad linear_acc = pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
-    // Cast to AD scalar type
-    Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
-    std::vector<BoundedBalancedObject<ocs2::ad_scalar_t>> ad_objects;
-    for (const auto& kv : settings_.objects) {
-        ad_objects.push_back(kv.second.cast<ocs2::ad_scalar_t>());
-    }
-
-    return balancing_constraints(ad_objects, ad_gravity,
-                                 settings_.constraints_enabled, C_we,
-                                 angular_vel, linear_acc, angular_acc);
+    BalancedObjectArrangement<ocs2::ad_scalar_t> ad_arrangement =
+        arrangement_.cast<ocs2::ad_scalar_t>();
+    return ad_arrangement.balancing_constraints(C_we, angular_vel, linear_acc,
+                                                angular_acc);
 }
 
 ContactForceBalancingConstraints::ContactForceBalancingConstraints(
@@ -161,7 +199,7 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     }
 
     // Convert objects to AD type
-    std::map<std::string, BoundedBalancedObject<ocs2::ad_scalar_t>> ad_objects;
+    std::map<std::string, BalancedObject<ocs2::ad_scalar_t>> ad_objects;
     for (const auto& kv : settings_.objects) {
         ad_objects.emplace(kv.first,
                            kv.second.template cast<ocs2::ad_scalar_t>());

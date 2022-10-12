@@ -5,28 +5,6 @@ arrangements:
   nothing:
     objects: []
 
-  one_box:
-    objects:
-      -
-        name: box1
-        type: cube
-        offset:
-          x: 0.1
-          y: 0.1
-
-  two_box:
-    objects:
-      -
-        name: box1
-        type: cube
-        offset:
-          x: 0.1
-          y: 0.1
-      -
-        name: box2
-        type: cube
-        parent: box1
-
   box_arch:
     objects:
       -
@@ -109,12 +87,8 @@ arrangements:
         type: foam_die
         parent: ee
         offset:
-          # x: 0
-          # y: -0.06
-          x: -0.1
-          y: -0.13
-          # x: -0.1
-          # y: -0.1
+          x: 0
+          y: -0.06
       -
         name: foam_die2
         type: foam_die
@@ -136,9 +110,6 @@ arrangements:
         name: box1
         type: tall_box
         parent: ee
-        offset:
-          x: -0.1
-          y: -0.13
     contacts:
       -
         first: ee

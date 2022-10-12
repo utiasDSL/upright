@@ -22,7 +22,7 @@ def support_area_distance(ctrl_object, Q_we):
     b[:2] = r_com_w[:2]
     c = np.linalg.solve(A, b)
 
-    d = ctrl_object.support_area_min.distance_outside(c[:2])
+    d = ctrl_object.support_area.distance(c[:2])
     return d
 
 

@@ -13,7 +13,7 @@ template <typename Scalar>
 size_t BalancedObject<Scalar>::num_constraints(
     const BalanceConstraintsEnabled& enabled) const {
     const size_t num_normal = 1 * enabled.normal;
-    const size_t num_fric = 1 * enabled.friction;
+    const size_t num_fric = 8 * enabled.friction;
     const size_t num_zmp = support_area.num_constraints() * enabled.zmp;
     return num_normal + num_fric + num_zmp;
 }
@@ -24,8 +24,8 @@ size_t BalancedObject<Scalar>::num_parameters() const {
 }
 
 template <typename Scalar>
-Vector<Scalar> BalancedObject<Scalar>::get_parameters() const {
-    Vector<Scalar> p(num_parameters());
+VecX<Scalar> BalancedObject<Scalar>::get_parameters() const {
+    VecX<Scalar> p(num_parameters());
     p << com_height, r_tau, mu, body.get_parameters(),
         support_area.get_parameters();
     return p;
@@ -33,7 +33,7 @@ Vector<Scalar> BalancedObject<Scalar>::get_parameters() const {
 
 template <typename Scalar>
 BalancedObject<Scalar> BalancedObject<Scalar>::from_parameters(
-    const Vector<Scalar>& p) {
+    const VecX<Scalar>& p) {
     Scalar com_height = p(0);
     Scalar r_tau = p(1);
     Scalar mu = p(2);
@@ -45,23 +45,12 @@ BalancedObject<Scalar> BalancedObject<Scalar>::from_parameters(
     size_t num_params_remaining = p.size() - start;
     auto support_area = PolygonSupportArea<Scalar>::from_parameters(p, start);
     return BalancedObject<Scalar>(body, com_height, support_area, r_tau, mu);
-
-    // if (num_params_remaining == 4) {
-    //     auto support = CircleSupportArea<Scalar>::from_parameters(p, start);
-    //     return BalancedObject<Scalar>(body, com_height, support, r_tau, mu);
-    // } else {
-    //     auto support = PolygonSupportArea<Scalar>::from_parameters(p, start);
-    //     return BalancedObject<Scalar>(body, com_height, support, r_tau, mu);
-    // }
-    //
-    // // return BalancedObject<Scalar>(body, com_height, *support_ptr,
-    // //                               r_tau, mu);
 }
 
 template <typename Scalar>
 template <typename T>
 BalancedObject<T> BalancedObject<Scalar>::cast() const {
-    Vector<Scalar> p = get_parameters();
+    VecX<Scalar> p = get_parameters();
     return BalancedObject<T>::from_parameters(p.template cast<T>());
 }
 
@@ -127,12 +116,15 @@ Vec2<Scalar> compute_zmp(const Mat3<Scalar>& orientation,
     return zmp;
 }
 
+// USE AT YOUR PERIL
+// The pyramidal (linear) approximation below typically works much better as a
+// constraint in the optimizer
 template <typename Scalar>
-Vector<Scalar> friction_constraint_ellipsoidal(
+VecX<Scalar> friction_constraint_ellipsoidal(
     const BalancedObject<Scalar>& object, const Vec3<Scalar>& alpha,
     const Vec3<Scalar>& beta, const Scalar eps) {
     /*** Ellipsoidal approximation ***/
-    Vector<Scalar> friction_constraint(1);
+    VecX<Scalar> friction_constraint(1);
     friction_constraint << object.mu * alpha(2) -
                                sqrt(squared(alpha(0)) + squared(alpha(1)) +
                                     squared(beta(2) / object.r_tau) + eps);
@@ -144,11 +136,11 @@ Vector<Scalar> friction_constraint_ellipsoidal(
 }
 
 template <typename Scalar>
-Vector<Scalar> friction_constraint_pyramidal(
+VecX<Scalar> friction_constraint_pyramidal(
     const BalancedObject<Scalar>& object, const Vec3<Scalar>& alpha,
     const Vec3<Scalar>& beta, const Scalar eps) {
     /*** Pyramidal approximation ***/
-    Vector<Scalar> friction_constraint(8);
+    VecX<Scalar> friction_constraint(8);
     Scalar a = alpha(0);
     Scalar b = alpha(1);
     Scalar c = beta(2) / object.r_tau;
@@ -168,26 +160,24 @@ Vector<Scalar> friction_constraint_pyramidal(
     return friction_constraint;
 }
 
+// TODO alpha + beta is just a wrench
 template <typename Scalar>
-Vector<Scalar> zmp_constraint(const BalancedObject<Scalar>& object,
+VecX<Scalar> zmp_constraint(const BalancedObject<Scalar>& object,
                               const Vec3<Scalar>& alpha,
                               const Vec3<Scalar>& beta, const Scalar eps) {
     Eigen::Matrix<Scalar, 2, 2> S;
-    S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
+    S << Scalar(0), Scalar(-1), Scalar(1), Scalar(0);
 
     Vec2<Scalar> zmp =
         (-object.com_height * alpha.head(2) - S * beta.head(2)) / alpha(2);
     return object.support_area.zmp_constraints(zmp);
-
-    // Vec2<Scalar> az_zmp = -object.com_height * alpha.head(2) - S *
-    // beta.head(2); return
-    // object.support_area_ptr->zmp_constraints_scaled(az_zmp, alpha(2));
 }
 
 template <typename Scalar>
-Vector<Scalar> balancing_constraints_single(
+VecX<Scalar> balancing_constraints_single(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc,
+    const Vec3<Scalar>& gravity,
     const BalancedObject<Scalar>& object,
     const BalanceConstraintsEnabled& enabled) {
     // Tray inertia (in the tray's own frame)
@@ -201,11 +191,8 @@ Vector<Scalar> balancing_constraints_single(
     Mat3<Scalar> ddC_we =
         (S_angular_acc + S_angular_vel * S_angular_vel) * C_we;
 
-    Vec3<Scalar> g;
-    g << Scalar(0), Scalar(0), Scalar(-9.81);
-
     Vec3<Scalar> alpha =
-        object.body.mass * C_ew * (linear_acc + ddC_we * object.body.com - g);
+        object.body.mass * C_ew * (linear_acc + ddC_we * object.body.com - gravity);
 
     Mat3<Scalar> Iw = C_we * It * C_ew;
     Vec3<Scalar> beta =
@@ -216,57 +203,58 @@ Vector<Scalar> balancing_constraints_single(
     Scalar eps(0.01);
 
     // normal contact constraint
-    Vector<Scalar> g_con(1);
+    VecX<Scalar> g_con(1);
     g_con << alpha(2);
 
     // friction constraint
-    Vector<Scalar> g_fric =
-        // friction_constraint_pyramidal(object, alpha, beta, eps);
-        friction_constraint_ellipsoidal(object, alpha, beta, eps);
+    VecX<Scalar> g_fric =
+        friction_constraint_pyramidal(object, alpha, beta, eps);
+        // friction_constraint_ellipsoidal(object, alpha, beta, eps);
 
     // tipping constraint
-    Vector<Scalar> g_zmp = zmp_constraint(object, alpha, beta, eps);
+    VecX<Scalar> g_zmp = zmp_constraint(object, alpha, beta, eps);
 
     // Set disabled constraint values to unity so they are always satisfied.
     if (!enabled.friction) {
-        g_fric.setZero(0);
+        g_fric.setZero();
     }
     if (!enabled.normal) {
-        g_con.setZero(0);
+        g_con.setZero();
     }
     if (!enabled.zmp) {
-        g_zmp.setZero(0);
+        g_zmp.setZero();
     }
 
-    Vector<Scalar> g_bal(object.num_constraints(enabled));
+    VecX<Scalar> g_bal(object.num_constraints(enabled));
     g_bal << g_con, g_fric, g_zmp;
     return g_bal;
 }
 
 template <typename Scalar>
-size_t TrayBalanceConfiguration<Scalar>::num_constraints() const {
+size_t BalancedObjectArrangement<Scalar>::num_constraints() const {
     size_t n = 0;
-    for (const auto& obj : objects) {
-        n += obj.num_constraints(enabled);
+    for (const auto& kv : objects) {
+        n += kv.second.num_constraints(enabled);
     }
     return n;
 }
 
 template <typename Scalar>
-size_t TrayBalanceConfiguration<Scalar>::num_parameters() const {
-    size_t n = 0;
-    for (const auto& obj : objects) {
-        n += obj.num_parameters();
+size_t BalancedObjectArrangement<Scalar>::num_parameters() const {
+    size_t n = 3;  // for gravity
+    for (const auto& kv : objects) {
+        n += kv.second.num_parameters();
     }
     return n;
 }
 
 template <typename Scalar>
-Vector<Scalar> TrayBalanceConfiguration<Scalar>::get_parameters() const {
-    Vector<Scalar> parameters(num_parameters());
-    size_t index = 0;
-    for (const auto& obj : objects) {
-        Vector<Scalar> p = obj.get_parameters();
+VecX<Scalar> BalancedObjectArrangement<Scalar>::get_parameters() const {
+    VecX<Scalar> parameters(num_parameters());
+    parameters.head(3) = gravity;
+    size_t index = 3;
+    for (const auto& kv : objects) {
+        VecX<Scalar> p = kv.second.get_parameters();
         size_t n = p.size();
         parameters.segment(index, n) = p;
         index += n;
@@ -276,31 +264,36 @@ Vector<Scalar> TrayBalanceConfiguration<Scalar>::get_parameters() const {
 
 template <typename Scalar>
 template <typename T>
-TrayBalanceConfiguration<T>
-TrayBalanceConfiguration<Scalar>::cast_with_parameters(
-    const Vector<T>& parameters) const {
-    std::vector<BalancedObject<T>> objectsT;
-    size_t index = 0;
-    for (const auto& obj : objects) {
-        size_t n = obj.num_parameters();
+BalancedObjectArrangement<T>
+BalancedObjectArrangement<Scalar>::cast() const {
+    VecX<Scalar> parameters = get_parameters();
+    VecX<T> parametersT = parameters.template cast<T>();
+
+    Vec3<T> gravityT = parametersT.head(3);
+
+    std::map<std::string, BalancedObject<T>> objectsT;
+    size_t index = 3;
+    for (const auto& kv : objects) {
+        size_t n = kv.second.num_parameters();
         auto objT =
-            BalancedObject<T>::from_parameters(parameters.segment(index, n));
-        objectsT.push_back(objT);
+            BalancedObject<T>::from_parameters(parametersT.segment(index, n));
+        objectsT.emplace(kv.first, objT);
         index += n;
     }
 
-    return TrayBalanceConfiguration<T>(objectsT, enabled);
+    return BalancedObjectArrangement<T>(objectsT, enabled, gravityT);
 }
 
 template <typename Scalar>
-Vector<Scalar> TrayBalanceConfiguration<Scalar>::balancing_constraints(
+VecX<Scalar> BalancedObjectArrangement<Scalar>::balancing_constraints(
     const Mat3<Scalar>& orientation, const Vec3<Scalar>& angular_vel,
     const Vec3<Scalar>& linear_acc, const Vec3<Scalar>& angular_acc) {
-    Vector<Scalar> constraints(num_constraints());
+    VecX<Scalar> constraints(num_constraints());
     size_t index = 0;
-    for (const auto& object : objects) {
-        Vector<Scalar> v = balancing_constraints_single(
-            orientation, angular_vel, linear_acc, angular_acc, object, enabled);
+    for (const auto& kv : objects) {
+        const auto& object = kv.second;
+        VecX<Scalar> v = balancing_constraints_single(
+            orientation, angular_vel, linear_acc, angular_acc, gravity, object, enabled);
         constraints.segment(index, v.rows()) = v;
         index += v.rows();
     }

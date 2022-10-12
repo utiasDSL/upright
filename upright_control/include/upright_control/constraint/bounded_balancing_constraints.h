@@ -6,6 +6,7 @@
 #include <upright_control/constraint/constraint_type.h>
 #include <upright_control/dimensions.h>
 #include <upright_control/types.h>
+#include <upright_core/nominal.h>
 #include <upright_core/bounded.h>
 #include <upright_core/contact.h>
 
@@ -15,7 +16,8 @@ struct BalancingSettings {
     bool enabled = false;
 
     BalanceConstraintsEnabled constraints_enabled;
-    std::map<std::string, BoundedBalancedObject<ocs2::scalar_t>> objects;
+    // std::map<std::string, BoundedBalancedObject<ocs2::scalar_t>> objects;
+    std::map<std::string, BalancedObject<ocs2::scalar_t>> objects;
 
     // True if the constraints should be based on contact forces between the
     // objects; false if the constraints should be based on the ZMP and limit
@@ -33,27 +35,73 @@ struct BalancingSettings {
 
 std::ostream& operator<<(std::ostream& out, const BalancingSettings& settings);
 
-// Balancing constraints based on ZMP and friction limit surface, optionally
-// with parameter uncertainty.
-class BoundedBalancingConstraints final
+// // Balancing constraints based on ZMP and friction limit surface, optionally
+// // with parameter uncertainty.
+// class BoundedBalancingConstraints final
+//     : public ocs2::StateInputConstraintCppAd {
+//    public:
+//     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+//
+//     BoundedBalancingConstraints(
+//         const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
+//         const BalancingSettings& settings, const Vec3d& gravity,
+//         const OptimizationDimensions& dims, bool recompileLibraries);
+//
+//     BoundedBalancingConstraints* clone() const override {
+//         // Always pass recompileLibraries = false to avoid recompiling the same
+//         // library just because this object is cloned.
+//         return new BoundedBalancingConstraints(*pinocchioEEKinPtr_, settings_,
+//                                                gravity_, dims_, false);
+//     }
+//
+//     size_t getNumConstraints(ocs2::scalar_t time) const override {
+//         return num_constraints_;
+//     }
+//
+//     size_t getNumConstraints() const { return getNumConstraints(0); }
+//
+//     VecXd getParameters(ocs2::scalar_t time) const override {
+//         // Parameters are constant for now
+//         return VecXd(0);
+//     }
+//
+//    protected:
+//     VecXad constraintFunction(ocs2::ad_scalar_t time, const VecXad& state,
+//                               const VecXad& input,
+//                               const VecXad& parameters) const override;
+//
+//    private:
+//     BoundedBalancingConstraints(const BoundedBalancingConstraints& other) =
+//         default;
+//
+//     std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>
+//         pinocchioEEKinPtr_;
+//     BalancingSettings settings_;
+//     OptimizationDimensions dims_;
+//     Vec3d gravity_;
+//     size_t num_constraints_;
+// };
+
+
+class NominalBalancingConstraints final
     : public ocs2::StateInputConstraintCppAd {
    public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    BoundedBalancingConstraints(
+    NominalBalancingConstraints(
         const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
         const BalancingSettings& settings, const Vec3d& gravity,
         const OptimizationDimensions& dims, bool recompileLibraries);
 
-    BoundedBalancingConstraints* clone() const override {
+    NominalBalancingConstraints* clone() const override {
         // Always pass recompileLibraries = false to avoid recompiling the same
         // library just because this object is cloned.
-        return new BoundedBalancingConstraints(*pinocchioEEKinPtr_, settings_,
+        return new NominalBalancingConstraints(*pinocchioEEKinPtr_, settings_,
                                                gravity_, dims_, false);
     }
 
     size_t getNumConstraints(ocs2::scalar_t time) const override {
-        return num_constraints_;
+        return arrangement_.num_constraints();
     }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
@@ -69,16 +117,17 @@ class BoundedBalancingConstraints final
                               const VecXad& parameters) const override;
 
    private:
-    BoundedBalancingConstraints(const BoundedBalancingConstraints& other) =
+    NominalBalancingConstraints(const NominalBalancingConstraints& other) =
         default;
 
     std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>
         pinocchioEEKinPtr_;
     BalancingSettings settings_;
+    BalancedObjectArrangement<ocs2::scalar_t> arrangement_;
     OptimizationDimensions dims_;
     Vec3d gravity_;
-    size_t num_constraints_;
 };
+
 
 // Balancing constraints based on contact forces between objects.
 class ContactForceBalancingConstraints final

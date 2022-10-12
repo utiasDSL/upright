@@ -38,23 +38,23 @@ std::vector<Vec2<Scalar>> regular_polygon_vertices(
     return vertices;
 }
 
-template <typename Scalar>
-struct PolygonEdge {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    PolygonEdge(const Vec2<Scalar>& v1, const Vec2<Scalar>& v2)
-        : v1(v1), v2(v2) {
-        // TODO would be nice to revise all this to use inward-facing normals
-        Mat2<Scalar> S;
-        S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
-        normal = S * (v2 - v1);
-        normal = normal / normal.norm();
-    }
-
-    Vec2<Scalar> v1;
-    Vec2<Scalar> v2;
-    Vec2<Scalar> normal;  // outward-facing
-};
+// template <typename Scalar>
+// struct PolygonEdge {
+//     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+//
+//     PolygonEdge(const Vec2<Scalar>& v1, const Vec2<Scalar>& v2)
+//         : v1(v1), v2(v2) {
+//         // TODO would be nice to revise all this to use inward-facing normals
+//         Mat2<Scalar> S;
+//         S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
+//         normal = S * (v2 - v1);
+//         normal = normal / normal.norm();
+//     }
+//
+//     Vec2<Scalar> v1;
+//     Vec2<Scalar> v2;
+//     Vec2<Scalar> normal;  // outward-facing
+// };
 
 template <typename Scalar>
 struct PolygonSupportArea {
@@ -75,52 +75,26 @@ struct PolygonSupportArea {
     const std::vector<Vec2<Scalar>>& vertices() const { return vertices_; }
 
     // Get the edges of the polygon composing the support area
-    std::vector<PolygonEdge<Scalar>> edges() const {
-        std::vector<PolygonEdge<Scalar>> es;
-        for (int i = 0; i < vertices_.size() - 1; ++i) {
-            es.push_back(PolygonEdge<Scalar>(vertices_[i], vertices_[i + 1]));
-        }
-        es.push_back(PolygonEdge<Scalar>(vertices_.back(), vertices_.front()));
-        return es;
-    }
+    // std::vector<PolygonEdge<Scalar>> edges() const {
+    //     std::vector<PolygonEdge<Scalar>> es;
+    //     for (int i = 0; i < vertices_.size() - 1; ++i) {
+    //         es.push_back(PolygonEdge<Scalar>(vertices_[i], vertices_[i +
+    //         1]));
+    //     }
+    //     es.push_back(PolygonEdge<Scalar>(vertices_.back(),
+    //     vertices_.front())); return es;
+    // }
 
-    // TODO combine and generalize with implementation of distance outside
-    // polygon below
+    // Constraints on the ZMP
     Vector<Scalar> zmp_constraints(const Vec2<Scalar>& zmp) const;
 
+    // Constraints on the ZMP scaled by normal force az
     Vector<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
-                                          Scalar& az) const {
-        const size_t n = num_constraints();
-        Vector<Scalar> constraints(n);
-        for (int i = 0; i < n - 1; ++i) {
-            constraints(i) = edge_zmp_constraint_scaled(az_zmp, vertices_[i],
-                                                        vertices_[i + 1], az);
-        }
-        constraints(n - 1) = edge_zmp_constraint_scaled(az_zmp, vertices_[n - 1],
-                                                        vertices_[0], az);
-        return constraints;
-    }
+                                          Scalar& az) const;
 
-    // This is used in the bindings
-    Scalar distance_outside(const Vec2<Scalar>& point) const {
-        const size_t n = vertices_.size();
-        Scalar dist_inside = 100;  // arbitrary large value for now
-        Scalar dist_inside_edge = 0;
-        for (int i = 0; i < n - 1; ++i) {
-            dist_inside_edge =
-                edge_zmp_constraint(point, vertices_[i], vertices_[i + 1]);
-            if (dist_inside_edge < dist_inside) {
-                dist_inside = dist_inside_edge;
-            }
-        }
-        dist_inside_edge =
-            edge_zmp_constraint(point, vertices_[n - 1], vertices_[0]);
-        if (dist_inside_edge < dist_inside) {
-            dist_inside = dist_inside_edge;
-        }
-        Scalar dist_outside = -dist_inside;
-        return dist_outside;
-    }
+    // Compute distance of a point from the support polygon. Negative if inside
+    // the polygon.
+    Scalar distance(const Vec2<Scalar>& point) const;
 
     Vector<Scalar> get_parameters() const;
 
@@ -141,21 +115,7 @@ struct PolygonSupportArea {
                                                              Scalar sy);
 
    private:
-    Scalar edge_zmp_constraint(const Vec2<Scalar>& zmp, const Vec2<Scalar>& v1,
-                               const Vec2<Scalar>& v2) const;
-
-    Scalar edge_zmp_constraint_scaled(const Vec2<Scalar>& az_zmp,
-                                      const Vec2<Scalar>& v1,
-                                      const Vec2<Scalar>& v2,
-                                      Scalar& az) const {
-        Mat2<Scalar> S;
-        S << Scalar(0), Scalar(-1), Scalar(1), Scalar(0);
-
-        Vec2<Scalar> normal = S * (v2 - v1);  // inward-facing normal vector
-        normal = normal / normal.norm();
-
-        return normal.dot(az_zmp - az * v1);
-    }
+    VecX<Scalar> inner_distances_to_edges(const Vec2<Scalar>& point) const;
 
     std::vector<Vec2<Scalar>> vertices_;
 };

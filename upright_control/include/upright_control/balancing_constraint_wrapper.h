@@ -32,7 +32,7 @@ class BalancingConstraintWrapper {
             settings.dims.x(), settings.dims.u(), "end_effector_kinematics",
             settings.lib_folder, recompile_libraries, false);
 
-        constraints_.reset(new BoundedBalancingConstraints(
+        constraints_.reset(new NominalBalancingConstraints(
             end_effector_kinematics, settings.balancing_settings,
             settings.gravity, settings.dims, recompile_libraries));
     }
@@ -44,7 +44,7 @@ class BalancingConstraintWrapper {
     }
 
    private:
-    std::unique_ptr<BoundedBalancingConstraints> constraints_;
+    std::unique_ptr<NominalBalancingConstraints> constraints_;
     ocs2::PreComputation precomputation_;
 };
 

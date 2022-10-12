@@ -33,6 +33,11 @@ PYBIND11_MODULE(bindings, m) {
             pybind11::init<const RigidBody<Scalar>&, Scalar,
                            const PolygonSupportArea<Scalar>&, Scalar, Scalar>(),
             "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
+        .def_readonly("body", &BalancedObject<Scalar>::body)
+        .def_readonly("com_height", &BalancedObject<Scalar>::com_height)
+        .def_readonly("support_area", &BalancedObject<Scalar>::support_area)
+        .def_readonly("r_tau", &BalancedObject<Scalar>::r_tau)
+        .def_readonly("mu", &BalancedObject<Scalar>::mu)
         .def_static("compose", &BalancedObject<Scalar>::compose, "objects"_a);
 
     pybind11::class_<BalanceConstraintsEnabled>(m, "BalanceConstraintsEnabled")
@@ -45,8 +50,7 @@ PYBIND11_MODULE(bindings, m) {
         .def(pybind11::init<const std::vector<Vec2<Scalar>>&>(), "vertices"_a)
         .def("offset", &PolygonSupportArea<Scalar>::offset, "offset"_a)
         .def("vertices", &PolygonSupportArea<Scalar>::vertices)
-        .def("distance_outside", &PolygonSupportArea<Scalar>::distance_outside,
-             "point"_a)
+        .def("distance", &PolygonSupportArea<Scalar>::distance, "point"_a)
         .def_static("circle", &PolygonSupportArea<Scalar>::circle, "radius"_a)
         .def_static("equilateral_triangle",
                     &PolygonSupportArea<Scalar>::equilateral_triangle,
@@ -115,6 +119,15 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("r_co_o1", &ContactPoint<Scalar>::r_co_o1)
         .def_readwrite("r_co_o2", &ContactPoint<Scalar>::r_co_o2)
         .def_readwrite("normal", &ContactPoint<Scalar>::normal);
+
+    pybind11::class_<BalancedObjectArrangement<Scalar>>(
+        m, "BalancedObjectArrangement")
+        .def(
+            pybind11::init<const std::map<std::string, BalancedObject<Scalar>>&,
+                           const Vec3<Scalar>&>())
+        .def("balancing_constraints",
+             &BalancedObjectArrangement<Scalar>::balancing_constraints,
+             "orientation"_a, "angular_vel"_a, "linear_acc"_a, "angular_acc"_a);
 
     // Compute balancing constraints for the list of objects given
     m.def("balancing_constraints",

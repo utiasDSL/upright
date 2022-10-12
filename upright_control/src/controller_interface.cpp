@@ -424,9 +424,12 @@ ControllerInterface::get_balancing_constraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
     bool recompileLibraries) {
     return std::unique_ptr<ocs2::StateInputConstraint>(
-        new BoundedBalancingConstraints(
+        new NominalBalancingConstraints(
             end_effector_kinematics, settings_.balancing_settings,
             settings_.gravity, settings_.dims, recompileLibraries));
+        // new BoundedBalancingConstraints(
+        //     end_effector_kinematics, settings_.balancing_settings,
+        //     settings_.gravity, settings_.dims, recompileLibraries));
 }
 
 std::unique_ptr<ocs2::StateInputCost>

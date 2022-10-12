@@ -17,6 +17,7 @@ class ControllerModel:
     def __init__(self, settings):
         self.settings = settings
         self.objects = list(settings.objects.values())
+        self.arrangement = core.bindings.BalancedObjectArrangement(settings.objects, settings.gravity)
         self.robot, self.geom = build_robot_interfaces(settings)
 
     @classmethod
@@ -37,9 +38,7 @@ class ControllerModel:
         _, ω_ew_w = self.robot.link_velocity()
         a_ew_w, α_ew_w = self.robot.link_acceleration()
         C_we = core.math.quat_to_rot(Q_we)
-        return core.bindings.balancing_constraints(
-            self.objects, self.settings.gravity, C_we, ω_ew_w, a_ew_w, α_ew_w
-        )
+        return self.arrangement.balancing_constraints(C_we, ω_ew_w, a_ew_w, α_ew_w)
 
     def support_area_distances(self):
         """Compute shortest distance of intersection of gravity vector with
