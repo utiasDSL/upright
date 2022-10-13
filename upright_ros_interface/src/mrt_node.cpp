@@ -1,3 +1,7 @@
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/fwd.hpp>
+
+#include <signal.h>
 #include <iostream>
 
 #include <pybind11/embed.h>
@@ -5,15 +9,37 @@
 #include <ros/package.h>
 
 #include <ocs2_mpc/SystemObservation.h>
+#include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
+#include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
 
-#include <mobile_manipulation_central/robot_interfaces.h>
 #include <mobile_manipulation_central/projectile.h>
+#include <mobile_manipulation_central/robot_interfaces.h>
 
 #include <upright_control/controller_interface.h>
+#include <upright_control/dynamics/system_pinocchio_mapping.h>
+#include <upright_control/reference_trajectory.h>
 #include <upright_ros_interface/parsing.h>
 
 using namespace upright;
+
+
+const double PROJECTILE_ACTIVATION_HEIGHT = 1.0; // meters
+const double MIN_POLICY_UPDATE_TIME = 0.01; // seconds
+
+
+// Robot is a global variable so we can send it a brake command in the SIGINT
+// handler
+std::unique_ptr<mm::RobotROSInterface> robot_ptr;
+
+// Custom SIGINT handler
+void sigint_handler(int sig) {
+    std::cerr << "Received SIGINT." << std::endl;
+    std::cerr << "Braking robot." << std::endl;
+    robot_ptr->brake();
+    // sigint_recv = true;
+    ros::shutdown();
+}
 
 // Double integration using semi-implicit Euler method
 std::tuple<VecXd, VecXd> double_integrate(const VecXd& v, const VecXd& a,
@@ -38,33 +64,80 @@ std::tuple<VecXd, VecXd> double_integrate_repeated(const VecXd& v,
     return std::tuple<VecXd, VecXd>(v_new, a_new);
 }
 
-bool limits_violated(const ControllerSettings& settings, const VecXd& x,
-                     const VecXd& u) {
-    VecXd x_robot = x.head(settings.dims.robot.x);
-    VecXd u_robot = u.head(settings.dims.robot.u);
+class SafetyMonitor {
+   public:
+    SafetyMonitor(const ControllerSettings& settings,
+                  const ocs2::PinocchioInterface& pinocchio_interface)
+        : settings_(settings), pinocchio_interface_(pinocchio_interface) {
+        SystemPinocchioMapping<TripleIntegratorPinocchioMapping<ocs2::scalar_t>,
+                               ocs2::scalar_t>
+            mapping(settings.dims);
+        kinematics_ptr_.reset(new ocs2::PinocchioEndEffectorKinematics(
+            pinocchio_interface, mapping, {settings.end_effector_link_name}));
+        kinematics_ptr_->setPinocchioInterface(pinocchio_interface_);
+    }
 
-    if (((x_robot - settings.state_limit_lower).array() < 0).any()) {
-        std::cout << "x = " << x_robot.transpose() << std::endl;
-        std::cout << "State violated lower limits!" << std::endl;
-        return true;
+    bool limits_violated(const VecXd& x, const VecXd& u) const {
+        VecXd x_robot = x.head(settings_.dims.robot.x);
+        VecXd u_robot = u.head(settings_.dims.robot.u);
+
+        if (((x_robot - settings_.state_limit_lower).array() < 0).any()) {
+            std::cout << "x = " << x_robot.transpose() << std::endl;
+            std::cout << "State violated lower limits!" << std::endl;
+            return true;
+        }
+        if (((settings_.state_limit_upper - x_robot).array() < 0).any()) {
+            std::cout << "x = " << x_robot.transpose() << std::endl;
+            std::cout << "State violated upper limits!" << std::endl;
+            return true;
+        }
+        if (((u_robot - settings_.input_limit_lower).array() < 0).any()) {
+            std::cout << "u = " << u_robot.transpose() << std::endl;
+            std::cout << "Input violated lower limits!" << std::endl;
+            return true;
+        }
+        if (((settings_.input_limit_upper - u_robot).array() < 0).any()) {
+            std::cout << "u = " << u_robot.transpose() << std::endl;
+            std::cout << "Input violated upper limits!" << std::endl;
+            return true;
+        }
+        return false;
     }
-    if (((settings.state_limit_upper - x_robot).array() < 0).any()) {
-        std::cout << "x = " << x_robot.transpose() << std::endl;
-        std::cout << "State violated upper limits!" << std::endl;
-        return true;
+
+    bool end_effector_position_violated(const ocs2::TargetTrajectories& target,
+                                        ocs2::scalar_t t, const VecXd& x) {
+        VecXd q = VecXd::Zero(settings_.dims.q());
+        q.tail(settings_.dims.robot.q) = x.head(settings_.dims.robot.q);
+
+        pinocchio::forwardKinematics(pinocchio_interface_.getModel(),
+                                     pinocchio_interface_.getData(), q);
+        pinocchio::updateFramePlacements(pinocchio_interface_.getModel(),
+                                         pinocchio_interface_.getData());
+        Vec3d actual_position = kinematics_ptr_->getPosition(x).front();
+        Vec3d desired_position = interpolateEndEffectorPose(t, target).first;
+
+        VecXd position_constraint(6);
+        position_constraint
+            << desired_position + settings_.xyz_upper - actual_position,
+            actual_position - (desired_position + settings_.xyz_lower);
+
+        if (position_constraint.minCoeff() < 0) {
+            std::cerr << "Controller violated position limits!" << std::endl;
+            std::cerr << "Controller position = " << actual_position.transpose()
+                      << std::endl;
+            std::cerr << "Desired position = " << desired_position.transpose()
+                      << std::endl;
+            std::cerr << "q = " << q.transpose() << std::endl;
+            return true;
+        }
+        return false;
     }
-    if (((u_robot - settings.input_limit_lower).array() < 0).any()) {
-        std::cout << "u = " << u_robot.transpose() << std::endl;
-        std::cout << "Input violated lower limits!" << std::endl;
-        return true;
-    }
-    if (((settings.input_limit_upper - u_robot).array() < 0).any()) {
-        std::cout << "u = " << u_robot.transpose() << std::endl;
-        std::cout << "Input violated upper limits!" << std::endl;
-        return true;
-    }
-    return false;
-}
+
+   private:
+    ControllerSettings settings_;
+    std::unique_ptr<ocs2::PinocchioEndEffectorKinematics> kinematics_ptr_;
+    ocs2::PinocchioInterface pinocchio_interface_;
+};
 
 int main(int argc, char** argv) {
     const std::string robot_name = "mobile_manipulator";
@@ -79,13 +152,15 @@ int main(int argc, char** argv) {
     std::string config_path = std::string(argv[1]);
 
     // controller interface
-    // Python interpret required for now because we actually load the control
+    // Python interpreter required for now because we actually load the control
     // settings and the target trajectories using Python - not ideal but easier
-    // than re-implementing the parsing logic in C++ for now
+    // than re-implementing the parsing logic in C++
     py::scoped_interpreter guard{};
     ControllerSettings settings = parse_control_settings(config_path);
     std::cout << settings << std::endl;
     ControllerInterface interface(settings);
+
+    SafetyMonitor monitor(settings, interface.getPinocchioInterface());
 
     // MRT
     ocs2::MRT_ROS_Interface mrt(robot_name);
@@ -96,7 +171,6 @@ int main(int argc, char** argv) {
     VecXd x0 = interface.getInitialState();
 
     // Initialize the robot interface
-    std::unique_ptr<mm::RobotROSInterface> robot_ptr;
     if (settings.robot_base_type == RobotBaseType::Fixed) {
         robot_ptr.reset(new mm::UR10ROSInterface(nh));
     } else if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
@@ -104,6 +178,10 @@ int main(int argc, char** argv) {
     } else {
         throw std::runtime_error("Unsupported base type.");
     }
+
+    // Set up a custom SIGINT handler to brake the robot before shutting down
+    // (this is why we set it up after the robot is initialized)
+    signal(SIGINT, sigint_handler);
 
     // Initialize interface to dynamic obstacle estimator
     mm::ProjectileROSInterface projectile(nh, "Projectile");
@@ -113,7 +191,7 @@ int main(int argc, char** argv) {
     ros::Rate rate(settings.rate);
 
     // wait until we get feedback from the robot
-    while (ros::ok() && ros::master::check()) {
+    while (ros::ok()) {
         ros::spinOnce();
         if (robot_ptr->ready()) {
             break;
@@ -136,7 +214,7 @@ int main(int argc, char** argv) {
     mrt.setCurrentObservation(observation);
 
     // Let MPC generate the initial plan
-    while (ros::ok() && ros::master::check()) {
+    while (ros::ok()) {
         mrt.spinMRT();
         if (mrt.initialPolicyReceived()) {
             break;
@@ -144,7 +222,6 @@ int main(int argc, char** argv) {
         rate.sleep();
     }
     mrt.updatePolicy();
-
     std::cout << "Received first policy." << std::endl;
 
     VecXd x = x0;
@@ -157,19 +234,16 @@ int main(int argc, char** argv) {
 
     ros::Time now = ros::Time::now();
     ros::Time last_policy_update_time = now;
-    ros::Duration policy_update_delay(0.01);  // TODO note
+    ros::Duration policy_update_delay(MIN_POLICY_UPDATE_TIME);
 
     ocs2::scalar_t t = now.toSec();
     ocs2::scalar_t last_t = t;
 
-    while (ros::ok() && ros::master::check()) {
+    while (ros::ok()) {
         now = ros::Time::now();
         last_t = t;
         t = now.toSec();
         ocs2::scalar_t dt = t - last_t;
-
-        // Re-evaluate the policy to forward simulate the obstacle
-        // mrt.evaluatePolicy(t, x, xd, ou, mode);
 
         // Robot feedback
         VecXd q = robot_ptr->q();
@@ -188,7 +262,7 @@ int main(int argc, char** argv) {
         // Dynamic obstacle
         if (settings.dims.o > 0 && projectile.ready()) {
             Vec3d q_obs = projectile.q();
-            if (q_obs(2) > 1.0) {  // TODO
+            if (q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
                 avoid_dynamic_obstacle = true;
                 std::cout << "  q_obs = " << q_obs.transpose() << std::endl;
             } else {
@@ -204,7 +278,8 @@ int main(int argc, char** argv) {
 
             if (avoid_dynamic_obstacle) {
                 Vec3d v_obs = projectile.v();
-                Vec3d a_obs = settings.obstacle_settings.dynamic_obstacles[0].acceleration;
+                Vec3d a_obs = settings.obstacle_settings.dynamic_obstacles[0]
+                                  .acceleration;
                 x.tail(9) << q_obs, v_obs, a_obs;
             }
         }
@@ -212,17 +287,18 @@ int main(int argc, char** argv) {
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, u, mode);
 
-        // Check that the controller has provided sane values.
-        if (limits_violated(settings, xd, u)) {
+        // Check that controller is not making the end effector leave allowed
+        // region
+        if (monitor.end_effector_position_violated(target, t, xd)) {
             break;
         }
 
-        if (ros::isShuttingDown()) {
-            std::cout << "Braking" << std::endl;
-            robot_ptr->brake();
-        } else {
-            robot_ptr->publish_cmd_vel(v_ff, /* bodyframe = */ false);
+        // Check that the controller has provided sane values.
+        if (monitor.limits_violated(xd, u)) {
+            break;
         }
+
+        robot_ptr->publish_cmd_vel(v_ff, /* bodyframe = */ false);
 
         // Send observation to MPC
         observation.time = t;
@@ -243,9 +319,9 @@ int main(int argc, char** argv) {
     }
 
     // stop the robot when we're done
-    // NOTE: doesn't really work because we can't publish after the node is
-    // shutdown
+    std::cout << "Braking robot." << std::endl;
     robot_ptr->brake();
+    ros::shutdown();
 
     // Successful exit
     return 0;

@@ -34,7 +34,7 @@ inertial_alignment:
   weight: 10
 
 end_effector_box_constraint:
-  enabled: true
+  enabled: false
   xyz_lower: [-1., -1., -0.5]
   xyz_upper: [1., 1., 0.5]
 

@@ -282,11 +282,11 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                 std::unique_ptr<ocs2::StateInputConstraint>(
                     new StateToStateInputConstraint(*obstacle_constraint)));
             std::cerr
-                << "Hard static obstacle avoidance constraints are enabled."
+                << "Hard obstacle avoidance constraints are enabled."
                 << std::endl;
         }
     } else {
-        std::cerr << "Static obstacle avoidance is disabled." << std::endl;
+        std::cerr << "Obstacle avoidance is disabled." << std::endl;
     }
 
     ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(

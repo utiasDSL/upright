@@ -65,13 +65,12 @@ def main():
     rosbag_cmd = ROSBAG_CMD_ROOT + ["-o", rosbag_out_path] + ROSBAG_TOPICS
     proc = subprocess.Popen(rosbag_cmd)
 
+    # spin until SIGINT (Ctrl-C) is received
     try:
         while True:
             time.sleep(0.01)
     except KeyboardInterrupt:
         proc.send_signal(signal.SIGINT)
-
-    # IPython.embed()
 
 
 if __name__ == "__main__":

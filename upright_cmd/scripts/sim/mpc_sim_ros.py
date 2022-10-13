@@ -24,7 +24,7 @@ import IPython
 
 
 # TODO make a CLI arg
-USE_REAL_VICON = True
+USE_REAL_VICON = False
 
 
 def main():

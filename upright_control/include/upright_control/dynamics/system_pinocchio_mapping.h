@@ -3,10 +3,10 @@
 #include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 
 #include <upright_control/dimensions.h>
+#include <upright_control/types.h>
 
 namespace upright {
 
-// TODO more accurately: TripleIntegrator
 template <typename Scalar>
 class TripleIntegratorPinocchioMapping final
     : public ocs2::PinocchioStateInputMapping<Scalar> {
