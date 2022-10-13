@@ -30,20 +30,7 @@ static_obstacles:
       - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
 
 dynamic_obstacles:
-  enabled: true
-  obstacles:
-    # -
-    #   controlled: true
-    #   position: [0, -1, 0]
-    #   velocity: [0, 2, 0]
-    #   acceleration: [0, 0, 0]
-    #   radius: 0.1
-    -
-      controlled: false
-      position: [0, -1, 0]
-      velocity: [0, 1, 5]
-      acceleration: [0, 0, -9.81]
-      radius: 0.1
+  enabled: false
 
 objects:
   # EE is a special object

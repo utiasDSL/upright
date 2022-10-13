@@ -10,6 +10,9 @@ include:
   -
     package: upright_cmd
     path: config/omni/omni.yaml
+  -
+    package: upright_cmd
+    path: config/obstacles/dynamic.yaml
 
 logging:
   timestep: 0.010
@@ -18,6 +21,9 @@ logging:
 simulation:
   duration: 10.0
   arrangement: foam_die1
+
+  dynamic_obstacles:
+    enabled: true
 
 controller:
   balancing:
@@ -29,6 +35,16 @@ controller:
     enable_friction_constraint: true
     enable_zmp_constraint: true
 
+  weights:
+    end_effector:
+      scale: 0.1
+      diag: [1, 1, 1, 0, 0, 0]
+
+  obstacles:
+    enabled: true
+    constraint_type: hard
+    minimum_distance: 0.1  # TODO lower this
+
   tracking:
     rate: 125
     Kp:
@@ -38,5 +54,5 @@ controller:
   waypoints:
     -
       time: 0
-      position: [2.0, 0.5, 0.25]
+      position: [0, 0, 0]
       orientation: [0, 0, 0, 1]

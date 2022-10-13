@@ -1,0 +1,35 @@
+# these values are either updated by the simulation environment or by Vicon
+controller:
+  obstacles:
+    dynamic:
+      -
+        name: projectile1
+        # NOTE: these are *initial conditions*. In real experiment, the
+        # position is relative to the origin of the world frame. In simulation,
+        # position and velocity are (typically) (re-)set by the simulator for
+        # maximum accuracy.
+        position: [0, -10, 0]  # out of the way
+        velocity: [0, 0, 0]
+        acceleration: [0, 0, -9.81]
+        radius: 0.1
+
+    collision_pairs:
+      # wrist and shoulder
+      - ["wrist1_collision_link_0", "shoulder_collision_link_0"]
+
+      # wrist and ground
+      - ["wrist3_collision_link_0", "ground"]
+
+      # arm and dynamic obstacles
+      - ["balanced_object_collision_link_0", "projectile1"]
+      - ["wrist3_collision_link_0", "projectile1"]
+
+simulation:
+  dynamic_obstacles:
+    obstacles:
+      -
+        controlled: false
+        position: [0, -1, 0]
+        velocity: [0, 1, 5]
+        acceleration: [0, 0, -9.81]
+        radius: 0.1

@@ -32,7 +32,7 @@ class EndEffectorCost final : public ocs2::StateCost {
     ocs2::scalar_t getValue(ocs2::scalar_t time, const VecXd& state,
                             const ocs2::TargetTrajectories& target,
                             const ocs2::PreComputation&) const override {
-        const auto desired_pose = interpolateEndEffectorPose(time, target);
+        const auto desired_pose = interpolate_end_effector_pose(time, target);
 
         VecXd err = VecXd::Zero(6);
         err.head<3>() =
@@ -49,7 +49,7 @@ class EndEffectorCost final : public ocs2::StateCost {
         ocs2::scalar_t time, const VecXd& state,
         const ocs2::TargetTrajectories& target,
         const ocs2::PreComputation&) const override {
-        const auto desired_pose = interpolateEndEffectorPose(time, target);
+        const auto desired_pose = interpolate_end_effector_pose(time, target);
 
         // NOTE: input is not used in this state cost, so we give it a
         // dimension of zero.

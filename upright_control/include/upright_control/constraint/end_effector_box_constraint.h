@@ -48,7 +48,7 @@ class EndEffectorBoxConstraint final : public ocs2::StateConstraint {
     VecXd getValue(ocs2::scalar_t time, const VecXd& state,
                    const ocs2::PreComputation&) const override {
         const auto& target = reference_manager_ptr_->getTargetTrajectories();
-        const auto desired_pose = interpolateEndEffectorPose(time, target);
+        const auto desired_pose = interpolate_end_effector_pose(time, target);
         Vec3d desired_position = desired_pose.first;
         Vec3d actual_position =
             end_effector_kinematics_ptr_->getPosition(state).front();

@@ -44,7 +44,7 @@ inline Quatd get_target_orientation(const VecXd& target) {
     return Quatd(target.segment<4>(3));
 }
 
-inline std::pair<VecXd, Quatd> interpolateEndEffectorPose(
+inline std::pair<VecXd, Quatd> interpolate_end_effector_pose(
     ocs2::scalar_t time, const ocs2::TargetTrajectories& targetTrajectories) {
     const auto& timeTrajectory = targetTrajectories.timeTrajectory;
     const auto& stateTrajectory = targetTrajectories.stateTrajectory;

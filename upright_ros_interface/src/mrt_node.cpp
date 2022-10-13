@@ -114,7 +114,7 @@ class SafetyMonitor {
         pinocchio::updateFramePlacements(pinocchio_interface_.getModel(),
                                          pinocchio_interface_.getData());
         Vec3d actual_position = kinematics_ptr_->getPosition(x).front();
-        Vec3d desired_position = interpolateEndEffectorPose(t, target).first;
+        Vec3d desired_position = interpolate_end_effector_pose(t, target).first;
 
         VecXd position_constraint(6);
         position_constraint
