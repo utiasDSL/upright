@@ -45,11 +45,11 @@ controller:
     constraint_type: hard
     minimum_distance: 0.1  # TODO lower this
 
-  tracking:
-    rate: 125
-    Kp:
-      scale: 1
-      diag: [1rep9]
+  # TODO maybe expand these
+  end_effector_box_constraint:
+    enabled: true
+    xyz_lower: [-1., -1., -0.5]
+    xyz_upper: [1., 1., 0.5]
 
   waypoints:
     -
