@@ -69,7 +69,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/constraint/state_to_state_input_constraint.h>
 #include <upright_control/cost/end_effector_cost.h>
-#include <upright_control/cost/end_effector_cost_cppad.h>
 #include <upright_control/cost/quadratic_joint_state_input_cost.h>
 #include <upright_control/dynamics/base_type.h>
 #include <upright_control/dynamics/system_dynamics.h>

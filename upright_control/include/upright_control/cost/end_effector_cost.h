@@ -1,7 +1,9 @@
 #pragma once
 
 #include <ocs2_core/cost/StateCost.h>
+#include <ocs2_core/cost/StateCostCppAd.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
+#include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
 #include <upright_control/reference_trajectory.h>
@@ -11,22 +13,21 @@ namespace upright {
 
 class EndEffectorCost final : public ocs2::StateCost {
    public:
-    EndEffectorCost(const MatXd& W,
-                    const ocs2::EndEffectorKinematics<ocs2::scalar_t>&
-                        end_effector_kinematics)
-        : W_(W), end_effector_kinematics_ptr_(end_effector_kinematics.clone()) {
-        if (end_effector_kinematics.getIds().size() != 1) {
+    EndEffectorCost(
+        const MatXd& W,
+        const ocs2::EndEffectorKinematics<ocs2::scalar_t>& kinematics)
+        : W_(W), kinematics_ptr_(kinematics.clone()) {
+        if (kinematics.getIds().size() != 1) {
             throw std::runtime_error(
                 "[EndEffectorConstraint] endEffectorKinematics has wrong "
-                "number of "
-                "end effector IDs.");
+                "number of end effector IDs.");
         }
     }
 
     ~EndEffectorCost() override = default;
 
     EndEffectorCost* clone() const override {
-        return new EndEffectorCost(W_, *end_effector_kinematics_ptr_);
+        return new EndEffectorCost(W_, *kinematics_ptr_);
     }
 
     ocs2::scalar_t getValue(ocs2::scalar_t time, const VecXd& state,
@@ -36,11 +37,10 @@ class EndEffectorCost final : public ocs2::StateCost {
 
         VecXd err = VecXd::Zero(6);
         err.head<3>() =
-            end_effector_kinematics_ptr_->getPosition(state).front() -
-            desired_pose.first;
-        err.tail<3>() = end_effector_kinematics_ptr_
-                            ->getOrientationError(state, {desired_pose.second})
-                            .front();
+            kinematics_ptr_->getPosition(state).front() - desired_pose.first;
+        err.tail<3>() =
+            kinematics_ptr_->getOrientationError(state, {desired_pose.second})
+                .front();
 
         return 0.5 * err.transpose() * W_ * err;
     }
@@ -59,10 +59,9 @@ class EndEffectorCost final : public ocs2::StateCost {
 
         // Linear approximations of position and orientation error
         const auto eePosition =
-            end_effector_kinematics_ptr_->getPositionLinearApproximation(state)
-                .front();
+            kinematics_ptr_->getPositionLinearApproximation(state).front();
         const auto eeOrientationError =
-            end_effector_kinematics_ptr_
+            kinematics_ptr_
                 ->getOrientationErrorLinearApproximation(state,
                                                          {desired_pose.second})
                 .front();
@@ -88,9 +87,60 @@ class EndEffectorCost final : public ocs2::StateCost {
     EndEffectorCost(const EndEffectorCost& other) = default;
 
     MatXd W_;  // weight matrix
-
     std::unique_ptr<ocs2::EndEffectorKinematics<ocs2::scalar_t>>
-        end_effector_kinematics_ptr_;
+        kinematics_ptr_;
+};
+
+// Auto-diff version gives us the full Hessian
+class EndEffectorCostCppAd final : public ocs2::StateCostCppAd {
+   public:
+    EndEffectorCostCppAd(
+        const MatXd& W,
+        const ocs2::PinocchioEndEffectorKinematicsCppAd& kinematics,
+        const OptimizationDimensions& dims, bool recompileLibraries)
+        : W_(W), kinematics_ptr_(kinematics.clone()), dims_(dims) {
+        const size_t num_params = 7;
+        initialize(dims.x(), num_params, "end_effector_cost_cppad", "/tmp/ocs2",
+                   recompileLibraries, true);
+    }
+
+    EndEffectorCostCppAd* clone() const override {
+        return new EndEffectorCostCppAd(W_, *kinematics_ptr_, dims_, false);
+    }
+
+    VecXd getParameters(ocs2::scalar_t time,
+                        const ocs2::TargetTrajectories& target) const override {
+        const auto desired_pose = interpolate_end_effector_pose(time, target);
+        VecXd p(7);
+        p << desired_pose.first, desired_pose.second.coeffs();
+        return p;
+    };
+
+   protected:
+    ocs2::ad_scalar_t costFunction(ocs2::ad_scalar_t time_ad,
+                                   const VecXad& state,
+                                   const VecXad& parameters) const {
+        Vec3ad desired_position = parameters.head(3);
+        Quatad desired_orientation;
+        desired_orientation.coeffs() = parameters.tail(4);
+
+        Vec3ad actual_position = kinematics_ptr_->getPositionCppAd(state);
+        Vec3ad pos_error = actual_position - desired_position;
+        Vec3ad orn_error = kinematics_ptr_->getOrientationErrorCppAd(
+            state, desired_orientation);
+
+        MatXad W = W_.cast<ocs2::ad_scalar_t>();
+        VecXad pose_error(6);
+        pose_error << pos_error, orn_error;
+        return ocs2::ad_scalar_t(0.5) * pose_error.dot(W * pose_error);
+    }
+
+   private:
+    EndEffectorCostCppAd(const EndEffectorCostCppAd& other) = default;
+
+    MatXd W_;  // weight matrix
+    std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd> kinematics_ptr_;
+    OptimizationDimensions dims_;
 };
 
 }  // namespace upright
