@@ -17,13 +17,13 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: foam_die1
+  arrangement: really_tall_box
 
 controller:
   balancing:
     enabled: false
     use_force_constraints: true
-    arrangement: foam_die1
+    arrangement: really_tall_box
     constraint_type: hard
     enable_normal_constraint: true
     enable_friction_constraint: true
@@ -31,7 +31,21 @@ controller:
 
   inertial_alignment:
     enabled: true
+    use_constraint: true
     use_angular_acceleration: false
+    contact_plane_normal: [0, 0, 1]
+    com: [0, 0, 0]
+
+  weights:
+    input:
+      scale: 0.001
+      diag: [1rep9]
+    state:
+      scale: 0.01
+      diag: [0rep9, 10rep9, 1rep9]
+    end_effector:
+      scale: 1
+      diag: [1, 1, 1, 0, 0, 0]
 
   waypoints:
     -

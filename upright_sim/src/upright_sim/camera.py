@@ -61,9 +61,8 @@ class VideoManager:
         self.path = root_dir / dir_name
         self.path.mkdir()
 
-        # timestep is in milliseconds
         self.timestep = timestep
-        fps = 1000.0 / timestep
+        fps = 1.0 / timestep
 
         self.recorders = []
         self.frames_dirs = []
@@ -119,7 +118,7 @@ class VideoManager:
         if not self.save:
             return
 
-        if t + self.timestep < self.last_record_time:
+        if t < self.last_record_time + self.timestep:
             return
 
         for frames_dir, recorder in zip(self.frames_dirs, self.recorders):

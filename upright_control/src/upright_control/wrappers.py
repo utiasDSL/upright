@@ -136,9 +136,15 @@ class ControllerSettings(bindings.ControllerSettings):
         assert self.state_limit_upper.shape == (self.dims.robot.x,)
 
         # end effector position box constraint
-        self.end_effector_box_constraint_enabled = config["end_effector_box_constraint"]["enabled"]
-        self.xyz_lower = core.parsing.parse_array(config["end_effector_box_constraint"]["xyz_lower"])
-        self.xyz_upper = core.parsing.parse_array(config["end_effector_box_constraint"]["xyz_upper"])
+        self.end_effector_box_constraint_enabled = config[
+            "end_effector_box_constraint"
+        ]["enabled"]
+        self.xyz_lower = core.parsing.parse_array(
+            config["end_effector_box_constraint"]["xyz_lower"]
+        )
+        self.xyz_upper = core.parsing.parse_array(
+            config["end_effector_box_constraint"]["xyz_upper"]
+        )
         assert self.xyz_lower.shape == (3,)
         assert self.xyz_upper.shape == (3,)
 
@@ -201,19 +207,16 @@ class ControllerSettings(bindings.ControllerSettings):
         # alternative inertial alignment objective
         # tries to keep tray/EE normal aligned with the negative acceleration
         # vector
-        self.inertial_alignment_settings.enabled = config["inertial_alignment"][
-            "enabled"
-        ]
-        if self.inertial_alignment_settings.enabled:
-            self.inertial_alignment_settings.use_angular_acceleration = config[
-                "inertial_alignment"
-            ]["use_angular_acceleration"]
-            self.inertial_alignment_settings.weight = config["inertial_alignment"][
-                "weight"
-            ]
-            self.inertial_alignment_settings.r_oe_e = ctrl_objects[
-                -1
-            ].body.com_ellipsoid.center()  # TODO could specify index in config
+        ias = self.inertial_alignment_settings
+        iac = config["inertial_alignment"]
+        ias.enabled = iac["enabled"]
+        if ias.enabled:
+            ias.use_constraint = iac["use_constraint"]
+            ias.use_angular_acceleration = iac["use_angular_acceleration"]
+            ias.cost_weight = iac["cost_weight"]
+            normal = np.array(iac["contact_plane_normal"])
+            ias.contact_plane_normal = normal / np.linalg.norm(normal)
+            ias.com = np.array(iac["com"])
 
         # obstacle settings
         x0_obs = []
@@ -239,9 +242,7 @@ class ControllerSettings(bindings.ControllerSettings):
 
             if "urdf" in config["obstacles"]:
                 self.obstacle_settings.obstacle_urdf_path = (
-                    core.parsing.parse_and_compile_urdf(
-                        config["obstacles"]["urdf"]
-                    )
+                    core.parsing.parse_and_compile_urdf(config["obstacles"]["urdf"])
                 )
 
             if "dynamic" in config["obstacles"]:

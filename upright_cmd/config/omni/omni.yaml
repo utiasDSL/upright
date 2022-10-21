@@ -32,7 +32,7 @@ simulation:
         - "$(find upright_assets)/thing/xacro/cartesian_base_joints.urdf.xacro"
         - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
         - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
-        - "$(find upright_assets)/thing/xacro/collision_links.urdf.xacro"
+        # - "$(find upright_assets)/thing/xacro/collision_links.urdf.xacro"
       args:
         use_collision: "false"
 

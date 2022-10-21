@@ -69,11 +69,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/constraint/state_to_state_input_constraint.h>
 #include <upright_control/cost/end_effector_cost.h>
-#include <upright_control/cost/inertial_alignment_cost.h>
+#include <upright_control/cost/end_effector_cost_cppad.h>
 #include <upright_control/cost/quadratic_joint_state_input_cost.h>
 #include <upright_control/dynamics/base_type.h>
 #include <upright_control/dynamics/system_dynamics.h>
 #include <upright_control/dynamics/system_pinocchio_mapping.h>
+#include <upright_control/inertial_alignment.h>
 #include <upright_control/util.h>
 
 #include "upright_control/controller_interface.h"
@@ -168,6 +169,8 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
 
     // sqpSettings_.hpipmSettings.warm_start = true;
     sqpSettings_.hpipmSettings.use_slack = true;
+    // sqpSettings_.hpipmSettings.slack_upper_L2_penalty = 1e3;
+    // sqpSettings_.hpipmSettings.slack_lower_L2_penalty = 1e3;
 
     // Dynamics
     // NOTE: we don't have any branches here because every system we use
@@ -281,9 +284,8 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                 "obstacle_avoidance",
                 std::unique_ptr<ocs2::StateInputConstraint>(
                     new StateToStateInputConstraint(*obstacle_constraint)));
-            std::cerr
-                << "Hard obstacle avoidance constraints are enabled."
-                << std::endl;
+            std::cerr << "Hard obstacle avoidance constraints are enabled."
+                      << std::endl;
         }
     } else {
         std::cerr << "Obstacle avoidance is disabled." << std::endl;
@@ -300,6 +302,14 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     problem_.stateCostPtr->add("end_effector_cost",
                                std::move(end_effector_cost));
 
+    // Alternative auto-diff version with full Hessian
+    // std::unique_ptr<ocs2::StateCost> end_effector_cost(new
+    // EndEffectorCostCppAd(
+    //     settings_.end_effector_weight, end_effector_kinematics,
+    //     settings_.dims, recompileLibraries));
+    // problem_.stateCostPtr->add("end_effector_cost",
+    //                            std::move(end_effector_cost));
+
     // End effector position box constraint
     if (settings_.end_effector_box_constraint_enabled) {
         std::cout << "End effector box constraint is enabled." << std::endl;
@@ -315,14 +325,28 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         std::cout << "End effector box constraint is disabled." << std::endl;
     }
 
-    // Inertial alignment cost
+    // Inertial alignment
     if (settings_.inertial_alignment_settings.enabled) {
-        std::unique_ptr<ocs2::StateInputCost> inertial_alignment_cost(
-            new InertialAlignmentCost(end_effector_kinematics,
-                                      settings_.inertial_alignment_settings,
-                                      settings_.gravity, settings_.dims, true));
-        problem_.costPtr->add("inertial_alignment_cost",
-                              std::move(inertial_alignment_cost));
+        if (settings_.inertial_alignment_settings.use_constraint) {
+            std::unique_ptr<ocs2::StateInputConstraint>
+                inertial_alignment_constraint(new InertialAlignmentConstraint(
+                    end_effector_kinematics,
+                    settings_.inertial_alignment_settings, settings_.gravity,
+                    settings_.dims, recompileLibraries));
+            problem_.equalityConstraintPtr->add(
+                "inertial_alignment_constraint",
+                std::move(inertial_alignment_constraint));
+            std::cout << "Inertial alignment constraint enabled." << std::endl;
+        } else {
+            std::unique_ptr<ocs2::StateInputCost> inertial_alignment_cost(
+                new InertialAlignmentCost(end_effector_kinematics,
+                                          settings_.inertial_alignment_settings,
+                                          settings_.gravity, settings_.dims,
+                                          true));
+            problem_.costPtr->add("inertial_alignment_cost",
+                                  std::move(inertial_alignment_cost));
+            std::cout << "Inertial alignment cost enabled." << std::endl;
+        }
     }
 
     // TODO we're getting too nested here

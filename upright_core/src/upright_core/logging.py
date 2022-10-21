@@ -430,5 +430,13 @@ class DataPlotter:
                 title="Controller cost",
             )
 
+        if "alignment_constraints" in self.data:
+            self.plot_value_vs_time(
+                "alignment_constraints",
+                legend_prefix="g",
+                ylabel="Constraint value",
+                title="Inertial alignment constraints",
+            )
+
         if show:
             self.show()

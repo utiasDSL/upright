@@ -17,6 +17,7 @@
 #include <upright_control/dimensions.h>
 #include <upright_control/dynamics/base_type.h>
 #include <upright_control/dynamics/system_pinocchio_mapping.h>
+#include <upright_control/inertial_alignment.h>
 
 using namespace upright;
 using namespace ocs2;  // TODO perhaps avoid using
@@ -53,8 +54,7 @@ PYBIND11_MODULE(bindings, m) {
         .def("get_pinocchio_joint_position",
              &SystemMapping::getPinocchioJointPosition, "state"_a)
         .def("get_pinocchio_joint_velocity",
-             &SystemMapping::getPinocchioJointVelocity, "state"_a,
-             "input"_a)
+             &SystemMapping::getPinocchioJointVelocity, "state"_a, "input"_a)
         .def("get_pinocchio_joint_acceleration",
              &SystemMapping::getPinocchioJointAcceleration, "state"_a,
              "input"_a);
@@ -154,17 +154,18 @@ PYBIND11_MODULE(bindings, m) {
     pybind11::class_<InertialAlignmentSettings>(m, "InertialAlignmentSettings")
         .def(pybind11::init<>())
         .def_readwrite("enabled", &InertialAlignmentSettings::enabled)
+        .def_readwrite("use_constraint",
+                       &InertialAlignmentSettings::use_constraint)
         .def_readwrite("use_angular_acceleration",
                        &InertialAlignmentSettings::use_angular_acceleration)
-        .def_readwrite("weight", &InertialAlignmentSettings::weight)
-        .def_readwrite("r_oe_e", &InertialAlignmentSettings::r_oe_e);
+        .def_readwrite("cost_weight", &InertialAlignmentSettings::cost_weight)
+        .def_readwrite("contact_plane_normal", &InertialAlignmentSettings::contact_plane_normal)
+        .def_readwrite("com", &InertialAlignmentSettings::com);
 
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("gravity", &ControllerSettings::gravity)
         .def_readwrite("solver_method", &ControllerSettings::solver_method)
-        // .def_readwrite("dynamic_obstacle_settings",
-        //                &ControllerSettings::dynamic_obstacle_settings)
         .def_readwrite("obstacle_settings",
                        &ControllerSettings::obstacle_settings)
         .def_readwrite("balancing_settings",

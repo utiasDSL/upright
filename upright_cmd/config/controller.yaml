@@ -27,7 +27,10 @@ balancing:
 inertial_alignment:
   enabled: false
   use_angular_acceleration: false
-  weight: 10
+  use_constraint: true
+  cost_weight: 10
+  contact_plane_normal: [0, 0, 1]
+  com: [0, 0, 0]
 
 end_effector_box_constraint:
   enabled: false
@@ -117,3 +120,11 @@ objects:
     shape:
       type: cuboid
       side_lengths: [0.065, 0.065, 0.13]
+
+  really_tall_box:
+    shape: cuboid
+    mass: 0.04
+    com_offset: [0, 0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.065, 0.065, 0.3]

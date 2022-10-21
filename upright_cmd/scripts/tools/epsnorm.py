@@ -27,13 +27,13 @@ def main():
     #         IPython.embed()
     #         return
 
-    d = 0.1
-    x = np.linspace(0, 2, 100)
-    y1 = x - d
-    y2 = np.sqrt(x**2 + d**2) - 2*d
+    d_min = 0.1
+    d = np.linspace(-0.5, 2, 500)
+    y1 = d - d_min
+    y2 = np.sign(d) * np.sqrt(d**2 + d_min**2) - d_min
 
-    plt.plot(x, y1, label="y1")
-    plt.plot(x, y2, label="y2")
+    plt.plot(d, y1, label="y1")
+    plt.plot(d, y2, label="y2")
     plt.legend()
     plt.grid()
     plt.show()

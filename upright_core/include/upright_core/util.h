@@ -33,13 +33,19 @@ Mat3<Scalar> skew3(const Vec3<Scalar>& x) {
     return M;
 }
 
-
 // Second time-derivative of the rotation matrix.
 template <typename Scalar>
+Mat3<Scalar> dC_dtt(const Mat3<Scalar>& C_we, const Vec3<Scalar>& angular_vel,
+                    const Vec3<Scalar>& angular_acc) {
+    Mat3<Scalar> S_angular_vel = skew3<Scalar>(angular_vel);
+    Mat3<Scalar> S_angular_acc = skew3<Scalar>(angular_acc);
+    return (S_angular_acc + S_angular_vel * S_angular_vel) * C_we;
+}
+
+template <typename Scalar>
 Mat3<Scalar> dC_dtt(const RigidBodyState<Scalar>& state) {
-    Mat3<Scalar> S_angular_vel = skew3<Scalar>(state.velocity.angular);
-    Mat3<Scalar> S_angular_acc = skew3<Scalar>(state.acceleration.angular);
-    return (S_angular_acc + S_angular_vel * S_angular_vel) * state.pose.orientation;
+    return dC_dtt(state.pose.orientation, state.velocity.angular,
+                  state.acceleration.angular);
 }
 
 // Generate a random scalar between 0 and 1

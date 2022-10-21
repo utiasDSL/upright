@@ -123,7 +123,7 @@ VecX<Scalar> zmp_constraint(const BalancedObject<Scalar>& object,
     S << Scalar(0), Scalar(-1), Scalar(1), Scalar(0);
 
     Vec2<Scalar> zmp =
-        (-object.com_height * giw.force.head(2) - S * giw.torque.head(2)) /
+        (-object.com_height * giw.force.head(2) + S * giw.torque.head(2)) /
         giw.force(2);
     return object.support_area.zmp_constraints(zmp);
 }

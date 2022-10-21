@@ -54,6 +54,7 @@ def main():
     ref = ctrl_manager.ref
     Kp = model.settings.Kp
     mapping = ctrl.trajectory.StateInputMapping(model.settings.dims.robot)
+    gravity = model.settings.gravity
 
     # data logging
     logger = DataLogger(config)
@@ -128,13 +129,16 @@ def main():
         # TODO why is this better than using the zero-order hold?
         # here we use the input u to generate the feedforward signal---using
         # the jerk level ensures smoothness at the velocity level
-        qd, vd, _ = mapping.xu2qva(xd_robot)
+        qd, vd, ad = mapping.xu2qva(xd_robot)
+
+        # u_cmd = Kp @ (qd - q_noisy) + (vd - v_ff) + (ad - a_ff) + u_robot
 
         # if use_direct_velocity_command:
         #     v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, sim.timestep)
         #     v_cmd = Kp @ (qd - q_noisy) + vd
         # else:
-        v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, sim.timestep)
+        v_ff, a_ff = integrator.integrate_approx(v_ff, ad, u_robot, sim.timestep)
+        # v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_cmd, sim.timestep)
         v_cmd = v_ff
 
         sim.robot.command_velocity(v_cmd, bodyframe=False)
@@ -166,6 +170,14 @@ def main():
             logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
             logger.append("balancing_constraints", model.balancing_constraints())
+
+            # if model.settings.inertial_alignment_settings.enabled:
+            #     alignment_constraints = (
+            #         ctrl_manager.mpc.getStateInputEqualityConstraintValue(
+            #             "inertial_alignment_constraint", t, x, u
+            #         )
+            #     )
+            #     logger.append("alignment_constraints", alignment_constraints)
 
             if model.settings.obstacle_settings.enabled:
                 if (
@@ -219,10 +231,16 @@ def main():
         if len(sim.dynamic_obstacles) > 0 and t >= (num_obs_resets + 1) * 2.0:
             num_obs_resets += 1
             obs = sim.dynamic_obstacles[0]
-            obs.reset(t, r=r_ew_w + [0, -1, 0])
+            # obs.reset(t, r=r_ew_w + [0, -2, 0])
+
+            Δt = 0.75
+            r_target = r_ew_w + [0.1, 0.13, 0]
+            r_obs0 = r_target + [0, -2, 0]
+            v_obs0 = (r_target - r_obs0 - 0.5 * Δt ** 2 * gravity) / Δt
+            obs.reset(t, r=r_obs0, v=v_obs0)
 
             # TODO: Ideally, we could remain stable in spite of large resets
-            ctrl_manager.mpc.reset(ctrl_manager.ref)
+            # ctrl_manager.mpc.reset(ctrl_manager.ref)
 
         t = sim.step(t, step_robot=False)
 

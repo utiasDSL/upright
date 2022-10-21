@@ -103,7 +103,7 @@ class JointStateInputConstraint final : public ocs2::StateInputConstraint {
         size_t rx = dims.robot.x;
         size_t ru = dims.robot.u;
 
-        // f = C * x + D * u
+        // f = C * x + D * u + e >= 0
         //   = | I 0| * x + | 0 0| * u
         //     |-I 0|       | 0 0|
         //     | 0 0|       | I 0|
@@ -138,19 +138,15 @@ class JointStateInputConstraint final : public ocs2::StateInputConstraint {
 
     VecXd getValue(ocs2::scalar_t time, const VecXd& state, const VecXd& input,
                    const ocs2::PreComputation&) const override {
-        VecXd g = e_;
-        g.noalias() += C_ * state;
-        g.noalias() += D_ * input;
-        return g;
+        VecXd f = C_ * state + D_ * input + e_;
+        return f;
     }
 
     ocs2::VectorFunctionLinearApproximation getLinearApproximation(
         ocs2::scalar_t time, const VecXd& state, const VecXd& input,
         const ocs2::PreComputation&) const {
         ocs2::VectorFunctionLinearApproximation g;
-        g.f = e_;
-        g.f.noalias() += C_ * state;
-        g.f.noalias() += D_ * input;
+        g.f = C_ * state + D_ * input + e_;
         g.dfdx = C_;
         g.dfdu = D_;
         return g;

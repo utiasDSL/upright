@@ -491,7 +491,11 @@ def parse_control_objects(ctrl_conf):
         wrappers[obj_name] = _BalancedObjectWrapper(body, box, parent_name)
 
     if ctrl_conf["balancing"]["use_force_constraints"]:
-        return _parse_objects_with_contacts(wrappers, contact_conf, inset=sa_inset)
+        return _parse_objects_with_contacts(
+            wrappers, contact_conf, inset=sa_inset, mu_margin=mu_margin
+        )
     else:
-        composites = _parse_composite_objects(wrappers, contact_conf, inset=sa_inset)
+        composites = _parse_composite_objects(
+            wrappers, contact_conf, inset=sa_inset, mu_margin=mu_margin
+        )
         return composites, []

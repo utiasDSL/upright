@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Plot position of Vicon objects from a ROS bag."""
 import argparse
 
@@ -5,6 +6,8 @@ import numpy as np
 import rosbag
 import matplotlib.pyplot as plt
 from mobile_manipulation_central import ros_utils
+
+import IPython
 
 
 def parse_vicon_msgs(msgs, t0=None):
@@ -36,6 +39,20 @@ def main():
     vicon_times = ros_utils.parse_time(vicon_msgs, t0=t0)
     est_times = ros_utils.parse_time(est_msgs, t0=t0)
 
+    # find time at which Kalman filtering starts
+    nv = vicon_positions.shape[0]
+    for i in range(nv):
+        if vicon_positions[i, 2] >= 0.8:
+            active_time = vicon_times[i]
+            break
+
+    # compare to measured (numerically-differentiated) velocities
+    num_diff_velocities = np.zeros((nv - 1, 3))
+    for i in range(nv - 1):
+        dt = vicon_times[i + 1] - vicon_times[i]
+        dp = vicon_positions[i + 1, :] - vicon_positions[i, :]
+        num_diff_velocities[i, :] = dp / dt
+
     # x, y, z position vs. time
     plt.figure()
     plt.plot(vicon_times, vicon_positions[:, 0], label="x", color="r")
@@ -44,24 +61,26 @@ def main():
     plt.plot(est_times, est_positions[:, 0], label="x_est", linestyle="--", color="r")
     plt.plot(est_times, est_positions[:, 1], label="y_est", linestyle="--", color="g")
     plt.plot(est_times, est_positions[:, 2], label="z_est", linestyle="--", color="b")
+    plt.axvline(active_time, color="k")
     plt.xlabel("Time (s)")
     plt.ylabel("Position (m)")
     plt.title(f"Projectile position vs. time")
     plt.legend()
     plt.grid()
 
-    # plt.figure()
-    # plt.plot(gt_times, gt_velocities[:, 0], label="x", color="r")
-    # plt.plot(gt_times, gt_velocities[:, 1], label="y", color="g")
-    # plt.plot(gt_times, gt_velocities[:, 2], label="z", color="b")
-    # plt.plot(est_times, est_velocities[:, 0], label="x_est", linestyle="--", color="r")
-    # plt.plot(est_times, est_velocities[:, 1], label="y_est", linestyle="--", color="g")
-    # plt.plot(est_times, est_velocities[:, 2], label="z_est", linestyle="--", color="b")
-    # plt.xlabel("Time (s)")
-    # plt.ylabel("Velocity (m/s)")
-    # plt.title(f"Projectile velocity vs. time")
-    # plt.legend()
-    # plt.grid()
+    plt.figure()
+    plt.plot(vicon_times[1:], num_diff_velocities[:, 0], label="vx_nd", color="r")
+    plt.plot(vicon_times[1:], num_diff_velocities[:, 1], label="vy_nd", color="g")
+    plt.plot(vicon_times[1:], num_diff_velocities[:, 2], label="vz_nd", color="b")
+    plt.plot(est_times, est_velocities[:, 0], label="vx_est", linestyle="--", color="r")
+    plt.plot(est_times, est_velocities[:, 1], label="vy_est", linestyle="--", color="g")
+    plt.plot(est_times, est_velocities[:, 2], label="vz_est", linestyle="--", color="b")
+    plt.axvline(active_time, color="k")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Velocity (m/s)")
+    plt.title(f"Projectile velocity vs. time")
+    plt.legend()
+    plt.grid()
 
     plt.show()
 

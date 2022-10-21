@@ -63,6 +63,8 @@ arrangements:
 
   # single foam die
   foam_die1:
+    mu_margin: 0.05
+    # TODO inset
     objects:
       -
         name: foam_die1
@@ -75,7 +77,6 @@ arrangements:
         first: ee
         second: foam_die1
         mu: 0.4
-
 
   # two foam dice stacked atop one another
   foam_die2:
@@ -114,7 +115,22 @@ arrangements:
       -
         first: ee
         second: box1
-        mu: 0.4
+        mu: 0.1
+
+  really_tall_box:
+    support_area_inset: 0.01
+    mu_margin: 0.01
+    objects:
+      -
+        name: box1
+        type: really_tall_box
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.1
+
 
   bottle_and_tall_box:
     objects:

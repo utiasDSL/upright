@@ -4,7 +4,7 @@
 
 #include <ocs2_core/reference/TargetTrajectories.h>
 
-#include <upright_control/cost/inertial_alignment_cost.h>
+#include <upright_control/inertial_alignment.h>
 #include <upright_control/dynamics/base_type.h>
 #include <upright_control/dimensions.h>
 #include <upright_control/constraint/constraint_type.h>

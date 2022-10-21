@@ -43,9 +43,8 @@ controller:
   obstacles:
     enabled: true
     constraint_type: hard
-    minimum_distance: 0.1  # TODO lower this
+    minimum_distance: 0.2
 
-  # TODO maybe expand these
   end_effector_box_constraint:
     enabled: true
     xyz_lower: [-1., -1., -0.5]
@@ -56,3 +55,16 @@ controller:
       time: 0
       position: [0, 0, 0]
       orientation: [0, 0, 0, 1]
+
+  limits:
+    constraint_type: hard
+    input:
+      lower: [-20, -20, -20, -80, -80, -80, -80, -80, -80]
+      upper: [20, 20, 20, 80, 80, 80, 80, 80, 80]
+    state:
+      lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
+              -1.1, -1.1, -2, -2, -2, -2, -2, -2, -2,
+              -2.5, -2.5, -1, -8, -8, -8, -8, -8, -8]
+      upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
+              1.1, 1.1, 2, 2, 2, 2, 2, 2, 2,
+              2.5, 2.5, 1, 8, 8, 8, 8, 8, 8]

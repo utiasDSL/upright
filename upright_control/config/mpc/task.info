@@ -48,7 +48,7 @@ multiple_shooting
 {
   dt                            0.1
   sqpIteration                  3
-  initSqpIteration              100
+  initSqpIteration              3
   deltaTol                      1e-3
   printSolverStatistics         true
   printSolverStatus             true
@@ -56,7 +56,7 @@ multiple_shooting
   useFeedbackPolicy             true
   integratorType                RK4
   nThreads                      4
-  projectStateInputEqualityConstraints true
+  projectStateInputEqualityConstraints false
 }
 
 ; Rollout settings
@@ -75,7 +75,7 @@ rollout
 ; MPC settings
 mpc
 {
-  timeHorizon                    1.0
+  timeHorizon                    2.0
   solutionTimeWindow             -1   ; [s]
 
   debugPrint                     true

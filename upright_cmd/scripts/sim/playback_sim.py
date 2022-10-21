@@ -168,8 +168,6 @@ def main():
     for r_ew_w_d, Q_we_d in ref.poses():
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
-    IPython.embed()
-
     t = 0
     duration = arm_cmd_ts[-1]
 

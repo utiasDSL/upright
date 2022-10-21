@@ -30,7 +30,8 @@ class ControllerModel:
         self.robot.forward(x, u)
 
     def is_using_force_constraints(self):
-        return self.settings.balancing_settings.use_force_constraints
+        b = self.settings.balancing_settings
+        return b.enabled and b.use_force_constraints
 
     def balancing_constraints(self):
         """Evaluate the balancing constraints at time t and state x."""
@@ -69,9 +70,8 @@ class ControllerModel:
         """
 
         _, Q_we = self.robot.link_pose()
-        _, ω_ew_w = self.robot.link_velocity()
-        a_ew_w, α_ew_w = self.robot.link_acceleration()
         C_we = core.math.quat_to_rot(Q_we)
+        a_ew_w, _ = self.robot.link_acceleration()
 
         # find EE normal vector in the world frame
         z_e = np.array([0, 0, 1])
