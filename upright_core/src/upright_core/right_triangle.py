@@ -5,8 +5,9 @@ def right_triangular_prism_vertices_normals(half_extents):
     hx, hy, hz = half_extents
 
     # fmt: off
-    vertices = [[-hx, -hy, -hz], [hx, -hy, -hz], [hx, -hy, hz],
-                [-hx,  hy, -hz], [hx,  hy, -hz], [hx,  hy, hz]]
+    vertices = np.array([
+        [-hx, -hy, -hz], [hx, -hy, -hz], [-hx, -hy, hz],
+        [-hx,  hy, -hz], [hx,  hy, -hz], [-hx,  hy, hz]])
     # fmt: on
 
     # compute normal of the non-axis-aligned face

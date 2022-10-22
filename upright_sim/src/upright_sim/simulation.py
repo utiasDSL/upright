@@ -9,7 +9,7 @@ import upright_core as core
 from upright_core import parsing, math, geometry
 from upright_sim.robot import SimulatedRobot
 from upright_sim.camera import VideoManager
-from upright_sim.util import right_triangular_prism
+from upright_sim.util import right_triangular_prism_mesh
 
 import IPython
 
@@ -88,7 +88,7 @@ class BulletBody:
         # set local inertia if needed (required for objects built from meshes)
         if self.local_inertia_diagonal is not None:
             pyb.changeDynamics(
-                self.uid, -1, localInertiaDiagonal=local_inertia_diagonal
+                self.uid, -1, localInertiaDiagonal=self.local_inertia_diagonal
             )
 
     def get_pose(self):
@@ -223,7 +223,7 @@ class BulletBody:
         if com_offset is None:
             com_offset = np.zeros(3)
         hx, hy, hz = half_extents
-        com_offset += np.array([-hx / 3, 0, -hz / 3])
+        com_offset = com_offset + np.array([-hx / 3, 0, -hz / 3])
 
         # compute inertia and inertial frame orientation
         D, C = core.right_triangle.right_triangular_prism_inertia_normalized(
@@ -259,6 +259,15 @@ class BulletBody:
             )
         elif d["shape"] == "cuboid":
             return BulletBody.cuboid(
+                mass=d["mass"],
+                mu=mu,
+                side_lengths=d["side_lengths"],
+                color=d["color"],
+                orientation=orientation,
+                com_offset=com_offset,
+            )
+        elif d["shape"] == "right_triangular_prism":
+            return BulletBody.right_triangular_prism(
                 mass=d["mass"],
                 mu=mu,
                 side_lengths=d["side_lengths"],
@@ -399,7 +408,10 @@ def balanced_object_setup(r_ew_w, config):
         obj = BulletBody.from_config(obj_type_conf, mu=pyb_mu, orientation=orientation)
 
         obj.r0 = parent.r0.copy()
-        obj.r0[2] += 0.5 * parent.height + 0.5 * obj.height
+        z = np.array([0, 0, 1])
+        d1 = parent.box.distance_from_centroid_to_boundary(z)
+        d2 = obj.box.distance_from_centroid_to_boundary(-z)
+        obj.r0[2] += d1 + d2
 
         if "offset" in obj_instance_conf:
             obj.r0[:2] += parsing.parse_support_offset(obj_instance_conf["offset"])
@@ -414,15 +426,16 @@ def balanced_object_setup(r_ew_w, config):
     for contact in arrangement["contacts"]:
         name1 = contact["first"]
         name2 = contact["second"]
-        try:
-            points, _ = geometry.box_box_axis_aligned_contact(boxes[name1], boxes[name2])
-        except Exception as e:
-            IPython.embed()
+        points, _ = geometry.box_box_axis_aligned_contact(boxes[name1], boxes[name2])
+        if points is None:
+            raise ValueError(f"No contact points found between {name1} and {name2}.")
         contact_points.append(points)
 
     contact_points = np.vstack(contact_points)
     colors = [[0, 0, 0] for _ in contact_points]
     pyb.addUserDebugPoints([v for v in contact_points], colors, pointSize=10)
+
+    IPython.embed()
 
     # get rid of "fake" EE object before returning
     objects.pop("ee")

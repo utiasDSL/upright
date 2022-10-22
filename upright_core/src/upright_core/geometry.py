@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.linalg import null_space
+from scipy.optimize import linprog
 
 
 class ConvexPolyhedron:
@@ -27,7 +28,6 @@ class ConvexPolyhedron:
         # fmt: on
 
         return cls(local_vertices, local_normals, position, rotation)
-
 
     def update_pose(self, position=None, rotation=None):
         if position is None:
@@ -63,6 +63,33 @@ class ConvexPolyhedron:
         V_3d = self.get_vertices_in_plane(point, plane_normal)
         V_2d = project_vertices_on_axes(V_3d, point, plane_span)
         return wind_polygon_vertices(V_2d)
+
+    def distance_from_centroid_to_boundary(self, axis, tol=1e-8):
+        """Get the distance from the shape's centroid (position) to its
+        boundary in direction given by axis."""
+        # this is a linear programming problem
+        n = self.vertices.shape[0]
+        c = np.zeros(n + 1)
+        c[0] = -1
+
+        # optimal point needs to be a convex combination of vertices (to still
+        # be inside the shape)
+        A_eq = np.zeros((4, n + 1))
+        A_eq[:3, 0] = axis
+        A_eq[:3, 1:] = -self.vertices.T
+        A_eq[3, 1:] = np.ones(n)
+
+        b_eq = np.ones(4)
+        b_eq[:3] = -self.position
+
+        bounds = [(None, None)]
+        bounds.extend([(0, None) for _ in range(n)])
+
+        # solve the LP
+        res = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
+        d = res.x[0]
+        assert d >= -tol, "Distance to boundary is negative!"
+        return d
 
 
 # TODO deprecate in favour of polygon
@@ -260,18 +287,14 @@ def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
             axis_idx = i
         elif upper < lower:
             # shapes are not intersecting, nothing more to do
-            print("shapes not intersecting")
-            import IPython
-            IPython.embed()
-            return None
+            print("Shapes not intersecting.")
+            return None, None
 
     # shapes are penetrating: this is more complicated, and we don't deal with
     # it here
     if axis_idx is None:
-        print("shapes penetrating")
-        # import IPython
-        # IPython.embed()
-        return None
+        print("Shapes are penetrating.")
+        return None, None
 
     plane_normal = axes[axis_idx, :]
     plane_span = null_space(plane_normal[None, :]).T

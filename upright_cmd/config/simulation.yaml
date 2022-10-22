@@ -77,3 +77,10 @@ objects:
     mass: 0.04
     side_lengths: [0.065, 0.065, 0.6]
     color: [1, 0, 0, 0.9]
+
+  wedge:
+    shape: right_triangular_prism
+    com_offset: [0, 0, 0]
+    mass: 0.1
+    side_lengths: [0.09, 0.103, 0.038]
+    color: [0, 1, 0, 0.9]

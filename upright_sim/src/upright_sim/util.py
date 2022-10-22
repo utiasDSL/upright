@@ -13,6 +13,9 @@ import IPython
 def right_triangular_prism_mesh(half_extents):
     vertices, _ = core.right_triangle.right_triangular_prism_vertices_normals(half_extents)
 
+    # convert to raw list of lists
+    vertices = [list(v) for v in vertices]
+
     # fmt: off
     indices = np.array([
         [0, 1, 2],
@@ -29,39 +32,6 @@ def right_triangular_prism_mesh(half_extents):
     # both sides
     indices = np.vstack((indices, np.flip(indices, axis=1))).flatten()
     return vertices, list(indices)
-
-
-def right_triangular_prism(mass, half_extents, position=None, orientation=None):
-    if position is None:
-        position = [0, 0, 0]
-    if orientation is None:
-        orientation = [0, 0, 0, 1]
-
-    vertices, indices = right_triangular_prism_mesh(half_extents)
-
-    hx, hy, hz = half_extents
-    D, C = core.right_triangle.right_triangular_prism_inertia_normalized(half_extents)
-
-    inertial_position = [-hx / 3, 0, -hz / 3]
-    local_inertia_diagonal = mass * np.diag(D)
-    inertial_orientation = core.math.rot_to_quat(C)
-
-    col_id = pyb.createCollisionShape(pyb.GEOM_MESH, vertices=vertices, indices=indices)
-    vis_id = pyb.createVisualShape(
-        pyb.GEOM_MESH, vertices=vertices, indices=indices, rgbaColor=(1, 0, 0, 1)
-    )
-
-    body_id = pyb.createMultiBody(
-        baseMass=mass,
-        baseCollisionShapeIndex=col_id,
-        baseVisualShapeIndex=vis_id,
-        baseInertialFramePosition=inertial_position,
-        baseInertialFrameOrientation=inertial_orientation,
-        basePosition=position,
-        baseOrientation=orientation,
-    )
-    pyb.changeDynamics(body_id, -1, localInertiaDiagonal=local_inertia_diagonal)
-    return body_id
 
 
 # TODO: unused
