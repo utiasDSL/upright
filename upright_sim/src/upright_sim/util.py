@@ -10,6 +10,61 @@ import upright_core as core
 import IPython
 
 
+def right_triangular_prism_mesh(half_extents):
+    vertices, _ = core.right_triangle.right_triangular_prism_vertices_normals(half_extents)
+
+    # fmt: off
+    indices = np.array([
+        [0, 1, 2],
+        [0, 1, 4],
+        [0, 4, 3],
+        [0, 3, 5],
+        [0, 5, 2],
+        [1, 4, 5],
+        [1, 5, 2],
+        [3, 4, 5]])
+    # fmt: on
+
+    # duplicate vertices with opposite winding, so the object is visible from
+    # both sides
+    indices = np.vstack((indices, np.flip(indices, axis=1))).flatten()
+    return vertices, list(indices)
+
+
+def right_triangular_prism(mass, half_extents, position=None, orientation=None):
+    if position is None:
+        position = [0, 0, 0]
+    if orientation is None:
+        orientation = [0, 0, 0, 1]
+
+    vertices, indices = right_triangular_prism_mesh(half_extents)
+
+    hx, hy, hz = half_extents
+    D, C = core.right_triangle.right_triangular_prism_inertia_normalized(half_extents)
+
+    inertial_position = [-hx / 3, 0, -hz / 3]
+    local_inertia_diagonal = mass * np.diag(D)
+    inertial_orientation = core.math.rot_to_quat(C)
+
+    col_id = pyb.createCollisionShape(pyb.GEOM_MESH, vertices=vertices, indices=indices)
+    vis_id = pyb.createVisualShape(
+        pyb.GEOM_MESH, vertices=vertices, indices=indices, rgbaColor=(1, 0, 0, 1)
+    )
+
+    body_id = pyb.createMultiBody(
+        baseMass=mass,
+        baseCollisionShapeIndex=col_id,
+        baseVisualShapeIndex=vis_id,
+        baseInertialFramePosition=inertial_position,
+        baseInertialFrameOrientation=inertial_orientation,
+        basePosition=position,
+        baseOrientation=orientation,
+    )
+    pyb.changeDynamics(body_id, -1, localInertiaDiagonal=local_inertia_diagonal)
+    return body_id
+
+
+# TODO: unused
 def dhtf(q, a, d, α):
     """Constuct a transformation matrix from D-H parameters."""
     cα = np.cos(α)

@@ -5,9 +5,11 @@ import pybullet as pyb
 import pybullet_data
 from pyb_utils.frame import debug_frame_world
 
+import upright_core as core
 from upright_core import parsing, math, geometry
 from upright_sim.robot import SimulatedRobot
 from upright_sim.camera import VideoManager
+from upright_sim.util import right_triangular_prism
 
 import IPython
 
@@ -18,16 +20,18 @@ class BulletBody:
         self,
         mass,
         mu,
-        half_extents,
+        box,
         collision_uid,
         visual_uid,
         position=None,
         orientation=None,
         com_offset=None,
+        inertial_orientation=None,
+        local_inertia_diagonal=None,
     ):
         self.mass = mass
         self.mu = mu
-        self.half_extents = half_extents
+        self.box = box
         self.collision_uid = collision_uid
         self.visual_uid = visual_uid
 
@@ -39,15 +43,23 @@ class BulletBody:
             orientation = np.array([0, 0, 0, 1])
         self.q0 = orientation
 
-        self.com_offset = com_offset if com_offset is not None else np.zeros(3)
+        if com_offset is None:
+            com_offset = np.zeros(3)
+        self.com_offset = com_offset
 
-    def box(self):
-        C = math.quat_to_rot(self.q0)
-        return geometry.Box3d(self.half_extents, self.r0, C)
+        # we need to get the box's orientation correct here for accurate height
+        # computation
+        C0 = math.quat_to_rot(self.q0)
+        self.box.update_pose(rotation=C0)
+
+        if inertial_orientation is None:
+            inertial_orientation = np.array([0, 0, 0, 1])
+        self.inertial_orientation = inertial_orientation
+        self.local_inertia_diagonal = local_inertia_diagonal
 
     @property
     def height(self):
-        return self.box().height()
+        return self.box.height()
 
     def add_to_sim(self):
         """Actually add the object to the simulation."""
@@ -57,16 +69,27 @@ class BulletBody:
         self.uid = pyb.createMultiBody(
             baseMass=self.mass,
             baseInertialFramePosition=tuple(self.com_offset),
+            baseInertialFrameOrientation=tuple(self.inertial_orientation),
             baseCollisionShapeIndex=self.collision_uid,
             baseVisualShapeIndex=self.visual_uid,
             basePosition=tuple(self.r0),
             baseOrientation=tuple(self.q0),
         )
 
+        # update bounding polygon
+        C0 = math.quat_to_rot(self.q0)
+        self.box.update_pose(self.r0, C0)
+
         # set friction
         # I do not set a spinning friction coefficient here directly, but let
         # Bullet handle this internally
         pyb.changeDynamics(self.uid, -1, lateralFriction=self.mu)
+
+        # set local inertia if needed (required for objects built from meshes)
+        if self.local_inertia_diagonal is not None:
+            pyb.changeDynamics(
+                self.uid, -1, localInertiaDiagonal=local_inertia_diagonal
+            )
 
     def get_pose(self):
         """Get the pose of the object in the simulation."""
@@ -104,6 +127,7 @@ class BulletBody:
 
         w = np.sqrt(2) * radius
         half_extents = 0.5 * np.array([w, w, height])
+        box = geometry.Box3d(half_extents)
 
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_CYLINDER,
@@ -119,7 +143,7 @@ class BulletBody:
         return BulletBody(
             mass=mass,
             mu=mu,
-            half_extents=half_extents,
+            box=box,
             collision_uid=collision_uid,
             visual_uid=visual_uid,
             orientation=q,
@@ -132,6 +156,8 @@ class BulletBody:
     ):
         """Construct a cuboid object."""
         half_extents = 0.5 * np.array(side_lengths)
+        box = geometry.Box3d(half_extents)
+
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_BOX,
             halfExtents=tuple(half_extents),
@@ -144,7 +170,7 @@ class BulletBody:
         return BulletBody(
             mass=mass,
             mu=mu,
-            half_extents=half_extents,
+            box=box,
             collision_uid=collision_uid,
             visual_uid=visual_uid,
             orientation=orientation,
@@ -154,6 +180,9 @@ class BulletBody:
     @staticmethod
     def sphere(mass, mu, radius, orientation=None, com_offset=None, color=(0, 0, 1, 1)):
         """Construct a cylinder object."""
+        half_extents = (np.ones(3) * radius / 2,)
+        box = geometry.Box3d(half_extents)
+
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_SPHERE,
             radius=radius,
@@ -166,10 +195,52 @@ class BulletBody:
         return BulletBody(
             mass=mass,
             mu=mu,
-            half_extents=np.ones(3) * radius / 2,
+            box=box,
             collision_uid=collision_uid,
             visual_uid=visual_uid,
             com_offset=com_offset,
+        )
+
+    @staticmethod
+    def right_triangular_prism(
+        mass, mu, side_lengths, orientation=None, com_offset=None, color=(0, 0, 1, 1)
+    ):
+        half_extents = 0.5 * np.array(side_lengths)
+        vertices, normals = core.right_triangle.right_triangular_prism_vertices_normals(
+            half_extents
+        )
+        _, indices = right_triangular_prism_mesh(half_extents)
+        box = geometry.ConvexPolyhedron(vertices, normals)
+
+        collision_uid = pyb.createCollisionShape(
+            pyb.GEOM_MESH, vertices=vertices, indices=indices
+        )
+        visual_uid = pyb.createVisualShape(
+            pyb.GEOM_MESH, vertices=vertices, indices=indices, rgbaColor=color
+        )
+
+        # compute local inertial frame position
+        if com_offset is None:
+            com_offset = np.zeros(3)
+        hx, hy, hz = half_extents
+        com_offset += np.array([-hx / 3, 0, -hz / 3])
+
+        # compute inertia and inertial frame orientation
+        D, C = core.right_triangle.right_triangular_prism_inertia_normalized(
+            half_extents
+        )
+        local_inertia_diagonal = mass * np.diag(D)
+        inertial_orientation = core.math.rot_to_quat(C)
+
+        return BulletBody(
+            mass=mass,
+            mu=mu,
+            box=box,
+            collision_uid=collision_uid,
+            visual_uid=visual_uid,
+            com_offset=com_offset,
+            inertial_orientation=inertial_orientation,
+            local_inertia_diagonal=local_inertia_diagonal,
         )
 
     @staticmethod
@@ -285,13 +356,11 @@ class EEObject:
         self.r0 = position
         self.side_lengths = side_lengths
         self.mu = 1.0
+        self.box = geometry.Box3d(0.5 * self.side_lengths, self.r0)
 
     @property
     def height(self):
         return self.side_lengths[2]
-
-    def box(self):
-        return geometry.Box3d(0.5 * self.side_lengths, self.r0)
 
 
 def balanced_object_setup(r_ew_w, config):
@@ -339,13 +408,16 @@ def balanced_object_setup(r_ew_w, config):
         objects[obj_name] = obj
 
     # for debugging, generate contact points
-    boxes = {name: obj.box() for name, obj in objects.items()}
+    boxes = {name: obj.box for name, obj in objects.items()}
 
     contact_points = []
     for contact in arrangement["contacts"]:
         name1 = contact["first"]
         name2 = contact["second"]
-        points, _ = geometry.box_box_axis_aligned_contact(boxes[name1], boxes[name2])
+        try:
+            points, _ = geometry.box_box_axis_aligned_contact(boxes[name1], boxes[name2])
+        except Exception as e:
+            IPython.embed()
         contact_points.append(points)
 
     contact_points = np.vstack(contact_points)

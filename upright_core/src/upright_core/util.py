@@ -28,6 +28,7 @@ def support_area_distance(ctrl_object, Q_we):
 
 # see the (more sophisticated) ROS implementation:
 # <https://github.com/ros/ros_comm/blob/noetic-devel/clients/rospy/src/rospy/timer.py>
+# TODO deprecated
 class Rate:
     def __init__(self, timestep_ns, quiet=False):
         """Initialize a Rate based on a timestep in nanoseconds."""

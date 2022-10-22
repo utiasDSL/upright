@@ -73,6 +73,7 @@ objects:
 
   really_tall_box:
     shape: cuboid
+    com_offset: [0, 0, 0]
     mass: 0.04
-    side_lengths: [0.065, 0.065, 0.3]
+    side_lengths: [0.065, 0.065, 0.6]
     color: [1, 0, 0, 0.9]

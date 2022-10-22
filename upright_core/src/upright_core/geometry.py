@@ -1,21 +1,21 @@
 import numpy as np
+from scipy.linalg import null_space
 
 
-# TODO check for any of the half_extents = 0
-class Box3d:
-    def __init__(self, half_extents, position=None, rotation=None):
-        if position is None:
-            position = np.zeros(3)
-        if rotation is None:
-            rotation = np.eye(3)
-        self.half_extents = half_extents
-        self.position = position  # centroid
-        self.rotation = rotation  # matrix
+class ConvexPolyhedron:
+    def __init__(self, vertices, normals, position=None, rotation=None):
+        self.local_vertices = vertices
+        self.local_normals = normals
+        self.update_pose(position, rotation)
 
-        # vertices in the body frame
-        # fmt: off
+    @classmethod
+    def box(cls, half_extents, position=None, rotation=None):
+        assert (half_extents > 0).all(), "Half extents must be positive."
         x, y, z = half_extents
-        self.local_vertices = np.array([
+
+        # fmt: off
+        local_normals = np.eye(3)
+        local_vertices = np.array([
             [ x,  y,  z],
             [ x,  y, -z],
             [ x, -y,  z],
@@ -26,8 +26,19 @@ class Box3d:
             [-x, -y, -z]])
         # fmt: on
 
-        # vertices in the world frame
-        self.vertices = self.position + (self.rotation @ self.local_vertices.T).T
+        return cls(local_vertices, local_normals, position, rotation)
+
+
+    def update_pose(self, position=None, rotation=None):
+        if position is None:
+            position = np.zeros(3)
+        if rotation is None:
+            rotation = np.eye(3)
+
+        self.position = position
+        self.rotation = rotation
+        self.vertices = position + (rotation @ self.local_vertices.T).T
+        self.normals = (rotation @ self.local_normals.T).T
 
     def limits_along_axis(self, axis):
         projection = axis @ self.vertices.T
@@ -44,9 +55,6 @@ class Box3d:
         projection = axis @ self.vertices.T
         return self.vertices[np.argmax(projection), :]
 
-    def normals(self):
-        return self.rotation.T
-
     def get_vertices_in_plane(self, point, normal, tol=1e-8):
         projection = project_vertices_on_axes(self.vertices, point, normal)
         return self.vertices[np.nonzero(np.abs(projection) < tol)]
@@ -55,6 +63,30 @@ class Box3d:
         V_3d = self.get_vertices_in_plane(point, plane_normal)
         V_2d = project_vertices_on_axes(V_3d, point, plane_span)
         return wind_polygon_vertices(V_2d)
+
+
+# TODO deprecate in favour of polygon
+class Box3d(ConvexPolyhedron):
+    def __init__(self, half_extents, position=None, rotation=None):
+        assert (half_extents > 0).all(), "Half extents must be positive."
+
+        local_normals = np.eye(3)
+
+        # vertices in the body frame
+        # fmt: off
+        x, y, z = half_extents
+        local_vertices = np.array([
+            [ x,  y,  z],
+            [ x,  y, -z],
+            [ x, -y,  z],
+            [ x, -y, -z],
+            [-x,  y,  z],
+            [-x,  y, -z],
+            [-x, -y,  z],
+            [-x, -y, -z]])
+        # fmt: on
+
+        super().__init__(local_vertices, local_normals, position, rotation)
 
 
 def orth2d(a):
@@ -191,10 +223,20 @@ def wind_polygon_vertices(V):
 # we can also easily return a maximum penetration distance/minimum separation
 # distance as a generalization
 def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
-    axes = np.eye(3)
+
+    # in general, we need to test all face normals and all axes that are cross
+    # products between pairs of face normals, one from each shape
+    cross_normals = []
+    for i in range(box1.normals.shape[0]):
+        for j in range(box2.normals.shape[0]):
+            a = np.cross(box1.normals[i, :], box2.normals[j, :])
+            mag = np.linalg.norm(a)
+            if mag > tol:
+                cross_normals.append(a / mag)
+    axes = np.vstack((box1.normals, box2.normals, cross_normals))
     axis_idx = None
 
-    for i in range(3):
+    for i in range(axes.shape[0]):
         axis = axes[i, :]
 
         limits1 = box1.limits_along_axis(axis)
@@ -218,15 +260,21 @@ def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
             axis_idx = i
         elif upper < lower:
             # shapes are not intersecting, nothing more to do
+            print("shapes not intersecting")
+            import IPython
+            IPython.embed()
             return None
 
     # shapes are penetrating: this is more complicated, and we don't deal with
     # it here
     if axis_idx is None:
+        print("shapes penetrating")
+        # import IPython
+        # IPython.embed()
         return None
 
     plane_normal = axes[axis_idx, :]
-    plane_span = np.vstack((axes[(axis_idx + 1) % 3, :], axes[(axis_idx + 2) % 3, :]))
+    plane_span = null_space(plane_normal[None, :]).T
 
     # get the polygonal "slice" of each box in the contact plane
     V1 = box1.get_polygon_in_plane(point, plane_normal, plane_span)

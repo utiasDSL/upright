@@ -127,4 +127,4 @@ objects:
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
-      side_lengths: [0.065, 0.065, 0.3]
+      side_lengths: [0.065, 0.065, 0.6]
