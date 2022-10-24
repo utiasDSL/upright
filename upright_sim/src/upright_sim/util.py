@@ -16,22 +16,21 @@ def right_triangular_prism_mesh(half_extents):
     # convert to raw list of lists
     vertices = [list(v) for v in vertices]
 
+    # sets of vertices making up triangular faces
+    # counter-clockwise winding about normal facing out of the shape
     # fmt: off
     indices = np.array([
         [0, 1, 2],
-        [0, 1, 4],
-        [0, 4, 3],
-        [0, 3, 5],
-        [0, 5, 2],
+        [0, 4, 1],
+        [0, 3, 4],
+        [0, 5, 3],
+        [0, 2, 5],
         [1, 4, 5],
         [1, 5, 2],
-        [3, 4, 5]])
+        [3, 5, 4]])
     # fmt: on
 
-    # duplicate vertices with opposite winding, so the object is visible from
-    # both sides
-    indices = np.vstack((indices, np.flip(indices, axis=1))).flatten()
-    return vertices, list(indices)
+    return vertices, list(indices.flatten())
 
 
 # TODO: unused

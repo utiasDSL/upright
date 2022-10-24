@@ -15,7 +15,7 @@ from upright_core.bindings import (
     PolygonSupportArea,
     ContactPoint,
 )
-from upright_core import math, geometry
+from upright_core import math, geometry, right_triangle
 
 import IPython
 
@@ -216,6 +216,10 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0):
         box2 = wrappers[name2].box
         points, normal = geometry.box_box_axis_aligned_contact(box1, box2)
 
+        # DEBUG
+        if points is None or points.shape[0] < 4:
+            IPython.embed()
+
         body1 = wrappers[name1].body
         body2 = wrappers[name2].body
 
@@ -226,14 +230,24 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0):
             contact_point.mu = mu
             contact_point.normal = normal
 
+            span = math.plane_span(normal)
+
             r1 = points[i, :] - body1.com
-            r1[:2] = math.inset_vertex(r1[:2], inset)
+
+            # project point into tangent plane and inset the tangent part
+            r1_t = span @ r1
+            r1_t_inset = math.inset_vertex(r1_t, inset)
+
+            # unproject the inset back into 3D space
+            r1_inset = r1 + (r1_t_inset - r1_t) @ span
 
             r2 = points[i, :] - body2.com
-            r2[:2] = math.inset_vertex(r2[:2], inset)
+            r2_t = span @ r2
+            r2_t_inset = math.inset_vertex(r2_t, inset)
+            r2_inset = r2 + (r2_t_inset - r2_t) @ span
 
-            contact_point.r_co_o1 = r1
-            contact_point.r_co_o2 = r2
+            contact_point.r_co_o1 = r1_inset
+            contact_point.r_co_o2 = r2_inset
 
             contact_points.append(contact_point)
 
@@ -248,23 +262,34 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0):
         body = wrapper.body
         box = wrapper.box
         com_offset = body.com - box.position
-        com_height = 0.5 * box.height() + com_offset[2]
+
+        # height of the CoM is in the local object frame
+        z = np.array([0, 0, 1])
+        com_height = box.distance_from_centroid_to_boundary(-box.rotation @ z, offset=com_offset)
 
         # find the convex hull of support points to get support area
-        support_points_xy = []
+        support_points = []
         for contact_point in contact_points:
-            if contact_point.object1_name == name:
-                p = contact_point.r_co_o1
-            elif contact_point.object2_name == name:
+            # we are assuming that the object being supported is always the
+            # second one listed in the contact point
+            if contact_point.object2_name == name:
                 p = contact_point.r_co_o2
             else:
                 continue
-            if np.abs(p[2] + com_height) < 1e-8:
-                support_points_xy.append(p[:2])
-        support_points_xy = np.array(support_points_xy)
-        hull = ConvexHull(support_points_xy)
-        support_points_xy = support_points_xy[hull.vertices, :]
-        support_area = PolygonSupportArea(list(support_points_xy))
+
+            # the points that have height equal to the CoM height are in the
+            # support plane
+            normal = contact_point.normal
+            if np.abs(normal @ p - com_height) < 1e-8:
+                span = math.plane_span(normal)
+                support_points.append(span @ p)
+
+        # take the convex hull of the support points
+        support_points = np.array(support_points)
+        hull = ConvexHull(support_points)
+        support_points = support_points[hull.vertices, :]
+
+        support_area = PolygonSupportArea(list(support_points))
 
         mu = mus[wrapper.parent_name][name]
         r_tau = 0.1  # placeholder/dummy value
@@ -293,10 +318,10 @@ def _parse_composite_objects(wrappers, contact_conf, inset=0, mu_margin=0):
 
         box = wrapper.box
         com_offset = body.com - box.position
-        com_height = 0.5 * box.height() + com_offset[2]
+        com_height = box.distance_from_centroid_to_boundary(-box.rotation @ z, offset=com_offset)
 
         parent_box = wrappers[parent_name].box
-        support_area, r_tau = compute_support_area(box, parent_box, inset)
+        support_area, r_tau = compute_support_area(box, parent_box, com_offset, inset)
 
         obj = BalancedObject(body, com_height, support_area, r_tau, mu)
 
@@ -316,7 +341,7 @@ def _parse_composite_objects(wrappers, contact_conf, inset=0, mu_margin=0):
 
 def parse_local_half_extents(shape_config):
     type_ = shape_config["type"].lower()
-    if type_ == "cuboid":
+    if type_ == "cuboid" or type_ == "right_triangular_prism":
         return 0.5 * np.array(shape_config["side_lengths"])
     elif type_ == "cylinder":
         r = shape_config["radius"]
@@ -329,20 +354,26 @@ def parse_local_half_extents(shape_config):
 def parse_box(shape_config, position=None, rotation=None):
     if rotation is None:
         rotation = np.eye(3)
-    C = rotation
 
     type_ = shape_config["type"].lower()
     local_half_extents = parse_local_half_extents(shape_config)
+    if type_ == "right_triangular_prism":
+        vertices, normals = right_triangle.right_triangular_prism_vertices_normals(
+            local_half_extents
+        )
+        box = geometry.ConvexPolyhedron(vertices, normals, position, rotation)
+    elif type_ == "cuboid":
+        box = geometry.Box3d(local_half_extents, position, rotation)
+    elif type_ == "cylinder":
+        # for the cylinder, we rotate by 45 deg about z so that contacts occur
+        # aligned with x-y axes
+        rotation = rotation @ math.rotz(np.pi / 4)
+        box = geometry.Box3d(local_half_extents, position, rotation)
 
-    # for the cylinder, we rotate by 45 deg about z so that contacts occur
-    # aligned with x-y axes
-    if type_ == "cylinder":
-        C = C @ math.rotz(np.pi / 4)
-
-    return geometry.Box3d(local_half_extents, position, C)
+    return box
 
 
-def compute_support_area(box, parent_box, inset, tol=1e-6):
+def compute_support_area(box, parent_box, com_offset, inset, tol=1e-6):
     """Compute the support area.
 
     Currently only a rectangular support area is supported, due to the need to
@@ -377,7 +408,9 @@ def compute_support_area(box, parent_box, inset, tol=1e-6):
     ), f"Support area is not rectangular!"
 
     # translate points to be relative to the box's centroid
-    local_points = points - box.position
+    # TODO check this is right
+    com_position = box.position + com_offset
+    local_points = points - com_position
     local_points_xy = local_points[:, :2]
 
     # apply inset
@@ -417,6 +450,13 @@ def parse_inertia(mass, shape_config, com_offset):
         inertia = math.cuboid_inertia_matrix(
             mass=mass, side_lengths=shape_config["side_lengths"]
         )
+    elif type_ == "right_triangular_prism":
+        D, C = right_triangle.right_triangular_prism_inertia_normalized(
+            0.5 * np.array(shape_config["side_lengths"])
+        )
+        inertia = C @ D @ C.T
+    else:
+        raise ValueError(f"Unsupported shape type {type_}.")
 
     # adjust inertia for an offset CoM using parallel axis theorem
     R = math.skew3(com_offset)
@@ -425,25 +465,35 @@ def parse_inertia(mass, shape_config, com_offset):
     return inertia
 
 
-def _parse_rigid_body_and_box(obj_type_conf, position, quat):
+def _parse_rigid_body_and_box(obj_type_conf, base_position, quat):
+    # base_position is directly beneath the reference position for this shape
     mass = obj_type_conf["mass"]
     shape_config = obj_type_conf["shape"]
     C = math.quat_to_rot(quat)
 
-    local_com_offset = np.array(obj_type_conf["com_offset"])
+    local_com_offset = np.array(obj_type_conf["com_offset"], dtype=np.float64)
+    if shape_config["type"].lower() == "right_triangular_prism":
+        hx, hy, hz = 0.5 * np.array(shape_config["side_lengths"])
+        local_com_offset += np.array([-hx, 0, -hz]) / 3
     com_offset = C @ local_com_offset
 
     local_inertia = parse_inertia(mass, shape_config, local_com_offset)
     inertia = C @ local_inertia @ C.T
 
+    z = np.array([0, 0, 1])
     local_box = parse_box(shape_config, rotation=C)
-    centroid_position = position.copy()
-    centroid_position[2] += 0.5 * local_box.height()
-    com_position = centroid_position + com_offset
-    com_height = 0.5 * local_box.height() + com_offset[2]
+    dz = local_box.distance_from_centroid_to_boundary(-z)
 
-    # now we recompute the box with the correct centroid position
-    box = parse_box(shape_config, centroid_position, C)
+    # position of the shape: this is not necessarily the centroid or CoM
+    # this is in the EE frame (not the shape's local frame)
+    reference_position = base_position + [0, 0, dz]
+    com_position = reference_position + com_offset
+
+    # TODO we still don't support ZMP on sloped surface (need a normal
+    # parameter for this)
+
+    # now we recompute the box with the correct reference position
+    box = parse_box(shape_config, reference_position, C)
     body = RigidBody(mass, inertia, com_position)
     return body, box
 
@@ -485,7 +535,7 @@ def parse_control_objects(ctrl_conf):
         position = parent_box.position.copy()
         if "offset" in obj_instance_conf:
             position[:2] += parse_support_offset(obj_instance_conf["offset"])
-        position[2] += 0.5 * parent_box.height()
+        position[2] += parent_box.distance_from_centroid_to_boundary(np.array([0, 0, 1]))
 
         body, box = _parse_rigid_body_and_box(obj_type_conf, position, quat)
         wrappers[obj_name] = _BalancedObjectWrapper(body, box, parent_name)

@@ -13,7 +13,7 @@ def right_triangular_prism_vertices_normals(half_extents):
     # compute normal of the non-axis-aligned face
     e12 = vertices[2, :] - vertices[1, :]
     e14 = vertices[4, :] - vertices[1, :]
-    n = np.cross(e12, e14)
+    n = np.cross(e14, e12)
     n = n / np.linalg.norm(n)
 
     normals = np.vstack((np.eye(3), n))
@@ -24,11 +24,12 @@ def right_triangular_prism_vertices_normals(half_extents):
 def right_triangular_prism_inertia_normalized(half_extents):
     hx, hy, hz = half_extents
 
+    # computed using sympy script right_triangular_prism_inertia.py
     # fmt: off
     J = np.array([
-        [4*hx*hy*hz*(3*hy**2 + 2*hz**2)/9,                            0,               4*hx**2*hy*hz**2/9],
-        [                               0, 8*hx*hy*hz*(hx**2 + hz**2)/9,                                0],
-        [              4*hx**2*hy*hz**2/9,                            0, 4*hx*hy*hz*(2*hx**2 + 3*hy**2)/9]])
+        [hy**2/3 + 2*hz**2/9,                     0,             hx*hz/9],
+        [                  0, 2*hx**2/9 + 2*hz**2/9,                   0],
+        [            hx*hz/9,                     0, 2*hx**2/9 + hy**2/3]])
     # fmt: on
 
     d, C = np.linalg.eig(J)

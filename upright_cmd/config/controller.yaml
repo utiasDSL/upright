@@ -122,9 +122,17 @@ objects:
       side_lengths: [0.065, 0.065, 0.13]
 
   really_tall_box:
-    shape: cuboid
     mass: 0.04
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
       side_lengths: [0.065, 0.065, 0.6]
+
+  wedge:
+    mass: 0.09
+    com_offset: [0, 0, 0]
+    shape:
+      type: right_triangular_prism
+      side_lengths: [0.103, 0.09, 0.038]
+    color: [0, 1, 0, 0.9]
+

@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.linalg import null_space
 from spatialmath.base import q2r, r2q, qunit, rotz
 
 
@@ -129,3 +130,29 @@ def inset_vertex_abs(v, inset):
     if (np.abs(v) <= inset).any():
         raise ValueError(f"Inset of {inset} is too large for the support area.")
     return v - np.sign(v) * inset
+
+
+def plane_span(normal):
+    """Computes the span of a plane defined by `normal` and going through the origin.
+
+    Parameters:
+        normal: a unit vector of shape (n,)
+
+    Returns:
+        An array S of shape(n - 1, n) such that S spans the plane: each row is
+        a basis vector for the plane. In other words, this array is the
+        transpose of a basis for the null space of the `normal`.
+
+    Notes:
+        Project a vector v, v.shape == (n,), into the plane using:
+        >>> projection = S @ v
+    """
+    return null_space(normal[None, :]).T
+
+
+# TODO
+# def project_points_on_axes(vertices, point, axes):
+#     return (axes @ (vertices - point).T).T
+#
+# def unproject_points_on_axes(vertices, point, axes):
+#     pass

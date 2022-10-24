@@ -80,7 +80,6 @@ objects:
 
   wedge:
     shape: right_triangular_prism
-    com_offset: [0, 0, 0]
-    mass: 0.1
-    side_lengths: [0.09, 0.103, 0.038]
+    mass: 0.09
+    side_lengths: [0.103, 0.09, 0.038]
     color: [0, 1, 0, 0.9]

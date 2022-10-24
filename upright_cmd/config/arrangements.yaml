@@ -169,14 +169,14 @@ arrangements:
       -
         name: box1
         type: wood_block
-        orientation: [0, 0.1984319 , 0, 0.98011468]
+        orientation: [0, 0.17580172, 0, 0.9844256]
         parent: wedge1
     contacts:
       -
         first: ee
         second: wedge1
-        mu: 0.5
+        mu: 0.2
       -
         first: wedge1
         second: box1
-        mu: 0.4
+        mu: 0.2

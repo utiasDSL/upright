@@ -2,6 +2,8 @@ import numpy as np
 from scipy.linalg import null_space
 from scipy.optimize import linprog
 
+from upright_core.math import plane_span
+
 
 class ConvexPolyhedron:
     def __init__(self, vertices, normals, position=None, rotation=None):
@@ -60,17 +62,29 @@ class ConvexPolyhedron:
         return self.vertices[np.nonzero(np.abs(projection) < tol)]
 
     def get_polygon_in_plane(self, point, plane_normal, plane_span):
+        """Get the interection of this shape with the plane defined by the
+        point and normal.
+
+        The resultant polygon is projected onto the span basis.
+        """
         V_3d = self.get_vertices_in_plane(point, plane_normal)
         V_2d = project_vertices_on_axes(V_3d, point, plane_span)
         return wind_polygon_vertices(V_2d)
 
-    def distance_from_centroid_to_boundary(self, axis, tol=1e-8):
-        """Get the distance from the shape's centroid (position) to its
-        boundary in direction given by axis."""
+    def distance_from_centroid_to_boundary(self, axis, offset=None, tol=1e-8):
+        """Get the distance from the shape's position to its boundary in
+        direction given by axis.
+
+        An offset can be provided, which is relative to the position of the
+        shape.
+        """
         # this is a linear programming problem
         n = self.vertices.shape[0]
         c = np.zeros(n + 1)
         c[0] = -1
+
+        if offset is None:
+            offset = np.zeros(3)
 
         # optimal point needs to be a convex combination of vertices (to still
         # be inside the shape)
@@ -80,7 +94,7 @@ class ConvexPolyhedron:
         A_eq[3, 1:] = np.ones(n)
 
         b_eq = np.ones(4)
-        b_eq[:3] = -self.position
+        b_eq[:3] = -(self.position + offset)
 
         bounds = [(None, None)]
         bounds.extend([(0, None) for _ in range(n)])
@@ -243,16 +257,12 @@ def wind_polygon_vertices(V):
     return V[np.argsort(angles), :]
 
 
-# TODO if we want to do a rigorous test (not just axis-aligned contact planes),
-# we need to check all contact normals (6) and pairs of cross products (9); see
-# <https://www.geometrictools.com/Documentation/DynamicCollisionDetection.pdf>
-#
-# we can also easily return a maximum penetration distance/minimum separation
-# distance as a generalization
+# TODO rename now that we can handle arbitrary polyhedra
 def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
 
     # in general, we need to test all face normals and all axes that are cross
     # products between pairs of face normals, one from each shape
+    # <https://www.geometrictools.com/Documentation/DynamicCollisionDetection.pdf>
     cross_normals = []
     for i in range(box1.normals.shape[0]):
         for j in range(box2.normals.shape[0]):
@@ -288,6 +298,8 @@ def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
         elif upper < lower:
             # shapes are not intersecting, nothing more to do
             print("Shapes not intersecting.")
+            import IPython
+            IPython.embed()
             return None, None
 
     # shapes are penetrating: this is more complicated, and we don't deal with
@@ -297,16 +309,16 @@ def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
         return None, None
 
     plane_normal = axes[axis_idx, :]
-    plane_span = null_space(plane_normal[None, :]).T
+    span = plane_span(plane_normal)
 
     # get the polygonal "slice" of each box in the contact plane
-    V1 = box1.get_polygon_in_plane(point, plane_normal, plane_span)
-    V2 = box2.get_polygon_in_plane(point, plane_normal, plane_span)
+    V1 = box1.get_polygon_in_plane(point, plane_normal, span)
+    V2 = box2.get_polygon_in_plane(point, plane_normal, span)
 
     # find the overlapping region
     Vp = clip_polygon_with_polygon(V1, V2)
 
     # unproject back into world coordinates
-    V = point + Vp @ plane_span
+    V = point + Vp @ span
 
     return V, normal_multiplier * plane_normal

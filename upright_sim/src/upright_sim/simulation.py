@@ -435,8 +435,6 @@ def balanced_object_setup(r_ew_w, config):
     colors = [[0, 0, 0] for _ in contact_points]
     pyb.addUserDebugPoints([v for v in contact_points], colors, pointSize=10)
 
-    IPython.embed()
-
     # get rid of "fake" EE object before returning
     objects.pop("ee")
 
