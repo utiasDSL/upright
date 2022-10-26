@@ -201,7 +201,7 @@ class _BalancedObjectWrapper:
         self.parent_name = parent_name
 
 
-def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0):
+def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0, tol=1e-8):
     """
     wrappers is the dict of name: object wrappers
     neighbours is a list of pairs of names specifying objects in contact
@@ -215,10 +215,7 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0):
         box1 = wrappers[name1].box
         box2 = wrappers[name2].box
         points, normal = geometry.box_box_axis_aligned_contact(box1, box2)
-
-        # DEBUG
-        if points is None or points.shape[0] < 4:
-            IPython.embed()
+        assert points is not None, "No contact points found."
 
         body1 = wrappers[name1].body
         body2 = wrappers[name2].body
@@ -231,6 +228,9 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0):
             contact_point.normal = normal
 
             span = math.plane_span(normal)
+
+            print(f"Contact normal = {normal}")
+            print(f"Contact span = {span}")
 
             r1 = points[i, :] - body1.com
 
@@ -246,6 +246,7 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0):
             r2_t_inset = math.inset_vertex(r2_t, inset)
             r2_inset = r2 + (r2_t_inset - r2_t) @ span
 
+            contact_point.span = span
             contact_point.r_co_o1 = r1_inset
             contact_point.r_co_o2 = r2_inset
 
@@ -269,6 +270,8 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0):
 
         # find the convex hull of support points to get support area
         support_points = []
+        support_normal = None
+        support_span = None
         for contact_point in contact_points:
             # we are assuming that the object being supported is always the
             # second one listed in the contact point
@@ -279,17 +282,24 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0):
 
             # the points that have height equal to the CoM height are in the
             # support plane
-            normal = contact_point.normal
-            if np.abs(normal @ p - com_height) < 1e-8:
-                span = math.plane_span(normal)
+            if np.abs(contact_point.normal @ p - com_height) < tol:
+                # normal is pointing downward out of this object, but we want
+                # it pointing upward into it
+                span = math.plane_span(-contact_point.normal)
                 support_points.append(span @ p)
+                if support_normal is None:
+                    support_normal = -contact_point.normal
+                    support_span = span
+                else:
+                    if (np.abs(support_normal + contact_point.normal) > tol).any():
+                        raise ValueError(f"Normals of SA points for object {name} are not equal!")
 
         # take the convex hull of the support points
         support_points = np.array(support_points)
         hull = ConvexHull(support_points)
         support_points = support_points[hull.vertices, :]
 
-        support_area = PolygonSupportArea(list(support_points))
+        support_area = PolygonSupportArea(list(support_points), support_normal, support_span)
 
         mu = mus[wrapper.parent_name][name]
         r_tau = 0.1  # placeholder/dummy value
@@ -318,6 +328,7 @@ def _parse_composite_objects(wrappers, contact_conf, inset=0, mu_margin=0):
 
         box = wrapper.box
         com_offset = body.com - box.position
+        z = np.array([0, 0, 1])
         com_height = box.distance_from_centroid_to_boundary(-box.rotation @ z, offset=com_offset)
 
         parent_box = wrappers[parent_name].box
@@ -332,7 +343,6 @@ def _parse_composite_objects(wrappers, contact_conf, inset=0, mu_margin=0):
     # compose objects together
     composites = {}
     for children in descendants.values():
-        # composite_name = name + "_composite"
         composite_name = "_".join([name for name, _ in children])
         composite = BalancedObject.compose([obj for _, obj in children])
         composites[composite_name] = composite
@@ -389,36 +399,38 @@ def compute_support_area(box, parent_box, com_offset, inset, tol=1e-6):
     """
     # TODO this approach is not too general for cylinders, where we may want
     # contacts with more than just their boxes
-    points, _ = geometry.box_box_axis_aligned_contact(box, parent_box)
+    support_points, normal = geometry.box_box_axis_aligned_contact(box, parent_box)
     assert inset >= 0, "Support area inset must be non-negative."
 
-    # only support areas in the x-y plane are supported, check all z
-    # coordinates are the same:
-    z = points[0, 2]
-    assert np.all(np.abs(points[:, 2] - z) < tol)
+    # check all points are coplanar:
+    assert np.all(np.abs((support_points - support_points[0, :]) @ normal) < tol)
 
     # r_tau assumes rectangular for now, check:
-    n = points.shape[0]
+    n = support_points.shape[0]
     assert n == 4, f"Support area has {n} points, not 4!"
     lengths = []
     for i in range(-1, 3):
-        lengths.append(np.linalg.norm(points[i + 1, :] - points[i, :]))
+        lengths.append(np.linalg.norm(support_points[i + 1, :] - support_points[i, :]))
     assert (
         abs(lengths[0] - lengths[2]) < tol and abs(lengths[1] - lengths[3]) < tol
     ), f"Support area is not rectangular!"
 
-    # translate points to be relative to the box's centroid
+    # translate points to be relative to the CoM position
     # TODO check this is right
     com_position = box.position + com_offset
-    local_points = points - com_position
-    local_points_xy = local_points[:, :2]
+    local_support_points = support_points - com_position
+
+    # project points into the tangent plane
+    span = math.plane_span(normal)
+    local_support_points_t = (span @ local_support_points.T).T
 
     # apply inset
-    for i in range(local_points_xy.shape[0]):
-        local_points_xy[i, :] = math.inset_vertex(local_points_xy[i, :], inset)
+    local_support_points_t_inset = np.zeros_like(local_support_points_t)
+    for i in range(local_support_points_t.shape[0]):
+        local_support_points_t_inset[i, :] = math.inset_vertex(local_support_points_t[i, :], inset)
         # local_points_xy[i, :] = math.inset_vertex_abs(local_points_xy[i, :], inset)
 
-    support_area = PolygonSupportArea(list(local_points_xy))
+    support_area = PolygonSupportArea(list(local_support_points_t_inset), normal, span)
     r_tau = math.rectangle_r_tau(lengths[0], lengths[1])
     return support_area, r_tau
 
@@ -488,9 +500,6 @@ def _parse_rigid_body_and_box(obj_type_conf, base_position, quat):
     # this is in the EE frame (not the shape's local frame)
     reference_position = base_position + [0, 0, dz]
     com_position = reference_position + com_offset
-
-    # TODO we still don't support ZMP on sloped surface (need a normal
-    # parameter for this)
 
     # now we recompute the box with the correct reference position
     box = parse_box(shape_config, reference_position, C)

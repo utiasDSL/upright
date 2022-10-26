@@ -31,6 +31,9 @@ template <typename Scalar>
 using Mat3 = Eigen::Matrix<Scalar, 3, 3>;
 
 template <typename Scalar>
+using Mat23 = Eigen::Matrix<Scalar, 2, 3>;
+
+template <typename Scalar>
 struct Pose {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Mat3<Scalar> orientation;

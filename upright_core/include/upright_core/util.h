@@ -64,13 +64,20 @@ bool near_zero(Scalar x) {
 
 // Compute the a basis for the nullspace of the vector v.
 template <typename Scalar>
-MatX<Scalar> null(const Vec3<Scalar>& v) {
+Eigen::Matrix<Scalar, 2, 3> null(const Vec3<Scalar>& v) {
     Eigen::FullPivLU<MatX<Scalar>> lu(v.transpose());
-    MatX<Scalar> N = lu.kernel();
-    for (size_t i = 0; i < N.cols(); ++i) {
-        N.col(i).normalize();
+    MatX<Scalar> kernel = lu.kernel();
+
+    if (kernel.rows() != 3 || kernel.cols() != 2) {
+        std::cout << "kernel.shape = (" << kernel.rows() << ", " << kernel.cols() << ")" << std::endl;
+        throw std::runtime_error("Kernel of vector is of wrong size!");
     }
-    return N;
+
+    Eigen::Matrix<Scalar, 2, 3> S;
+    for (size_t i = 0; i < 2; ++i) {
+        S.row(i) = kernel.col(i).normalized().transpose();
+    }
+    return S;
 }
 
 }  // namespace upright

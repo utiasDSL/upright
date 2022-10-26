@@ -51,8 +51,8 @@ multiple_shooting
   initSqpIteration              3
   deltaTol                      1e-3
   printSolverStatistics         true
-  printSolverStatus             true
-  printLinesearch               true
+  printSolverStatus             false
+  printLinesearch               false
   useFeedbackPolicy             true
   integratorType                RK4
   nThreads                      4
@@ -75,7 +75,7 @@ rollout
 ; MPC settings
 mpc
 {
-  timeHorizon                    2.0
+  timeHorizon                    1.0
   solutionTimeWindow             -1   ; [s]
 
   debugPrint                     true

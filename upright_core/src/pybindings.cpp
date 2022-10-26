@@ -47,17 +47,20 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("zmp", &BalanceConstraintsEnabled::zmp);
 
     pybind11::class_<PolygonSupportArea<Scalar>>(m, "PolygonSupportArea")
-        .def(pybind11::init<const std::vector<Vec2<Scalar>>&>(), "vertices"_a)
+        .def(pybind11::init<const std::vector<Vec2<Scalar>>&,
+                            const Vec3<Scalar>&, const Mat23<Scalar>&>(),
+             "vertices"_a, "normal"_a, "span"_a)
         .def("offset", &PolygonSupportArea<Scalar>::offset, "offset"_a)
         .def("vertices", &PolygonSupportArea<Scalar>::vertices)
-        .def("distance", &PolygonSupportArea<Scalar>::distance, "point"_a)
-        .def_static("circle", &PolygonSupportArea<Scalar>::circle, "radius"_a)
-        .def_static("equilateral_triangle",
-                    &PolygonSupportArea<Scalar>::equilateral_triangle,
-                    "side_length"_a)
-        .def_static("axis_aligned_rectangle",
-                    &PolygonSupportArea<Scalar>::axis_aligned_rectangle, "sx"_a,
-                    "sy"_a);
+        .def("normal", &PolygonSupportArea<Scalar>::normal)
+        .def("distance", &PolygonSupportArea<Scalar>::distance, "point"_a);
+    // .def_static("circle", &PolygonSupportArea<Scalar>::circle, "radius"_a)
+    // .def_static("equilateral_triangle",
+    //             &PolygonSupportArea<Scalar>::equilateral_triangle,
+    //             "side_length"_a)
+    // .def_static("axis_aligned_rectangle",
+    //             &PolygonSupportArea<Scalar>::axis_aligned_rectangle, "sx"_a,
+    //             "sy"_a);
 
     // pybind11::class_<Ellipsoid<Scalar>>(m, "Ellipsoid")
     //     .def(pybind11::init<const Vec3<Scalar>&, const std::vector<Scalar>&,
@@ -123,7 +126,8 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("mu", &ContactPoint<Scalar>::mu)
         .def_readwrite("r_co_o1", &ContactPoint<Scalar>::r_co_o1)
         .def_readwrite("r_co_o2", &ContactPoint<Scalar>::r_co_o2)
-        .def_readwrite("normal", &ContactPoint<Scalar>::normal);
+        .def_readwrite("normal", &ContactPoint<Scalar>::normal)
+        .def_readwrite("span", &ContactPoint<Scalar>::span);
 
     pybind11::class_<Pose<Scalar>>(m, "Pose")
         .def(pybind11::init<>())

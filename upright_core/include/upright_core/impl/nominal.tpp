@@ -96,11 +96,16 @@ BalancedObject<Scalar> BalancedObject<Scalar>::compose(
 template <typename Scalar>
 VecX<Scalar> friction_constraint_pyramidal(const BalancedObject<Scalar>& object,
                                            const Wrench<Scalar>& giw) {
+    Vec3<Scalar> normal = object.support_area.normal();
+    Scalar f_n = normal.dot(giw.force);
+    Vec2<Scalar> f_t = object.support_area.project_onto_support_plane(giw.force);
+    Scalar tau_n = normal.dot(giw.torque);
+
     VecX<Scalar> friction_constraint(8);
-    Scalar a = giw.force(0);
-    Scalar b = giw.force(1);
-    Scalar c = giw.torque(2) / object.r_tau;
-    Scalar d = object.mu * giw.force(2);
+    Scalar a = f_t(0);
+    Scalar b = f_t(1);
+    Scalar c = tau_n / object.r_tau;
+    Scalar d = object.mu * f_n;
 
     // clang-format off
     friction_constraint << d - ( a + b + c),
@@ -119,12 +124,18 @@ VecX<Scalar> friction_constraint_pyramidal(const BalancedObject<Scalar>& object,
 template <typename Scalar>
 VecX<Scalar> zmp_constraint(const BalancedObject<Scalar>& object,
                             const Wrench<Scalar>& giw) {
-    Eigen::Matrix<Scalar, 2, 2> S;
-    S << Scalar(0), Scalar(-1), Scalar(1), Scalar(0);
+    // Eigen::Matrix<Scalar, 2, 2> S;
+    // S << Scalar(0), Scalar(-1), Scalar(1), Scalar(0);
+    // Vec3<Scalar> zmp = Vec3<Scalar>::Zero();
+    // zmp.head(2) = (-object.com_height * giw.force.head(2) + S *
+    //         giw.torque.head(2)) / giw.force(2);
 
-    Vec2<Scalar> zmp =
-        (-object.com_height * giw.force.head(2) + S * giw.torque.head(2)) /
-        giw.force(2);
+    // The ZMP is expressed in the EE frame; the support takes care of
+    // projecting into the support plane internally.
+    Vec3<Scalar> normal = object.support_area.normal();
+    Vec3<Scalar> zmp =
+        (normal.cross(giw.torque) - object.com_height * giw.force) /
+        normal.dot(giw.force);
     return object.support_area.zmp_constraints(zmp);
 }
 
@@ -152,7 +163,7 @@ VecX<Scalar> balancing_constraints_single(
 
     // normal contact constraint
     VecX<Scalar> g_con(1);
-    g_con << giw.force(2);
+    g_con << object.support_area.normal().dot(giw.force);
 
     // friction constraint
     VecX<Scalar> g_fric = friction_constraint_pyramidal(object, giw);

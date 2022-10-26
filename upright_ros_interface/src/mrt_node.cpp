@@ -23,14 +23,15 @@
 
 using namespace upright;
 
+const double PROJECTILE_ACTIVATION_HEIGHT = 1.0;  // meters
+const double MIN_POLICY_UPDATE_TIME = 0.01;       // seconds
 
-const double PROJECTILE_ACTIVATION_HEIGHT = 1.0; // meters
-const double MIN_POLICY_UPDATE_TIME = 0.01; // seconds
+const bool ENFORCE_INPUT_LIMITS = false;
+const bool ENFORCE_STATE_LIMITS = true;
 
 const double STATE_VIOLATION_MARGIN = 0.1;
 const double INPUT_VIOLATION_MARGIN = 1.0;
 const double EE_POSITION_VIOLATION_MARGIN = 0.1;
-
 
 // Robot is a global variable so we can send it a brake command in the SIGINT
 // handler
@@ -80,26 +81,39 @@ class SafetyMonitor {
         kinematics_ptr_->setPinocchioInterface(pinocchio_interface_);
     }
 
-    bool limits_violated(const VecXd& x, const VecXd& u) const {
+    bool state_limits_violated(const VecXd& x) const {
         VecXd x_robot = x.head(settings_.dims.robot.x);
-        VecXd u_robot = u.head(settings_.dims.robot.u);
 
-        if (((x_robot - settings_.state_limit_lower).array() < -STATE_VIOLATION_MARGIN).any()) {
+        if (((x_robot - settings_.state_limit_lower).array() <
+             -STATE_VIOLATION_MARGIN)
+                .any()) {
             std::cout << "x = " << x_robot.transpose() << std::endl;
             std::cout << "State violated lower limits!" << std::endl;
             return true;
         }
-        if (((settings_.state_limit_upper - x_robot).array() < -STATE_VIOLATION_MARGIN).any()) {
+        if (((settings_.state_limit_upper - x_robot).array() <
+             -STATE_VIOLATION_MARGIN)
+                .any()) {
             std::cout << "x = " << x_robot.transpose() << std::endl;
             std::cout << "State violated upper limits!" << std::endl;
             return true;
         }
-        if (((u_robot - settings_.input_limit_lower).array() < -INPUT_VIOLATION_MARGIN).any()) {
+        return false;
+    }
+
+    bool input_limits_violated(const VecXd& u) const {
+        VecXd u_robot = u.head(settings_.dims.robot.u);
+
+        if (((u_robot - settings_.input_limit_lower).array() <
+             -INPUT_VIOLATION_MARGIN)
+                .any()) {
             std::cout << "u = " << u_robot.transpose() << std::endl;
             std::cout << "Input violated lower limits!" << std::endl;
             return true;
         }
-        if (((settings_.input_limit_upper - u_robot).array() < -INPUT_VIOLATION_MARGIN).any()) {
+        if (((settings_.input_limit_upper - u_robot).array() <
+             -INPUT_VIOLATION_MARGIN)
+                .any()) {
             std::cout << "u = " << u_robot.transpose() << std::endl;
             std::cout << "Input violated upper limits!" << std::endl;
             return true;
@@ -297,7 +311,11 @@ int main(int argc, char** argv) {
         }
 
         // Check that the controller has provided sane values.
-        if (monitor.limits_violated(xd, u)) {
+        // Check monitor first so we can still log violations
+        if (monitor.state_limits_violated(xd) && ENFORCE_STATE_LIMITS) {
+            break;
+        }
+        if (monitor.input_limits_violated(u) && ENFORCE_INPUT_LIMITS) {
             break;
         }
 

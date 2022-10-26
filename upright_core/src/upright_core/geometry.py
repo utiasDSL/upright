@@ -4,6 +4,8 @@ from scipy.optimize import linprog
 
 from upright_core.math import plane_span
 
+# TODO rename this file to polyhedron
+
 
 class ConvexPolyhedron:
     def __init__(self, vertices, normals, position=None, rotation=None):
@@ -13,6 +15,7 @@ class ConvexPolyhedron:
 
     @classmethod
     def box(cls, half_extents, position=None, rotation=None):
+        half_extents = np.array(half_extents)
         assert (half_extents > 0).all(), "Half extents must be positive."
         x, y, z = half_extents
 
@@ -96,6 +99,7 @@ class ConvexPolyhedron:
         b_eq = np.ones(4)
         b_eq[:3] = -(self.position + offset)
 
+        # TODO probably don't need the bounds: distance should be non-negative
         bounds = [(None, None)]
         bounds.extend([(0, None) for _ in range(n)])
 
@@ -107,27 +111,8 @@ class ConvexPolyhedron:
 
 
 # TODO deprecate in favour of polygon
-class Box3d(ConvexPolyhedron):
-    def __init__(self, half_extents, position=None, rotation=None):
-        assert (half_extents > 0).all(), "Half extents must be positive."
-
-        local_normals = np.eye(3)
-
-        # vertices in the body frame
-        # fmt: off
-        x, y, z = half_extents
-        local_vertices = np.array([
-            [ x,  y,  z],
-            [ x,  y, -z],
-            [ x, -y,  z],
-            [ x, -y, -z],
-            [-x,  y,  z],
-            [-x,  y, -z],
-            [-x, -y,  z],
-            [-x, -y, -z]])
-        # fmt: on
-
-        super().__init__(local_vertices, local_normals, position, rotation)
+def Box3d(half_extents, position=None, rotation=None):
+    return ConvexPolyhedron.box(half_extents, position, rotation)
 
 
 def orth2d(a):
@@ -321,4 +306,5 @@ def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
     # unproject back into world coordinates
     V = point + Vp @ span
 
+    # normal points into the first shape
     return V, normal_multiplier * plane_normal

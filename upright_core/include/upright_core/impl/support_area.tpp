@@ -107,9 +107,16 @@ VecX<Scalar> PolygonSupportArea<Scalar>::inner_distances_to_edges(
 }
 
 template <typename Scalar>
+Vec2<Scalar> PolygonSupportArea<Scalar>::project_onto_support_plane(
+    const Vec3<Scalar>& point) const {
+    return span_ * point;
+}
+
+template <typename Scalar>
 VecX<Scalar> PolygonSupportArea<Scalar>::zmp_constraints(
-    const Vec2<Scalar>& zmp) const {
-    return inner_distances_to_edges(zmp);
+    const Vec3<Scalar>& zmp) const {
+    Vec2<Scalar> zmp_proj = project_onto_support_plane(zmp);
+    return inner_distances_to_edges(zmp_proj);
 }
 
 template <typename Scalar>
@@ -128,8 +135,9 @@ VecX<Scalar> PolygonSupportArea<Scalar>::zmp_constraints_scaled(
 
 // Minimum distance of a point from the polygon (negative if inside)
 template <typename Scalar>
-Scalar PolygonSupportArea<Scalar>::distance(const Vec2<Scalar>& point) const {
-    VecX<Scalar> e_dists = inner_distances_to_edges(point);
+Scalar PolygonSupportArea<Scalar>::distance(const Vec3<Scalar>& point) const {
+    Vec2<Scalar> point_proj = project_onto_support_plane(point);
+    VecX<Scalar> e_dists = inner_distances_to_edges(point_proj);
     Scalar min_e_dist = e_dists.minCoeff();
 
     // Check if point is inside the polygon: then it is just the negative
@@ -143,22 +151,12 @@ Scalar PolygonSupportArea<Scalar>::distance(const Vec2<Scalar>& point) const {
     const size_t n = vertices_.size();
     VecX<Scalar> distances(n);
     for (int i = 0; i < n - 1; ++i) {
-        distances(i) = distance_point_to_line_segment(point, vertices_[i],
+        distances(i) = distance_point_to_line_segment(point_proj, vertices_[i],
                                                       vertices_[i + 1]);
     }
-    distances(n - 1) =
-        distance_point_to_line_segment(point, vertices_[n - 1], vertices_[0]);
+    distances(n - 1) = distance_point_to_line_segment(
+        point_proj, vertices_[n - 1], vertices_[0]);
     return distances.minCoeff();
-}
-
-template <typename Scalar>
-VecX<Scalar> PolygonSupportArea<Scalar>::get_parameters() const {
-    size_t n = num_parameters();
-    VecX<Scalar> p(n);
-    for (int i = 0; i < vertices_.size(); ++i) {
-        p.segment(i * 2, 2) = vertices_[i];
-    }
-    return p;
 }
 
 template <typename Scalar>
@@ -168,49 +166,71 @@ PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::offset(
     for (int i = 0; i < vertices_.size(); ++i) {
         offset_vertices.push_back(vertices_[i] + offset);
     }
-    return PolygonSupportArea<Scalar>(offset_vertices);
+    return PolygonSupportArea<Scalar>(offset_vertices, normal_, span_);
+}
+
+template <typename Scalar>
+VecX<Scalar> PolygonSupportArea<Scalar>::get_parameters() const {
+    size_t n = num_parameters();
+    VecX<Scalar> p(n);
+    p.head(3) = normal_;
+    p.segment(3, 3) = span_.row(0).transpose();
+    p.segment(6, 3) = span_.row(1).transpose();
+    for (int i = 0; i < vertices_.size(); ++i) {
+        p.segment(9 + i * 2, 2) = vertices_[i];
+    }
+    return p;
 }
 
 template <typename Scalar>
 PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::from_parameters(
     const VecX<Scalar>& p, const size_t index) {
-    // Need at least three vertices in the support area
-    size_t n = p.size() - index;
-    if (n < 2 * 3) {
+    // Need a normal and at least three vertices in the support area
+    const size_t n = p.size() - index;
+    std::cout << "num SA params = " << n << std::endl;
+    if (n < 9 + 2 * 3) {
         throw std::runtime_error(
             "[PolygonSupportArea] Parameter vector is too small.");
     }
 
+    Vec3<Scalar> normal = p.segment(index, 3);
+    Mat23<Scalar> span;
+    span << p.segment(index + 3, 3).transpose(),
+        p.segment(index + 6, 3).transpose();
+
+    const size_t num_vertices = n - 9;
     std::vector<Vec2<Scalar>> vertices;
-    for (int i = 0; i < n / 2; ++i) {
-        vertices.push_back(p.template segment<2>(index + i * 2));
+    for (int i = 0; i < num_vertices / 2; ++i) {
+        vertices.push_back(p.segment(index + 9 + i * 2, 2));
     }
-    return PolygonSupportArea(vertices);
+    return PolygonSupportArea(vertices, normal, span);
 }
 
-// Square support area approximation to a circle
-template <typename Scalar>
-PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::circle(Scalar radius) {
-    Scalar side_length = Scalar(sqrt(2.0)) * radius;
-    std::vector<Vec2<Scalar>> vertices =
-        cuboid_support_vertices(side_length, side_length);
-    return PolygonSupportArea<Scalar>(vertices);
-}
-
-// Equilateral triangle support area
-template <typename Scalar>
-PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::equilateral_triangle(
-    Scalar side_length) {
-    std::vector<Vec2<Scalar>> vertices =
-        equilateral_triangle_support_vertices(side_length);
-    return PolygonSupportArea<Scalar>(vertices);
-}
-
-template <typename Scalar>
-PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::axis_aligned_rectangle(
-    Scalar sx, Scalar sy) {
-    std::vector<Vec2<Scalar>> vertices = cuboid_support_vertices(sx, sy);
-    return PolygonSupportArea<Scalar>(vertices);
-}
+// // Square support area approximation to a circle
+// template <typename Scalar>
+// PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::circle(Scalar radius)
+// {
+//     Scalar side_length = Scalar(sqrt(2.0)) * radius;
+//     std::vector<Vec2<Scalar>> vertices =
+//         cuboid_support_vertices(side_length, side_length);
+//     return PolygonSupportArea<Scalar>(vertices);
+// }
+//
+// // Equilateral triangle support area
+// template <typename Scalar>
+// PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::equilateral_triangle(
+//     Scalar side_length) {
+//     std::vector<Vec2<Scalar>> vertices =
+//         equilateral_triangle_support_vertices(side_length);
+//     return PolygonSupportArea<Scalar>(vertices);
+// }
+//
+// template <typename Scalar>
+// PolygonSupportArea<Scalar>
+// PolygonSupportArea<Scalar>::axis_aligned_rectangle(
+//     Scalar sx, Scalar sy) {
+//     std::vector<Vec2<Scalar>> vertices = cuboid_support_vertices(sx, sy);
+//     return PolygonSupportArea<Scalar>(vertices);
+// }
 
 }  // namespace upright

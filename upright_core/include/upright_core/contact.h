@@ -26,6 +26,10 @@ struct ContactPoint {
     // compute the friction cone constraint.
     Vec3<Scalar> normal;
 
+    // Spans the contact plane defined by the normal. Rows are orthogonal to
+    // the normal vector, such that span * normal = 0.
+    Mat23<Scalar> span;
+
     // Cast to another underlying scalar type
     template <typename T>
     ContactPoint<T> cast() const {
@@ -36,6 +40,7 @@ struct ContactPoint {
         point.r_co_o1 = r_co_o1.template cast<T>();
         point.r_co_o2 = r_co_o2.template cast<T>();
         point.normal = normal.template cast<T>();
+        point.span = span.template cast<T>();
         return point;
     }
 };

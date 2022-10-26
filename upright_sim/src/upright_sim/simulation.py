@@ -180,7 +180,7 @@ class BulletBody:
     @staticmethod
     def sphere(mass, mu, radius, orientation=None, com_offset=None, color=(0, 0, 1, 1)):
         """Construct a cylinder object."""
-        half_extents = (np.ones(3) * radius / 2,)
+        half_extents = np.ones(3) * radius / 2
         box = geometry.Box3d(half_extents)
 
         collision_uid = pyb.createCollisionShape(

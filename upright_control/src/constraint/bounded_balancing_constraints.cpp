@@ -202,11 +202,18 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     }
 
     // Convert objects to AD type
+    std::cout << "hello from odc" << std::endl;
     std::map<std::string, BalancedObject<ocs2::ad_scalar_t>> ad_objects;
     for (const auto& kv : settings_.objects) {
-        ad_objects.emplace(kv.first,
-                           kv.second.template cast<ocs2::ad_scalar_t>());
+        std::cout << "name = " << kv.first << std::endl;
+        std::cout << "normal = " << kv.second.support_area.normal().transpose() << std::endl;
+        VecXd p = kv.second.get_parameters();
+        std::cout << "parameters = " << p.transpose() << std::endl;
+        auto obj_ad = BalancedObject<ocs2::ad_scalar_t>::from_parameters(p.template cast<ocs2::ad_scalar_t>());
+        // auto obj_ad = kv.second.template cast<ocs2::ad_scalar_t>();
+        ad_objects.emplace(kv.first, obj_ad);
     }
+    std::cout << "goodbye from odc" << std::endl;
 
     Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
 

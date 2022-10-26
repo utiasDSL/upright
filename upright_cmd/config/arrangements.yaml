@@ -80,6 +80,7 @@ arrangements:
 
   # two foam dice stacked atop one another
   foam_die2:
+    mu_margin: 0.05
     support_area_inset: 0.01
     objects:
       -
@@ -87,7 +88,6 @@ arrangements:
         type: foam_die
         parent: ee
         offset:
-          x: 0
           y: -0.06
       -
         name: foam_die2

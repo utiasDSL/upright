@@ -21,7 +21,7 @@ simulation:
 
 controller:
   balancing:
-    enabled: false
+    enabled: true
     use_force_constraints: true
     arrangement: wedge
     constraint_type: hard
@@ -30,7 +30,7 @@ controller:
     enable_zmp_constraint: true
 
   inertial_alignment:
-    enabled: true
+    enabled: false
     use_constraint: true
     use_angular_acceleration: false
     contact_plane_normal: [0, 0, 1]

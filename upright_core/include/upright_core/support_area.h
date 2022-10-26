@@ -38,63 +38,39 @@ std::vector<Vec2<Scalar>> regular_polygon_vertices(
     return vertices;
 }
 
-// template <typename Scalar>
-// struct PolygonEdge {
-//     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-//
-//     PolygonEdge(const Vec2<Scalar>& v1, const Vec2<Scalar>& v2)
-//         : v1(v1), v2(v2) {
-//         // TODO would be nice to revise all this to use inward-facing normals
-//         Mat2<Scalar> S;
-//         S << Scalar(0), Scalar(1), Scalar(-1), Scalar(0);
-//         normal = S * (v2 - v1);
-//         normal = normal / normal.norm();
-//     }
-//
-//     Vec2<Scalar> v1;
-//     Vec2<Scalar> v2;
-//     Vec2<Scalar> normal;  // outward-facing
-// };
-
 template <typename Scalar>
 struct PolygonSupportArea {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
    public:
-    PolygonSupportArea(const std::vector<Vec2<Scalar>>& vertices)
-        : vertices_(vertices) {}
+    PolygonSupportArea(const std::vector<Vec2<Scalar>>& vertices,
+                       const Vec3<Scalar>& normal, const Mat23<Scalar>& span)
+        : vertices_(vertices), normal_(normal), span_(span) {}
 
     PolygonSupportArea* clone() const {
-        return new PolygonSupportArea(vertices_);
+        return new PolygonSupportArea(vertices_, normal_, span_);
     }
 
     size_t num_constraints() const { return vertices_.size(); }
 
-    size_t num_parameters() const { return vertices_.size() * 2; }
+    size_t num_parameters() const { return 9 + vertices_.size() * 2; }
 
     const std::vector<Vec2<Scalar>>& vertices() const { return vertices_; }
 
-    // Get the edges of the polygon composing the support area
-    // std::vector<PolygonEdge<Scalar>> edges() const {
-    //     std::vector<PolygonEdge<Scalar>> es;
-    //     for (int i = 0; i < vertices_.size() - 1; ++i) {
-    //         es.push_back(PolygonEdge<Scalar>(vertices_[i], vertices_[i +
-    //         1]));
-    //     }
-    //     es.push_back(PolygonEdge<Scalar>(vertices_.back(),
-    //     vertices_.front())); return es;
-    // }
+    const Vec3<Scalar> normal() const { return normal_; }
+
+    Vec2<Scalar> project_onto_support_plane(const Vec3<Scalar>& point) const;
 
     // Constraints on the ZMP
-    VecX<Scalar> zmp_constraints(const Vec2<Scalar>& zmp) const;
+    VecX<Scalar> zmp_constraints(const Vec3<Scalar>& zmp) const;
 
     // Constraints on the ZMP scaled by normal force az
     VecX<Scalar> zmp_constraints_scaled(const Vec2<Scalar>& az_zmp,
-                                          Scalar& az) const;
+                                        Scalar& az) const;
 
     // Compute distance of a point from the support polygon. Negative if inside
     // the polygon.
-    Scalar distance(const Vec2<Scalar>& point) const;
+    Scalar distance(const Vec3<Scalar>& point) const;
 
     VecX<Scalar> get_parameters() const;
 
@@ -105,19 +81,22 @@ struct PolygonSupportArea {
     static PolygonSupportArea<Scalar> from_parameters(const VecX<Scalar>& p,
                                                       const size_t index = 0);
 
-    // Square support area approximation to a circle
-    static PolygonSupportArea<Scalar> circle(Scalar radius);
-
-    // Equilateral triangle support area
-    static PolygonSupportArea<Scalar> equilateral_triangle(Scalar side_length);
-
-    static PolygonSupportArea<Scalar> axis_aligned_rectangle(Scalar sx,
-                                                             Scalar sy);
+    // // Square support area approximation to a circle
+    // static PolygonSupportArea<Scalar> circle(Scalar radius);
+    //
+    // // Equilateral triangle support area
+    // static PolygonSupportArea<Scalar> equilateral_triangle(Scalar
+    // side_length);
+    //
+    // static PolygonSupportArea<Scalar> axis_aligned_rectangle(Scalar sx,
+    //                                                          Scalar sy);
 
    private:
     VecX<Scalar> inner_distances_to_edges(const Vec2<Scalar>& point) const;
 
     std::vector<Vec2<Scalar>> vertices_;
+    Vec3<Scalar> normal_;
+    Mat23<Scalar> span_;
 };
 
 }  // namespace upright

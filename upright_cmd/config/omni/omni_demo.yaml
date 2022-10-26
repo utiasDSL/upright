@@ -17,13 +17,13 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: wedge
+  arrangement: foam_die2
 
 controller:
   balancing:
-    enabled: false
+    enabled: true
     use_force_constraints: true
-    arrangement: wedge
+    arrangement: foam_die2
     constraint_type: hard
     enable_normal_constraint: true
     enable_friction_constraint: true

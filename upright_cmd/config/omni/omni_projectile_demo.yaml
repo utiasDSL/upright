@@ -20,7 +20,7 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: foam_die1
+  arrangement: foam_die2
 
   dynamic_obstacles:
     enabled: true
@@ -29,7 +29,7 @@ controller:
   balancing:
     enabled: true
     use_force_constraints: true
-    arrangement: foam_die1
+    arrangement: foam_die2
     constraint_type: hard
     enable_normal_constraint: true
     enable_friction_constraint: true
