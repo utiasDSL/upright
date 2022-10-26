@@ -187,7 +187,6 @@ PolygonSupportArea<Scalar> PolygonSupportArea<Scalar>::from_parameters(
     const VecX<Scalar>& p, const size_t index) {
     // Need a normal and at least three vertices in the support area
     const size_t n = p.size() - index;
-    std::cout << "num SA params = " << n << std::endl;
     if (n < 9 + 2 * 3) {
         throw std::runtime_error(
             "[PolygonSupportArea] Parameter vector is too small.");

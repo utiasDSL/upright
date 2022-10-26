@@ -8,8 +8,6 @@
 #include "upright_core/types.h"
 #include "upright_core/util.h"
 
-#include <cppad/cg.hpp>
-
 namespace upright {
 
 // Number of friction cone constraints per contact. One constraint for the
@@ -65,12 +63,6 @@ VecX<Scalar> compute_contact_force_constraints_linearized(
 
         // tangential force is obtained by projecting onto the nullspace of the
         // normal vector
-        // std::cout << "hello!" << std::endl;
-        // for (int j = 0; j < 3; ++j) {
-        //     std::cout << CppAD::Value(CppAD::Var2Par(contact.normal(j))).getValue() << std::endl;
-        // }
-        // Eigen::Matrix<Scalar, 2, 3> S = null(contact.normal);
-        // std::cout << "goodbye!" << std::endl;
         Vec2<Scalar> f_t = contact.span * f;
 
         // constrain the normal force to be non-negative

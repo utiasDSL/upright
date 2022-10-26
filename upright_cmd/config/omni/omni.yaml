@@ -72,7 +72,7 @@ controller:
 
   # reduced state and input limits
   limits:
-    constraint_type: hard
+    constraint_type: soft
     # input:
     #   lower: [-20, -20, -20, -80, -80, -80, -80, -80, -80]
     #   upper: [20, 20, 20, 80, 80, 80, 80, 80, 80]

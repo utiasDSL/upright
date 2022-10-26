@@ -12,9 +12,9 @@ namespace upright {
 template <typename Scalar>
 size_t BalancedObject<Scalar>::num_constraints(
     const BalanceConstraintsEnabled& enabled) const {
-    const size_t num_normal = 1 * enabled.normal;
-    const size_t num_fric = 8 * enabled.friction;
-    const size_t num_zmp = support_area.num_constraints() * enabled.zmp;
+    const size_t num_normal = 1;
+    const size_t num_fric = 8;
+    const size_t num_zmp = support_area.num_constraints();
     return num_normal + num_fric + num_zmp;
 }
 
@@ -97,17 +97,21 @@ template <typename Scalar>
 VecX<Scalar> friction_constraint_pyramidal(const BalancedObject<Scalar>& object,
                                            const Wrench<Scalar>& giw) {
     Vec3<Scalar> normal = object.support_area.normal();
-    Scalar f_n = normal.dot(giw.force);
-    Vec2<Scalar> f_t = object.support_area.project_onto_support_plane(giw.force);
-    Scalar tau_n = normal.dot(giw.torque);
+    // Scalar f_n = normal.dot(giw.force);
+    // Vec2<Scalar> f_t = object.support_area.project_onto_support_plane(giw.force);
+    // Scalar tau_n = normal.dot(giw.torque);
 
-    VecX<Scalar> friction_constraint(8);
+    Scalar f_n = giw.force(2);
+    Vec2<Scalar> f_t = giw.force.head(2);
+    Scalar tau_n = giw.torque(2);
+
     Scalar a = f_t(0);
     Scalar b = f_t(1);
     Scalar c = tau_n / object.r_tau;
     Scalar d = object.mu * f_n;
 
     // clang-format off
+    VecX<Scalar> friction_constraint(8);
     friction_constraint << d - ( a + b + c),
                            d - (-a + b + c),
                            d - ( a - b + c),

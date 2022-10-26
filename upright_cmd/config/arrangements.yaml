@@ -175,8 +175,8 @@ arrangements:
       -
         first: ee
         second: wedge1
-        mu: 0.2
+        mu: 0.4
       -
         first: wedge1
         second: box1
-        mu: 0.2
+        mu: 0.4

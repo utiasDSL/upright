@@ -59,6 +59,8 @@ struct PolygonSupportArea {
 
     const Vec3<Scalar> normal() const { return normal_; }
 
+    const Mat23<Scalar> span() const { return span_; }
+
     Vec2<Scalar> project_onto_support_plane(const Vec3<Scalar>& point) const;
 
     // Constraints on the ZMP

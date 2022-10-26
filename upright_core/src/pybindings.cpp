@@ -53,6 +53,7 @@ PYBIND11_MODULE(bindings, m) {
         .def("offset", &PolygonSupportArea<Scalar>::offset, "offset"_a)
         .def("vertices", &PolygonSupportArea<Scalar>::vertices)
         .def("normal", &PolygonSupportArea<Scalar>::normal)
+        .def("span", &PolygonSupportArea<Scalar>::span)
         .def("distance", &PolygonSupportArea<Scalar>::distance, "point"_a);
     // .def_static("circle", &PolygonSupportArea<Scalar>::circle, "radius"_a)
     // .def_static("equilateral_triangle",
