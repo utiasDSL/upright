@@ -64,7 +64,7 @@ arrangements:
   # single foam die
   foam_die1:
     mu_margin: 0.05
-    # TODO inset
+    support_area_inset: 0.01
     objects:
       -
         name: foam_die1

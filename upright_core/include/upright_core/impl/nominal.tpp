@@ -12,9 +12,9 @@ namespace upright {
 template <typename Scalar>
 size_t BalancedObject<Scalar>::num_constraints(
     const BalanceConstraintsEnabled& enabled) const {
-    const size_t num_normal = 1;
-    const size_t num_fric = 8;
-    const size_t num_zmp = support_area.num_constraints();
+    const size_t num_normal = 1 * enabled.normal;
+    const size_t num_fric = 8 * enabled.friction;
+    const size_t num_zmp = support_area.num_constraints() * enabled.zmp;
     return num_normal + num_fric + num_zmp;
 }
 
@@ -97,13 +97,10 @@ template <typename Scalar>
 VecX<Scalar> friction_constraint_pyramidal(const BalancedObject<Scalar>& object,
                                            const Wrench<Scalar>& giw) {
     Vec3<Scalar> normal = object.support_area.normal();
-    // Scalar f_n = normal.dot(giw.force);
-    // Vec2<Scalar> f_t = object.support_area.project_onto_support_plane(giw.force);
-    // Scalar tau_n = normal.dot(giw.torque);
-
-    Scalar f_n = giw.force(2);
-    Vec2<Scalar> f_t = giw.force.head(2);
-    Scalar tau_n = giw.torque(2);
+    Scalar f_n = normal.dot(giw.force);
+    Vec2<Scalar> f_t =
+        object.support_area.project_onto_support_plane(giw.force);
+    Scalar tau_n = normal.dot(giw.torque);
 
     Scalar a = f_t(0);
     Scalar b = f_t(1);
@@ -162,6 +159,7 @@ VecX<Scalar> balancing_constraints_single(
     giw.force =
         object.body.mass * C_ew *
         (state.acceleration.linear + ddC_we * object.body.com - gravity);
+
     giw.torque = C_ew * S_angular_vel * Iw * state.velocity.angular +
                  Ie * C_ew * state.acceleration.angular;
 
@@ -175,15 +173,15 @@ VecX<Scalar> balancing_constraints_single(
     // tipping constraint
     VecX<Scalar> g_zmp = zmp_constraint(object, giw);
 
-    // Set disabled constraint values to unity so they are always satisfied.
+    // Clear disabled constraint values.
     if (!enabled.friction) {
-        g_fric.setOnes();
+        g_fric.setZero(0);
     }
     if (!enabled.normal) {
-        g_con.setOnes();
+        g_con.setZero(0);
     }
     if (!enabled.zmp) {
-        g_zmp.setOnes();
+        g_zmp.setZero(0);
     }
 
     VecX<Scalar> g_bal(object.num_constraints(enabled));

@@ -17,7 +17,9 @@ class ControllerModel:
     def __init__(self, settings):
         self.settings = settings
         self.objects = list(settings.objects.values())
-        self.arrangement = core.bindings.BalancedObjectArrangement(settings.objects, settings.gravity)
+        self.arrangement = core.bindings.BalancedObjectArrangement(
+            settings.objects, settings.gravity
+        )
         self.robot, self.geom = build_robot_interfaces(settings)
 
     @classmethod

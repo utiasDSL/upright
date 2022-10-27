@@ -39,49 +39,6 @@ RigidBodyState<ocs2::ad_scalar_t> get_rigid_body_state(
     return X;
 }
 
-// BoundedBalancingConstraints::BoundedBalancingConstraints(
-//     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-//     const BalancingSettings& settings, const Vec3d& gravity,
-//     const OptimizationDimensions& dims, bool recompileLibraries)
-//     : ocs2::StateInputConstraintCppAd(ocs2::ConstraintOrder::Linear),
-//       pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
-//       gravity_(gravity),
-//       settings_(settings),
-//       dims_(dims) {
-//     if (pinocchioEEKinematics.getIds().size() != 1) {
-//         throw std::runtime_error(
-//             "[TrayBalanaceConstraint] endEffectorKinematics has wrong "
-//             "number of end effector IDs.");
-//     }
-//
-//     // compile the CppAD library
-//     initialize(dims.x(), dims.u(), 0, "upright_bounded_balancing_constraints",
-//                "/tmp/ocs2", recompileLibraries, true);
-//
-//     num_constraints_ = num_balancing_constraints(settings_.objects);
-// }
-//
-// VecXad BoundedBalancingConstraints::constraintFunction(
-//     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
-//     const VecXad& parameters) const {
-//     Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
-//     Vec3ad angular_vel =
-//         pinocchioEEKinPtr_->getAngularVelocityCppAd(state, input);
-//     Vec3ad angular_acc =
-//         pinocchioEEKinPtr_->getAngularAccelerationCppAd(state, input);
-//     Vec3ad linear_acc = pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
-//
-//     // Cast to AD scalar type
-//     Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
-//     std::vector<BoundedBalancedObject<ocs2::ad_scalar_t>> ad_objects;
-//     for (const auto& kv : settings_.objects) {
-//         ad_objects.push_back(kv.second.cast<ocs2::ad_scalar_t>());
-//     }
-//
-//     return balancing_constraints(ad_objects, ad_gravity,
-//                                  settings_.constraints_enabled, C_we,
-//                                  angular_vel, linear_acc, angular_acc);
-// }
 
 NominalBalancingConstraints::NominalBalancingConstraints(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
@@ -99,6 +56,12 @@ NominalBalancingConstraints::NominalBalancingConstraints(
             "number of end effector IDs.");
     }
 
+    // NOTE: workaround for CppADCodeGen slow compilation for single objects
+    // if (arrangement_.objects.size() == 1) {
+    //     auto it = arrangement_.objects.begin();
+    //     arrangement_.objects.emplace("foo", it->second);
+    // }
+
     // compile the CppAD library
     initialize(dims.x(), dims.u(), 0, "upright_nominal_balancing_constraints",
                "/tmp/ocs2", recompileLibraries, true);
@@ -110,13 +73,6 @@ VecXad NominalBalancingConstraints::constraintFunction(
 
     RigidBodyState<ocs2::ad_scalar_t> X =
         get_rigid_body_state(pinocchioEEKinPtr_, state, input);
-
-    // Mat3ad C_we = pinocchioEEKinPtr_->getOrientationCppAd(state);
-    // Vec3ad angular_vel =
-    //     pinocchioEEKinPtr_->getAngularVelocityCppAd(state, input);
-    // Vec3ad angular_acc =
-    //     pinocchioEEKinPtr_->getAngularAccelerationCppAd(state, input);
-    // Vec3ad linear_acc = pinocchioEEKinPtr_->getAccelerationCppAd(state, input);
 
     BalancedObjectArrangement<ocs2::ad_scalar_t> ad_arrangement =
         arrangement_.cast<ocs2::ad_scalar_t>();

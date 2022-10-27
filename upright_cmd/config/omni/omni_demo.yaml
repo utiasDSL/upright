@@ -22,15 +22,16 @@ simulation:
 controller:
   balancing:
     enabled: true
-    use_force_constraints: false
+    use_force_constraints: true
     arrangement: foam_die1
     constraint_type: hard
-    enable_normal_constraint: false
+    enable_normal_constraint: true
     enable_friction_constraint: true
-    enable_zmp_constraint: false
+    enable_zmp_constraint: true
 
   waypoints:
     -
       time: 0
+      # position: [0, 0, 0]
       position: [2.0, 0.5, 0.25]
       orientation: [0, 0, 0, 1]

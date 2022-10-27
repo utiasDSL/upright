@@ -229,9 +229,6 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0, t
 
             span = math.plane_span(normal)
 
-            print(f"Contact normal = {normal}")
-            print(f"Contact span = {span}")
-
             r1 = points[i, :] - body1.com
 
             # project point into tangent plane and inset the tangent part
