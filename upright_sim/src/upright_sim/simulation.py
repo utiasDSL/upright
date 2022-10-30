@@ -432,7 +432,7 @@ def balanced_object_setup(r_ew_w, config):
         contact_points.append(points)
 
     contact_points = np.vstack(contact_points)
-    colors = [[0, 0, 0] for _ in contact_points]
+    colors = [[1, 1, 1] for _ in contact_points]
     pyb.addUserDebugPoints([v for v in contact_points], colors, pointSize=10)
 
     # get rid of "fake" EE object before returning

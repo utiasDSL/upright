@@ -79,11 +79,19 @@ infofile:
 # theorem to account for com_offset
 objects:
   # EE is a special object
+  # original box tray
+  # ee:
+  #   shape:
+  #     type: cuboid
+  #     side_lengths: [0.23, 0.3, 0.064]
+  #   position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
+
+  # new round tray
   ee:
     shape:
       type: cuboid
-      side_lengths: [0.23, 0.3, 0.064]
-    position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
+      side_lengths: [0.356, 0.356, 0.01]
+    position: [0.09, 0.12, -0.035]  # box centroid relative to r_ew_w
 
   cube:
     mass: 1.0

@@ -19,6 +19,7 @@ using Vec2d = Vec2<ocs2::scalar_t>;
 using Mat2d = Mat2<ocs2::scalar_t>;
 using Vec3d = Vec3<ocs2::scalar_t>;
 using Mat3d = Mat3<ocs2::scalar_t>;
+using Mat23d = Mat23<ocs2::scalar_t>;
 using Quatd = Eigen::Quaternion<ocs2::scalar_t>;
 
 // Auto-diff scalar
@@ -30,6 +31,7 @@ using Vec2ad = Vec2<ocs2::ad_scalar_t>;
 using Mat2ad = Mat2<ocs2::ad_scalar_t>;
 using Vec3ad = Vec3<ocs2::ad_scalar_t>;
 using Mat3ad = Mat3<ocs2::ad_scalar_t>;
+using Mat23ad = Mat23<ocs2::ad_scalar_t>;
 using Quatad = Eigen::Quaternion<ocs2::ad_scalar_t>;
 
 }  // namespace upright

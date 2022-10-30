@@ -171,13 +171,13 @@ def main():
             logger.append("orn_err", model.angle_between_acc_and_normal())
             logger.append("balancing_constraints", model.balancing_constraints())
 
-            # if model.settings.inertial_alignment_settings.enabled:
-            #     alignment_constraints = (
-            #         ctrl_manager.mpc.getStateInputEqualityConstraintValue(
-            #             "inertial_alignment_constraint", t, x, u
-            #         )
-            #     )
-            #     logger.append("alignment_constraints", alignment_constraints)
+            if model.settings.inertial_alignment_settings.enabled:
+                alignment_constraints = (
+                    ctrl_manager.mpc.getStateInputInequalityConstraintValue(
+                        "inertial_alignment_constraint", t, x, u
+                    )
+                )
+                logger.append("alignment_constraints", alignment_constraints)
 
             if model.settings.obstacle_settings.enabled:
                 if (

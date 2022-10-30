@@ -17,23 +17,24 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: wedge
+  arrangement: foam_die1
 
 controller:
   balancing:
-    enabled: true
+    enabled: false
     use_force_constraints: true
-    arrangement: wedge
+    arrangement: foam_die1
     constraint_type: hard
     enable_normal_constraint: true
     enable_friction_constraint: true
     enable_zmp_constraint: true
 
   inertial_alignment:
-    enabled: false
+    enabled: true
     use_constraint: true
     use_angular_acceleration: false
     contact_plane_normal: [0, 0, 1]
+    alpha: 0  # TODO tune/calculate properly
     com: [0, 0, 0]
 
   weights:

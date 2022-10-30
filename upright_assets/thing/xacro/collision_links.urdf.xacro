@@ -22,16 +22,29 @@
     </link>
   </xacro:macro>
 
-  <!-- This configuration is used for the single- and multi-object balancing tasks -->
+  <!-- Original box tray -->
+  <!-- <xacro:collision_link name="balanced_object_collision_link"> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
+  <!--   <geometry> -->
+      <!-- <sphere radius="0.21"/> -->
+  <!--     <box size="0.23 0.3 0.2" /> -->
+  <!--   </geometry> -->
+  <!-- </xacro:collision_link> -->
+  <!-- <joint name="balanced_object_collision_joint" type="fixed"> -->
+  <!--   <origin rpy="0 0 0" xyz="0.1 0.13 0.036"/> -->
+  <!--   <parent link="gripped_object"/> -->
+  <!--   <child link="balanced_object_collision_link"/> -->
+  <!-- </joint> -->
+
+  <!-- New round tray -->
   <xacro:collision_link name="balanced_object_collision_link">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <geometry>
-      <!-- <sphere radius="0.21"/> -->
-      <box size="0.23 0.3 0.2" />
+      <sphere radius="0.2"/>
     </geometry>
   </xacro:collision_link>
   <joint name="balanced_object_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0.1 0.13 0.036"/>
+    <origin rpy="0 0 0" xyz="0.09 0.12 0.03"/>
     <parent link="gripped_object"/>
     <child link="balanced_object_collision_link"/>
   </joint>

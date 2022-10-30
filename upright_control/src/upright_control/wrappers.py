@@ -215,8 +215,11 @@ class ControllerSettings(bindings.ControllerSettings):
             ias.use_angular_acceleration = iac["use_angular_acceleration"]
             ias.cost_weight = iac["cost_weight"]
             normal = np.array(iac["contact_plane_normal"])
-            ias.contact_plane_normal = normal / np.linalg.norm(normal)
+            normal = normal / np.linalg.norm(normal)
+            ias.contact_plane_normal = normal
+            ias.contact_plane_span = core.math.plane_span(normal)
             ias.com = np.array(iac["com"])
+            ias.alpha = iac["alpha"]
 
         # obstacle settings
         x0_obs = []

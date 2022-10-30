@@ -7,10 +7,17 @@
     <child link="gripped_object"/>
   </joint>
 
+  <!-- <xacro:macro name="gripped_object_geometry"> -->
+  <!--   <origin rpy="0 0 0" xyz="0.1 0.13 -0.032"/> -->
+  <!--   <geometry> -->
+  <!--     <box size="0.23 0.3 0.064" /> -->
+  <!--   </geometry> -->
+  <!-- </xacro:macro> -->
+
   <xacro:macro name="gripped_object_geometry">
-    <origin rpy="0 0 0" xyz="0.1 0.13 -0.032"/>
+    <origin rpy="0 0 0" xyz="0.09 0.12 -0.035"/>
     <geometry>
-      <box size="0.23 0.3 0.064" />
+      <cylinder length="0.01" radius="0.178" />
     </geometry>
   </xacro:macro>
 

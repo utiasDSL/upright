@@ -159,7 +159,9 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("use_angular_acceleration",
                        &InertialAlignmentSettings::use_angular_acceleration)
         .def_readwrite("cost_weight", &InertialAlignmentSettings::cost_weight)
+        .def_readwrite("alpha", &InertialAlignmentSettings::alpha)
         .def_readwrite("contact_plane_normal", &InertialAlignmentSettings::contact_plane_normal)
+        .def_readwrite("contact_plane_span", &InertialAlignmentSettings::contact_plane_span)
         .def_readwrite("com", &InertialAlignmentSettings::com);
 
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");

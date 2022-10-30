@@ -52,7 +52,7 @@ multiple_shooting
   deltaTol                      1e-3
   printSolverStatistics         true
   printSolverStatus             false
-  printLinesearch               false
+  printLinesearch               true
   useFeedbackPolicy             true
   integratorType                RK4
   nThreads                      4

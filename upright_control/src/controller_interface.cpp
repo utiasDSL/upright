@@ -332,7 +332,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                     end_effector_kinematics,
                     settings_.inertial_alignment_settings, settings_.gravity,
                     settings_.dims, recompileLibraries));
-            problem_.equalityConstraintPtr->add(
+            problem_.inequalityConstraintPtr->add(
                 "inertial_alignment_constraint",
                 std::move(inertial_alignment_constraint));
             std::cout << "Inertial alignment constraint enabled." << std::endl;

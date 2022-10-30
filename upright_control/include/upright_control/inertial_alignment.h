@@ -31,11 +31,16 @@ struct InertialAlignmentSettings {
     // object's CoM in the cost/constraint
     bool use_angular_acceleration = false;
 
+    // Bound for the constraint: n.dot(a) >= constraint_bound * ||a||. Must be
+    // in >= 0. Setting this to 0 means the constraint is an equality.
+    ocs2::scalar_t alpha = 0;
+
     // Cost weighting (no effect if use_constraint = true)
     ocs2::scalar_t cost_weight = 1.0;
 
-    // Contact plane normal (in the end effector frame)
+    // Contact plane normal and span (in the end effector frame)
     Vec3d contact_plane_normal;
+    Mat23d contact_plane_span;
 
     // Center of mass w.r.t. the end effector (no effect if
     // use_angular_acceleration = false)
@@ -79,7 +84,7 @@ class InertialAlignmentConstraint final
                                                gravity_, dims_, false);
     }
 
-    size_t getNumConstraints(ocs2::scalar_t time) const override { return 3; }
+    size_t getNumConstraints(ocs2::scalar_t time) const override { return 5; }
 
     size_t getNumConstraints() const { return getNumConstraints(0); }
 
@@ -90,7 +95,9 @@ class InertialAlignmentConstraint final
         Mat3ad C_we = kinematics_ptr_->getOrientationCppAd(state);
         Vec3ad linear_acc = kinematics_ptr_->getAccelerationCppAd(state, input);
         Vec3ad gravity = gravity_.cast<ocs2::ad_scalar_t>();
-        Vec3ad total_acc = linear_acc - gravity;
+
+        // In the EE frame
+        Vec3ad a = C_we.transpose() * (linear_acc - gravity);
 
         // Take into account object center of mass, if available
         if (settings_.use_angular_acceleration) {
@@ -103,12 +110,26 @@ class InertialAlignmentConstraint final
                 dC_dtt<ocs2::ad_scalar_t>(C_we, angular_vel, angular_acc);
             Vec3ad com = settings_.com.cast<ocs2::ad_scalar_t>();
 
-            total_acc += ddC_we * com;
+            a += ddC_we * com;
         }
 
         Vec3ad n = settings_.contact_plane_normal.cast<ocs2::ad_scalar_t>();
-        Vec3ad err = (C_we * n).cross(total_acc);
-        return err;
+        Mat23ad S = settings_.contact_plane_span.cast<ocs2::ad_scalar_t>();
+
+        ocs2::ad_scalar_t a_n = n.dot(a);
+        Vec2ad a_t = S * a;
+
+        // constrain the normal acc to be non-negative
+        VecXad constraints(getNumConstraints(0));
+        constraints(0) = a_n;
+
+        // linearized version: the quadratic cone does not play well with the
+        // optimizer
+        constraints(1) = settings_.alpha * a_n - a_t(0) - a_t(1);
+        constraints(2) = settings_.alpha * a_n - a_t(0) + a_t(1);
+        constraints(3) = settings_.alpha * a_n + a_t(0) - a_t(1);
+        constraints(4) = settings_.alpha * a_n + a_t(0) + a_t(1);
+        return constraints;
     }
 
    private:
