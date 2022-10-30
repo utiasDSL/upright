@@ -26,15 +26,44 @@
 
   <link name="obstacle_base_link"></link>
 
-  <xacro:obstacle_link name="sphere1_link" material="red">
-    <origin rpy="0 0 0" xyz="0 -1 0.25"/>
+  <!-- IMPORTANT: collision avoidance is much more numerically stable for the solver when the collision objects are spheres. Make everything a sphere! -->
+  <xacro:obstacle_link name="sphere1_bottom_link" material="red">
+    <origin rpy="0 0 0" xyz="-1 -0.75 0.25"/>
     <geometry>
       <sphere radius="0.25"/>
     </geometry>
   </xacro:obstacle_link>
 
-  <xacro:obstacle_link name="sphere2_link" material="red">
-    <origin rpy="0 0 0" xyz="0 -1 0.75"/>
+  <xacro:obstacle_link name="sphere1_top_link" material="red">
+    <origin rpy="0 0 0" xyz="-1 -0.75 0.75"/>
+    <geometry>
+      <sphere radius="0.25"/>
+    </geometry>
+  </xacro:obstacle_link>
+
+  <xacro:obstacle_link name="sphere2_bottom_link" material="red">
+    <origin rpy="0 0 0" xyz="0.5 0 0.25"/>
+    <geometry>
+      <sphere radius="0.25"/>
+    </geometry>
+  </xacro:obstacle_link>
+
+  <xacro:obstacle_link name="sphere2_top_link" material="red">
+    <origin rpy="0 0 0" xyz="0.5 0 0.75"/>
+    <geometry>
+      <sphere radius="0.25"/>
+    </geometry>
+  </xacro:obstacle_link>
+
+  <xacro:obstacle_link name="sphere3_bottom_link" material="red">
+    <origin rpy="0 0 0" xyz="-1.5 1 0.25"/>
+    <geometry>
+      <sphere radius="0.25"/>
+    </geometry>
+  </xacro:obstacle_link>
+
+  <xacro:obstacle_link name="sphere3_top_link" material="red">
+    <origin rpy="0 0 0" xyz="-1.5 1 0.75"/>
     <geometry>
       <sphere radius="0.25"/>
     </geometry>

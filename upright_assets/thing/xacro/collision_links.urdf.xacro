@@ -63,17 +63,17 @@
   </joint>
 
   <!-- Collision cylinder for the upper arm link -->
-  <xacro:collision_link name="upper_arm_collision_link">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
-    <geometry>
-      <cylinder length="0.65" radius="0.06"/>
-    </geometry>
-  </xacro:collision_link>
-  <joint name="upper_arm_collision_joint" type="fixed">
-    <origin rpy="0 1.5708 0" xyz="-0.325 0 0.18"/>
-    <parent link="ur10_arm_upper_arm_link"/>
-    <child link="upper_arm_collision_link"/>
-  </joint>
+  <!-- <xacro:collision_link name="upper_arm_collision_link"> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
+  <!--   <geometry> -->
+  <!--     <cylinder length="0.65" radius="0.06"/> -->
+  <!--   </geometry> -->
+  <!-- </xacro:collision_link> -->
+  <!-- <joint name="upper_arm_collision_joint" type="fixed"> -->
+  <!--   <origin rpy="0 1.5708 0" xyz="-0.325 0 0.18"/> -->
+  <!--   <parent link="ur10_arm_upper_arm_link"/> -->
+  <!--   <child link="upper_arm_collision_link"/> -->
+  <!-- </joint> -->
 
   <!-- Collision sphere for the elbow -->
   <xacro:collision_link name="elbow_collision_link">
@@ -113,31 +113,33 @@
     <child link="wrist3_collision_link"/>
   </joint>
 
-  <!-- Collision rectangle for the base -->
+  <!-- Collision sphere for the base -->
   <xacro:collision_link name="base_collision_link">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <geometry>
-      <box size="1.0 0.8 0.3"/>
+      <!-- <box size="1.0 0.8 0.3"/> -->
+      <sphere radius="0.5"/>
     </geometry>
   </xacro:collision_link>
   <joint name="base_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.16"/>
+    <!-- <origin rpy="0 0 0" xyz="0 0 0.16"/> -->
+    <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="base_link"/>
     <child link="base_collision_link"/>
   </joint>
 
   <!-- Collision cylinder for the forearm link -->
-  <xacro:collision_link name="forearm_collision_link">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
-    <geometry>
-      <cylinder length="0.6" radius="0.06"/>
-    </geometry>
-  </xacro:collision_link>
-  <joint name="forearm_collision_joint" type="fixed">
-    <origin rpy="0 1.5708 0" xyz="-0.3 0 0.05"/>
-    <parent link="ur10_arm_forearm_link"/>
-    <child link="forearm_collision_link"/>
-  </joint>
+  <!-- <xacro:collision_link name="forearm_collision_link"> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
+  <!--   <geometry> -->
+  <!--     <cylinder length="0.6" radius="0.06"/> -->
+  <!--   </geometry> -->
+  <!-- </xacro:collision_link> -->
+  <!-- <joint name="forearm_collision_joint" type="fixed"> -->
+  <!--   <origin rpy="0 1.5708 0" xyz="-0.3 0 0.05"/> -->
+  <!--   <parent link="ur10_arm_forearm_link"/> -->
+  <!--   <child link="forearm_collision_link"/> -->
+  <!-- </joint> -->
 
   <!-- Alternatively we can use collision spheres -->
   <xacro:collision_link name="forearm_collision_sphere_link1">

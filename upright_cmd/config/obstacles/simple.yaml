@@ -1,26 +1,31 @@
-urdf:
-  package: "upright_assets"
-  path: "thing/urdf/obstacles.urdf"
-  includes:
-    - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
 
-# check collisions between these pairs of objects
-collision_pairs:
-<<<<<<< HEAD
-  # wrist and sphere
-  - ["wrist1_collision_link_0", "sphere2_link_0"]
-  - ["wrist3_collision_link_0", "sphere2_link_0"]
-  - ["elbow_collision_link_0", "sphere2_link_0"]
-  - ["forearm_collision_sphere_link1_0", "sphere2_link_0"]
-  - ["forearm_collision_sphere_link2_0", "sphere2_link_0"]
-  # - ["upper_arm_collision_link_0", "sphere2_link_0"]
-  # - ["forearm_collision_link_0", "sphere2_link_0"]
+controller:
+  obstacles:
+    urdf:
+      package: "upright_assets"
+      path: "thing/urdf/obstacles.urdf"
+      includes:
+        - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
 
-  # base and sphere
-  - ["base_collision_link_0", "sphere1_link_0"]
+    # check collisions between these pairs of objects
+    collision_pairs:
+      # arm and obstacles
+      - ["forearm_collision_sphere_link1_0", "sphere1_top_link_0"]
+      - ["forearm_collision_sphere_link2_0", "sphere1_top_link_0"]
+      - ["forearm_collision_sphere_link1_0", "sphere2_top_link_0"]
+      - ["forearm_collision_sphere_link2_0", "sphere2_top_link_0"]
+      - ["forearm_collision_sphere_link1_0", "sphere3_top_link_0"]
+      - ["forearm_collision_sphere_link2_0", "sphere3_top_link_0"]
 
-  # balanced objects and sphere
-  - ["balanced_object_collision_link_0", "sphere2_link_0"]
+      # base and obstacles
+      - ["base_collision_link_0", "sphere1_bottom_link_0"]
+      - ["base_collision_link_0", "sphere2_bottom_link_0"]
+      - ["base_collision_link_0", "sphere3_bottom_link_0"]
 
-  # wrist and shoulder
-  - ["wrist1_collision_link_0", "shoulder_collision_link_0"]
+      # balanced objects and obstacles
+      - ["balanced_object_collision_link_0", "sphere1_top_link_0"]
+      - ["balanced_object_collision_link_0", "sphere2_top_link_0"]
+      - ["balanced_object_collision_link_0", "sphere3_top_link_0"]
+
+      # wrist and shoulder
+      - ["wrist1_collision_link_0", "shoulder_collision_link_0"]
