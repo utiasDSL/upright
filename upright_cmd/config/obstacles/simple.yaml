@@ -29,3 +29,11 @@ controller:
 
       # wrist and shoulder
       - ["wrist1_collision_link_0", "shoulder_collision_link_0"]
+
+simulation:
+  static_obstacles:
+    urdf:
+      package: "upright_assets"
+      path: "thing/urdf/obstacles.urdf"
+      includes:
+        - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
