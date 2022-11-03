@@ -46,7 +46,7 @@ objects:
     shape:
       type: cuboid
       side_lengths: [0.356, 0.356, 0.01]
-    position: [0.09, 0.12, -0.035]  # box centroid relative to r_ew_w
+    position: [0.09, 0.115, -0.035]  # box centroid relative to r_ew_w
 
   bottle:
     shape: cylinder
@@ -67,6 +67,18 @@ objects:
     side_lengths: [0.103, 0.09, 0.038]
     color: [1, 0, 0, 0.9]
 
+  wood_block_rotx:
+    shape: cuboid
+    mass: 0.18
+    side_lengths: [0.103, 0.038, 0.09]
+    color: [1, 0, 0, 0.9]
+
+  wood_block_rotz:
+    shape: cuboid
+    mass: 0.18
+    side_lengths: [0.09, 0.103, 0.038]
+    color: [1, 0, 0, 0.9]
+
   cube:
     shape: cuboid
     mass: 1.0
@@ -80,10 +92,12 @@ objects:
     color: [1, 0, 0, 0.9]
 
   really_tall_box:
-    shape: cuboid
+    shape: cylinder
     com_offset: [0, 0, 0]
-    mass: 0.04
-    side_lengths: [0.065, 0.065, 0.6]
+    mass: 0.5
+    radius: 0.035
+    height: 0.205
+    # height: 0.5
     color: [1, 0, 0, 0.9]
 
   wedge:

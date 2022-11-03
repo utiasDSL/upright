@@ -74,7 +74,7 @@ class ConvexPolyhedron:
         V_2d = project_vertices_on_axes(V_3d, point, plane_span)
         return wind_polygon_vertices(V_2d)
 
-    def distance_from_centroid_to_boundary(self, axis, offset=None, tol=1e-8):
+    def distance_from_centroid_to_boundary(self, axis, offset=None, tol=1e-8, debug=False):
         """Get the distance from the shape's position to its boundary in
         direction given by axis.
 
@@ -106,6 +106,9 @@ class ConvexPolyhedron:
         # solve the LP
         res = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
         d = res.x[0]
+        if debug:
+            import IPython
+            IPython.embed()
         assert d >= -tol, "Distance to boundary is negative!"
         return d
 

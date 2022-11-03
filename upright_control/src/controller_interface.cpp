@@ -145,7 +145,8 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     std::cerr << "Robot URDF: " << settings_.robot_urdf_path << std::endl;
     pinocchioInterfacePtr_.reset(
         new ocs2::PinocchioInterface(build_pinocchio_interface(
-            settings_.robot_urdf_path, settings_.robot_base_type)));
+            settings_.robot_urdf_path, settings_.robot_base_type,
+            settings_.locked_joints)));
 
     // Model settings
     bool recompileLibraries = true;
@@ -325,27 +326,24 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     }
 
     // Inertial alignment
-    if (settings_.inertial_alignment_settings.enabled) {
-        if (settings_.inertial_alignment_settings.use_constraint) {
-            std::unique_ptr<ocs2::StateInputConstraint>
-                inertial_alignment_constraint(new InertialAlignmentConstraint(
-                    end_effector_kinematics,
-                    settings_.inertial_alignment_settings, settings_.gravity,
-                    settings_.dims, recompileLibraries));
-            problem_.inequalityConstraintPtr->add(
-                "inertial_alignment_constraint",
-                std::move(inertial_alignment_constraint));
-            std::cout << "Inertial alignment constraint enabled." << std::endl;
-        } else {
-            std::unique_ptr<ocs2::StateInputCost> inertial_alignment_cost(
-                new InertialAlignmentCost(end_effector_kinematics,
-                                          settings_.inertial_alignment_settings,
-                                          settings_.gravity, settings_.dims,
-                                          true));
-            problem_.costPtr->add("inertial_alignment_cost",
-                                  std::move(inertial_alignment_cost));
-            std::cout << "Inertial alignment cost enabled." << std::endl;
-        }
+    if (settings_.inertial_alignment_settings.cost_enabled) {
+        std::unique_ptr<ocs2::StateInputCost> inertial_alignment_cost(
+            new InertialAlignmentCost(end_effector_kinematics,
+                                      settings_.inertial_alignment_settings,
+                                      settings_.gravity, settings_.dims, true));
+        problem_.costPtr->add("inertial_alignment_cost",
+                              std::move(inertial_alignment_cost));
+        std::cout << "Inertial alignment cost enabled." << std::endl;
+    }
+    if (settings_.inertial_alignment_settings.constraint_enabled) {
+        std::unique_ptr<ocs2::StateInputConstraint>
+            inertial_alignment_constraint(new InertialAlignmentConstraint(
+                end_effector_kinematics, settings_.inertial_alignment_settings,
+                settings_.gravity, settings_.dims, recompileLibraries));
+        problem_.inequalityConstraintPtr->add(
+            "inertial_alignment_constraint",
+            std::move(inertial_alignment_constraint));
+        std::cout << "Inertial alignment constraint enabled." << std::endl;
     }
 
     // TODO we're getting too nested here

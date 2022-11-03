@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.linalg import null_space
-from spatialmath.base import q2r, r2q, qunit, rotz
+from spatialmath.base import q2r, r2q, qunit, rotx, roty, rotz
 
 
 QUAT_ORDER = "xyzs"

@@ -20,20 +20,29 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: box_arch
+  arrangement: really_tall_box
 
   static_obstacles:
     enabled: true
 
 controller:
   balancing:
-    enabled: true
+    enabled: false
     use_force_constraints: true
-    arrangement: box_arch
+    arrangement: really_tall_box
     constraint_type: hard
     enable_normal_constraint: true
     enable_friction_constraint: true
     enable_zmp_constraint: true
+
+  inertial_alignment:
+    cost_enabled: false
+    constraint_enabled: true
+    use_angular_acceleration: false
+    cost_weight: 1
+    contact_plane_normal: [0, 0, 1]
+    alpha: 0.0  # TODO tune/calculate properly
+    com: [0, 0, 0]
 
   obstacles:
     enabled: true

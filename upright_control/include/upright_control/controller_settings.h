@@ -47,6 +47,8 @@ struct ControllerSettings {
     VecXd xyz_lower;
     VecXd xyz_upper;
 
+    std::map<std::string, ocs2::scalar_t> locked_joints;
+
     // Gain matrix for low-level tracking controller.
     MatXd Kp;
 

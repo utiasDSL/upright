@@ -171,7 +171,7 @@ def main():
             logger.append("orn_err", model.angle_between_acc_and_normal())
             logger.append("balancing_constraints", model.balancing_constraints())
 
-            if model.settings.inertial_alignment_settings.enabled:
+            if model.settings.inertial_alignment_settings.constraint_enabled:
                 alignment_constraints = (
                     ctrl_manager.mpc.getStateInputInequalityConstraintValue(
                         "inertial_alignment_constraint", t, x, u

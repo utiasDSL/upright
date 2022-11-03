@@ -37,6 +37,7 @@ using SystemMapping =
 PYBIND11_MAKE_OPAQUE(CollisionSphereVector)
 PYBIND11_MAKE_OPAQUE(StringPairVector)
 PYBIND11_MAKE_OPAQUE(std::vector<DynamicObstacle>)
+PYBIND11_MAKE_OPAQUE(std::map<std::string, ocs2::scalar_t>)
 
 /* create a python module */
 PYBIND11_MODULE(bindings, m) {
@@ -48,6 +49,8 @@ PYBIND11_MODULE(bindings, m) {
     VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
     VECTOR_TYPE_BINDING(std::vector<DynamicObstacle>, "DynamicObstacleVector")
+
+    pybind11::bind_map<std::map<std::string, ocs2::scalar_t>>(m, "MapStringScalar");
 
     pybind11::class_<SystemMapping>(m, "SystemPinocchioMapping")
         .def(pybind11::init<const OptimizationDimensions &>(), "dims")
@@ -153,9 +156,9 @@ PYBIND11_MODULE(bindings, m) {
 
     pybind11::class_<InertialAlignmentSettings>(m, "InertialAlignmentSettings")
         .def(pybind11::init<>())
-        .def_readwrite("enabled", &InertialAlignmentSettings::enabled)
-        .def_readwrite("use_constraint",
-                       &InertialAlignmentSettings::use_constraint)
+        .def_readwrite("cost_enabled", &InertialAlignmentSettings::cost_enabled)
+        .def_readwrite("constraint_enabled",
+                       &InertialAlignmentSettings::constraint_enabled)
         .def_readwrite("use_angular_acceleration",
                        &InertialAlignmentSettings::use_angular_acceleration)
         .def_readwrite("cost_weight", &InertialAlignmentSettings::cost_weight)
@@ -197,6 +200,7 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::end_effector_box_constraint_enabled)
         .def_readwrite("xyz_lower", &ControllerSettings::xyz_lower)
         .def_readwrite("xyz_upper", &ControllerSettings::xyz_upper)
+        .def_readwrite("locked_joints", &ControllerSettings::locked_joints)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
         .def_readwrite("ocs2_config_path",
                        &ControllerSettings::ocs2_config_path)

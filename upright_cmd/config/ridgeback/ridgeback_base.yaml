@@ -1,0 +1,97 @@
+simulation:
+  robot:
+    home: [-2, 0, 0]
+    dims:
+      q: 3  # generalized position
+      v: 3  # generalized velocity
+      x: 9 # state
+      u: 3  # input
+    noise:
+      measurement:
+        q_std_dev: 0
+        v_std_dev: 0
+      process:
+        v_std_dev: 0
+    joint_names:
+      - "x_to_world_joint"
+      - "y_to_x_joint"
+      - "base_to_y_joint"
+    locked_joints:
+      ur10_arm_shoulder_pan_joint: 0.5pi
+      ur10_arm_shoulder_lift_joint: -0.25pi
+      ur10_arm_elbow_joint: 0.5pi
+      ur10_arm_wrist_1_joint: -0.25pi
+      ur10_arm_wrist_2_joint: 0.5pi
+      ur10_arm_wrist_3_joint: 0.417pi
+    tool_joint_name: "gripped_object_joint"
+    base_type: omnidirectional
+    urdf:
+      package: "upright_assets"
+      path: "thing/urdf/thing_pyb.urdf"
+      includes:
+        - "$(find upright_assets)/thing/xacro/cartesian_base_joints.urdf.xacro"
+        - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/collision_links.urdf.xacro"
+      args:
+        use_collision: "false"
+
+controller:
+  # robot parameters
+  robot:
+    dims:
+      q: 3  # generalized position
+      v: 3  # generalized velocity
+      x: 9 # state
+      u: 3  # input
+    x0: [-2, 0, 0, 0rep3, 0rep3]
+    locked_joints:
+      ur10_arm_shoulder_pan_joint: 0.5pi
+      ur10_arm_shoulder_lift_joint: -0.25pi
+      ur10_arm_elbow_joint: 0.5pi
+      ur10_arm_wrist_1_joint: -0.25pi
+      ur10_arm_wrist_2_joint: 0.5pi
+      ur10_arm_wrist_3_joint: 0.417pi
+    urdf:
+      package: "upright_assets"
+      path: "thing/urdf/thing_ocs2.urdf"
+      includes:
+        - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/collision_links.urdf.xacro"
+      args:
+        use_collision: "true"
+    tool_link_name: "gripped_object"
+    base_type: omnidirectional
+
+  # weights on state, input, and end effector pose
+  weights:
+    input:
+      scale: 0.001
+      diag: [1rep3]
+    state:
+      scale: 0.01
+      diag: [0rep3, 10rep3, 1rep3]
+    end_effector:
+      scale: 1
+      diag: [1, 1, 1, 0, 0, 0]
+
+  limits:
+    constraint_type: hard
+    input:
+      lower: [-20, -20, -20]
+      upper: [20, 20, 20]
+    state:
+      lower: [-10, -10, -10,
+              -1.1, -1.1, -2.0,
+              -2.5, -2.5, -1.0]
+      upper: [10, 10, 10,
+              1.1, 1.1, 2.0,
+              2.5, 2.5, 1.0]
+
+  tracking:
+    rate: 125
+    Kp:
+      scale: 1
+      diag: [1rep3]
+

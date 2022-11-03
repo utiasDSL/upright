@@ -18,7 +18,8 @@ class BalancingConstraintWrapper {
    public:
     BalancingConstraintWrapper(const ControllerSettings& settings) {
         ocs2::PinocchioInterface interface(build_pinocchio_interface(
-            settings.robot_urdf_path, settings.robot_base_type));
+            settings.robot_urdf_path, settings.robot_base_type,
+            settings.locked_joints));
 
         SystemPinocchioMapping<
             TripleIntegratorPinocchioMapping<ocs2::ad_scalar_t>,

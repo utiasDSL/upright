@@ -1,5 +1,4 @@
 import numpy as np
-import qpsolvers
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 
@@ -10,8 +9,8 @@ import IPython
 
 m = 0.5
 δ = 0.03
-h = 0.1
-L = 0.02  # fixture height
+h = 1
+L = 0.05  # fixture height
 μ = 0.3
 
 # CoM and inertia
@@ -59,10 +58,6 @@ def contact_wrench(fs_xz, contacts):
         ri = contacts[i].r
         f += fi
         τ += np.cross(ri, fi)
-    # f1 = np.array([f1_xz[0], 0, f1_xz[1]])
-    # f2 = np.array([f2_xz[0], 0, f2_xz[1]])
-    # f = f1 + f2
-    # τ = np.cross(C1.r, f1) + np.cross(C2.r, f2)
     return np.array([f[0], f[2], τ[1]])
 
 
@@ -77,27 +72,8 @@ def friction_cones(fs_xz, contacts):
         constraints[i*3:(i+1)*3] = np.array([fi_n, μi * fi_n - fi_t, μi * fi_n + fi_t])
     return constraints
 
-    # f1 = np.array([f1_xz[0], 0, f1_xz[1]])
-    # f2 = np.array([f2_xz[0], 0, f2_xz[1]])
-    #
-    # f1_n = C1.normal @ f1
-    # f1_t = C1.tangent @ f1
-    # f2_n = C2.normal @ f2
-    # f2_t = C2.tangent @ f2
-    #
-    # return np.array(
-    #     [
-    #         f1_n,
-    #         f2_n,
-    #         C1.μ * f1_n - f1_t,
-    #         C1.μ * f1_n + f1_t,
-    #         C2.μ * f2_n - f2_t,
-    #         C2.μ * f2_n + f2_t,
-    #     ]
-    # )
 
-
-def linear_acceleration_bounds(angles, dθdt, dθdtt, contacts):
+def linear_acceleration_bounds(angles, dθdt, dθdtt, contacts, bound=100):
     n = angles.shape[0]
     as_min = np.zeros(n)
     as_max = np.zeros(n)
@@ -106,6 +82,9 @@ def linear_acceleration_bounds(angles, dθdt, dθdtt, contacts):
     x0 = np.zeros(2 * nc + 1)
     x0[2] = m * g / 2
     x0[4] = m * g / 2
+
+    bounds = [(None, None) for _ in range(2 * nc + 1)]
+    bounds[0] = (-bound, bound)
 
     for i in range(n):
         θ = angles[i]
@@ -135,6 +114,7 @@ def linear_acceleration_bounds(angles, dθdt, dθdtt, contacts):
             x0=x0,
             method="slsqp",
             constraints=[{"type": "eq", "fun": eq_con}, {"type": "ineq", "fun": ineq_con}],
+            bounds=bounds,
         )
         as_min[i] = res_min.x[0]
 
@@ -143,19 +123,26 @@ def linear_acceleration_bounds(angles, dθdt, dθdtt, contacts):
             x0=x0,
             method="slsqp",
             constraints=[{"type": "eq", "fun": eq_con}, {"type": "ineq", "fun": ineq_con}],
+            bounds=bounds,
         )
         as_max[i] = res_max.x[0]
-        if not res_min.success or not res_max.success:
-            IPython.embed()
 
     return as_min, as_max
 
 
-def angular_acceleration_bounds(angles, dθdt, contacts):
+def angular_acceleration_bounds(angles, dθdt, contacts, bound=100):
     n = angles.shape[0]
     dωdts_min = np.zeros(n)
     dωdts_max = np.zeros(n)
     a_aligned = np.zeros(n)
+
+    nc = len(contacts)
+    x0 = np.zeros(2 * nc + 1)
+    x0[2] = m * g / 2
+    x0[4] = m * g / 2
+
+    bounds = [(None, None) for _ in range(2 * nc + 1)]
+    bounds[0] = (-bound, bound)
 
     for i in range(n):
         θ = angles[i]
@@ -182,13 +169,14 @@ def angular_acceleration_bounds(angles, dθdt, contacts):
         def ineq_con(x):
             return friction_cones(x[1:], contacts)
 
-        x0 = np.array([0, 0, 0.5 * m * g, 0, 0.5 * m * g])
         res_min = minimize(
             cost_min,
             x0=x0,
             method="slsqp",
             constraints=[{"type": "eq", "fun": eq_con}, {"type": "ineq", "fun": ineq_con}],
         )
+        if not res_min.success:
+            print(f"Angular acceleration minimization for θ = {θ} and ω={dθdt} not successful.")
         dωdts_min[i] = res_min.x[0]
 
         res_max = minimize(
@@ -197,6 +185,8 @@ def angular_acceleration_bounds(angles, dθdt, contacts):
             method="slsqp",
             constraints=[{"type": "eq", "fun": eq_con}, {"type": "ineq", "fun": ineq_con}],
         )
+        if not res_max.success:
+            print(f"Angular acceleration maximization for θ = {θ} and ω={dθdt} not successful.")
         dωdts_max[i] = res_max.x[0]
 
     return dωdts_min, dωdts_max, a_aligned
@@ -208,11 +198,16 @@ C1 = ContactPoint(r=[-δ, 0, -h], normal=[0, 0, 1], μ=μ)
 C2 = ContactPoint(r=[δ, 0, -h], normal=[0, 0, 1], μ=μ)
 
 angles = np.linspace(-np.pi/3, np.pi/3, n)
-dωdts_min, dωdts_max, _ = angular_acceleration_bounds(angles, dθdt, [C1, C2])
+dωdts_min0, dωdts_max0, _ = angular_acceleration_bounds(angles, dθdt=0, contacts=[C1, C2])
+dωdts_min5, dωdts_max5, _ = angular_acceleration_bounds(angles, dθdt=5, contacts=[C1, C2])
+dωdts_min10, dωdts_max10, _ = angular_acceleration_bounds(angles, dθdt=10, contacts=[C1, C2])
 
 plt.figure()
-plt.plot(angles, dωdts_min, label="min")
-plt.plot(angles, dωdts_max, label="max")
+plt.fill_between(angles, dωdts_min0, dωdts_max0, label="ω=0", color=(1, 0, 0, 0.5))
+plt.fill_between(angles, dωdts_min5, dωdts_max5, label="ω=5", color=(0, 1, 0, 0.5))
+plt.fill_between(angles, dωdts_min10, dωdts_max10, label="ω=10", color=(0, 0, 1, 0.5))
+# plt.plot(angles, dωdts_min, label="min", color="r")
+# plt.plot(angles, dωdts_max, label="max", color="r")
 plt.legend()
 plt.grid()
 plt.title("Angular acceleration vs. angle.")

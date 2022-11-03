@@ -17,15 +17,15 @@ struct InertialAlignmentSettings {
 
     InertialAlignmentSettings() {
         contact_plane_normal = Vec3d::UnitZ();
+        contact_plane_span << 1, 0, 0, 0, 1, 0;
         com = Vec3d::Zero();
     }
 
-    // True to enable alignment cost/constraints, false to disable them.
-    bool enabled = false;
+    // True to enable the alignment cost
+    bool cost_enabled = false;
 
-    // True to constrain the alignment; false to create a cost to encourage
-    // alignment
-    bool use_constraint = true;
+    // True to enable the alignment constraint
+    bool constraint_enabled = false;
 
     // Whether to include acceleration resulting from the rotation of the
     // object's CoM in the cost/constraint
@@ -49,13 +49,15 @@ struct InertialAlignmentSettings {
 
 inline std::ostream& operator<<(std::ostream& out,
                                 const InertialAlignmentSettings& settings) {
-    out << "enabled = " << settings.enabled << std::endl
-        << "use_constraint = " << settings.use_constraint << std::endl
+    out << "cost_enabled = " << settings.cost_enabled << std::endl
+        << "constraint_enabled = " << settings.constraint_enabled << std::endl
         << "use_angular_acceleration = " << settings.use_angular_acceleration
         << std::endl
         << "cost_weight = " << settings.cost_weight << std::endl
         << "contact_plane_normal = "
         << settings.contact_plane_normal.transpose() << std::endl
+        << "contact_plane_span = "
+        << settings.contact_plane_span << std::endl
         << "com = " << settings.com.transpose() << std::endl;
     return out;
 }

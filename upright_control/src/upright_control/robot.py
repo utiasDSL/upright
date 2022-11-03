@@ -8,10 +8,10 @@ from upright_control import bindings
 import IPython
 
 
-def _build_pinocchio_model(urdf_path, base_type):
+def _build_pinocchio_model(urdf_path, base_type, locked_joints):
     """Build Pinocchio robot model."""
     if base_type == bindings.RobotBaseType.Fixed:
-        model = pinocchio.buildModelFromUrdf(self.urdf_path)
+        model = pinocchio.buildModelFromUrdf(urdf_path)
     elif base_type == bindings.RobotBaseType.Omnidirectional:
         root_joint = pinocchio.JointModelComposite(3)
         root_joint.addJoint(pinocchio.JointModelPX())
@@ -20,6 +20,20 @@ def _build_pinocchio_model(urdf_path, base_type):
         model = pinocchio.buildModelFromUrdf(urdf_path, root_joint)
     else:
         raise ValueError(f"Invalid base type {base_type}.")
+
+    # lock joints if needed
+    if locked_joints is not None and len(locked_joints) > 0:
+        # it doesn't matter what value for set for the free joints here; this
+        # is updated later
+        q = np.zeros(model.nq)
+        joint_ids_to_lock = []
+        for name, value in locked_joints.items():
+            joint_idx = model.getJointId(name)
+            joint_ids_to_lock.append(joint_idx)
+            q_idx = model.idx_qs[joint_idx]
+            q[q_idx] = value
+        model = pinocchio.buildReducedModel(model, joint_ids_to_lock, q)
+
     return model
 
 
@@ -74,7 +88,9 @@ def build_robot_interfaces(settings):
     """Build robot and geometry interface from control settings."""
     # build robot
     model = _build_pinocchio_model(
-        settings.robot_urdf_path, base_type=settings.robot_base_type
+        settings.robot_urdf_path,
+        base_type=settings.robot_base_type,
+        locked_joints=settings.locked_joints,
     )
     mapping = bindings.SystemPinocchioMapping(settings.dims)
     robot = PinocchioRobot(
@@ -120,6 +136,7 @@ def build_robot_interfaces(settings):
 
 class PinocchioGeometry:
     """Visual and collision geometry models for a robot and environment."""
+
     def __init__(self, robot, collision_model, visual_model):
         self.robot = robot
         self.collision_model = collision_model

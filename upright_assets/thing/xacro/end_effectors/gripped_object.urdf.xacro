@@ -15,7 +15,7 @@
   <!-- </xacro:macro> -->
 
   <xacro:macro name="gripped_object_geometry">
-    <origin rpy="0 0 0" xyz="0.09 0.12 -0.035"/>
+    <origin rpy="0 0 0" xyz="0.09 0.115 -0.035"/>
     <geometry>
       <cylinder length="0.01" radius="0.178" />
     </geometry>

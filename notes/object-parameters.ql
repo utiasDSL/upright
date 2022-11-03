@@ -2,6 +2,10 @@
 
 == Restaurant tray ==
 * Mass: 493g
+* Center point relative to Vicon marker origin (approximately):
+  x ~= 9 cm
+  y ~= 11.5 cm
+  z ~= -3 cm
 
 == Fiji water bottle ==
 * Mass: ~500 g (needs confirmation)
@@ -79,3 +83,14 @@ With each other (smooth sides):
 * Height: 38mm
 * Width: 90mm
 * Length: 103mm
+
+== Tall water bottle ==
+* Mass: 716g
+* Height: 20.5cm (no including nipple)
+* Diameter: 7cm
+
+=== Friction ===
+With tray (side):
+* tray length = 24 cm
+* height at sliding ~= 13cm
+* μ = 18 / 24 ~= 0.54

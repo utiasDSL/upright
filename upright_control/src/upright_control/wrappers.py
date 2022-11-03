@@ -155,6 +155,12 @@ class ControllerSettings(bindings.ControllerSettings):
         # rate for tracking controller
         self.rate = core.parsing.parse_number(config["tracking"]["rate"])
 
+        # some joints in the URDF may be locked to constant values, for example
+        # to only use part of the robot for an experiment
+        if "locked_joints" in config["robot"]:
+            for name, value in config["robot"]["locked_joints"].items():
+                self.locked_joints[name] = core.parsing.parse_number(value)
+
         # URDFs
         self.robot_urdf_path = core.parsing.parse_and_compile_urdf(
             config["robot"]["urdf"]
@@ -209,9 +215,9 @@ class ControllerSettings(bindings.ControllerSettings):
         # vector
         ias = self.inertial_alignment_settings
         iac = config["inertial_alignment"]
-        ias.enabled = iac["enabled"]
-        if ias.enabled:
-            ias.use_constraint = iac["use_constraint"]
+        ias.cost_enabled = iac["cost_enabled"]
+        ias.constraint_enabled = iac["constraint_enabled"]
+        if ias.cost_enabled or ias.constraint_enabled:
             ias.use_angular_acceleration = iac["use_angular_acceleration"]
             ias.cost_weight = iac["cost_weight"]
             normal = np.array(iac["contact_plane_normal"])
