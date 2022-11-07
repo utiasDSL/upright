@@ -219,6 +219,7 @@ class ControllerSettings(bindings.ControllerSettings):
         ias.constraint_enabled = iac["constraint_enabled"]
         if ias.cost_enabled or ias.constraint_enabled:
             ias.use_angular_acceleration = iac["use_angular_acceleration"]
+            ias.align_with_fixed_vector = iac["align_with_fixed_vector"]
             ias.cost_weight = iac["cost_weight"]
             normal = np.array(iac["contact_plane_normal"])
             normal = normal / np.linalg.norm(normal)

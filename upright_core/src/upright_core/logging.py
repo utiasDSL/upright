@@ -438,5 +438,12 @@ class DataPlotter:
                 title="Inertial alignment constraints",
             )
 
+        if "alignment_cost" in self.data:
+            self.plot_value_vs_time(
+                "alignment_cost",
+                ylabel="Cost value",
+                title="Inertial alignment cost",
+            )
+
         if show:
             self.show()

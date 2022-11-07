@@ -167,10 +167,14 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     sqpSettings_ =
         ocs2::multiple_shooting::loadSettings(taskFile, "multiple_shooting");
 
-    // sqpSettings_.hpipmSettings.warm_start = true;
+    // sqpSettings_.hpipmSettings.hpipmMode = hpipm_mode::ROBUST;
+    sqpSettings_.hpipmSettings.warm_start = false;
     sqpSettings_.hpipmSettings.use_slack = true;
-    // sqpSettings_.hpipmSettings.slack_upper_L2_penalty = 1e3;
-    // sqpSettings_.hpipmSettings.slack_lower_L2_penalty = 1e3;
+    // sqpSettings_.hpipmSettings.tol_stat = 1;  // res_g_max
+    // sqpSettings_.hpipmSettings.tol_comp = 1;  // res_m_max
+    // sqpSettings_.hpipmSettings.iter_max = 100;
+    // sqpSettings_.hpipmSettings.slack_upper_L1_penalty = 1e2;
+    // sqpSettings_.hpipmSettings.slack_lower_L1_penalty = 1e2;
 
     // Dynamics
     // NOTE: we don't have any branches here because every system we use
@@ -328,9 +332,9 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     // Inertial alignment
     if (settings_.inertial_alignment_settings.cost_enabled) {
         std::unique_ptr<ocs2::StateInputCost> inertial_alignment_cost(
-            new InertialAlignmentCost(end_effector_kinematics,
-                                      settings_.inertial_alignment_settings,
-                                      settings_.gravity, settings_.dims, true));
+            new InertialAlignmentCostGaussNewton(
+                end_effector_kinematics, settings_.inertial_alignment_settings,
+                settings_.gravity, settings_.dims, true));
         problem_.costPtr->add("inertial_alignment_cost",
                               std::move(inertial_alignment_cost));
         std::cout << "Inertial alignment cost enabled." << std::endl;

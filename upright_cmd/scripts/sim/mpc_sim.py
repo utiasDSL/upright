@@ -179,6 +179,12 @@ def main():
                 )
                 logger.append("alignment_constraints", alignment_constraints)
 
+            if model.settings.inertial_alignment_settings.cost_enabled:
+                alignment_constraints = ctrl_manager.mpc.getCostValue(
+                    "inertial_alignment_cost", t, x, u
+                )
+                logger.append("alignment_cost", alignment_constraints)
+
             if model.settings.obstacle_settings.enabled:
                 if (
                     model.settings.obstacle_settings.constraint_type

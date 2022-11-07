@@ -126,8 +126,7 @@ arrangements:
       -
         first: ee
         second: box1
-        # mu: 0.3
-        mu: 0.1
+        mu: 0.3
 
   wood_block_composite:
     support_area_inset: 0.01
@@ -162,8 +161,6 @@ arrangements:
         first: ee
         second: block3
         mu: 0.27  # TODO measure
-
-
 
   bottle_and_tall_box:
     objects:

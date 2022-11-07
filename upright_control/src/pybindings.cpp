@@ -50,7 +50,8 @@ PYBIND11_MODULE(bindings, m) {
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
     VECTOR_TYPE_BINDING(std::vector<DynamicObstacle>, "DynamicObstacleVector")
 
-    pybind11::bind_map<std::map<std::string, ocs2::scalar_t>>(m, "MapStringScalar");
+    pybind11::bind_map<std::map<std::string, ocs2::scalar_t>>(
+        m, "MapStringScalar");
 
     pybind11::class_<SystemMapping>(m, "SystemPinocchioMapping")
         .def(pybind11::init<const OptimizationDimensions &>(), "dims")
@@ -161,10 +162,14 @@ PYBIND11_MODULE(bindings, m) {
                        &InertialAlignmentSettings::constraint_enabled)
         .def_readwrite("use_angular_acceleration",
                        &InertialAlignmentSettings::use_angular_acceleration)
+        .def_readwrite("align_with_fixed_vector",
+                       &InertialAlignmentSettings::align_with_fixed_vector)
         .def_readwrite("cost_weight", &InertialAlignmentSettings::cost_weight)
         .def_readwrite("alpha", &InertialAlignmentSettings::alpha)
-        .def_readwrite("contact_plane_normal", &InertialAlignmentSettings::contact_plane_normal)
-        .def_readwrite("contact_plane_span", &InertialAlignmentSettings::contact_plane_span)
+        .def_readwrite("contact_plane_normal",
+                       &InertialAlignmentSettings::contact_plane_normal)
+        .def_readwrite("contact_plane_span",
+                       &InertialAlignmentSettings::contact_plane_span)
         .def_readwrite("com", &InertialAlignmentSettings::com);
 
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
@@ -409,7 +414,8 @@ PYBIND11_MODULE(bindings, m) {
         .def("getSoftStateInequalityConstraintValue",
              &ControllerPythonInterface::getSoftStateInequalityConstraintValue,
              "name"_a, "t"_a, "x"_a.noconvert())
-
+        .def("getCostValue", &ControllerPythonInterface::getCostValue, "name"_a,
+             "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("visualizeTrajectory",
              &ControllerPythonInterface::visualizeTrajectory, "t"_a.noconvert(),
              "x"_a.noconvert(), "u"_a.noconvert(), "speed"_a);

@@ -17,6 +17,8 @@ class ControllerPythonInterface final : public ocs2::PythonInterface {
         ControllerInterface control_interface(settings);
 
         problem_ = control_interface.getOptimalControlProblem();
+        // ocs2::ReferenceManager* ref_ptr = control_interface.getReferenceManagerPtr().get();
+        reference_manager_ptr_.reset(control_interface.getReferenceManagerPtr().get());
 
         // Set the reference manager -- otherwise there are problems with the
         // EndEffectorCost
@@ -76,8 +78,17 @@ class ControllerPythonInterface final : public ocs2::PythonInterface {
             .getValue(t, x, *problem_.preComputationPtr);
     }
 
+    ocs2::scalar_t getCostValue(const std::string& name, ocs2::scalar_t t,
+                                Eigen::Ref<const VecXd> x,
+                                Eigen::Ref<const VecXd> u) {
+        const auto& target = reference_manager_ptr_->getTargetTrajectories();
+        return problem_.costPtr->get(name).getValue(
+            t, x, u, target, *problem_.preComputationPtr);
+    }
+
    private:
     ocs2::OptimalControlProblem problem_;
+    std::shared_ptr<ocs2::ReferenceManagerInterface> reference_manager_ptr_;
 };
 
 }  // namespace upright

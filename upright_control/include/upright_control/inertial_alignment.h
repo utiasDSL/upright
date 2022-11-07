@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include <ocs2_core/automatic_differentiation/CppAdInterface.h>
 #include <ocs2_core/constraint/StateInputConstraintCppAd.h>
 #include <ocs2_core/cost/StateInputCostCppAd.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
@@ -31,6 +32,8 @@ struct InertialAlignmentSettings {
     // object's CoM in the cost/constraint
     bool use_angular_acceleration = false;
 
+    bool align_with_fixed_vector = false;
+
     // Bound for the constraint: n.dot(a) >= constraint_bound * ||a||. Must be
     // in >= 0. Setting this to 0 means the constraint is an equality.
     ocs2::scalar_t alpha = 0;
@@ -56,8 +59,7 @@ inline std::ostream& operator<<(std::ostream& out,
         << "cost_weight = " << settings.cost_weight << std::endl
         << "contact_plane_normal = "
         << settings.contact_plane_normal.transpose() << std::endl
-        << "contact_plane_span = "
-        << settings.contact_plane_span << std::endl
+        << "contact_plane_span = " << settings.contact_plane_span << std::endl
         << "com = " << settings.com.transpose() << std::endl;
     return out;
 }
@@ -93,46 +95,7 @@ class InertialAlignmentConstraint final
    protected:
     VecXad constraintFunction(ocs2::ad_scalar_t time, const VecXad& state,
                               const VecXad& input,
-                              const VecXad& parameters) const override {
-        Mat3ad C_we = kinematics_ptr_->getOrientationCppAd(state);
-        Vec3ad linear_acc = kinematics_ptr_->getAccelerationCppAd(state, input);
-        Vec3ad gravity = gravity_.cast<ocs2::ad_scalar_t>();
-
-        // In the EE frame
-        Vec3ad a = C_we.transpose() * (linear_acc - gravity);
-
-        // Take into account object center of mass, if available
-        if (settings_.use_angular_acceleration) {
-            Vec3ad angular_vel =
-                kinematics_ptr_->getAngularVelocityCppAd(state, input);
-            Vec3ad angular_acc =
-                kinematics_ptr_->getAngularAccelerationCppAd(state, input);
-
-            Mat3ad ddC_we =
-                dC_dtt<ocs2::ad_scalar_t>(C_we, angular_vel, angular_acc);
-            Vec3ad com = settings_.com.cast<ocs2::ad_scalar_t>();
-
-            a += ddC_we * com;
-        }
-
-        Vec3ad n = settings_.contact_plane_normal.cast<ocs2::ad_scalar_t>();
-        Mat23ad S = settings_.contact_plane_span.cast<ocs2::ad_scalar_t>();
-
-        ocs2::ad_scalar_t a_n = n.dot(a);
-        Vec2ad a_t = S * a;
-
-        // constrain the normal acc to be non-negative
-        VecXad constraints(getNumConstraints(0));
-        constraints(0) = a_n;
-
-        // linearized version: the quadratic cone does not play well with the
-        // optimizer
-        constraints(1) = settings_.alpha * a_n - a_t(0) - a_t(1);
-        constraints(2) = settings_.alpha * a_n - a_t(0) + a_t(1);
-        constraints(3) = settings_.alpha * a_n + a_t(0) - a_t(1);
-        constraints(4) = settings_.alpha * a_n + a_t(0) + a_t(1);
-        return constraints;
-    }
+                              const VecXad& parameters) const override;
 
    private:
     InertialAlignmentConstraint(const InertialAlignmentConstraint& other) =
@@ -171,32 +134,7 @@ class InertialAlignmentCost final : public ocs2::StateInputCostCppAd {
    protected:
     ocs2::ad_scalar_t costFunction(ocs2::ad_scalar_t time, const VecXad& state,
                                    const VecXad& input,
-                                   const VecXad& parameters) const {
-        Mat3ad C_we = kinematics_ptr_->getOrientationCppAd(state);
-        Vec3ad linear_acc = kinematics_ptr_->getAccelerationCppAd(state, input);
-
-        Vec3ad gravity = gravity_.cast<ocs2::ad_scalar_t>();
-        Vec3ad total_acc = linear_acc - gravity;
-
-        if (settings_.use_angular_acceleration) {
-            Vec3ad angular_vel =
-                kinematics_ptr_->getAngularVelocityCppAd(state, input);
-            Vec3ad angular_acc =
-                kinematics_ptr_->getAngularAccelerationCppAd(state, input);
-
-            Mat3ad ddC_we =
-                dC_dtt<ocs2::ad_scalar_t>(C_we, angular_vel, angular_acc);
-            Vec3ad com = settings_.com.cast<ocs2::ad_scalar_t>();
-
-            total_acc += ddC_we * com;
-        }
-
-        Vec3ad n = settings_.contact_plane_normal.cast<ocs2::ad_scalar_t>();
-
-        // Scaling by inverse of gravity makes the numerics better
-        Vec3ad err = (C_we * n).cross(total_acc) / gravity.norm();
-        return 0.5 * settings_.cost_weight * err.dot(err);
-    }
+                                   const VecXad& parameters) const override;
 
    private:
     InertialAlignmentCost(const InertialAlignmentCost& other) = default;
@@ -205,6 +143,128 @@ class InertialAlignmentCost final : public ocs2::StateInputCostCppAd {
     InertialAlignmentSettings settings_;
     Vec3d gravity_;
     OptimizationDimensions dims_;
+};
+
+// Use Gauss-Newton approximation of the cost to avoid ill-conditioned (i.e.
+// indefinite) Hessian
+class InertialAlignmentCostGaussNewton final : public ocs2::StateInputCost {
+   public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    InertialAlignmentCostGaussNewton(
+        const ocs2::PinocchioEndEffectorKinematicsCppAd& kinematics,
+        const InertialAlignmentSettings& settings, const Vec3d& gravity,
+        const OptimizationDimensions& dims, bool recompile_libraries)
+        : kinematics_ptr_(kinematics.clone()),
+          settings_(settings),
+          gravity_(gravity),
+          dims_(dims) {
+        initialize(dims.x(), dims.u(), 0, "inertial_alignment_cost",
+                   "/tmp/ocs2", recompile_libraries, true);
+    }
+
+    InertialAlignmentCostGaussNewton* clone() const override {
+        return new InertialAlignmentCostGaussNewton(*kinematics_ptr_, settings_,
+                                                    gravity_, dims_, false);
+    }
+
+    VecXd getParameters(ocs2::scalar_t, const ocs2::TargetTrajectories&) const {
+        return VecXd(0);
+    };
+
+    void initialize(size_t nx, size_t nu, size_t np,
+                    const std::string& modelName,
+                    const std::string& modelFolder, bool recompileLibraries,
+                    bool verbose) {
+        // Compile arbitrary vector function
+        auto ad_func = [=](const VecXad& taped_vars, const VecXad& p,
+                           VecXad& y) {
+            assert(taped_vars.rows() == 1 + nx + nu);
+            const ocs2::ad_scalar_t t = taped_vars(0);
+            const VecXad x = taped_vars.segment(1, nx);
+            const VecXad u = taped_vars.tail(nu);
+            y = this->function(t, x, u, p);
+        };
+        ad_interface_ptr_.reset(new ocs2::CppAdInterface(
+            ad_func, 1 + nx + nu, np, modelName, modelFolder));
+
+        if (recompileLibraries) {
+            ad_interface_ptr_->createModels(
+                ocs2::CppAdInterface::ApproximationOrder::First, verbose);
+        } else {
+            ad_interface_ptr_->loadModelsIfAvailable(
+                ocs2::CppAdInterface::ApproximationOrder::First, verbose);
+        }
+    }
+
+    ocs2::scalar_t getValue(ocs2::scalar_t time, const VecXd& state,
+                            const VecXd& input,
+                            const ocs2::TargetTrajectories& target,
+                            const ocs2::PreComputation&) const {
+        VecXd tapedTimeStateInput(1 + state.rows() + input.rows());
+        tapedTimeStateInput << time, state, input;
+        const VecXd f = ad_interface_ptr_->getFunctionValue(
+            tapedTimeStateInput, getParameters(time, target));
+        return 0.5 * settings_.cost_weight * f.dot(f);
+    }
+
+    ocs2::ScalarFunctionQuadraticApproximation getQuadraticApproximation(
+        ocs2::scalar_t time, const VecXd& state, const VecXd& input,
+        const ocs2::TargetTrajectories& target,
+        const ocs2::PreComputation&) const {
+        const size_t nx = state.rows();
+        const size_t nu = input.rows();
+        const VecXd params = getParameters(time, target);
+        VecXd tapedTimeStateInput(1 + state.rows() + input.rows());
+        tapedTimeStateInput << time, state, input;
+
+        const VecXd e =
+            ad_interface_ptr_->getFunctionValue(tapedTimeStateInput, params);
+        const MatXd J =
+            ad_interface_ptr_->getJacobian(tapedTimeStateInput, params);
+
+        MatXd dedx = J.middleCols(1, nx);
+        MatXd dedu = J.rightCols(nu);
+
+        ocs2::ScalarFunctionQuadraticApproximation cost;
+        cost.f = 0.5 * settings_.cost_weight * e.dot(e);
+
+        // Final transpose is because dfdx and dfdu are stored as (column)
+        // vectors (i.e. the gradients of the cost)
+        cost.dfdx = settings_.cost_weight * (e.transpose() * dedx).transpose();
+        cost.dfdu = settings_.cost_weight * (e.transpose() * dedu).transpose();
+
+        // Gauss-Newton approximation to the Hessian
+        cost.dfdxx = settings_.cost_weight * dedx.transpose() * dedx;
+        cost.dfdux = settings_.cost_weight * dedu.transpose() * dedx;
+        cost.dfduu = settings_.cost_weight * dedu.transpose() * dedu;
+
+        return cost;
+    }
+
+   protected:
+    VecXad function(ocs2::ad_scalar_t time, const VecXad& state,
+                    const VecXad& input, const VecXad& parameters) const {
+        Mat3ad C_we = kinematics_ptr_->getOrientationCppAd(state);
+        Vec3ad linear_acc = kinematics_ptr_->getAccelerationCppAd(state, input);
+
+        Vec3ad gravity = gravity_.cast<ocs2::ad_scalar_t>();
+        Vec3ad total_acc = linear_acc - gravity;
+
+        Mat23ad S = settings_.contact_plane_span.cast<ocs2::ad_scalar_t>();
+        return S * (C_we.transpose() * total_acc) / total_acc.norm();
+    }
+
+   private:
+    InertialAlignmentCostGaussNewton(
+        const InertialAlignmentCostGaussNewton& other) = default;
+
+    std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd> kinematics_ptr_;
+    InertialAlignmentSettings settings_;
+    Vec3d gravity_;
+    OptimizationDimensions dims_;
+
+    std::unique_ptr<ocs2::CppAdInterface> ad_interface_ptr_;
 };
 
 }  // namespace upright

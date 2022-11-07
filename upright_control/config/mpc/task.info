@@ -47,11 +47,11 @@ ddp
 multiple_shooting
 {
   dt                            0.1
-  sqpIteration                  3
-  initSqpIteration              3
+  sqpIteration                  1
+  initSqpIteration              1
   deltaTol                      1e-3
   printSolverStatistics         true
-  printSolverStatus             false
+  printSolverStatus             true
   printLinesearch               true
   useFeedbackPolicy             true
   integratorType                RK4

@@ -9,7 +9,7 @@ import IPython
 
 m = 0.5
 δ = 0.03
-h = 1
+h = 0.1
 L = 0.05  # fixture height
 μ = 0.3
 
@@ -42,6 +42,9 @@ def gravito_inertial_wrench(dxdtt, θ, dθdt, dθdtt):
     S2 = core.math.skew3(ω)
     dC_we_dtt = (S1 + S2 @ S2) @ C_we
     J_w = C_we @ J_e @ C_ew
+
+    if dθdt > 0:
+        IPython.embed()
 
     f = m * C_ew @ (dC_we_dtt @ r_com_e + a_ew_w - G)
     τ = C_ew @ (S2 @ J_w @ ω + J_w @ dωdt)

@@ -90,6 +90,7 @@ link_directories(
 
 # upright_control interface library
 add_library(${PROJECT_NAME}
+  src/inertial_alignment.cpp
   src/controller_interface.cpp
   src/constraint/bounded_balancing_constraints.cpp
 )

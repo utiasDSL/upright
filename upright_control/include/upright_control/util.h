@@ -34,15 +34,12 @@ ocs2::PinocchioInterface build_pinocchio_interface(
         // root_joint.addJoint(pinocchio::JointModelRUBZ());
 
         pinocchio::urdf::buildModel(urdf_tree, root_joint, model);
-        // return ocs2::getPinocchioInterfaceFromUrdfFile(urdf_path,
-        // root_joint);
     } else {
         // Fixed base
-        // return ocs2::getPinocchioInterfaceFromUrdfFile(urdf_path);
         pinocchio::urdf::buildModel(urdf_tree, model);
     }
 
-    // TODO need to deal with fixed joints
+    // Lock joints if applicable
     if (locked_joints.size() > 0) {
         VecXd q = VecXd::Zero(model.nq);
         std::vector<pinocchio::JointIndex> joint_ids_to_lock;
