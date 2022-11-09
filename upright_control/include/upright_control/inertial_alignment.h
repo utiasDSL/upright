@@ -175,85 +175,21 @@ class InertialAlignmentCostGaussNewton final : public ocs2::StateInputCost {
     void initialize(size_t nx, size_t nu, size_t np,
                     const std::string& modelName,
                     const std::string& modelFolder, bool recompileLibraries,
-                    bool verbose) {
-        // Compile arbitrary vector function
-        auto ad_func = [=](const VecXad& taped_vars, const VecXad& p,
-                           VecXad& y) {
-            assert(taped_vars.rows() == 1 + nx + nu);
-            const ocs2::ad_scalar_t t = taped_vars(0);
-            const VecXad x = taped_vars.segment(1, nx);
-            const VecXad u = taped_vars.tail(nu);
-            y = this->function(t, x, u, p);
-        };
-        ad_interface_ptr_.reset(new ocs2::CppAdInterface(
-            ad_func, 1 + nx + nu, np, modelName, modelFolder));
-
-        if (recompileLibraries) {
-            ad_interface_ptr_->createModels(
-                ocs2::CppAdInterface::ApproximationOrder::First, verbose);
-        } else {
-            ad_interface_ptr_->loadModelsIfAvailable(
-                ocs2::CppAdInterface::ApproximationOrder::First, verbose);
-        }
-    }
+                    bool verbose);
 
     ocs2::scalar_t getValue(ocs2::scalar_t time, const VecXd& state,
                             const VecXd& input,
                             const ocs2::TargetTrajectories& target,
-                            const ocs2::PreComputation&) const {
-        VecXd tapedTimeStateInput(1 + state.rows() + input.rows());
-        tapedTimeStateInput << time, state, input;
-        const VecXd f = ad_interface_ptr_->getFunctionValue(
-            tapedTimeStateInput, getParameters(time, target));
-        return 0.5 * settings_.cost_weight * f.dot(f);
-    }
+                            const ocs2::PreComputation&) const;
 
     ocs2::ScalarFunctionQuadraticApproximation getQuadraticApproximation(
         ocs2::scalar_t time, const VecXd& state, const VecXd& input,
         const ocs2::TargetTrajectories& target,
-        const ocs2::PreComputation&) const {
-        const size_t nx = state.rows();
-        const size_t nu = input.rows();
-        const VecXd params = getParameters(time, target);
-        VecXd tapedTimeStateInput(1 + state.rows() + input.rows());
-        tapedTimeStateInput << time, state, input;
-
-        const VecXd e =
-            ad_interface_ptr_->getFunctionValue(tapedTimeStateInput, params);
-        const MatXd J =
-            ad_interface_ptr_->getJacobian(tapedTimeStateInput, params);
-
-        MatXd dedx = J.middleCols(1, nx);
-        MatXd dedu = J.rightCols(nu);
-
-        ocs2::ScalarFunctionQuadraticApproximation cost;
-        cost.f = 0.5 * settings_.cost_weight * e.dot(e);
-
-        // Final transpose is because dfdx and dfdu are stored as (column)
-        // vectors (i.e. the gradients of the cost)
-        cost.dfdx = settings_.cost_weight * (e.transpose() * dedx).transpose();
-        cost.dfdu = settings_.cost_weight * (e.transpose() * dedu).transpose();
-
-        // Gauss-Newton approximation to the Hessian
-        cost.dfdxx = settings_.cost_weight * dedx.transpose() * dedx;
-        cost.dfdux = settings_.cost_weight * dedu.transpose() * dedx;
-        cost.dfduu = settings_.cost_weight * dedu.transpose() * dedu;
-
-        return cost;
-    }
+        const ocs2::PreComputation&) const;
 
    protected:
     VecXad function(ocs2::ad_scalar_t time, const VecXad& state,
-                    const VecXad& input, const VecXad& parameters) const {
-        Mat3ad C_we = kinematics_ptr_->getOrientationCppAd(state);
-        Vec3ad linear_acc = kinematics_ptr_->getAccelerationCppAd(state, input);
-
-        Vec3ad gravity = gravity_.cast<ocs2::ad_scalar_t>();
-        Vec3ad total_acc = linear_acc - gravity;
-
-        Mat23ad S = settings_.contact_plane_span.cast<ocs2::ad_scalar_t>();
-        return S * (C_we.transpose() * total_acc) / total_acc.norm();
-    }
+                    const VecXad& input, const VecXad& parameters) const;
 
    private:
     InertialAlignmentCostGaussNewton(
