@@ -372,7 +372,7 @@ class EEObject:
         return self.side_lengths[2]
 
 
-def balanced_object_setup(r_ew_w, config):
+def balanced_object_setup(r_ew_w, config, robot):
     arrangement_name = config["arrangement"]
     arrangement = config["arrangements"][arrangement_name]
 
@@ -398,12 +398,21 @@ def balanced_object_setup(r_ew_w, config):
         parent_name = obj_instance_conf["parent"]
         parent = objects[parent_name]
 
+        # fixtures are objects rigidly attached to the tray
+        # they can provide additional support to the balanced objects
+        fixture = "fixture" in obj_instance_conf and obj_instance_conf["fixture"]
+        if fixture and parent_name != "ee":
+            raise ValueError("Only objects with parent 'ee' can be fixtures.")
+
         # PyBullet calculates coefficient of friction between two
         # bodies by multiplying them. Thus, to achieve our actual
         # desired friction at the support we need to divide the desired
         # value by the parent value to get the simulated value.
-        real_mu = mus[parent_name][obj_name]
-        pyb_mu = real_mu / parent.mu
+        if fixture:
+            pyb_mu = objects["ee"].mu
+        else:
+            real_mu = mus[parent_name][obj_name]
+            pyb_mu = real_mu / parent.mu
 
         obj = BulletBody.from_config(obj_type_conf, mu=pyb_mu, orientation=orientation)
 
@@ -418,6 +427,19 @@ def balanced_object_setup(r_ew_w, config):
 
         obj.add_to_sim()
         objects[obj_name] = obj
+
+        # rigidly attach fixtured objects to the tray
+        if fixture:
+            pyb.createConstraint(
+                robot.uid,
+                robot.tool_idx,
+                obj.uid,
+                -1,
+                pyb.JOINT_FIXED,
+                jointAxis=[0, 0, 1],  # doesn't matter
+                parentFramePosition=[0, 0, 0],
+                childFramePosition=list(r_ew_w - obj.r0),
+            )
 
     # for debugging, generate contact points
     boxes = {name: obj.box for name, obj in objects.items()}
@@ -489,7 +511,7 @@ class BulletSimulation:
 
         # setup balanced objects
         r_ew_w, Q_we = self.robot.link_pose()
-        self.objects = balanced_object_setup(r_ew_w, config)
+        self.objects = balanced_object_setup(r_ew_w, config, self.robot)
 
         # mark frame at the initial position
         debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)

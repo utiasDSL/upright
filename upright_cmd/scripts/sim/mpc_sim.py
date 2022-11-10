@@ -37,6 +37,8 @@ def main():
     sim.settle(5.0)
     sim.launch_dynamic_obstacles()
 
+    IPython.embed()
+
     # initial time, state, input
     t = 0.0
     q, v = sim.robot.joint_states()

@@ -128,6 +128,31 @@ arrangements:
         second: box1
         mu: 0.3
 
+  really_tall_box_with_fixture:
+    support_area_inset: 0.01
+    mu_margin: 0.01
+    objects:
+      -
+        name: box1
+        type: really_tall_box
+        parent: ee
+      -
+        name: fixture
+        type: fixture
+        parent: ee
+        fixture: true
+        offset:
+          y: -0.06
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.3
+      -
+        first: fixture
+        second: box1
+        mu: 0.3
+
   wood_block_composite:
     support_area_inset: 0.01
     mu_margin: 0.01
@@ -210,3 +235,4 @@ arrangements:
         first: wedge1
         second: box1
         mu: 0.4
+
