@@ -9,7 +9,7 @@ include:
     path: config/controller.yaml
   -
     package: upright_cmd
-    path: config/omni/omni.yaml
+    path: config/robots/ridgeback.yaml
 
 logging:
   timestep: 0.010
@@ -21,8 +21,8 @@ simulation:
 
 controller:
   balancing:
-    enabled: false
-    use_force_constraints: false
+    enabled: true
+    use_force_constraints: true
     arrangement: really_tall_box
     constraint_type: hard
     enable_normal_constraint: true
@@ -31,7 +31,7 @@ controller:
 
   inertial_alignment:
     cost_enabled: false
-    constraint_enabled: true
+    constraint_enabled: false
     use_angular_acceleration: false
     cost_weight: 1
     contact_plane_normal: [0, 0, 1]
@@ -41,6 +41,5 @@ controller:
   waypoints:
     -
       time: 0
-      # position: [0, 0, 0]
-      position: [0, 2.0, -0.5]
+      position: [0, 2.0, 0]
       orientation: [0, 0, 0, 1]

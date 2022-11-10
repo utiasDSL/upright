@@ -84,16 +84,16 @@ controller:
               2rep6]
 
   # state and input limits
-  # limits:
-  #   input:
-  #     lower: [-80, -80, -80, -80, -80, -80]
-  #     upper: [80, 80, 80, 80, 80, 80]
-  #   # TODO: real arm velocity limits are higher
-  #   # accelerations likely are as well
-  #   state:
-  #     lower: [-2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
-  #             -2, -2, -2, -2, -2, -2,
-  #             -8, -8, -8, -8, -8, -8]
-  #     upper: [2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
-  #             2, 2, 2, 2, 2, 2,
-  #             8, 8, 8, 8, 8, 8]
+  limits:
+    input:
+      lower: [-80, -80, -80, -80, -80, -80]
+      upper: [80, 80, 80, 80, 80, 80]
+    # TODO: real arm velocity limits are higher
+    # accelerations likely are as well
+    state:
+      lower: [-2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
+              -2, -2, -3, -3, -3, -3,
+              -10, -10, -10, -10, -10, -10]
+      upper: [2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
+              2, 2, 3, 3, 3, 3,
+              10, 10, 10, 10, 10, 10]
