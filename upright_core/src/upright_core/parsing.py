@@ -195,13 +195,16 @@ def parse_support_offset(d):
 
 
 class _BalancedObjectWrapper:
-    def __init__(self, body, box, parent_name):
+    def __init__(self, body, box, parent_name, fixture):
         self.body = body
         self.box = box
         self.parent_name = parent_name
+        self.fixture = fixture
 
 
-def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0, tol=1e-8):
+def _parse_objects_with_contacts(
+    wrappers, contact_conf, inset=0, mu_margin=0, tol=1e-8
+):
     """
     wrappers is the dict of name: object wrappers
     neighbours is a list of pairs of names specifying objects in contact
@@ -255,7 +258,7 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0, t
     mus = parse_mu_dict(contact_conf, margin=mu_margin)
     balanced_objects = {}
     for name, wrapper in wrappers.items():
-        if name == "ee":
+        if wrapper.fixture:  # includes the EE
             continue
         body = wrapper.body
         box = wrapper.box
@@ -263,7 +266,9 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0, t
 
         # height of the CoM is in the local object frame
         z = np.array([0, 0, 1])
-        com_height = box.distance_from_centroid_to_boundary(-box.rotation @ z, offset=com_offset)
+        com_height = box.distance_from_centroid_to_boundary(
+            -box.rotation @ z, offset=com_offset
+        )
 
         # find the convex hull of support points to get support area
         support_points = []
@@ -289,14 +294,18 @@ def _parse_objects_with_contacts(wrappers, contact_conf, inset=0, mu_margin=0, t
                     support_span = span
                 else:
                     if (np.abs(support_normal + contact_point.normal) > tol).any():
-                        raise ValueError(f"Normals of SA points for object {name} are not equal!")
+                        raise ValueError(
+                            f"Normals of SA points for object {name} are not equal!"
+                        )
 
         # take the convex hull of the support points
         support_points = np.array(support_points)
         hull = ConvexHull(support_points)
         support_points = support_points[hull.vertices, :]
 
-        support_area = PolygonSupportArea(list(support_points), support_normal, support_span)
+        support_area = PolygonSupportArea(
+            list(support_points), support_normal, support_span
+        )
 
         mu = mus[wrapper.parent_name][name]
         r_tau = 0.1  # placeholder/dummy value
@@ -317,7 +326,7 @@ def _parse_composite_objects(wrappers, contact_conf, inset=0, mu_margin=0):
     # build the balanced objects
     descendants = {}
     for name, wrapper in wrappers.items():
-        if name == "ee":
+        if wrapper.fixture:
             continue
         body = wrapper.body
         parent_name = wrapper.parent_name
@@ -326,7 +335,9 @@ def _parse_composite_objects(wrappers, contact_conf, inset=0, mu_margin=0):
         box = wrapper.box
         com_offset = body.com - box.position
         z = np.array([0, 0, 1])
-        com_height = box.distance_from_centroid_to_boundary(-box.rotation @ z, offset=com_offset)
+        com_height = box.distance_from_centroid_to_boundary(
+            -box.rotation @ z, offset=com_offset
+        )
 
         parent_box = wrappers[parent_name].box
         support_area, r_tau = compute_support_area(box, parent_box, com_offset, inset)
@@ -424,7 +435,9 @@ def compute_support_area(box, parent_box, com_offset, inset, tol=1e-6):
     # apply inset
     local_support_points_t_inset = np.zeros_like(local_support_points_t)
     for i in range(local_support_points_t.shape[0]):
-        local_support_points_t_inset[i, :] = math.inset_vertex(local_support_points_t[i, :], inset)
+        local_support_points_t_inset[i, :] = math.inset_vertex(
+            local_support_points_t[i, :], inset
+        )
         # local_points_xy[i, :] = math.inset_vertex_abs(local_points_xy[i, :], inset)
 
     support_area = PolygonSupportArea(list(local_support_points_t_inset), normal, span)
@@ -518,7 +531,11 @@ def parse_control_objects(ctrl_conf):
     ee_conf = obj_type_confs["ee"]
     ee_box = parse_box(ee_conf["shape"], np.array(ee_conf["position"]))
     ee_body = RigidBody(1, np.eye(3), ee_box.position)
-    wrappers = {"ee": _BalancedObjectWrapper(ee_body, ee_box, None)}
+    wrappers = {
+        "ee": _BalancedObjectWrapper(
+            body=ee_body, box=ee_box, parent_name=None, fixture=True
+        )
+    }
 
     for obj_instance_conf in arrangement["objects"]:
         obj_name = obj_instance_conf["name"]
@@ -541,10 +558,13 @@ def parse_control_objects(ctrl_conf):
         position = parent_box.position.copy()
         if "offset" in obj_instance_conf:
             position[:2] += parse_support_offset(obj_instance_conf["offset"])
-        position[2] += parent_box.distance_from_centroid_to_boundary(np.array([0, 0, 1]))
+        position[2] += parent_box.distance_from_centroid_to_boundary(
+            np.array([0, 0, 1])
+        )
 
+        fixture = "fixture" in obj_instance_conf and obj_instance_conf["fixture"]
         body, box = _parse_rigid_body_and_box(obj_type_conf, position, quat)
-        wrappers[obj_name] = _BalancedObjectWrapper(body, box, parent_name)
+        wrappers[obj_name] = _BalancedObjectWrapper(body, box, parent_name, fixture)
 
     if ctrl_conf["balancing"]["use_force_constraints"]:
         return _parse_objects_with_contacts(
