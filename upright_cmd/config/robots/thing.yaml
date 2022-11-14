@@ -35,6 +35,7 @@ simulation:
         - "$(find upright_assets)/thing/xacro/collision_links.urdf.xacro"
       args:
         use_collision: "false"
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
 
 controller:
   # robot parameters
@@ -54,6 +55,7 @@ controller:
         - "$(find upright_assets)/thing/xacro/collision_links.urdf.xacro"
       args:
         use_collision: "true"
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
     tool_link_name: "gripped_object"
     base_type: omnidirectional
 

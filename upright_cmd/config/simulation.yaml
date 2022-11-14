@@ -116,11 +116,10 @@ objects:
     color: [1, 0, 0, 0.9]
 
   tall_simulation_bottle:
-    shape: cylinder
+    shape: cuboid
+    side_lengths: [0.06, 0.06, 0.64]
     com_offset: [0, 0, 0]
     mass: 0.5
-    radius: 0.03
-    height: 1.0
     color: [1, 0, 0, 0.9]
 
   wedge:

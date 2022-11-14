@@ -188,8 +188,7 @@ objects:
 
   tall_simulation_bottle:
     shape:
-      type: cylinder
-      radius: 0.03
-      height: 1.0
+      type: cuboid
+      side_lengths: [0.06, 0.06, 0.64]
     com_offset: [0, 0, 0]
     mass: 0.5
