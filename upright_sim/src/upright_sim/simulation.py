@@ -361,10 +361,11 @@ class BulletDynamicObstacle:
 
 
 class EEObject:
-    def __init__(self, position, side_lengths):
+    def __init__(self, position, orientation, side_lengths):
         self.r0 = position
         self.side_lengths = side_lengths
         self.mu = 1.0
+        # C = math.quat_to_rot(orientation)
         self.box = geometry.Box3d(0.5 * self.side_lengths, self.r0)
 
     @property
@@ -372,7 +373,7 @@ class EEObject:
         return self.side_lengths[2]
 
 
-def balanced_object_setup(r_ew_w, config, robot):
+def balanced_object_setup(r_ew_w, Q_we, config, robot):
     arrangement_name = config["arrangement"]
     arrangement = config["arrangements"][arrangement_name]
 
@@ -380,7 +381,7 @@ def balanced_object_setup(r_ew_w, config, robot):
     ee_config = config["objects"]["ee"]
     ee_position = r_ew_w + ee_config["position"]
     ee_side_lengths = np.array(ee_config["shape"]["side_lengths"])
-    objects = {"ee": EEObject(ee_position, ee_side_lengths)}
+    objects = {"ee": EEObject(ee_position, Q_we, ee_side_lengths)}
 
     mus = parsing.parse_mu_dict(arrangement["contacts"])
 
@@ -394,6 +395,7 @@ def balanced_object_setup(r_ew_w, config, robot):
 
         orientation = obj_instance_conf.get("orientation", np.array([0, 0, 0, 1]))
         orientation = orientation / np.linalg.norm(orientation)
+        # orientation = math.quat_multiply(Q_we, orientation)
 
         parent_name = obj_instance_conf["parent"]
         parent = objects[parent_name]
@@ -427,19 +429,20 @@ def balanced_object_setup(r_ew_w, config, robot):
 
         obj.add_to_sim()
         objects[obj_name] = obj
+        obj.fixture = fixture
 
         # rigidly attach fixtured objects to the tray
-        if fixture:
-            pyb.createConstraint(
-                robot.uid,
-                robot.tool_idx,
-                obj.uid,
-                -1,
-                pyb.JOINT_FIXED,
-                jointAxis=[0, 0, 1],  # doesn't matter
-                parentFramePosition=[0, 0, 0],
-                childFramePosition=list(r_ew_w - obj.r0),
-            )
+        # if fixture:
+        #     pyb.createConstraint(
+        #         robot.uid,
+        #         robot.tool_idx,
+        #         obj.uid,
+        #         -1,
+        #         pyb.JOINT_FIXED,
+        #         jointAxis=[0, 0, 1],  # doesn't matter
+        #         parentFramePosition=[0, 0, 0],
+        #         childFramePosition=list(r_ew_w - obj.r0),
+        #     )
 
     # for debugging, generate contact points
     boxes = {name: obj.box for name, obj in objects.items()}
@@ -511,7 +514,7 @@ class BulletSimulation:
 
         # setup balanced objects
         r_ew_w, Q_we = self.robot.link_pose()
-        self.objects = balanced_object_setup(r_ew_w, config, self.robot)
+        self.objects = balanced_object_setup(r_ew_w, Q_we, config, self.robot)
 
         # mark frame at the initial position
         debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
@@ -569,6 +572,23 @@ class BulletSimulation:
             x = np.concatenate((r, v, obs.a0))
             xs.append(x)
         return np.concatenate(xs)
+
+    def fixture_objects(self):
+        # rigidly attach fixtured objects to the tray
+        r_ew_w, _ = self.robot.link_pose()
+        for name, obj in self.objects.items():
+            print(f"{name}.fixture = {obj.fixture}")
+            if obj.fixture:
+                pyb.createConstraint(
+                    self.robot.uid,
+                    self.robot.tool_idx,
+                    obj.uid,
+                    -1,
+                    pyb.JOINT_FIXED,
+                    jointAxis=[0, 0, 1],  # doesn't matter
+                    parentFramePosition=[0, 0, 0],
+                    childFramePosition=list(r_ew_w - obj.r0),
+                )
 
     def step(self, t, step_robot=True):
         """Step the simulation forward one timestep."""

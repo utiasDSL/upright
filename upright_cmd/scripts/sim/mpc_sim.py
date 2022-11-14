@@ -37,6 +37,9 @@ def main():
     sim.settle(5.0)
     sim.launch_dynamic_obstacles()
 
+    # TODO I want to only fix the fixtures now
+    sim.fixture_objects()
+
     # initial time, state, input
     t = 0.0
     q, v = sim.robot.joint_states()
@@ -82,9 +85,7 @@ def main():
     a_ff = a.copy()
 
     use_direct_velocity_command = False
-    use_velocity_feedback = False
-
-    embedded = False
+    use_velocity_feedback = True
 
     num_obs_resets = 0
 
@@ -121,10 +122,6 @@ def main():
             print("nan value in input!")
             IPython.embed()
             break
-
-        # if t > 2.2 and not embedded:
-        #     IPython.embed()
-        #     embedded = True
 
         # TODO why is this better than using the zero-order hold?
         # here we use the input u to generate the feedforward signal---using

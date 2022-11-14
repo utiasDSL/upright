@@ -4,13 +4,13 @@ logging:
 
 simulation:
   duration: 5.0
-  arrangement: really_tall_box
+  arrangement: simulation_bottle
 
 controller:
   balancing:
     enabled: false
     use_force_constraints: true
-    arrangement: really_tall_box
+    arrangement: simulation_bottle
     constraint_type: hard
 
   inertial_alignment:

@@ -114,27 +114,25 @@ arrangements:
         second: box1
         mu: 0.1
 
-  really_tall_box:
-    support_area_inset: 0.01
-    mu_margin: 0.01
+  simulation_bottle:
     objects:
       -
-        name: box1
-        type: really_tall_box
+        name: bottle
+        type: simulation_bottle
         parent: ee
     contacts:
       -
         first: ee
-        second: box1
+        second: bottle
         mu: 0.3
+        support_area_inset: 0.005
+        mu_margin: 0.01
 
-  really_tall_box_with_fixture:
-    support_area_inset: 0.01
-    mu_margin: 0.01
+  simulation_bottle_with_fixture:
     objects:
       -
-        name: box1
-        type: really_tall_box
+        name: bottle
+        type: simulation_bottle
         parent: ee
       -
         name: fixture
@@ -142,16 +140,35 @@ arrangements:
         parent: ee
         fixture: true
         offset:
-          y: -0.06
+          y: -0.055
     contacts:
       -
         first: ee
-        second: box1
+        second: bottle
         mu: 0.3
+        support_area_inset: 0.005
+        mu_margin: 0.01
       -
         first: fixture
-        second: box1
+        second: bottle
         mu: 0.3
+        mu_margin: 0.01
+
+  tall_simulation_bottle:
+    support_area_inset: 0.005
+    mu_margin: 0.01
+    objects:
+      -
+        name: bottle
+        type: tall_simulation_bottle
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: bottle
+        mu: 0.3
+        support_area_inset: 0.005
+        mu_margin: 0.01
 
   wood_block_composite:
     support_area_inset: 0.01

@@ -203,7 +203,7 @@ class _BalancedObjectWrapper:
 
 
 def _parse_objects_with_contacts(
-    wrappers, contact_conf, inset=0, mu_margin=0, tol=1e-8
+    wrappers, contact_conf, tol=1e-8
 ):
     """
     wrappers is the dict of name: object wrappers
@@ -213,7 +213,10 @@ def _parse_objects_with_contacts(
     for contact in contact_conf:
         name1 = contact["first"]
         name2 = contact["second"]
+
+        mu_margin = contact.get("mu_margin", 0)
         mu = contact["mu"] - mu_margin
+        inset = contact.get("support_area_inset", 0)
 
         box1 = wrappers[name1].box
         box2 = wrappers[name2].box
@@ -235,6 +238,7 @@ def _parse_objects_with_contacts(
             r1 = points[i, :] - body1.com
 
             # project point into tangent plane and inset the tangent part
+            # TODO this does not make sense for non-planar contacts
             r1_t = span @ r1
             r1_t_inset = math.inset_vertex(r1_t, inset)
 
@@ -255,7 +259,7 @@ def _parse_objects_with_contacts(
     # Wrap in balanced objects: not fundamentally necessary for the
     # constraints, but useful for (1) homogeneity of the settings API and (2)
     # allows some additional analysis on e.g. distance from support area
-    mus = parse_mu_dict(contact_conf, margin=mu_margin)
+    mus = parse_mu_dict(contact_conf)
     balanced_objects = {}
     for name, wrapper in wrappers.items():
         if wrapper.fixture:  # includes the EE
@@ -319,9 +323,10 @@ def _parse_objects_with_contacts(
     return balanced_objects, contact_points
 
 
-def _parse_composite_objects(wrappers, contact_conf, inset=0, mu_margin=0):
+def _parse_composite_objects(wrappers, contact_conf):
     # coefficients of friction between contacting objects
-    mus = parse_mu_dict(contact_conf, margin=mu_margin)
+    mus = parse_mu_dict(contact_conf)
+    insets = parse_inset_dict(contact_conf)
 
     # build the balanced objects
     descendants = {}
@@ -340,6 +345,7 @@ def _parse_composite_objects(wrappers, contact_conf, inset=0, mu_margin=0):
         )
 
         parent_box = wrappers[parent_name].box
+        inset = insets[parent_name]
         support_area, r_tau = compute_support_area(box, parent_box, com_offset, inset)
 
         obj = BalancedObject(body, com_height, support_area, r_tau, mu)
@@ -445,7 +451,7 @@ def compute_support_area(box, parent_box, com_offset, inset, tol=1e-6):
     return support_area, r_tau
 
 
-def parse_mu_dict(contact_conf, margin=0):
+def parse_mu_dict(contact_conf):
     """Parse a dictionary of coefficients of friction from the contact configuration.
 
     Returns a nested dict with object names as keys and mu as the value.
@@ -454,11 +460,24 @@ def parse_mu_dict(contact_conf, margin=0):
     for contact in contact_conf:
         parent_name = contact["first"]
         child_name = contact["second"]
-        mu = contact["mu"] - margin
+        mu = contact["mu"] - contact.get("mu_margin", 0)
         if parent_name in mus:
             mus[parent_name][child_name] = mu
         else:
             mus[parent_name] = {child_name: mu}
+    return mus
+
+
+def parse_inset_dict(contact_conf):
+    insets = {}
+    for contact in contact_conf:
+        parent_name = contact["first"]
+        child_name = contact["second"]
+        inset = contact.get("support_area_inset", 0)
+        if parent_name in mus:
+            insets[parent_name][child_name] = inset
+        else:
+            insets[parent_name] = {child_name: inset}
     return mus
 
 
@@ -524,9 +543,6 @@ def parse_control_objects(ctrl_conf):
     obj_type_confs = ctrl_conf["objects"]
     contact_conf = arrangement["contacts"]
 
-    sa_inset = arrangement.get("support_area_inset", 0)
-    mu_margin = arrangement.get("mu_margin", 0)
-
     # placeholder end effector object
     ee_conf = obj_type_confs["ee"]
     ee_box = parse_box(ee_conf["shape"], np.array(ee_conf["position"]))
@@ -567,11 +583,7 @@ def parse_control_objects(ctrl_conf):
         wrappers[obj_name] = _BalancedObjectWrapper(body, box, parent_name, fixture)
 
     if ctrl_conf["balancing"]["use_force_constraints"]:
-        return _parse_objects_with_contacts(
-            wrappers, contact_conf, inset=sa_inset, mu_margin=mu_margin
-        )
+        return _parse_objects_with_contacts(wrappers, contact_conf)
     else:
-        composites = _parse_composite_objects(
-            wrappers, contact_conf, inset=sa_inset, mu_margin=mu_margin
-        )
+        composites = _parse_composite_objects(wrappers, contact_conf)
         return composites, []
