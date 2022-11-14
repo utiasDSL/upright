@@ -11,8 +11,8 @@ solver_method: SQP  # SQP or DDP
 
 balancing:
   arrangement: nothing
-  constraint_type: soft
-  enabled: true
+  constraint_type: hard
+  enabled: false
   use_force_constraints: false
   use_bounded_constraints: true
   enable_normal_constraint: true

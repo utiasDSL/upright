@@ -54,10 +54,13 @@ class DataLogger:
         if name is not None:
             dir_name = name + "_" + dir_name
         dir_path = self.directory / dir_name
-        dir_path.mkdir()
+        dir_path.mkdir(parents=True)
 
         data_path = dir_path / "data.npz"
         config_path = dir_path / "config.yaml"
+
+        # save the task.info file
+        core.util.copy_task_info_file(self.config, dir_path)
 
         # save the recorded data
         np.savez_compressed(data_path, **self.data)
@@ -83,7 +86,7 @@ class DataPlotter:
 
     @classmethod
     def from_npz(cls, npz_file_path):
-        data = dict(np.load(sys.argv[1]))
+        data = dict(np.load(npz_file_path))
         return cls(data)
 
     def plot_ee_position(self):

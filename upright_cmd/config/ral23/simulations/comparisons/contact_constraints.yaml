@@ -18,5 +18,3 @@ controller:
   balancing:
     enabled: true
     use_force_constraints: true
-    arrangement: really_tall_box_with_fixture
-    constraint_type: hard

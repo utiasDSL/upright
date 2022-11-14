@@ -1,17 +1,27 @@
 logging:
   timestep: 0.010
-  log_dir: /media/adam/Data/PhD/Data/upright/ral23/simulations
+  log_dir: /media/adam/Data/PhD/Data/upright/ral23/simulations/comparisons
 
 simulation:
   duration: 5.0
-  arrangement: really_tall_box_with_fixture
+  arrangement: really_tall_box
 
 controller:
   balancing:
     enabled: false
     use_force_constraints: true
-    arrangement: really_tall_box_with_fixture
+    arrangement: really_tall_box
     constraint_type: hard
+
+  inertial_alignment:
+    cost_enabled: false
+    constraint_enabled: false
+    use_angular_acceleration: false
+    align_with_fixed_vector: false
+    cost_weight: 100
+    contact_plane_normal: [0, 0, 1]
+    alpha: 0
+    com: [0, 0, 0]
 
   weights:
     input:
@@ -27,5 +37,5 @@ controller:
   waypoints:
     -
       time: 0
-      position: [1.0, 2.0, 0]
+      position: [0.0, 2.0, 0]
       orientation: [0, 0, 0, 1]
