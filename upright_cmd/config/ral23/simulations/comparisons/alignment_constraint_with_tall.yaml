@@ -15,7 +15,7 @@ include:
     path: config/ral23/simulations/comparisons/_base.yaml
 
 simulation:
-  arrangement: tall_simulation_bottle
+  arrangement: tall_simulation_box
 
 controller:
   inertial_alignment:

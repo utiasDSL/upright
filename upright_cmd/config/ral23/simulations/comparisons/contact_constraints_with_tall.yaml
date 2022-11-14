@@ -15,10 +15,10 @@ include:
     path: config/ral23/simulations/comparisons/_base.yaml
 
 simulation:
-  arrangement: tall_simulation_bottle
+  arrangement: tall_simulation_box
 
 controller:
   balancing:
     enabled: true
     use_force_constraints: true
-    arrangement: tall_simulation_bottle
+    arrangement: tall_simulation_box

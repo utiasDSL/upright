@@ -105,17 +105,14 @@ objects:
     height: 0.205
     color: [1, 0, 0, 0.9]
 
-  simulation_bottle:
-    # shape: cylinder
-    # radius: 0.03
-    # height: 0.2
+  simulation_box:
     shape: cuboid
     side_lengths: [0.06, 0.06, 0.2]
     com_offset: [0, 0, 0]
     mass: 0.5
     color: [1, 0, 0, 0.9]
 
-  tall_simulation_bottle:
+  tall_simulation_box:
     shape: cuboid
     side_lengths: [0.06, 0.06, 0.64]
     com_offset: [0, 0, 0]

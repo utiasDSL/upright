@@ -100,25 +100,11 @@ arrangements:
         second: foam_die2
         mu: 0.4  # TODO measure
 
-  tall_box:
-    support_area_inset: 0.01
-    mu_margin: 0.01
-    objects:
-      -
-        name: box1
-        type: tall_box
-        parent: ee
-    contacts:
-      -
-        first: ee
-        second: box1
-        mu: 0.1
-
-  simulation_bottle:
+  simulation_box:
     objects:
       -
         name: bottle
-        type: simulation_bottle
+        type: simulation_box
         parent: ee
     contacts:
       -
@@ -128,11 +114,11 @@ arrangements:
         support_area_inset: 0.005
         mu_margin: 0.01
 
-  simulation_bottle_with_fixture:
+  simulation_box_with_fixture:
     objects:
       -
         name: bottle
-        type: simulation_bottle
+        type: simulation_box
         parent: ee
       -
         name: fixture
@@ -154,13 +140,11 @@ arrangements:
         mu: 0.3
         mu_margin: 0.01
 
-  tall_simulation_bottle:
-    support_area_inset: 0.005
-    mu_margin: 0.01
+  tall_simulation_box:
     objects:
       -
         name: bottle
-        type: tall_simulation_bottle
+        type: tall_simulation_box
         parent: ee
     contacts:
       -

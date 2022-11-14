@@ -1,10 +1,10 @@
 logging:
   timestep: 0.010
-  log_dir: /media/adam/Data/PhD/Data/upright/ral23/simulations/comparisons
+  log_dir: /media/adam/Data/PhD/Data/upright/ral23/simulations
 
 simulation:
   duration: 5.0
-  arrangement: simulation_bottle
+  arrangement: simulation_box
   robot:
     urdf:
       args:
@@ -19,7 +19,7 @@ controller:
   balancing:
     enabled: false
     use_force_constraints: true
-    arrangement: simulation_bottle
+    arrangement: simulation_box
     constraint_type: hard
 
   inertial_alignment:

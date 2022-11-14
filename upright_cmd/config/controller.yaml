@@ -175,18 +175,14 @@ objects:
       type: cuboid
       side_lengths: [0.05, 0.05, 0.05]
 
-  simulation_bottle:
-    # shape:
-    #   type: cylinder
-    #   radius: 0.03
-    #   height: 0.2
+  simulation_box:
     shape:
       type: cuboid
       side_lengths: [0.06, 0.06, 0.2]
     com_offset: [0, 0, 0]
     mass: 0.5
 
-  tall_simulation_bottle:
+  tall_simulation_box:
     shape:
       type: cuboid
       side_lengths: [0.06, 0.06, 0.64]

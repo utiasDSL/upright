@@ -15,10 +15,10 @@ include:
     path: config/ral23/simulations/comparisons/_base.yaml
 
 simulation:
-  arrangement: simulation_bottle_with_fixture
+  arrangement: simulation_box_with_fixture
 
 controller:
   balancing:
     enabled: true
     use_force_constraints: true
-    arrangement: simulation_bottle_with_fixture
+    arrangement: simulation_box_with_fixture
