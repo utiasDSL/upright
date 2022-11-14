@@ -1,7 +1,0 @@
-# Redis config for perls2 installation on this machine.
-
-# Redis-server hosted by NUC for
-redis:
-  host: '192.168.132.90'
-  port: 6379
-  password: '/home/adam/phd/code/tps/panda-20.04/perls2_local_control_pc/redis_passfile.txt'
