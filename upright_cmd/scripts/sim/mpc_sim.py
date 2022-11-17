@@ -75,7 +75,7 @@ def main():
         # sim.ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
-    # ctrl_manager.warmstart()
+    ctrl_manager.warmstart()
 
     print("Ready to start.")
     IPython.embed()

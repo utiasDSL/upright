@@ -218,6 +218,9 @@ def _parse_objects_with_contacts(
         mu = contact["mu"] - mu_margin
         inset = contact.get("support_area_inset", 0)
 
+        # print(f"mu_margin = {mu_margin}")
+        # print(f"mu = {mu}")
+
         box1 = wrappers[name1].box
         box2 = wrappers[name2].box
         points, normal = geometry.box_box_axis_aligned_contact(box1, box2)
@@ -259,7 +262,7 @@ def _parse_objects_with_contacts(
     # Wrap in balanced objects: not fundamentally necessary for the
     # constraints, but useful for (1) homogeneity of the settings API and (2)
     # allows some additional analysis on e.g. distance from support area
-    mus = parse_mu_dict(contact_conf)
+    mus = parse_mu_dict(contact_conf, apply_margin=True)
     balanced_objects = {}
     for name, wrapper in wrappers.items():
         if wrapper.fixture:  # includes the EE
@@ -325,7 +328,7 @@ def _parse_objects_with_contacts(
 
 def _parse_composite_objects(wrappers, contact_conf):
     # coefficients of friction between contacting objects
-    mus = parse_mu_dict(contact_conf)
+    mus = parse_mu_dict(contact_conf, apply_margin=True)
     insets = parse_inset_dict(contact_conf)
 
     # build the balanced objects
@@ -451,7 +454,7 @@ def compute_support_area(box, parent_box, com_offset, inset, tol=1e-6):
     return support_area, r_tau
 
 
-def parse_mu_dict(contact_conf):
+def parse_mu_dict(contact_conf, apply_margin):
     """Parse a dictionary of coefficients of friction from the contact configuration.
 
     Returns a nested dict with object names as keys and mu as the value.
@@ -460,7 +463,9 @@ def parse_mu_dict(contact_conf):
     for contact in contact_conf:
         parent_name = contact["first"]
         child_name = contact["second"]
-        mu = contact["mu"] - contact.get("mu_margin", 0)
+        mu = contact["mu"]
+        if apply_margin:
+            mu -= contact.get("mu_margin", 0)
         if parent_name in mus:
             mus[parent_name][child_name] = mu
         else:

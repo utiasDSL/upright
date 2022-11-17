@@ -1,0 +1,50 @@
+logging:
+  timestep: 0.010
+  log_dir: /media/adam/Data/PhD/Data/upright/ral23/experiments/freespace
+
+simulation:
+  duration: 5.0
+  arrangement: simulation_box
+  robot:
+    urdf:
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+
+controller:
+  robot:
+    urdf:
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+
+  balancing:
+    enabled: false
+    use_force_constraints: true
+    arrangement: simulation_box
+    constraint_type: hard
+
+  inertial_alignment:
+    cost_enabled: false
+    constraint_enabled: false
+    use_angular_acceleration: false
+    align_with_fixed_vector: false
+    cost_weight: 100
+    contact_plane_normal: [0, 0, 1]
+    alpha: 0
+    com: [0, 0, 0]
+
+  weights:
+    input:
+      scale: 0.001
+      diag: [1rep9]
+    state:
+      scale: 0.01
+      diag: [0rep9, 10rep9, 1rep9]
+    end_effector:
+      scale: 1
+      diag: [1, 1, 1, 0, 0, 0]
+
+  waypoints:
+    -
+      time: 0
+      position: [-2.0, 1.0, 0]
+      orientation: [0, 0, 0, 1]

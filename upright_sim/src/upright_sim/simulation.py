@@ -383,7 +383,7 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
     ee_side_lengths = np.array(ee_config["shape"]["side_lengths"])
     objects = {"ee": EEObject(ee_position, Q_we, ee_side_lengths)}
 
-    mus = parsing.parse_mu_dict(arrangement["contacts"])
+    mus = parsing.parse_mu_dict(arrangement["contacts"], apply_margin=False)
 
     for obj_instance_conf in arrangement["objects"]:
         obj_name = obj_instance_conf["name"]

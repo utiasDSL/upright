@@ -60,8 +60,6 @@ arrangements:
 
   # single foam die
   foam_die1:
-    mu_margin: 0.05
-    support_area_inset: 0.01
     objects:
       -
         name: foam_die1
@@ -74,6 +72,8 @@ arrangements:
         first: ee
         second: foam_die1
         mu: 0.4
+        mu_margin: 0.05
+        support_area_inset: 0.005
 
   # two foam dice stacked atop one another
   foam_die2:
