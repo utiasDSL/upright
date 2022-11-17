@@ -36,8 +36,6 @@ def main():
     # settle sim to make sure everything is touching comfortably
     sim.settle(5.0)
     sim.launch_dynamic_obstacles()
-
-    # TODO I want to only fix the fixtures now
     sim.fixture_objects()
 
     # initial time, state, input
@@ -77,8 +75,9 @@ def main():
         # sim.ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
         debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
-    ctrl_manager.warmstart()
+    # ctrl_manager.warmstart()
 
+    print("Ready to start.")
     IPython.embed()
 
     v_ff = v.copy()

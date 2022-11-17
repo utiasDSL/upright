@@ -12,19 +12,9 @@ include:
     path: config/robots/thing.yaml
   -
     package: upright_cmd
-    path: config/ral23/simulations/comparisons/_base.yaml
+    path: config/ral23/simulations/_base.yaml
 
 controller:
   balancing:
     enabled: true
     use_force_constraints: true
-
-  inertial_alignment:
-    cost_enabled: true
-    constraint_enabled: false
-    use_angular_acceleration: false
-    align_with_fixed_vector: false
-    cost_weight: 10
-    contact_plane_normal: [0, 0, 1]
-    alpha: 0
-    com: [0, 0, 0]

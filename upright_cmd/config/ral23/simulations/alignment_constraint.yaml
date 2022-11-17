@@ -12,10 +12,7 @@ include:
     path: config/robots/thing.yaml
   -
     package: upright_cmd
-    path: config/ral23/simulations/comparisons/_base.yaml
-
-simulation:
-  arrangement: tall_simulation_box
+    path: config/ral23/simulations/_base.yaml
 
 controller:
   inertial_alignment:

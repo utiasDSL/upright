@@ -12,4 +12,4 @@ include:
     path: config/robots/thing.yaml
   -
     package: upright_cmd
-    path: config/ral23/simulations/comparisons/_base.yaml
+    path: config/ral23/simulations/_base.yaml

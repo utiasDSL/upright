@@ -75,7 +75,7 @@ rollout
 ; MPC settings
 mpc
 {
-  timeHorizon                    1.0
+  timeHorizon                    2.0
   solutionTimeWindow             -1   ; [s]
 
   debugPrint                     true

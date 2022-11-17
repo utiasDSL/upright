@@ -12,13 +12,13 @@ include:
     path: config/robots/thing.yaml
   -
     package: upright_cmd
-    path: config/ral23/simulations/comparisons/_base.yaml
+    path: config/ral23/simulations/_base.yaml
 
 simulation:
-  arrangement: simulation_box_with_fixture
+  arrangement: tall_simulation_box
 
 controller:
   balancing:
     enabled: true
     use_force_constraints: true
-    arrangement: simulation_box_with_fixture
+    arrangement: tall_simulation_box
