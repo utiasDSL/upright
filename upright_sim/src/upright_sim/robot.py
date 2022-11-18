@@ -129,15 +129,11 @@ class SimulatedRobot:
             self.robot_joint_indices.append(idx)
 
         # set any locked joints to appropriate values
-        # TODO not robust b/c these could be bumped later
-        # it would be better to fill a map and set this in the reset_joint_configuration
         self.locked_joints = {}
         if "locked_joints" in config["robot"]:
             for name, value in config["robot"]["locked_joints"].items():
                 idx = self.joints[name][0]
                 self.locked_joints[idx] = core.parsing.parse_number(value)
-                # angle = core.parsing.parse_number(value)
-                # pyb.resetJointState(self.uid, idx, angle)
 
         # Link index (of the tool, in this case) is the same as the joint
         self.tool_idx = self.joints[config["robot"]["tool_joint_name"]][0]

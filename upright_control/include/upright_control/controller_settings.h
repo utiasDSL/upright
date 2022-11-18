@@ -47,8 +47,6 @@ struct ControllerSettings {
     VecXd xyz_lower;
     VecXd xyz_upper;
 
-    std::map<std::string, ocs2::scalar_t> locked_joints;
-
     // Gain matrix for low-level tracking controller.
     MatXd Kp;
 
@@ -75,6 +73,8 @@ struct ControllerSettings {
     RobotBaseType robot_base_type = RobotBaseType::Fixed;
     OptimizationDimensions dims;
     std::string end_effector_link_name;
+    Vec3d base_pose; // optional, only affects the fixed base configuration
+    std::map<std::string, ocs2::scalar_t> locked_joints;
 
     // Additional settings for constraints
     BalancingSettings balancing_settings;

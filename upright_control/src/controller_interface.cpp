@@ -146,7 +146,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     pinocchioInterfacePtr_.reset(
         new ocs2::PinocchioInterface(build_pinocchio_interface(
             settings_.robot_urdf_path, settings_.robot_base_type,
-            settings_.locked_joints)));
+            settings_.locked_joints, settings_.base_pose)));
 
     // Model settings
     bool recompileLibraries = true;

@@ -1,0 +1,8 @@
+# this point is designed to be doable with either base or arm (i.e. no z motion
+# and not outside of the arm's workspace)
+controller:
+  waypoints:
+    -
+      time: 0
+      position: [-2.0, 1.0, 0]
+      orientation: [0, 0, 0, 1]

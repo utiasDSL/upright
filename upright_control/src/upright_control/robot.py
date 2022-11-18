@@ -8,18 +8,24 @@ from upright_control import bindings
 import IPython
 
 
-def _build_pinocchio_model(urdf_path, base_type, locked_joints):
+def _build_pinocchio_model(urdf_path, base_type, locked_joints, base_pose):
     """Build Pinocchio robot model."""
+    root_joint = pinocchio.JointModelComposite(3)
+    root_joint.addJoint(pinocchio.JointModelPX())
+    root_joint.addJoint(pinocchio.JointModelPY())
+    root_joint.addJoint(pinocchio.JointModelRZ())
+    model = pinocchio.buildModelFromUrdf(urdf_path, root_joint)
+
+    # lock the base joint after setting the pose
     if base_type == bindings.RobotBaseType.Fixed:
-        model = pinocchio.buildModelFromUrdf(urdf_path)
-    elif base_type == bindings.RobotBaseType.Omnidirectional:
-        root_joint = pinocchio.JointModelComposite(3)
-        root_joint.addJoint(pinocchio.JointModelPX())
-        root_joint.addJoint(pinocchio.JointModelPY())
-        root_joint.addJoint(pinocchio.JointModelRZ())
-        model = pinocchio.buildModelFromUrdf(urdf_path, root_joint)
-    else:
-        raise ValueError(f"Invalid base type {base_type}.")
+        joint_idx = model.getJointId("root_joint")
+        joint_ids_to_lock = [joint_idx]
+        q_idx = model.idx_qs[joint_idx]
+
+        q = np.zeros(model.nq)
+        q[q_idx : q_idx + 3] = base_pose
+
+        model = pinocchio.buildReducedModel(model, joint_ids_to_lock, q)
 
     # lock joints if needed
     if locked_joints is not None and len(locked_joints) > 0:
@@ -91,6 +97,7 @@ def build_robot_interfaces(settings):
         settings.robot_urdf_path,
         base_type=settings.robot_base_type,
         locked_joints=settings.locked_joints,
+        base_pose=settings.base_pose,
     )
     mapping = bindings.SystemPinocchioMapping(settings.dims)
     robot = PinocchioRobot(

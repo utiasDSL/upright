@@ -56,7 +56,7 @@ arrangements:
       -
         first: ee
         second: bottle1
-        mu: 0.15
+        mu: 0.3
 
   # single foam die
   foam_die1:
@@ -77,8 +77,6 @@ arrangements:
 
   # two foam dice stacked atop one another
   foam_die2:
-    mu_margin: 0.05
-    support_area_inset: 0.01
     objects:
       -
         name: foam_die1
@@ -95,10 +93,14 @@ arrangements:
         first: ee
         second: foam_die1
         mu: 0.4
+        mu_margin: 0.05
+        support_area_inset: 0.005
       -
         first: foam_die1
         second: foam_die2
         mu: 0.4  # TODO measure
+        mu_margin: 0.05
+        support_area_inset: 0.005
 
   simulation_box:
     objects:

@@ -161,6 +161,14 @@ class ControllerSettings(bindings.ControllerSettings):
             for name, value in config["robot"]["locked_joints"].items():
                 self.locked_joints[name] = core.parsing.parse_number(value)
 
+        if "base_pose" in config["robot"]:
+            base_pose = np.array(config["robot"]["base_pose"])
+            assert base_pose.shape == (3,)
+            self.base_pose = base_pose
+        else:
+            self.base_pose = np.zeros(3)
+
+
         # URDFs
         self.robot_urdf_path = core.parsing.parse_and_compile_urdf(
             config["robot"]["urdf"]

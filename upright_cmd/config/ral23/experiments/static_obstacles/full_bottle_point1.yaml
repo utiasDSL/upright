@@ -1,0 +1,19 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/static_obstacles/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point1.yaml
+
+
+simulation:
+  duration: 5.0
+  arrangement: bottle
+
+controller:
+  balancing:
+    enabled: true
+    use_force_constraints: true
+    arrangement: bottle
+    constraint_type: hard

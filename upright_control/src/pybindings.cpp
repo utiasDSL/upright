@@ -205,12 +205,13 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::end_effector_box_constraint_enabled)
         .def_readwrite("xyz_lower", &ControllerSettings::xyz_lower)
         .def_readwrite("xyz_upper", &ControllerSettings::xyz_upper)
-        .def_readwrite("locked_joints", &ControllerSettings::locked_joints)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
         .def_readwrite("ocs2_config_path",
                        &ControllerSettings::ocs2_config_path)
         .def_readwrite("lib_folder", &ControllerSettings::lib_folder)
         .def_readwrite("robot_base_type", &ControllerSettings::robot_base_type)
+        .def_readwrite("locked_joints", &ControllerSettings::locked_joints)
+        .def_readwrite("base_pose", &ControllerSettings::base_pose)
         .def_readwrite("dims", &ControllerSettings::dims)
         .def_readwrite("end_effector_link_name",
                        &ControllerSettings::end_effector_link_name)

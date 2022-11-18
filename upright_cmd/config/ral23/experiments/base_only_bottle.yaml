@@ -1,0 +1,71 @@
+include:
+  -
+    key: simulation
+    package: upright_cmd
+    path: config/simulation.yaml
+  -
+    key: controller
+    package: upright_cmd
+    path: config/controller.yaml
+  -
+    package: upright_cmd
+    path: config/robots/ridgeback.yaml
+  -
+    package: upright_cmd
+    path: config/obstacles/simple.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point1.yaml
+
+logging:
+  timestep: 0.010
+  log_dir: /media/adam/Data/PhD/Data/upright/ral23/experiments
+
+simulation:
+  duration: 5.0
+  arrangement: bottle
+  robot:
+    urdf:
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+
+  static_obstacles:
+    enabled: true
+
+controller:
+  robot:
+    urdf:
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+
+  obstacles:
+    enabled: true
+    constraint_type: hard
+    minimum_distance: 0.1
+
+  balancing:
+    enabled: true
+    use_force_constraints: true
+    arrangement: bottle
+    constraint_type: hard
+
+  inertial_alignment:
+    cost_enabled: false
+    constraint_enabled: false
+    use_angular_acceleration: false
+    align_with_fixed_vector: false
+    cost_weight: 100
+    contact_plane_normal: [0, 0, 1]
+    alpha: 0
+    com: [0, 0, 0]
+
+  weights:
+    input:
+      scale: 0.001
+      diag: [1rep3]
+    state:
+      scale: 0.01
+      diag: [0rep3, 10rep3, 1rep3]
+    end_effector:
+      scale: 1
+      diag: [1, 1, 1, 0, 0, 0]

@@ -1,8 +1,8 @@
 #pragma once
 
+#include <pinocchio/algorithm/model.hpp>
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/parsers/urdf.hpp>
-#include <pinocchio/algorithm/model.hpp>
 
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <ocs2_pinocchio_interface/urdf.h>
@@ -14,9 +14,8 @@ namespace upright {
 
 ocs2::PinocchioInterface build_pinocchio_interface(
     const std::string& urdf_path, const RobotBaseType base_type,
-    const std::map<std::string, ocs2::scalar_t>& locked_joints) {
-    pinocchio::Model model;
-
+    const std::map<std::string, ocs2::scalar_t>& locked_joints,
+    const Vec3d& base_pose) {
     // Load the URDF
     ::urdf::ModelInterfaceSharedPtr urdf_tree =
         ::urdf::parseURDFFile(urdf_path);
@@ -25,18 +24,26 @@ ocs2::PinocchioInterface build_pinocchio_interface(
                                     " does not contain a valid URDF model.");
     }
 
-    if (base_type == RobotBaseType::Omnidirectional) {
-        // add 3 DOF for wheelbase
-        pinocchio::JointModelComposite root_joint(3);
-        root_joint.addJoint(pinocchio::JointModelPX());
-        root_joint.addJoint(pinocchio::JointModelPY());
-        root_joint.addJoint(pinocchio::JointModelRZ());
-        // root_joint.addJoint(pinocchio::JointModelRUBZ());
+    pinocchio::Model model;
+    pinocchio::JointModelComposite root_joint(3);
+    root_joint.addJoint(pinocchio::JointModelPX());
+    root_joint.addJoint(pinocchio::JointModelPY());
+    root_joint.addJoint(pinocchio::JointModelRZ());
+    pinocchio::urdf::buildModel(urdf_tree, root_joint, model);
 
-        pinocchio::urdf::buildModel(urdf_tree, root_joint, model);
-    } else {
-        // Fixed base
-        pinocchio::urdf::buildModel(urdf_tree, model);
+    // Lock the pose of the base at the desired location
+    if (base_type == RobotBaseType::Fixed) {
+        pinocchio::JointIndex joint_idx = model.getJointId("root_joint");
+        std::vector<pinocchio::JointIndex> joint_ids_to_lock = {joint_idx};
+        auto q_idx = model.idx_qs[joint_idx];
+
+        VecXd q = VecXd::Zero(model.nq);
+        q.segment(q_idx, 3) = base_pose;
+
+        pinocchio::Model reduced_model;
+        pinocchio::buildReducedModel(model, joint_ids_to_lock, q,
+                                     reduced_model);
+        model = reduced_model;
     }
 
     // Lock joints if applicable
@@ -50,7 +57,8 @@ ocs2::PinocchioInterface build_pinocchio_interface(
             q(q_idx) = kv.second;
         }
         pinocchio::Model reduced_model;
-        pinocchio::buildReducedModel(model, joint_ids_to_lock, q, reduced_model);
+        pinocchio::buildReducedModel(model, joint_ids_to_lock, q,
+                                     reduced_model);
         model = reduced_model;
     }
     return ocs2::PinocchioInterface(model, urdf_tree);
