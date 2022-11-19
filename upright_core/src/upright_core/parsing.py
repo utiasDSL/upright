@@ -68,7 +68,7 @@ def load_config(path, depth=0, max_depth=5):
     return d
 
 
-def parse_number(x):
+def parse_number(x, dtype=float):
     """Parse a number from the config.
 
     If the number can be converted to a float, then it is and is returned.
@@ -77,7 +77,7 @@ def parse_number(x):
     """
     try:
         # this also handles strings like '1e-2'
-        return float(x)
+        return dtype(x)
     except ValueError:
         # TODO not robust
         return float(x[:-2]) * np.pi

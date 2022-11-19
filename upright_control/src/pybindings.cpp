@@ -6,7 +6,10 @@
 #include <ocs2_core/Types.h>
 #include <ocs2_core/control/FeedforwardController.h>
 #include <ocs2_core/control/LinearController.h>
+#include <ocs2_mpc/MPC_Settings.h>
+#include <ocs2_oc/rollout/RolloutSettings.h>
 #include <ocs2_python_interface/PybindMacros.h>
+#include <ocs2_sqp/MultipleShootingSettings.h>
 
 #include <upright_control/balancing_constraint_wrapper.h>
 #include <upright_control/constraint/bounded_balancing_constraints.h>
@@ -172,10 +175,52 @@ PYBIND11_MODULE(bindings, m) {
                        &InertialAlignmentSettings::contact_plane_span)
         .def_readwrite("com", &InertialAlignmentSettings::com);
 
+    pybind11::class_<ocs2::mpc::Settings>(m, "MPCSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("time_horizon", &ocs2::mpc::Settings::timeHorizon_)
+        .def_readwrite("debug_print", &ocs2::mpc::Settings::debugPrint_)
+        .def_readwrite("cold_start", &ocs2::mpc::Settings::coldStart_);
+
+    pybind11::class_<ocs2::rollout::Settings>(m, "RolloutSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("abs_tol_ode", &ocs2::rollout::Settings::absTolODE)
+        .def_readwrite("rel_tol_ode", &ocs2::rollout::Settings::relTolODE)
+        .def_readwrite("max_num_steps_per_second",
+                       &ocs2::rollout::Settings::maxNumStepsPerSecond)
+        .def_readwrite("timestep", &ocs2::rollout::Settings::timeStep)
+        .def_readwrite("check_numerical_stability",
+                       &ocs2::rollout::Settings::checkNumericalStability);
+
+    pybind11::class_<ocs2::multiple_shooting::Settings>(m, "SQPSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("sqp_iteration",
+                       &ocs2::multiple_shooting::Settings::sqpIteration)
+        .def_readwrite("init_sqp_iteration",
+                       &ocs2::multiple_shooting::Settings::initSqpIteration)
+        .def_readwrite("delta_tol",
+                       &ocs2::multiple_shooting::Settings::deltaTol)
+        .def_readwrite("cost_tol", &ocs2::multiple_shooting::Settings::costTol)
+        .def_readwrite("use_feedback_policy",
+                       &ocs2::multiple_shooting::Settings::useFeedbackPolicy)
+        .def_readwrite("dt", &ocs2::multiple_shooting::Settings::dt)
+        .def_readwrite("project_state_input_equality_constraints",
+                       &ocs2::multiple_shooting::Settings::
+                           projectStateInputEqualityConstraints)
+        .def_readwrite("print_solver_status",
+                       &ocs2::multiple_shooting::Settings::printSolverStatus)
+        .def_readwrite(
+            "print_solver_statistics",
+            &ocs2::multiple_shooting::Settings::printSolverStatistics)
+        .def_readwrite("print_line_search",
+                       &ocs2::multiple_shooting::Settings::printLinesearch);
+
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("gravity", &ControllerSettings::gravity)
         .def_readwrite("solver_method", &ControllerSettings::solver_method)
+        .def_readwrite("mpc", &ControllerSettings::mpc)
+        .def_readwrite("sqp", &ControllerSettings::sqp)
+        .def_readwrite("rollout", &ControllerSettings::rollout)
         .def_readwrite("obstacle_settings",
                        &ControllerSettings::obstacle_settings)
         .def_readwrite("balancing_settings",
@@ -206,8 +251,6 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("xyz_lower", &ControllerSettings::xyz_lower)
         .def_readwrite("xyz_upper", &ControllerSettings::xyz_upper)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
-        .def_readwrite("ocs2_config_path",
-                       &ControllerSettings::ocs2_config_path)
         .def_readwrite("lib_folder", &ControllerSettings::lib_folder)
         .def_readwrite("robot_base_type", &ControllerSettings::robot_base_type)
         .def_readwrite("locked_joints", &ControllerSettings::locked_joints)

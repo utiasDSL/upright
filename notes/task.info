@@ -1,3 +1,5 @@
+; these are the former settings of the task.info file when I was last actually
+; using it for configuration
 model_settings
 {
   usePreComputation             false  ; keep false: not supported for tray balance

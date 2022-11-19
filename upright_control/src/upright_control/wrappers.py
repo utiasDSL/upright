@@ -79,10 +79,40 @@ class ControllerSettings(bindings.ControllerSettings):
     def __init__(self, config, x0=None, operating_trajectory=None):
         super().__init__()
 
-        # can be either DDP or SQP
+        # only SQP supported now
         self.solver_method = bindings.ControllerSettings.solver_method_from_string(
             config["solver_method"].lower()
         )
+
+        # MPC settings
+        self.mpc.time_horizon = core.parsing.parse_number(config["mpc"]["time_horizon"])
+        self.mpc.debug_print = config["mpc"]["debug_print"]
+        self.mpc.cold_start = config["mpc"]["cold_start"]
+
+        # Rollout settings
+        self.rollout.abs_tol_ode = core.parsing.parse_number(config["rollout"]["abs_tol_ode"])
+        self.rollout.rel_tol_ode = core.parsing.parse_number(config["rollout"]["rel_tol_ode"])
+        self.rollout.timestep = core.parsing.parse_number(config["rollout"]["timestep"])
+        self.rollout.max_num_steps_per_second = core.parsing.parse_number(config["rollout"][
+            "max_num_steps_per_second"
+        ], dtype=int)
+        self.rollout.check_numerical_stability = config["rollout"][
+            "check_numerical_stability"
+        ]
+
+        # SQP settings
+        self.sqp.dt = core.parsing.parse_number(config["sqp"]["dt"])
+        self.sqp.sqp_iteration = config["sqp"]["sqp_iteration"]
+        self.sqp.init_sqp_iteration = config["sqp"]["init_sqp_iteration"]
+        self.sqp.delta_tol = core.parsing.parse_number(config["sqp"]["delta_tol"])
+        self.sqp.cost_tol = core.parsing.parse_number(config["sqp"]["cost_tol"])
+        self.sqp.use_feedback_policy = config["sqp"]["use_feedback_policy"]
+        self.sqp.project_state_input_equality_constraints = config["sqp"][
+            "project_state_input_equality_constraints"
+        ]
+        self.sqp.print_solver_status = config["sqp"]["print_solver_status"]
+        self.sqp.print_solver_statistics = config["sqp"]["print_solver_statistics"]
+        self.sqp.print_line_search = config["sqp"]["print_line_search"]
 
         self.end_effector_link_name = config["robot"]["tool_link_name"]
         self.robot_base_type = bindings.robot_base_type_from_string(
@@ -161,13 +191,13 @@ class ControllerSettings(bindings.ControllerSettings):
             for name, value in config["robot"]["locked_joints"].items():
                 self.locked_joints[name] = core.parsing.parse_number(value)
 
+        # (fixed) base pose for when a fixed base is used
         if "base_pose" in config["robot"]:
             base_pose = np.array(config["robot"]["base_pose"])
             assert base_pose.shape == (3,)
             self.base_pose = base_pose
         else:
             self.base_pose = np.zeros(3)
-
 
         # URDFs
         self.robot_urdf_path = core.parsing.parse_and_compile_urdf(

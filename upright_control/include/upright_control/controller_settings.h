@@ -3,6 +3,9 @@
 #include <ostream>
 
 #include <ocs2_core/reference/TargetTrajectories.h>
+#include <ocs2_sqp/MultipleShootingSettings.h>
+#include <ocs2_mpc/MPC_Settings.h>
+#include <ocs2_oc/rollout/RolloutSettings.h>
 
 #include <upright_control/inertial_alignment.h>
 #include <upright_control/dynamics/base_type.h>
@@ -21,9 +24,13 @@ struct ControllerSettings {
         SQP,
     };
 
-    SolverMethod solver_method = SolverMethod::DDP;
     VecXd initial_state;
     Vec3d gravity;
+
+    SolverMethod solver_method = SolverMethod::SQP;
+    ocs2::mpc::Settings mpc;
+    ocs2::multiple_shooting::Settings sqp;
+    ocs2::rollout::Settings rollout;
 
     // Weights
     MatXd input_weight;
@@ -66,7 +73,6 @@ struct ControllerSettings {
     std::string robot_urdf_path;
 
     // OCS2 settings
-    std::string ocs2_config_path;
     std::string lib_folder;
 
     // Robot settings

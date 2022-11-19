@@ -61,7 +61,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_self_collision/PinocchioGeometryInterface.h>
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 #include <ocs2_sqp/MultipleShootingMpc.h>
-#include <ocs2_sqp/MultipleShootingSettings.h>
+#include <ocs2_core/integration/SensitivityIntegrator.h>
 
 #include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/constraint/end_effector_box_constraint.h>
@@ -132,14 +132,8 @@ void add_ground_plane(const ocs2::PinocchioInterface::Model& model,
 
 ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     : settings_(settings) {
-    std::string taskFile = settings_.ocs2_config_path;
-    std::string libraryFolder = settings_.lib_folder;
 
-    std::cerr << "taskFile = " << taskFile << std::endl;
-    std::cerr << "libraryFolder = " << libraryFolder << std::endl;
-
-    boost::property_tree::ptree pt;
-    boost::property_tree::read_info(taskFile, pt);
+    std::cerr << "library folder = " << settings_.lib_folder << std::endl;
 
     // Pinocchio interface
     std::cerr << "Robot URDF: " << settings_.robot_urdf_path << std::endl;
@@ -148,47 +142,22 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
             settings_.robot_urdf_path, settings_.robot_base_type,
             settings_.locked_joints, settings_.base_pose)));
 
-    // Model settings
-    bool recompileLibraries = true;
-    std::cerr << "\n #### Model Settings:";
-    std::cerr << "\n #### "
-                 "============================================================="
-                 "================\n";
-    ocs2::loadData::loadPtreeValue(pt, recompileLibraries,
-                                   "model_settings.recompileLibraries", true);
-    std::cerr << " #### "
-                 "============================================================="
-                 "================"
-              << std::endl;
-
-    // DDP-MPC settings
-    ddpSettings_ = ocs2::ddp::loadSettings(taskFile, "ddp");
-    mpcSettings_ = ocs2::mpc::loadSettings(taskFile, "mpc");
-    sqpSettings_ =
-        ocs2::multiple_shooting::loadSettings(taskFile, "multiple_shooting");
-
-    // sqpSettings_.hpipmSettings.hpipmMode = hpipm_mode::ROBUST;
-    sqpSettings_.hpipmSettings.warm_start = false;
-    sqpSettings_.hpipmSettings.use_slack = true;
-    // sqpSettings_.hpipmSettings.tol_stat = 1;  // res_g_max
-    // sqpSettings_.hpipmSettings.tol_comp = 1;  // res_m_max
-    // sqpSettings_.hpipmSettings.iter_max = 100;
-    // sqpSettings_.hpipmSettings.slack_upper_L1_penalty = 1e2;
-    // sqpSettings_.hpipmSettings.slack_lower_L1_penalty = 1e2;
+    // Set some defaults
+    const bool recompile_libraries = true;
+    settings_.sqp.integratorType = ocs2::SensitivityIntegratorType::RK4;
+    settings_.sqp.hpipmSettings.use_slack = true;
 
     // Dynamics
     // NOTE: we don't have any branches here because every system we use
     // currently is an integrator
     std::unique_ptr<ocs2::SystemDynamicsBase> dynamics_ptr(
         new SystemDynamics<TripleIntegratorDynamics<ocs2::ad_scalar_t>>(
-            "system_dynamics", settings_.dims, libraryFolder,
-            recompileLibraries, true));
+            "system_dynamics", settings_.dims, settings_.lib_folder,
+            recompile_libraries, true));
 
     // Rollout
-    const auto rolloutSettings =
-        ocs2::rollout::loadSettings(taskFile, "rollout");
     rolloutPtr_.reset(
-        new ocs2::TimeTriggeredRollout(*dynamics_ptr, rolloutSettings));
+        new ocs2::TimeTriggeredRollout(*dynamics_ptr, settings_.rollout));
 
     // Reference manager
     referenceManagerPtr_.reset(new ocs2::ReferenceManager);
@@ -196,7 +165,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     // Optimal control problem
     problem_.dynamicsPtr = std::move(dynamics_ptr);
 
-    // Cost
+    // Regularization cost
     problem_.costPtr->add("state_input_cost", getQuadraticStateInputCost());
 
     // Build the end effector kinematics
@@ -271,8 +240,8 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                 "obstacle_avoidance",
                 get_soft_obstacle_constraint(
                     *pinocchioInterfacePtr_, geom_interface,
-                    settings_.obstacle_settings, libraryFolder,
-                    recompileLibraries));
+                    settings_.obstacle_settings, settings_.lib_folder,
+                    recompile_libraries));
             std::cerr << "Soft obstacle avoidance constraints are enabled."
                       << std::endl;
         } else {
@@ -280,7 +249,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
             std::unique_ptr<ocs2::StateConstraint> obstacle_constraint =
                 get_obstacle_constraint(*pinocchioInterfacePtr_, geom_interface,
                                         settings_.obstacle_settings,
-                                        libraryFolder, recompileLibraries);
+                                        settings_.lib_folder, recompile_libraries);
 
             // Map it to a state-input constraint so it works with the current
             // implementation of the hard inequality constraints
@@ -298,7 +267,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     ocs2::PinocchioEndEffectorKinematicsCppAd end_effector_kinematics(
         *pinocchioInterfacePtr_, mapping, {settings_.end_effector_link_name},
         settings_.dims.x(), settings_.dims.u(), "end_effector_kinematics",
-        libraryFolder, recompileLibraries, false);
+        settings_.lib_folder, recompile_libraries, false);
 
     // End effector pose cost
     std::unique_ptr<ocs2::StateCost> end_effector_cost(new EndEffectorCost(
@@ -310,7 +279,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     // std::unique_ptr<ocs2::StateCost> end_effector_cost(new
     // EndEffectorCostCppAd(
     //     settings_.end_effector_weight, end_effector_kinematics,
-    //     settings_.dims, recompileLibraries));
+    //     settings_.dims, recompile_libraries));
     // problem_.stateCostPtr->add("end_effector_cost",
     //                            std::move(end_effector_cost));
 
@@ -343,7 +312,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         std::unique_ptr<ocs2::StateInputConstraint>
             inertial_alignment_constraint(new InertialAlignmentConstraint(
                 end_effector_kinematics, settings_.inertial_alignment_settings,
-                settings_.gravity, settings_.dims, recompileLibraries));
+                settings_.gravity, settings_.dims, recompile_libraries));
         problem_.inequalityConstraintPtr->add(
             "inertial_alignment_constraint",
             std::move(inertial_alignment_constraint));
@@ -358,7 +327,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
             problem_.equalityConstraintPtr->add(
                 "object_dynamics",
                 get_object_dynamics_constraint(end_effector_kinematics,
-                                               recompileLibraries));
+                                               recompile_libraries));
 
             // Inequalities for the friction cones
             // NOTE: the hard inequality constraints appear to work much better
@@ -371,7 +340,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                 problem_.softConstraintPtr->add(
                     "contact_forces",
                     get_soft_contact_force_constraint(end_effector_kinematics,
-                                                      recompileLibraries));
+                                                      recompile_libraries));
             } else {
                 std::cerr
                     << "Hard contact force-based balancing constraints enabled."
@@ -379,7 +348,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                 problem_.inequalityConstraintPtr->add(
                     "contact_forces",
                     get_contact_force_constraint(end_effector_kinematics,
-                                                 recompileLibraries));
+                                                 recompile_libraries));
             }
         } else {
             if (settings_.balancing_settings.constraint_type ==
@@ -391,7 +360,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                 problem_.softConstraintPtr->add(
                     "balancing",
                     get_soft_balancing_constraint(end_effector_kinematics,
-                                                  recompileLibraries));
+                                                  recompile_libraries));
 
             } else {
                 std::cerr << "Hard ZMP/limit surface-based balancing "
@@ -400,7 +369,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                 problem_.inequalityConstraintPtr->add(
                     "balancing",
                     get_balancing_constraint(end_effector_kinematics,
-                                             recompileLibraries));
+                                             recompile_libraries));
             }
         }
     } else {
@@ -423,14 +392,14 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
 }
 
 std::unique_ptr<ocs2::MPC_BASE> ControllerInterface::getMpc() {
-    if (settings_.solver_method == ControllerSettings::SolverMethod::DDP) {
-        return std::unique_ptr<ocs2::MPC_BASE>(new ocs2::GaussNewtonDDP_MPC(
-            mpcSettings_, ddpSettings_, *rolloutPtr_, problem_,
-            *initializerPtr_));
-    } else {
-        return std::unique_ptr<ocs2::MPC_BASE>(new ocs2::MultipleShootingMpc(
-            mpcSettings_, sqpSettings_, problem_, *initializerPtr_));
-    }
+    // if (settings_.solver_method == ControllerSettings::SolverMethod::DDP) {
+    //     return std::unique_ptr<ocs2::MPC_BASE>(new ocs2::GaussNewtonDDP_MPC(
+    //         mpcSettings_, ddpSettings_, *rolloutPtr_, problem_,
+    //         *initializerPtr_));
+    // } else {
+    return std::unique_ptr<ocs2::MPC_BASE>(new ocs2::MultipleShootingMpc(
+        settings_.mpc, settings_.sqp, problem_, *initializerPtr_));
+    // }
 }
 
 std::unique_ptr<ocs2::StateInputCost>
@@ -467,23 +436,23 @@ std::unique_ptr<ocs2::StateCost> ControllerInterface::getEndEffectorCost(
 std::unique_ptr<ocs2::StateInputConstraint>
 ControllerInterface::get_balancing_constraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
-    bool recompileLibraries) {
+    bool recompile_libraries) {
     return std::unique_ptr<ocs2::StateInputConstraint>(
         new NominalBalancingConstraints(
             end_effector_kinematics, settings_.balancing_settings,
-            settings_.gravity, settings_.dims, recompileLibraries));
+            settings_.gravity, settings_.dims, recompile_libraries));
     // new BoundedBalancingConstraints(
     //     end_effector_kinematics, settings_.balancing_settings,
-    //     settings_.gravity, settings_.dims, recompileLibraries));
+    //     settings_.gravity, settings_.dims, recompile_libraries));
 }
 
 std::unique_ptr<ocs2::StateInputCost>
 ControllerInterface::get_soft_balancing_constraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
-    bool recompileLibraries) {
+    bool recompile_libraries) {
     // compute the hard constraint
     std::unique_ptr<ocs2::StateInputConstraint> constraint =
-        get_balancing_constraint(end_effector_kinematics, recompileLibraries);
+        get_balancing_constraint(end_effector_kinematics, recompile_libraries);
 
     // make it soft via penalty function
     std::vector<std::unique_ptr<ocs2::PenaltyBase>> penaltyArray(
@@ -502,21 +471,21 @@ ControllerInterface::get_soft_balancing_constraint(
 std::unique_ptr<ocs2::StateInputConstraint>
 ControllerInterface::get_object_dynamics_constraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
-    bool recompileLibraries) {
+    bool recompile_libraries) {
     return std::unique_ptr<ocs2::StateInputConstraint>(
         new ObjectDynamicsConstraints(
             end_effector_kinematics, settings_.balancing_settings,
-            settings_.gravity, settings_.dims, recompileLibraries));
+            settings_.gravity, settings_.dims, recompile_libraries));
 }
 
 std::unique_ptr<ocs2::StateInputCost>
 ControllerInterface::get_soft_object_dynamics_constraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
-    bool recompileLibraries) {
+    bool recompile_libraries) {
     // compute the hard constraint
     std::unique_ptr<ocs2::StateInputConstraint> constraint =
         get_object_dynamics_constraint(end_effector_kinematics,
-                                       recompileLibraries);
+                                       recompile_libraries);
 
     // make it soft via penalty function: since this is an equality constraint,
     // we use a quadratic penalty
@@ -536,21 +505,21 @@ ControllerInterface::get_soft_object_dynamics_constraint(
 std::unique_ptr<ocs2::StateInputConstraint>
 ControllerInterface::get_contact_force_constraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
-    bool recompileLibraries) {
+    bool recompile_libraries) {
     return std::unique_ptr<ocs2::StateInputConstraint>(
         new ContactForceBalancingConstraints(
             end_effector_kinematics, settings_.balancing_settings,
-            settings_.gravity, settings_.dims, recompileLibraries));
+            settings_.gravity, settings_.dims, recompile_libraries));
 }
 
 std::unique_ptr<ocs2::StateInputCost>
 ControllerInterface::get_soft_contact_force_constraint(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics,
-    bool recompileLibraries) {
+    bool recompile_libraries) {
     // compute the hard constraint
     std::unique_ptr<ocs2::StateInputConstraint> constraint =
         get_contact_force_constraint(end_effector_kinematics,
-                                     recompileLibraries);
+                                     recompile_libraries);
 
     // make it soft via penalty function
     std::vector<std::unique_ptr<ocs2::PenaltyBase>> penaltyArray(

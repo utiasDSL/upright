@@ -8,6 +8,34 @@ timestep: 0.025
 use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
 solver_method: SQP  # SQP or DDP
+mpc_horizon: 1.0
+mpc_timestep: 0.1
+mpc_iterations: 1
+mpc_init_iterations: 1
+
+mpc:
+  time_horizon: 1.0
+  debug_print: true
+  cold_start: false
+
+rollout:
+  abs_tol_ode: 1e-5
+  rel_tol_ode: 1e-3
+  timestep: 0.01
+  max_num_steps_per_second: 100000
+  check_numerical_stability: false
+
+sqp:
+  dt: 0.1
+  sqp_iteration: 1
+  init_sqp_iteration: 1
+  delta_tol: 1e-3
+  cost_tol: 1e-4
+  use_feedback_policy: true
+  project_state_input_equality_constraints: false
+  print_solver_status: true
+  print_solver_statistics: true
+  print_line_search: true
 
 balancing:
   arrangement: nothing
