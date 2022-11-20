@@ -177,15 +177,15 @@ int main(int argc, char** argv) {
     std::cout << settings << std::endl;
     ControllerInterface interface(settings);
 
-    SafetyMonitor monitor(settings, interface.getPinocchioInterface());
+    SafetyMonitor monitor(settings, interface.get_pinocchio_interface());
 
     // MRT
     ocs2::MRT_ROS_Interface mrt(robot_name);
-    mrt.initRollout(&interface.getRollout());
+    mrt.initRollout(&interface.get_rollout());
     mrt.launchNodes(nh);
 
     // nominal initial state and interface to the real robot
-    VecXd x0 = interface.getInitialState();
+    VecXd x0 = interface.get_initial_state();
 
     // Initialize the robot interface
     if (settings.robot_base_type == RobotBaseType::Fixed) {

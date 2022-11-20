@@ -22,10 +22,10 @@ class ControllerPythonInterface final : public ocs2::PythonInterface {
 
         // Set the reference manager -- otherwise there are problems with the
         // EndEffectorCost
-        std::unique_ptr<ocs2::MPC_BASE> mpcPtr = control_interface.getMpc();
-        mpcPtr->getSolverPtr()->setReferenceManager(
+        std::unique_ptr<ocs2::MPC_BASE> mpc_ptr = control_interface.get_mpc();
+        mpc_ptr->getSolverPtr()->setReferenceManager(
             control_interface.getReferenceManagerPtr());
-        ocs2::PythonInterface::init(control_interface, std::move(mpcPtr));
+        ocs2::PythonInterface::init(control_interface, std::move(mpc_ptr));
     }
 
     // Get the value of the constraint underlying a soft state-input inequality

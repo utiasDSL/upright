@@ -14,7 +14,7 @@
 using namespace upright;
 
 int main(int argc, char** argv) {
-    const std::string robotName = "mobile_manipulator";
+    const std::string robot_name = "mobile_manipulator";
 
     if (argc < 2) {
         throw std::runtime_error("Config path is required.");
@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
 
     // Initialize ros node
     ros::init(argc, argv, "mpc_node");
-    ros::NodeHandle nodeHandle;
+    ros::NodeHandle nh;
     std::string config_path = std::string(argv[1]);
 
     // Robot interface
@@ -32,18 +32,18 @@ int main(int argc, char** argv) {
     ControllerInterface interface(settings);
 
     // ROS ReferenceManager
-    std::shared_ptr<ocs2::RosReferenceManager> rosReferenceManagerPtr(
-        new ocs2::RosReferenceManager(robotName,
+    std::shared_ptr<ocs2::RosReferenceManager> ros_reference_manager_ptr(
+        new ocs2::RosReferenceManager(robot_name,
                                       interface.getReferenceManagerPtr()));
-    rosReferenceManagerPtr->subscribe(nodeHandle);
+    ros_reference_manager_ptr->subscribe(nh);
 
     // MPC
-    std::unique_ptr<ocs2::MPC_BASE> mpcPtr = interface.getMpc();
-    mpcPtr->getSolverPtr()->setReferenceManager(rosReferenceManagerPtr);
+    std::unique_ptr<ocs2::MPC_BASE> mpc_ptr = interface.get_mpc();
+    mpc_ptr->getSolverPtr()->setReferenceManager(ros_reference_manager_ptr);
 
     // Launch MPC ROS node
-    ocs2::MPC_ROS_Interface mpcNode(*mpcPtr, robotName);
-    mpcNode.launchNodes(nodeHandle);
+    ocs2::MPC_ROS_Interface mpc_node(*mpc_ptr, robot_name);
+    mpc_node.launchNodes(nh);
 
     // Successful exit
     return 0;

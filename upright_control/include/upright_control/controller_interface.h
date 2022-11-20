@@ -33,7 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_core/Types.h>
 #include <ocs2_core/initialization/Initializer.h>
-#include <ocs2_ddp/DDP_Settings.h>
 #include <ocs2_mpc/MPC_BASE.h>
 #include <ocs2_oc/oc_problem/OptimalControlProblem.h>
 #include <ocs2_oc/rollout/RolloutBase.h>
@@ -43,7 +42,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <ocs2_robotic_tools/common/RobotInterface.h>
 #include <ocs2_self_collision/PinocchioGeometryInterface.h>
-#include <ocs2_sqp/MultipleShootingSettings.h>
 
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/controller_settings.h>
@@ -51,23 +49,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace upright {
 
-/**
- * Mobile Manipulator Robot Interface class
- */
 class ControllerInterface final : public ocs2::RobotInterface {
    public:
-    /**
-     * Constructor
-     */
     explicit ControllerInterface(const ControllerSettings& settings);
-
-    const VecXd& getInitialState() { return initialState_; }
-
-    ocs2::ddp::Settings& ddpSettings() { return ddpSettings_; }
-
-    ocs2::mpc::Settings& mpcSettings() { return mpcSettings_; }
-
-    std::unique_ptr<ocs2::MPC_BASE> getMpc();
 
     const ocs2::OptimalControlProblem& getOptimalControlProblem()
         const override {
@@ -75,26 +59,27 @@ class ControllerInterface final : public ocs2::RobotInterface {
     }
 
     const ocs2::Initializer& getInitializer() const override {
-        return *initializerPtr_;
+        return *initializer_ptr_;
     }
 
     std::shared_ptr<ocs2::ReferenceManagerInterface> getReferenceManagerPtr()
         const override {
-        return referenceManagerPtr_;
+        return reference_manager_ptr_;
     }
 
-    const ocs2::RolloutBase& getRollout() const { return *rolloutPtr_; }
+    const VecXd& get_initial_state() { return initial_state_; }
 
-    const ocs2::PinocchioInterface& getPinocchioInterface() const {
-        return *pinocchioInterfacePtr_;
+    std::unique_ptr<ocs2::MPC_BASE> get_mpc();
+
+
+    const ocs2::RolloutBase& get_rollout() const { return *rollout_ptr_; }
+
+    const ocs2::PinocchioInterface& get_pinocchio_interface() const {
+        return *pinocchio_interface_ptr;
     }
 
    private:
-    std::unique_ptr<ocs2::StateInputCost> getQuadraticStateInputCost();
-
-    std::unique_ptr<ocs2::StateCost> getEndEffectorCost(
-        const ocs2::PinocchioEndEffectorKinematicsCppAd&
-            end_effector_kinematics);
+    std::unique_ptr<ocs2::StateInputCost> get_quadratic_state_input_cost();
 
     // Hard static obstacle avoidance constraint.
     std::unique_ptr<ocs2::StateConstraint> get_obstacle_constraint(
@@ -151,19 +136,14 @@ class ControllerInterface final : public ocs2::RobotInterface {
             end_effector_kinematics,
         bool recompileLibraries);
 
-    ocs2::ddp::Settings ddpSettings_;
-    ocs2::mpc::Settings mpcSettings_;
-    ocs2::multiple_shooting::Settings sqpSettings_;
     ControllerSettings settings_;
-
     ocs2::OptimalControlProblem problem_;
-    std::unique_ptr<ocs2::RolloutBase> rolloutPtr_;
-    std::unique_ptr<ocs2::Initializer> initializerPtr_;
-    std::shared_ptr<ocs2::ReferenceManager> referenceManagerPtr_;
+    std::unique_ptr<ocs2::RolloutBase> rollout_ptr_;
+    std::unique_ptr<ocs2::Initializer> initializer_ptr_;
+    std::shared_ptr<ocs2::ReferenceManager> reference_manager_ptr_;
+    std::unique_ptr<ocs2::PinocchioInterface> pinocchio_interface_ptr;
 
-    std::unique_ptr<ocs2::PinocchioInterface> pinocchioInterfacePtr_;
-
-    VecXd initialState_;
+    VecXd initial_state_;
 };
 
 }  // namespace upright
