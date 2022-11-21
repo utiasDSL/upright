@@ -28,8 +28,19 @@ simulation:
   dynamic_obstacles:
     obstacles:
       -
+        # True if the object's trajectory should be tracked, false if it should
+        # just be allowed to evolve subject to gravity
+        # Note that acceleration is still required either way
         controlled: false
-        position: [0.1, -1.87, 0]
-        velocity: [0, 2, 5]
-        acceleration: [0, 0, -9.81]
         radius: 0.05
+        modes:
+          -
+            time: 0
+            position: [0.1, -1.87, 0]  # relative to EE
+            velocity: [0, 2.67, 3.68]
+            acceleration: [0, 0, -9.81]
+          -
+            time: 2
+            position: [0.1, -1.87, 0]
+            velocity: [0, 2.67, 3.68]
+            acceleration: [0, 0, -9.81]

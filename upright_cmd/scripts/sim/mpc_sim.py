@@ -230,19 +230,19 @@ def main():
                     "object_dynamics_constraints", object_dynamics_constraints
                 )
 
-        if len(sim.dynamic_obstacles) > 0 and t >= (num_obs_resets + 1) * 2.0:
-            num_obs_resets += 1
-            obs = sim.dynamic_obstacles[0]
-            # obs.reset(t, r=r_ew_w + [0, -2, 0])
-
-            Δt = 0.75
-            r_target = r_ew_w + [0.1, 0.13, 0]
-            r_obs0 = r_target + [0, -2, 0]
-            v_obs0 = (r_target - r_obs0 - 0.5 * Δt ** 2 * gravity) / Δt
-            obs.reset(t, r=r_obs0, v=v_obs0)
-
-            # TODO: Ideally, we could remain stable in spite of large resets
-            # ctrl_manager.mpc.reset(ctrl_manager.ref)
+        # if len(sim.dynamic_obstacles) > 0 and t >= (num_obs_resets + 1) * 2.0:
+        #     num_obs_resets += 1
+        #     obs = sim.dynamic_obstacles[0]
+        #     # obs.reset(t, r=r_ew_w + [0, -2, 0])
+        #
+        #     Δt = 0.75
+        #     r_target = r_ew_w + [0.1, 0.13, 0]
+        #     r_obs0 = r_target + [0, -2, 0]
+        #     v_obs0 = (r_target - r_obs0 - 0.5 * Δt ** 2 * gravity) / Δt
+        #     obs.reset(t, r=r_obs0, v=v_obs0)
+        #
+        #     # TODO: Ideally, we could remain stable despite large resets
+        #     # ctrl_manager.mpc.reset(ctrl_manager.ref)
 
         t = sim.step(t, step_robot=False)
 

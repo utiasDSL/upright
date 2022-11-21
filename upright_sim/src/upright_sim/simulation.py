@@ -281,60 +281,83 @@ class BulletBody:
 
 class BulletDynamicObstacle:
     def __init__(
-        self, position, velocity, acceleration=None, radius=0.1, controlled=False
+        self, times, positions, velocities, accelerations, radius=0.1, controlled=False
     ):
-        self.t0 = None
-        self.v0 = np.array(velocity)
-        self.a0 = np.array(acceleration) if acceleration is not None else np.zeros(3)
+        self.start_time = None
+        self._mode_idx = 0
+        # self.v0 = np.array(velocity)
+        # self.a0 = np.array(acceleration) if acceleration is not None else np.zeros(3)
+        self.times = times
+        self.positions = positions
+        self.velocities = velocities
+        self.accelerations = accelerations
 
         self.controlled = controlled
         self.K = 10 * np.eye(3)  # position gain
 
         self.body = BulletBody.sphere(mass=1, mu=1, radius=radius)
-        self.body.r0 = np.array(position)
+        self.body.r0 = np.array(positions[0])
 
     @classmethod
     def from_config(cls, config, offset=None):
         """Parse obstacle properties from a config dict."""
-        position = np.array(config["position"])
         if offset is not None:
-            position = position + offset
+            offset = np.array(offset)
+        else:
+            offset = np.zeros(3)
 
-        velocity = np.array(config["velocity"])
-        acceleration = (
-            np.array(config["acceleration"]) if "acceleration" in config else None
-        )
+        controlled = config["controlled"]
+
+        times = []
+        positions = []
+        velocities = []
+        accelerations = []
+        for mode in config["modes"]:
+            times.append(mode["time"])
+            positions.append(np.array(mode["position"]) + offset)
+            velocities.append(np.array(mode["velocity"]))
+            accelerations.append(np.array(mode["acceleration"]))
 
         return cls(
-            position=position,
-            velocity=velocity,
-            acceleration=acceleration,
+            times=times,
+            positions=positions,
+            velocities=velocities,
+            accelerations=accelerations,
             radius=config["radius"],
-            controlled=config["controlled"],
+            controlled=controlled,
         )
+
+    def _initial_mode_values(self):
+        t = self.times[self._mode_idx] + self.start_time
+        r = self.positions[self._mode_idx]
+        v = self.velocities[self._mode_idx]
+        a = self.accelerations[self._mode_idx]
+        return t, r, v, a
 
     def start(self, t0):
         """Add the obstacle to the simulation."""
-        self.t0 = t0
+        self.start_time = t0
         self.body.add_to_sim()
-        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
+        v0 = self._initial_mode_values()[2]
+        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(v0))
 
-    def reset(self, t, r=None, v=None):
-        self.t0 = t
-        if r is not None:
-            self.body.r0 = r
-        if v is not None:
-            self.v0 = v
-
-        pyb.resetBasePositionAndOrientation(
-            self.body.uid, list(self.body.r0), [0, 0, 0, 1]
-        )
-        pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
+    # def reset(self, t, r=None, v=None):
+    #     self.t0 = t
+    #     if r is not None:
+    #         self.body.r0 = r
+    #     if v is not None:
+    #         self.v0 = v
+    #
+    #     pyb.resetBasePositionAndOrientation(
+    #         self.body.uid, list(self.body.r0), [0, 0, 0, 1]
+    #     )
+    #     pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
 
     def _desired_state(self, t):
-        dt = t - self.t0
-        rd = self.body.r0 + dt * self.v0 + 0.5 * dt ** 2 * self.a0
-        vd = self.body.v0 + dt * self.a0
+        t0, r0, v0, a0 = self._initial_mode_values()
+        dt = t - t0
+        rd = r0 + dt * v0 + 0.5 * dt ** 2 * a0
+        vd = v0 + dt * a0
         return rd, vd
 
     def joint_state(self):
@@ -343,14 +366,24 @@ class BulletDynamicObstacle:
         If the obstacle has not yet been started, the nominal starting state is
         given.
         """
-        if self.t0 is None:
-            return self.body.r0, self.v0
-        r = self.body.get_pose()[0]
-        v = self.body.get_velocity()[0]
-        return r, v
+        if self.start_time is None:
+            _, r, v, a = self._initial_mode_values()
+        else:
+            r = self.body.get_pose()[0]
+            v = self.body.get_velocity()[0]
+            a = self.accelerations[self._mode_idx]
+        return r, v, a
 
     def step(self, t):
         """Step the object forward in time."""
+        # reset the obstacle if we've stepped into a new mode
+        if self._mode_idx < len(self.times) - 1:
+            if t - self.start_time >= self.times[self._mode_idx + 1]:
+                self._mode_idx += 1
+                _, r0, v0, _ = self._initial_mode_values()
+                pyb.resetBasePositionAndOrientation(self.body.uid, list(r0), [0, 0, 0, 1])
+                pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(v0))
+
         # velocity needs to be reset at each step of the simulation to negate
         # the effects of gravity
         if self.controlled:
@@ -505,15 +538,15 @@ class BulletSimulation:
             )
             pyb.changeDynamics(obstacles_uid, -1, mass=0)  # change to static object
 
+        r_ew_w, Q_we = self.robot.link_pose()
+
         self.dynamic_obstacles = []
         if self.config["dynamic_obstacles"]["enabled"]:
-            offset = self.robot.link_pose()[0]
             for c in self.config["dynamic_obstacles"]["obstacles"]:
-                obstacle = BulletDynamicObstacle.from_config(c, offset=offset)
+                obstacle = BulletDynamicObstacle.from_config(c, offset=r_ew_w)
                 self.dynamic_obstacles.append(obstacle)
 
         # setup balanced objects
-        r_ew_w, Q_we = self.robot.link_pose()
         self.objects = balanced_object_setup(r_ew_w, Q_we, config, self.robot)
 
         # mark frame at the initial position
@@ -568,8 +601,8 @@ class BulletSimulation:
 
         xs = []
         for obs in self.dynamic_obstacles:
-            r, v = obs.joint_state()
-            x = np.concatenate((r, v, obs.a0))
+            r, v, a = obs.joint_state()
+            x = np.concatenate((r, v, a))
             xs.append(x)
         return np.concatenate(xs)
 
