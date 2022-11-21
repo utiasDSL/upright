@@ -1,0 +1,12 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/simulations/_base.yaml
+
+simulation:
+  arrangement: tall_simulation_box
+
+controller:
+  balancing:
+    enabled: true
+    arrangement: tall_simulation_box

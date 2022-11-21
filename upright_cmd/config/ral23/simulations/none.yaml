@@ -1,0 +1,4 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/simulations/_base.yaml

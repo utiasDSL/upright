@@ -1,0 +1,11 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/simulations/_base.yaml
+
+controller:
+  mpc:
+    time_horizon: 2.0
+
+  inertial_alignment:
+    constraint_enabled: true
