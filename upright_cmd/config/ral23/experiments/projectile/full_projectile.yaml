@@ -1,0 +1,8 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/projectile/_base.yaml
+
+controller:
+  balancing:
+    enabled: true
