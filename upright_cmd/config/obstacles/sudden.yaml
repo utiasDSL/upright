@@ -1,0 +1,73 @@
+# these values are either updated by the simulation environment or by Vicon
+controller:
+  obstacles:
+    dynamic:
+      -
+        name: chair1
+        # NOTE: these are *initial conditions*. In real experiment, the
+        # position is relative to the origin of the world frame. In simulation,
+        # position and velocity are (typically) (re-)set by the simulator for
+        # maximum accuracy.
+        position: [1, 0, 0.25]  # out of the way
+        velocity: [0, 0, 0]
+        acceleration: [0, 0, 0]
+        radius: 0.25
+
+    collision_pairs:
+      # wrist and ground
+      - ["wrist3_collision_link_0", "ground"]
+
+      # robot dynamic obstacles
+      - ["balanced_object_collision_link_0", "chair1"]
+      - ["base_collision_link_0", "chair1"]
+
+      # arm and obstacles
+      - ["wrist1_collision_link_0", "sphere1_top_link_0"]
+      - ["wrist1_collision_link_0", "sphere2_top_link_0"]
+      - ["wrist1_collision_link_0", "sphere3_top_link_0"]
+      - ["forearm_collision_sphere_link1_0", "sphere1_top_link_0"]
+      - ["forearm_collision_sphere_link2_0", "sphere1_top_link_0"]
+      - ["forearm_collision_sphere_link1_0", "sphere2_top_link_0"]
+      - ["forearm_collision_sphere_link2_0", "sphere2_top_link_0"]
+      - ["forearm_collision_sphere_link1_0", "sphere3_top_link_0"]
+      - ["forearm_collision_sphere_link2_0", "sphere3_top_link_0"]
+
+      # base and obstacles
+      - ["base_collision_link_0", "sphere1_bottom_link_0"]
+      - ["base_collision_link_0", "sphere2_bottom_link_0"]
+      - ["base_collision_link_0", "sphere3_bottom_link_0"]
+
+      # balanced objects and obstacles
+      - ["balanced_object_collision_link_0", "sphere1_top_link_0"]
+      - ["balanced_object_collision_link_0", "sphere2_top_link_0"]
+      - ["balanced_object_collision_link_0", "sphere3_top_link_0"]
+
+      - ["balanced_object_collision_link_0", "sphere3_middle_link_0"]
+
+      # wrist and shoulder
+      - ["wrist1_collision_link_0", "shoulder_collision_link_0"]
+
+      # wrist and base
+      - ["wrist1_collision_link_0", "base_collision_link_0"]
+
+simulation:
+  dynamic_obstacles:
+    obstacles:
+      -
+        # True if the object's trajectory should be tracked, false if it should
+        # just be allowed to evolve subject to gravity
+        # Note that acceleration is still required either way
+        controlled: false
+        radius: 0.25
+        relative: false
+        modes:
+          -
+            time: 0
+            position: [1, 0, 0.25]  # relative to EE
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, 0]
+          -
+            time: 1
+            position: [0.5, 0.5, 0.25]
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, 0]

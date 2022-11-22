@@ -230,6 +230,10 @@ def main():
                     "object_dynamics_constraints", object_dynamics_constraints
                 )
 
+        # if num_obs_resets == 0 and t >= 1.0:
+        #     num_obs_resets += 1
+        #     ctrl_manager.mpc.reset(ctrl_manager.ref)
+
         # if len(sim.dynamic_obstacles) > 0 and t >= (num_obs_resets + 1) * 2.0:
         #     num_obs_resets += 1
         #     obs = sim.dynamic_obstacles[0]

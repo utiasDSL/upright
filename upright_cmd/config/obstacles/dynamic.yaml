@@ -33,10 +33,11 @@ simulation:
         # Note that acceleration is still required either way
         controlled: false
         radius: 0.05
+        relative: true
         modes:
           -
             time: 0
-            position: [0.1, -1.87, 0]  # relative to EE
+            position: [0.1, -1.87, 0]  # relative to EE if relative=true
             velocity: [0, 2.67, 3.68]
             acceleration: [0, 0, -9.81]
           -

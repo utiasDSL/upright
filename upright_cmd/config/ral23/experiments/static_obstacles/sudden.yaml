@@ -5,11 +5,17 @@ include:
   -
     package: upright_cmd
     path: config/ral23/experiments/_point2.yaml
+  -
+    package: upright_cmd
+    path: config/obstacles/sudden.yaml
 
 
 simulation:
   duration: 5.0
   arrangement: bottle
+
+  dynamic_obstacles:
+    enabled: true
 
 controller:
   balancing:

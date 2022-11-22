@@ -301,7 +301,8 @@ class BulletDynamicObstacle:
     @classmethod
     def from_config(cls, config, offset=None):
         """Parse obstacle properties from a config dict."""
-        if offset is not None:
+        relative = config["relative"]
+        if relative and offset is not None:
             offset = np.array(offset)
         else:
             offset = np.zeros(3)
