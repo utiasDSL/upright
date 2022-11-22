@@ -71,7 +71,7 @@ arrangements:
       -
         first: ee
         second: foam_die1
-        mu: 0.4
+        mu: 0.54
         mu_margin: 0.05
         support_area_inset: 0.005
 
@@ -92,13 +92,13 @@ arrangements:
       -
         first: ee
         second: foam_die1
-        mu: 0.4
+        mu: 0.54
         mu_margin: 0.05
         support_area_inset: 0.005
       -
         first: foam_die1
         second: foam_die2
-        mu: 0.4  # TODO measure
+        mu: 0.615
         mu_margin: 0.05
         support_area_inset: 0.005
 

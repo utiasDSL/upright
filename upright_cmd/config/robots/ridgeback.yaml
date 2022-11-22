@@ -1,6 +1,6 @@
 simulation:
   robot:
-    home: [-2, 0, 0]
+    home: [-1, 0, 0]
     dims:
       q: 3  # generalized position
       v: 3  # generalized velocity
