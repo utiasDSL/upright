@@ -29,15 +29,6 @@ controller:
     enable_friction_constraint: true
     enable_zmp_constraint: true
 
-    # mu: 1e-2
-    # delta: 1e-3
-
-  tracking:
-    rate: 125
-    Kp:
-      scale: 1
-      diag: [1, 1, 1, 1, 1, 1]
-
   waypoints:
     -
       time: 0

@@ -89,9 +89,3 @@ controller:
       upper: [2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
               2, 2, 3, 3, 3, 3,
               10, 10, 10, 10, 10, 10]
-
-  tracking:
-    rate: 125
-    Kp:
-      scale: 1
-      diag: [1rep6]

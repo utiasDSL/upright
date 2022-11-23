@@ -214,6 +214,24 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("print_line_search",
                        &ocs2::multiple_shooting::Settings::printLinesearch);
 
+    pybind11::class_<TrackingSettings>(m, "TrackingSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("rate", &TrackingSettings::rate)
+        .def_readwrite("min_policy_update_time",
+                       &TrackingSettings::min_policy_update_time)
+        .def_readwrite("enforce_state_limits",
+                       &TrackingSettings::enforce_state_limits)
+        .def_readwrite("enforce_input_limits",
+                       &TrackingSettings::enforce_input_limits)
+        .def_readwrite("enforce_ee_position_limits",
+                       &TrackingSettings::enforce_ee_position_limits)
+        .def_readwrite("state_violation_margin",
+                       &TrackingSettings::state_violation_margin)
+        .def_readwrite("input_violation_margin",
+                       &TrackingSettings::input_violation_margin)
+        .def_readwrite("ee_position_violation_margin",
+                       &TrackingSettings::ee_position_violation_margin);
+
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("gravity", &ControllerSettings::gravity)
@@ -221,6 +239,7 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("mpc", &ControllerSettings::mpc)
         .def_readwrite("sqp", &ControllerSettings::sqp)
         .def_readwrite("rollout", &ControllerSettings::rollout)
+        .def_readwrite("tracking", &ControllerSettings::tracking)
         .def_readwrite("obstacle_settings",
                        &ControllerSettings::obstacle_settings)
         .def_readwrite("balancing_settings",
@@ -267,8 +286,6 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::operating_inputs)
         .def_readwrite("inertial_alignment_settings",
                        &ControllerSettings::inertial_alignment_settings)
-        .def_readwrite("Kp", &ControllerSettings::Kp)
-        .def_readwrite("rate", &ControllerSettings::rate)
         .def("solver_method_from_string",
              &ControllerSettings::solver_method_from_string)
         .def("solver_method_to_string",
@@ -336,61 +353,6 @@ PYBIND11_MODULE(bindings, m) {
     // pybind11::class_<ocs2::OperatingPoints>(m, "OperatingPoints")
     //     .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
     //                         ocs2::vector_array_t>());
-
-    pybind11::class_<ocs2::LinearController>(m, "LinearController")
-        .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t,
-                            ocs2::matrix_array_t>(),
-             "times"_a, "biases"_a, "gains"_a)
-        .def("computeInput", &ocs2::LinearController::computeInput, "t"_a,
-             "x"_a)
-        // We need an intermediate function to ensure the data is copied
-        // correctly; otherwise the vector of pointers misbehaves.
-        .def_static(
-            "unflatten",
-            [](const size_array_t &stateDim, const size_array_t &inputDim,
-               const scalar_array_t &timeArray,
-               const std::vector<std::vector<float>> &data) {
-                std::vector<std::vector<float> const *> data_ptr_array(
-                    data.size(), nullptr);
-                for (int i = 0; i < data.size(); i++) {
-                    data_ptr_array[i] = &(data[i]);
-                }
-                return LinearController::unFlatten(stateDim, inputDim,
-                                                   timeArray, data_ptr_array);
-            })
-        .def(pybind11::pickle(
-            [](const ocs2::LinearController &c) {
-                /* Return a tuple that fully encodes the state of the object */
-                return pybind11::make_tuple(c.timeStamp_, c.biasArray_,
-                                            c.gainArray_);
-            },
-            [](pybind11::tuple t) {
-                if (t.size() != 3) {
-                    throw std::runtime_error("Invalid state!");
-                }
-
-                ocs2::LinearController c(t[0].cast<ocs2::scalar_array_t>(),
-                                         t[1].cast<ocs2::vector_array_t>(),
-                                         t[2].cast<ocs2::matrix_array_t>());
-                return c;
-            }));
-
-    pybind11::class_<ocs2::FeedforwardController>(m, "FeedforwardController")
-        .def(pybind11::init<ocs2::scalar_array_t, ocs2::vector_array_t>(),
-             "times"_a, "inputs"_a)
-        .def("computeInput", &ocs2::FeedforwardController::computeInput, "t"_a,
-             "x"_a)
-        .def_static("unflatten",
-                    [](const scalar_array_t &timeArray,
-                       const std::vector<std::vector<float>> &data) {
-                        std::vector<std::vector<float> const *> data_ptr_array(
-                            data.size(), nullptr);
-                        for (int i = 0; i < data.size(); i++) {
-                            data_ptr_array[i] = &(data[i]);
-                        }
-                        return FeedforwardController::unFlatten(timeArray,
-                                                                data_ptr_array);
-                    });
 
     /* bind the actual mpc interface */
     pybind11::class_<ControllerPythonInterface>(m, "ControllerInterface")

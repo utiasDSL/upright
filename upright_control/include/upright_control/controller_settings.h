@@ -16,6 +16,23 @@
 
 namespace upright {
 
+
+struct TrackingSettings {
+
+    // Frequency for tracking controller [Hz].
+    ocs2::scalar_t rate = 125;
+
+    ocs2::scalar_t min_policy_update_time = 0.01;
+
+    bool enforce_state_limits = true;
+    bool enforce_input_limits = false;
+    bool enforce_ee_position_limits = false;
+
+    ocs2::scalar_t state_violation_margin = 0.1;
+    ocs2::scalar_t input_violation_margin = 1.0;
+    ocs2::scalar_t ee_position_violation_margin = 0.1;
+};
+
 struct ControllerSettings {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -31,6 +48,7 @@ struct ControllerSettings {
     ocs2::mpc::Settings mpc;
     ocs2::multiple_shooting::Settings sqp;
     ocs2::rollout::Settings rollout;
+    TrackingSettings tracking;
 
     // Weights
     MatXd input_weight;
@@ -53,12 +71,6 @@ struct ControllerSettings {
     bool end_effector_box_constraint_enabled = false;
     VecXd xyz_lower;
     VecXd xyz_upper;
-
-    // Gain matrix for low-level tracking controller.
-    MatXd Kp;
-
-    // Frequency for tracking controller [Hz].
-    ocs2::scalar_t rate;
 
     // We can linearize around a set of operating points instead of just using
     // a stationary trajectory.
@@ -126,7 +138,6 @@ std::ostream& operator<<(std::ostream& out,
         << std::endl
         << "state_limit_mu = " << settings.state_limit_mu << std::endl
         << "state_limit_delta = " << settings.state_limit_delta << std::endl
-        << "Kp = " << settings.Kp << std::endl
         << "use_operating_points = " << settings.use_operating_points
         << std::endl
         << "robot_urdf_path = " << settings.robot_urdf_path << std::endl

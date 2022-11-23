@@ -90,12 +90,16 @@ class ControllerSettings(bindings.ControllerSettings):
         self.mpc.cold_start = config["mpc"]["cold_start"]
 
         # Rollout settings
-        self.rollout.abs_tol_ode = core.parsing.parse_number(config["rollout"]["abs_tol_ode"])
-        self.rollout.rel_tol_ode = core.parsing.parse_number(config["rollout"]["rel_tol_ode"])
+        self.rollout.abs_tol_ode = core.parsing.parse_number(
+            config["rollout"]["abs_tol_ode"]
+        )
+        self.rollout.rel_tol_ode = core.parsing.parse_number(
+            config["rollout"]["rel_tol_ode"]
+        )
         self.rollout.timestep = core.parsing.parse_number(config["rollout"]["timestep"])
-        self.rollout.max_num_steps_per_second = core.parsing.parse_number(config["rollout"][
-            "max_num_steps_per_second"
-        ], dtype=int)
+        self.rollout.max_num_steps_per_second = core.parsing.parse_number(
+            config["rollout"]["max_num_steps_per_second"], dtype=int
+        )
         self.rollout.check_numerical_stability = config["rollout"][
             "check_numerical_stability"
         ]
@@ -118,6 +122,28 @@ class ControllerSettings(bindings.ControllerSettings):
         self.robot_base_type = bindings.robot_base_type_from_string(
             config["robot"]["base_type"]
         )
+
+        # Tracking settings
+        self.tracking.rate = config["tracking"]["rate"]
+        self.tracking.min_policy_update_time = config["tracking"][
+            "min_policy_update_time"
+        ]
+
+        self.tracking.enforce_state_limits = config["tracking"]["enforce_state_limits"]
+        self.tracking.enforce_input_limits = config["tracking"]["enforce_input_limits"]
+        self.tracking.enforce_ee_position_limits = config["tracking"][
+            "enforce_ee_position_limits"
+        ]
+
+        self.tracking.state_violation_margin = config["tracking"][
+            "state_violation_margin"
+        ]
+        self.tracking.input_violation_margin = config["tracking"][
+            "input_violation_margin"
+        ]
+        self.tracking.ee_position_violation_margin = config["tracking"][
+            "ee_position_violation_margin"
+        ]
 
         # gravity
         self.gravity = config["gravity"]
@@ -177,13 +203,6 @@ class ControllerSettings(bindings.ControllerSettings):
         )
         assert self.xyz_lower.shape == (3,)
         assert self.xyz_upper.shape == (3,)
-
-        # tracking gain
-        self.Kp = core.parsing.parse_diag_matrix_dict(config["tracking"]["Kp"])
-        assert self.Kp.shape == (self.dims.robot.q, self.dims.robot.q)
-
-        # rate for tracking controller
-        self.rate = core.parsing.parse_number(config["tracking"]["rate"])
 
         # some joints in the URDF may be locked to constant values, for example
         # to only use part of the robot for an experiment

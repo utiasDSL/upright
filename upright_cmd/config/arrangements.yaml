@@ -50,8 +50,6 @@ arrangements:
         name: bottle1
         type: bottle
         parent: ee
-        offset:
-          y: -0.06
     contacts:
       -
         first: ee
@@ -65,8 +63,6 @@ arrangements:
         name: foam_die1
         type: foam_die
         parent: ee
-        offset:
-          y: -0.06
     contacts:
       -
         first: ee
@@ -82,8 +78,6 @@ arrangements:
         name: foam_die1
         type: foam_die
         parent: ee
-        offset:
-          y: -0.06
       -
         name: foam_die2
         type: foam_die
@@ -156,86 +150,86 @@ arrangements:
         support_area_inset: 0.005
         mu_margin: 0.01
 
-  wood_block_composite:
-    support_area_inset: 0.01
-    mu_margin: 0.01
-    objects:
-      -
-        name: block1
-        type: wood_block_rotx
-        parent: ee
-        offset:
-          y: 0.0325
-      -
-        name: block2
-        type: wood_block_rotx
-        parent: ee
-        offset:
-          y: -0.0325
-      -
-        name: block3
-        type: wood_block_composite
-        parent: ee
-    contacts:
-      -
-        first: ee
-        second: block1
-        mu: 0.27
-      -
-        first: ee
-        second: block2
-        mu: 0.27
-      -
-        first: ee
-        second: block3
-        mu: 0.27  # TODO measure
-
-  bottle_and_tall_box:
-    objects:
-      -
-        name: box1
-        type: tall_box
-        parent: ee
-      -
-        name: bottle1
-        type: bottle
-        parent: ee
-        offset:
-          y: -0.065
-    contacts:
-      -
-        first: ee
-        second: bottle1
-        mu: 0.15
-      -
-        first: ee
-        second: box1
-        mu: 0.4
-      -
-        first: bottle1
-        second: box1
-        mu: 0.15
-
-  wedge:
-    support_area_inset: 0.01
-    mu_margin: 0.01
-    objects:
-      -
-        name: wedge1
-        type: wedge
-        parent: ee
-      -
-        name: box1
-        type: wood_block
-        orientation: [0, 0.17580172, 0, 0.9844256]
-        parent: wedge1
-    contacts:
-      -
-        first: ee
-        second: wedge1
-        mu: 0.4
-      -
-        first: wedge1
-        second: box1
-        mu: 0.4
+  # wood_block_composite:
+  #   support_area_inset: 0.01
+  #   mu_margin: 0.01
+  #   objects:
+  #     -
+  #       name: block1
+  #       type: wood_block_rotx
+  #       parent: ee
+  #       offset:
+  #         y: 0.0325
+  #     -
+  #       name: block2
+  #       type: wood_block_rotx
+  #       parent: ee
+  #       offset:
+  #         y: -0.0325
+  #     -
+  #       name: block3
+  #       type: wood_block_composite
+  #       parent: ee
+  #   contacts:
+  #     -
+  #       first: ee
+  #       second: block1
+  #       mu: 0.27
+  #     -
+  #       first: ee
+  #       second: block2
+  #       mu: 0.27
+  #     -
+  #       first: ee
+  #       second: block3
+  #       mu: 0.27  # TODO measure
+  #
+  # bottle_and_tall_box:
+  #   objects:
+  #     -
+  #       name: box1
+  #       type: tall_box
+  #       parent: ee
+  #     -
+  #       name: bottle1
+  #       type: bottle
+  #       parent: ee
+  #       offset:
+  #         y: -0.065
+  #   contacts:
+  #     -
+  #       first: ee
+  #       second: bottle1
+  #       mu: 0.15
+  #     -
+  #       first: ee
+  #       second: box1
+  #       mu: 0.4
+  #     -
+  #       first: bottle1
+  #       second: box1
+  #       mu: 0.15
+  #
+  # wedge:
+  #   support_area_inset: 0.01
+  #   mu_margin: 0.01
+  #   objects:
+  #     -
+  #       name: wedge1
+  #       type: wedge
+  #       parent: ee
+  #     -
+  #       name: box1
+  #       type: wood_block
+  #       orientation: [0, 0.17580172, 0, 0.9844256]
+  #       parent: wedge1
+  #   contacts:
+  #     -
+  #       first: ee
+  #       second: wedge1
+  #       mu: 0.4
+  #     -
+  #       first: wedge1
+  #       second: box1
+  #       mu: 0.4
 

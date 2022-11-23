@@ -7,17 +7,16 @@ include:
 timestep: 0.025
 use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
-solver_method: SQP  # SQP or DDP
-mpc_horizon: 1.0
-mpc_timestep: 0.1
-mpc_iterations: 1
-mpc_init_iterations: 1
 
+solver_method: SQP  # only SQP is supported now
+
+# model predictive controller
 mpc:
   time_horizon: 1.0
   debug_print: true
   cold_start: false
 
+# trajectory rollout
 rollout:
   abs_tol_ode: 1e-5
   rel_tol_ode: 1e-3
@@ -25,6 +24,20 @@ rollout:
   max_num_steps_per_second: 100000
   check_numerical_stability: false
 
+# low-level reference tracking
+tracking:
+  rate: 125  # Hz
+  min_policy_update_time: 0.01  # seconds
+
+  enforce_state_limits: true
+  enforce_input_limits: false
+  enforce_ee_position_limits: false
+
+  state_violation_margin: 0.1
+  input_violation_margin: 1.0
+  ee_position_violation_margin: 0.1
+
+# sequential quadratic programming
 sqp:
   dt: 0.1
   sqp_iteration: 1
@@ -65,13 +78,6 @@ end_effector_box_constraint:
   enabled: false
   xyz_lower: [-1., -1., -0.5]
   xyz_upper: [1., 1., 0.5]
-
-# needs to be implemented for each particular system
-tracking:
-  rate: 125
-  Kp:
-    scale: 1
-    diag: [1rep9]
 
 # desired waypoints are set relative to the initial EE pose
 # each waypoint consists of:
@@ -120,7 +126,7 @@ objects:
     shape:
       type: cuboid
       side_lengths: [0.356, 0.356, 0.01]
-    position: [0.09, 0.115, -0.035]  # box centroid relative to r_ew_w
+    position: [0.064, 0.127, -0.005]  # box centroid relative to r_ew_w
 
   cube:
     mass: 1.0

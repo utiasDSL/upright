@@ -23,14 +23,14 @@ logging:
 
 simulation:
   duration: 5.0
-  arrangement: bottle
+  arrangement: foam_die1
   robot:
     urdf:
       args:
         transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
 
   static_obstacles:
-    enabled: true
+    enabled: false
 
 controller:
   robot:
@@ -39,14 +39,14 @@ controller:
         transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
 
   obstacles:
-    enabled: true
+    enabled: false
     constraint_type: hard
     minimum_distance: 0.1
 
   balancing:
     enabled: true
     use_force_constraints: true
-    arrangement: bottle
+    arrangement: foam_die1
     constraint_type: hard
 
   inertial_alignment:

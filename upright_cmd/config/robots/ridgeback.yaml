@@ -90,10 +90,3 @@ controller:
       upper: [10, 10, 10,
               1.1, 1.1, 2.0,
               2.5, 2.5, 1.0]
-
-  tracking:
-    rate: 125
-    Kp:
-      scale: 1
-      diag: [1rep3]
-

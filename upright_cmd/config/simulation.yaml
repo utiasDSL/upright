@@ -43,10 +43,9 @@ objects:
 
   # new round tray
   ee:
-    shape:
-      type: cuboid
-      side_lengths: [0.356, 0.356, 0.01]
-    position: [0.09, 0.115, -0.035]  # box centroid relative to r_ew_w
+    shape: cuboid
+    side_lengths: [0.356, 0.356, 0.01]
+    position: [0.064, 0.127, -0.005]  # box centroid relative to r_ew_w
 
   bottle:
     shape: cylinder

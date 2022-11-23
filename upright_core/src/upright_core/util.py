@@ -6,12 +6,6 @@ import numpy as np
 import upright_core as core
 
 
-def copy_task_info_file(config, dest_dir):
-    infofile_src_path = Path(core.parsing.parse_ros_path(config["controller"]["infofile"]))
-    infofile_dest_path = dest_dir / infofile_src_path.name
-    shutil.copy(str(infofile_src_path), str(infofile_dest_path))
-
-
 def support_area_distance(ctrl_object, Q_we):
     """Compute distance outside of SA at current EE orientation Q_we."""
     C_we = core.math.quat_to_rot(Q_we)

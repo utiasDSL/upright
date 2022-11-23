@@ -414,7 +414,7 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
     # make "fake" EE object
     ee_config = config["objects"]["ee"]
     ee_position = r_ew_w + ee_config["position"]
-    ee_side_lengths = np.array(ee_config["shape"]["side_lengths"])
+    ee_side_lengths = np.array(ee_config["side_lengths"])
     objects = {"ee": EEObject(ee_position, Q_we, ee_side_lengths)}
 
     mus = parsing.parse_mu_dict(arrangement["contacts"], apply_margin=False)

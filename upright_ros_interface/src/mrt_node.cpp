@@ -24,14 +24,6 @@
 using namespace upright;
 
 const double PROJECTILE_ACTIVATION_HEIGHT = 1.0;  // meters
-const double MIN_POLICY_UPDATE_TIME = 0.01;       // seconds
-
-const bool ENFORCE_INPUT_LIMITS = false;
-const bool ENFORCE_STATE_LIMITS = true;
-
-const double STATE_VIOLATION_MARGIN = 0.1;
-const double INPUT_VIOLATION_MARGIN = 1.0;
-const double EE_POSITION_VIOLATION_MARGIN = 0.1;
 
 // Robot is a global variable so we can send it a brake command in the SIGINT
 // handler
@@ -85,14 +77,14 @@ class SafetyMonitor {
         VecXd x_robot = x.head(settings_.dims.robot.x);
 
         if (((x_robot - settings_.state_limit_lower).array() <
-             -STATE_VIOLATION_MARGIN)
+             -settings_.tracking.state_violation_margin)
                 .any()) {
             std::cout << "x = " << x_robot.transpose() << std::endl;
             std::cout << "State violated lower limits!" << std::endl;
             return true;
         }
         if (((settings_.state_limit_upper - x_robot).array() <
-             -STATE_VIOLATION_MARGIN)
+             -settings_.tracking.state_violation_margin)
                 .any()) {
             std::cout << "x = " << x_robot.transpose() << std::endl;
             std::cout << "State violated upper limits!" << std::endl;
@@ -105,14 +97,14 @@ class SafetyMonitor {
         VecXd u_robot = u.head(settings_.dims.robot.u);
 
         if (((u_robot - settings_.input_limit_lower).array() <
-             -INPUT_VIOLATION_MARGIN)
+             -settings_.tracking.input_violation_margin)
                 .any()) {
             std::cout << "u = " << u_robot.transpose() << std::endl;
             std::cout << "Input violated lower limits!" << std::endl;
             return true;
         }
         if (((settings_.input_limit_upper - u_robot).array() <
-             -INPUT_VIOLATION_MARGIN)
+             -settings_.tracking.input_violation_margin)
                 .any()) {
             std::cout << "u = " << u_robot.transpose() << std::endl;
             std::cout << "Input violated upper limits!" << std::endl;
@@ -138,7 +130,8 @@ class SafetyMonitor {
             << desired_position + settings_.xyz_upper - actual_position,
             actual_position - (desired_position + settings_.xyz_lower);
 
-        if (position_constraint.minCoeff() < -EE_POSITION_VIOLATION_MARGIN) {
+        if (position_constraint.minCoeff() <
+            -settings_.tracking.ee_position_violation_margin) {
             std::cerr << "Controller violated position limits!" << std::endl;
             std::cerr << "Controller position = " << actual_position.transpose()
                       << std::endl;
@@ -188,9 +181,11 @@ int main(int argc, char** argv) {
     VecXd x0 = interface.get_initial_state();
 
     // Initialize the robot interface
-    if (settings.robot_base_type == RobotBaseType::Fixed) {
+    if (settings.dims.robot.q == 3) {
+        robot_ptr.reset(new mm::RidgebackROSInterface(nh));
+    } else if (settings.dims.robot.q == 6) {
         robot_ptr.reset(new mm::UR10ROSInterface(nh));
-    } else if (settings.robot_base_type == RobotBaseType::Omnidirectional) {
+    } else if (settings.dims.robot.q == 9) {
         robot_ptr.reset(new mm::MobileManipulatorROSInterface(nh));
     } else {
         throw std::runtime_error("Unsupported base type.");
@@ -204,8 +199,8 @@ int main(int argc, char** argv) {
     mm::ProjectileROSInterface projectile(nh, "Projectile");
     bool avoid_dynamic_obstacle = false;
 
-    ocs2::scalar_t timestep = 1.0 / settings.rate;
-    ros::Rate rate(settings.rate);
+    ocs2::scalar_t timestep = 1.0 / settings.tracking.rate;
+    ros::Rate rate(settings.tracking.rate);
 
     // wait until we get feedback from the robot
     while (ros::ok()) {
@@ -251,7 +246,7 @@ int main(int argc, char** argv) {
 
     ros::Time now = ros::Time::now();
     ros::Time last_policy_update_time = now;
-    ros::Duration policy_update_delay(MIN_POLICY_UPDATE_TIME);
+    ros::Duration policy_update_delay(settings.tracking.min_policy_update_time);
 
     ocs2::scalar_t t = now.toSec();
     ocs2::scalar_t last_t = t;
@@ -306,16 +301,19 @@ int main(int argc, char** argv) {
 
         // Check that controller is not making the end effector leave allowed
         // region
-        if (monitor.end_effector_position_violated(target, t, xd)) {
+        if (settings.tracking.enforce_ee_position_limits &&
+            monitor.end_effector_position_violated(target, t, xd)) {
             break;
         }
 
         // Check that the controller has provided sane values.
         // Check monitor first so we can still log violations
-        if (monitor.state_limits_violated(xd) && ENFORCE_STATE_LIMITS) {
+        if (settings.tracking.enforce_state_limits &&
+            monitor.state_limits_violated(xd)) {
             break;
         }
-        if (monitor.input_limits_violated(u) && ENFORCE_INPUT_LIMITS) {
+        if (settings.tracking.enforce_input_limits &&
+            monitor.input_limits_violated(u)) {
             break;
         }
 
