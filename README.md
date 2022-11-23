@@ -1,4 +1,4 @@
-# Upright: Mobile Manipulator Object Balancing
+# Upright: Nonprehensile Object Transportation (with a Position-Controlled Mobile Manipulator)
 
 Simulation and testing code for a mobile manipulator balancing objects on its
 end effector. Simulator is Pybullet.
@@ -10,18 +10,16 @@ natively.
 ## Contents
 * `docker/`: Dockerfile and utility scripts to install and run things under ROS
   Noetic on Ubuntu 20.04.
-* `upright_assets/`: URDF and mesh files.
-* `upright_core/`: Core API for computing motion constraints required to
-  balance objects. To be renamed to `upright_core`.
-* `upright_control/`: Model predictive controller using the
-  [OCS2](https://github.com/leggedrobotics/ocs2) framework. To be renamed to
-  `upright_ctrl`.
+* `upright_assets`: URDF and mesh files.
+* `upright_core`: Core API for computing motion constraints required to
+  balance objects.
+* `upright_control`: Model predictive controller using the
+  [OCS2](https://github.com/leggedrobotics/ocs2) framework.
 * `upright_cmd`: Configuration and command scripts. Simulations and experiments
   are run from here.
-* `upright_msgs`: Custom ROS messages.
 * `upright_ros_interface`: Tools for ROS communication. These can be useful in
   simulation for multi-processing, or to support real hardware.
-* `upright_sim/`: Simulation environments for balancing objects.
+* `upright_sim`: Simulation environments for balancing objects.
 
 ## Setup and Installation
 
