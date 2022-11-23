@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+"""Simulation of the inertial alignment constraint in 2D."""
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.linalg

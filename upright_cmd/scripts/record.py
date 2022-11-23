@@ -60,9 +60,6 @@ def main():
         with open(notes_out_path, "w") as f:
             f.write(args.notes)
 
-    # save the task.info file
-    core.util.copy_task_info_file(config, log_dir)
-
     # start the logging with rosbag
     rosbag_out_path = log_dir / "bag"
     rosbag_cmd = ROSBAG_CMD_ROOT + ["-o", rosbag_out_path] + ROSBAG_TOPICS
