@@ -85,6 +85,7 @@ Wrench<Scalar> compute_object_dynamics_constraint(
     Mat3<Scalar> C_ew = state.pose.orientation.transpose();
     Vec3<Scalar> gravito_inertial_force =
         m * C_ew *
+        // (state.acceleration.linear - gravity);
         (state.acceleration.linear + dC_dtt(state) * body.com - gravity);
 
     Vec3<Scalar> angular_vel_e = C_ew * state.velocity.angular;
@@ -92,6 +93,7 @@ Wrench<Scalar> compute_object_dynamics_constraint(
     Mat3<Scalar> I_e = body.inertia;
     Vec3<Scalar> inertial_torque =
         angular_vel_e.cross(I_e * angular_vel_e) + I_e * angular_acc_e;
+    // Vec3<Scalar> inertial_torque = Vec3<Scalar>::Zero();
 
     Wrench<Scalar> constraints;
     constraints.force = gravito_inertial_force - wrench.force;

@@ -34,24 +34,38 @@ dynamic_obstacles:
 
 objects:
   # EE is a special object
-  # original box tray
-  # ee:
-  #   shape:
-  #     type: cuboid
-  #     side_lengths: [0.23, 0.3, 0.064]
-  #   position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
 
-  # new round tray
+  # wood tray
   ee:
     shape: cuboid
-    side_lengths: [0.356, 0.356, 0.01]
-    position: [0.064, 0.127, -0.005]  # box centroid relative to r_ew_w
+    side_lengths: [0.285, 0.285, 0.02]
+    position: [0, 0, -0.01]  # box centroid relative to r_ew_w
+
+  # box tray
+  # ee:
+  #   shape: cuboid
+  #   side_lengths: [0.23, 0.3, 0.064]
+  #   position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
+
+  # restaurant tray
+  # ee:
+  #   shape: cuboid
+  #   side_lengths: [0.356, 0.356, 0.01]
+  #   position: [0.064, 0.127, -0.005]  # box centroid relative to r_ew_w
 
   bottle:
     shape: cylinder
     mass: 0.5
     radius: 0.0325
     height: 0.15
+    color: [0, 0, 1, 0.9]
+
+  tall_bottle:
+    mass: 0.72
+    com_offset: [0, 0, 0]
+    shape: cylinder
+    radius: 0.035
+    height: 0.205
     color: [0, 0, 1, 0.9]
 
   foam_die:

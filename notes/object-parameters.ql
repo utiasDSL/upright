@@ -7,6 +7,12 @@
   y ~= 11.5 cm
   z ~= -3 cm
 
+== Wooden tray ==
+* Total dimensions:
+  width: 28.5 cm
+  depth: 28.5 cm
+* The Vicon object center is the actual center of the top of the tray
+
 == Fiji water bottle ==
 * Mass: ~500 g (needs confirmation)
 * Width: ~65 mm
@@ -90,7 +96,12 @@ With each other (smooth sides):
 * Diameter: 7cm
 
 === Friction ===
-With tray (side):
+With restaurant tray (side):
 * tray length = 24 cm
 * height at sliding ~= 13cm
-* μ = 18 / 24 ~= 0.54
+* μ = 13 / 24 ~= 0.54
+
+With wood tray (side):
+* tray length = 28.5 cm
+* height at sliding ~= 10 cm
+* μ = 10 / 28.5 ~= 0.35

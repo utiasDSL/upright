@@ -6,14 +6,15 @@ include:
     package: upright_cmd
     path: config/ral23/experiments/_point1.yaml
 
-
 simulation:
   duration: 5.0
-  arrangement: foam_die2
+  arrangement: tall_bottle
 
 controller:
   balancing:
-    enabled: true
-    use_force_constraints: true
-    arrangement: foam_die2
-    constraint_type: hard
+    enabled: false
+
+  inertial_alignment:
+    constraint_enabled: true
+    align_with_fixed_vector: true
+    contact_plane_normal: [0, 0, 1]

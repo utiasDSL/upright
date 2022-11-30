@@ -1,7 +1,7 @@
 simulation:
   robot:
     # home: [0, 0, 0, 0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
-    home: [-1, 0, 0, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi]  # standard
+    home: [-1, 1, 0, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi]  # standard
     dims:
       q: 9  # generalized position
       v: 9  # generalized velocity
@@ -45,7 +45,7 @@ controller:
       v: 9  # generalized velocity
       x: 27 # state
       u: 9  # input
-    x0: [-2, 0, 0, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi, 0rep9, 0rep9]
+    x0: [-1, 1, 0, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi, 0rep9, 0rep9]
     urdf:
       package: "upright_assets"
       path: "thing/urdf/thing_ocs2.urdf"
@@ -63,11 +63,12 @@ controller:
   weights:
     input:
       scale: 0.001
-      diag: [1rep9]
+      # diag: [1rep9]
+      diag: [10rep3, 1rep6]
     state:
       scale: 0.01
       # diag: [0rep9, 10rep9, 1rep9]
-      diag: [0rep9, 10rep3, 10rep6, 1rep3, 1rep6]
+      diag: [0rep9, 100rep3, 10rep6, 10rep3, 1rep6]
     end_effector:
       scale: 1
       diag: [1, 1, 1, 0, 0, 0]

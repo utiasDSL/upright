@@ -23,7 +23,7 @@ simulation:
       - "ur10_arm_wrist_3_joint"
     locked_joints:
       x_to_world_joint: -1.0
-      y_to_x_joint: 0
+      y_to_x_joint: 1.0
       base_to_y_joint: 0
     tool_joint_name: "gripped_object_joint"
     base_type: fixed
@@ -50,7 +50,7 @@ controller:
     # x0: [0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi, 0rep6, 0rep6]  # upright
     x0: [0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi, 0rep6, 0rep6]  # standard
     # x0: [0.5pi, -0.25pi, 0, 0.25pi, 0.5pi, -0.583pi, 0rep6, 0rep6]  # inverted
-    base_pose: [-1.0, 0, 0]  # planar: x, y, θ
+    base_pose: [-1.0, 1, 0]  # planar: x, y, θ
     urdf:
       package: "upright_assets"
       path: "thing/urdf/thing_ocs2.urdf"

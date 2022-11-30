@@ -9,11 +9,17 @@ include:
 
 simulation:
   duration: 5.0
-  arrangement: foam_die2
+  arrangement: tall_bottle
 
 controller:
+  mpc:
+    time_horizon: 2.0
+
   balancing:
-    enabled: true
+    enabled: false
     use_force_constraints: true
-    arrangement: foam_die2
+    arrangement: tall_bottle
     constraint_type: hard
+
+  inertial_alignment:
+    constraint_enabled: true

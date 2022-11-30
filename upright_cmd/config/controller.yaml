@@ -114,19 +114,27 @@ infofile:
 # theorem to account for com_offset
 objects:
   # EE is a special object
-  # original box tray
+
+  # wood tray
+  ee:
+    shape:
+      type: cuboid
+      side_lengths: [0.285, 0.285, 0.02]
+    position: [0, 0, -0.01]  # box centroid relative to r_ew_w
+
+  # box tray
   # ee:
   #   shape:
   #     type: cuboid
   #     side_lengths: [0.23, 0.3, 0.064]
   #   position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
 
-  # new round tray
-  ee:
-    shape:
-      type: cuboid
-      side_lengths: [0.356, 0.356, 0.01]
-    position: [0.064, 0.127, -0.005]  # box centroid relative to r_ew_w
+  # restaurant tray
+  # ee:
+  #   shape:
+  #     type: cuboid
+  #     side_lengths: [0.356, 0.356, 0.01]
+  #   position: [0.064, 0.127, -0.005]  # box centroid relative to r_ew_w
 
   cube:
     mass: 1.0
@@ -143,6 +151,14 @@ objects:
       type: cylinder
       radius: 0.0325
       height: 0.15
+
+  tall_bottle:
+    mass: 0.72
+    com_offset: [0, 0, 0]
+    shape:
+      type: cylinder
+      radius: 0.035
+      height: 0.205
 
   wood_block:
     mass: 0.18

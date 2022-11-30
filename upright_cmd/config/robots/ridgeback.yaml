@@ -1,6 +1,6 @@
 simulation:
   robot:
-    home: [-1, 0, 0]
+    home: [-1, 1, 0]
     dims:
       q: 3  # generalized position
       v: 3  # generalized velocity
@@ -45,7 +45,7 @@ controller:
       v: 3  # generalized velocity
       x: 9 # state
       u: 3  # input
-    x0: [-2, 0, 0, 0rep3, 0rep3]
+    x0: [-1, 1, 0, 0rep3, 0rep3]
     locked_joints:
       ur10_arm_shoulder_pan_joint: 0.5pi
       ur10_arm_shoulder_lift_joint: -0.25pi

@@ -30,18 +30,22 @@ arrangements:
         first: ee
         second: block1
         mu: 0.27
+        mu_margin: 0.27
       -
         first: ee
         second: block2
         mu: 0.27
+        mu_margin: 0.27
       -
         first: block1
         second: block3
         mu: 0.27  # TODO measure
+        mu_margin: 0.27
       -
         first: block2
         second: block3
         mu: 0.27  # TODO measure
+        mu_margin: 0.27
 
   # single water bottle
   bottle:
@@ -55,6 +59,22 @@ arrangements:
         first: ee
         second: bottle1
         mu: 0.3
+
+  tall_bottle:
+    objects:
+      -
+        name: bottle
+        type: tall_bottle
+        parent: ee
+        offset:
+          x: 0.035
+    contacts:
+      -
+        first: ee
+        second: bottle
+        mu: 0.2
+        mu_margin: 0.2
+        support_area_inset: 0.01
 
   # single foam die
   foam_die1:
@@ -78,6 +98,8 @@ arrangements:
         name: foam_die1
         type: foam_die
         parent: ee
+        offset:
+          y: -0.06
       -
         name: foam_die2
         type: foam_die
@@ -86,15 +108,17 @@ arrangements:
       -
         first: ee
         second: foam_die1
-        mu: 0.54
-        mu_margin: 0.05
-        support_area_inset: 0.005
+        # mu: 0.54
+        mu: 0.4
+        mu_margin: 0.1
+        support_area_inset: 0.01
       -
         first: foam_die1
         second: foam_die2
-        mu: 0.615
-        mu_margin: 0.05
-        support_area_inset: 0.005
+        mu: 0.4
+        # mu: 0.615
+        mu_margin: 0.1
+        support_area_inset: 0.015
 
   simulation_box:
     objects:

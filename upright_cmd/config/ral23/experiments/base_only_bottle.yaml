@@ -23,7 +23,7 @@ logging:
 
 simulation:
   duration: 5.0
-  arrangement: foam_die1
+  arrangement: tall_bottle
   robot:
     urdf:
       args:
@@ -46,7 +46,7 @@ controller:
   balancing:
     enabled: true
     use_force_constraints: true
-    arrangement: foam_die1
+    arrangement: tall_bottle
     constraint_type: hard
 
   inertial_alignment:

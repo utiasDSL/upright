@@ -218,9 +218,6 @@ def _parse_objects_with_contacts(
         mu = contact["mu"] - mu_margin
         inset = contact.get("support_area_inset", 0)
 
-        # print(f"mu_margin = {mu_margin}")
-        # print(f"mu = {mu}")
-
         box1 = wrappers[name1].box
         box2 = wrappers[name2].box
         points, normal = geometry.box_box_axis_aligned_contact(box1, box2)
@@ -240,13 +237,18 @@ def _parse_objects_with_contacts(
 
             r1 = points[i, :] - body1.com
 
-            # project point into tangent plane and inset the tangent part
-            # TODO this does not make sense for non-planar contacts
-            r1_t = span @ r1
-            r1_t_inset = math.inset_vertex(r1_t, inset)
+            # it doesn't make sense to inset w.r.t. fixtures (EE or otherwise),
+            # because we don't have to worry about their dynamics
+            if wrappers[name1].fixture:
+                r1_inset = r1
+            else:
+                # project point into tangent plane and inset the tangent part
+                # TODO this does not make sense for non-planar contacts
+                r1_t = span @ r1
+                r1_t_inset = math.inset_vertex(r1_t, inset)
 
-            # unproject the inset back into 3D space
-            r1_inset = r1 + (r1_t_inset - r1_t) @ span
+                # unproject the inset back into 3D space
+                r1_inset = r1 + (r1_t_inset - r1_t) @ span
 
             r2 = points[i, :] - body2.com
             r2_t = span @ r2
@@ -507,6 +509,8 @@ def parse_inertia(mass, shape_config, com_offset):
     # adjust inertia for an offset CoM using parallel axis theorem
     R = math.skew3(com_offset)
     inertia = inertia - mass * R @ R
+
+    # inertia = np.zeros((3, 3))  # NOTE TODO
 
     return inertia
 

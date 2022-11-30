@@ -128,7 +128,7 @@ def main():
 
         # u_cmd = Kp @ (qd - q_noisy) + (vd - v_ff) + (ad - a_ff) + u_robot
         # v_ff, a_ff = integrator.integrate_approx(v_ff, ad, u_robot, sim.timestep)
-        v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_cmd, sim.timestep)
+        v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, sim.timestep)
         v_cmd = v_ff
 
         sim.robot.command_velocity(v_cmd, bodyframe=False)
