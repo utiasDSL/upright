@@ -35,7 +35,7 @@ struct OptimizationDimensions {
     size_t x() const { return robot.x + 9 * o; }
 
     // Contact force vector dimension
-    size_t f() const { return 3 * c; }
+    size_t f() const { return 1 * c; }
 
     // Input vector dimension
     size_t u() const { return robot.u + f(); }

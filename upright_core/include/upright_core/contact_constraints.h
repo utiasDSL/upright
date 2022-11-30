@@ -15,7 +15,7 @@ namespace upright {
 const size_t NUM_FRICTION_CONSTRAINTS_PER_CONTACT = 2;
 
 // Or we can linear the friction cone
-const size_t NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT = 5;
+const size_t NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT = 1;
 
 // Three for linear and three for rotation.
 const size_t NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT = 6;
@@ -51,30 +51,32 @@ template <typename Scalar>
 VecX<Scalar> compute_contact_force_constraints_linearized(
     const std::vector<ContactPoint<Scalar>>& contacts,
     const VecX<Scalar>& forces) {
-    const size_t n = NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT;
-    VecX<Scalar> constraints(contacts.size() * n);
-
-    for (int i = 0; i < contacts.size(); ++i) {
-        auto& contact = contacts[i];
-        Vec3<Scalar> f = forces.segment(i * 3, 3);
-
-        // normal force
-        Scalar f_n = contact.normal.dot(f);
-
-        // tangential force is obtained by projecting onto the nullspace of the
-        // normal vector
-        Vec2<Scalar> f_t = contact.span * f;
-
-        // constrain the normal force to be non-negative
-        constraints(i * n) = f_n;
-
-        // linearized version
-        constraints(i * n + 1) = contact.mu * f_n - f_t(0) - f_t(1);
-        constraints(i * n + 2) = contact.mu * f_n - f_t(0) + f_t(1);
-        constraints(i * n + 3) = contact.mu * f_n + f_t(0) - f_t(1);
-        constraints(i * n + 4) = contact.mu * f_n + f_t(0) + f_t(1);
-    }
-    return constraints;
+    // TODO take forces as scalars now
+    return forces;
+    // const size_t n = NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT;
+    // VecX<Scalar> constraints(contacts.size() * n);
+    //
+    // for (int i = 0; i < contacts.size(); ++i) {
+    //     auto& contact = contacts[i];
+    //     Vec3<Scalar> f = forces.segment(i * 3, 3);
+    //
+    //     // normal force
+    //     Scalar f_n = contact.normal.dot(f);
+    //
+    //     // tangential force is obtained by projecting onto the nullspace of the
+    //     // normal vector
+    //     Vec2<Scalar> f_t = contact.span * f;
+    //
+    //     // constrain the normal force to be non-negative
+    //     constraints(i * n) = f_n;
+    //
+    //     // linearized version
+    //     constraints(i * n + 1) = contact.mu * f_n - f_t(0) - f_t(1);
+    //     constraints(i * n + 2) = contact.mu * f_n - f_t(0) + f_t(1);
+    //     constraints(i * n + 3) = contact.mu * f_n + f_t(0) - f_t(1);
+    //     constraints(i * n + 4) = contact.mu * f_n + f_t(0) + f_t(1);
+    // }
+    // return constraints;
 }
 
 template <typename Scalar>
@@ -110,7 +112,8 @@ std::map<std::string, Wrench<Scalar>> compute_object_wrenches(
     std::map<std::string, Wrench<Scalar>> object_wrenches;
     for (int i = 0; i < contacts.size(); ++i) {
         auto& contact = contacts[i];
-        Vec3<Scalar> f = forces.segment(i * 3, 3);
+        // Vec3<Scalar> f = forces.segment(i * 3, 3);
+        Vec3<Scalar> f = forces(i) * contact.normal;
 
         // TODO this relies on object frame having same orientation as EE frame
         if (object_wrenches.find(contact.object1_name) ==
