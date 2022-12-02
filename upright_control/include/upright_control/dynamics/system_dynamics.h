@@ -101,6 +101,23 @@ class SystemDynamics final : public ocs2::SystemDynamicsBaseAD {
                 obstacle_dynamics_.flowmap(time, x_obs, parameters);
         }
         return dxdt;
+
+        // // Object dynamics
+        // // TODO need to cast things to the AD type
+        // auto object_wrenches = compute_object_wrenches(settings_.balancing_settings.contacts, forces);
+        // for (const auto& kv : settings_.balancing_settings.objects) {
+        //     auto obj = kv.second.template cast<ocs2::ad_scalar_t>();
+        //     Wrench<ocs2::ad_scalar_t> wrench = object_wrenches[kv.first];
+        //     VecXad x_obj = state.segment(dims_.robot.x + dims_.o * 9 + i * 18, 18);
+        //
+        //     // TODO compute the update law
+        //     VecXad u_obj(6);
+        //     u_obj << (wrench.force + settings_.gravity) / obj.body.mass;
+        //
+        //     VecXad dxdt_obj(18);
+        //     dxdt_obj << x_obj.tail(12), u_obj;
+        //     dxdt.segment(dims_.robot.x + dims_.o * 9 + i * 18, 18) = dxdt_obj;
+        // }
     }
 
    private:

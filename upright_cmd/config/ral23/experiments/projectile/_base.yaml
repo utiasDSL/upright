@@ -20,16 +20,24 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: foam_die1
+  arrangement: tall_bottle
 
   dynamic_obstacles:
     enabled: true
 
 controller:
+  mpc:
+    time_horizon: 2.0
+
+  tracking:
+    enforce_state_limits: true
+    enforce_input_limits: false
+    enforce_ee_position_limits: true
+
   balancing:
     enabled: false
     use_force_constraints: true
-    arrangement: foam_die1
+    arrangement: tall_bottle
     constraint_type: hard
     enable_normal_constraint: true
     enable_friction_constraint: true
@@ -46,8 +54,14 @@ controller:
     com: [0, 0, 0]
 
   weights:
-    end_effector:
+    input:
+      scale: 0.01
+      diag: [1rep9]
+    state:
       scale: 0.1
+      diag: [0rep9, 10rep9, 1rep9]
+    end_effector:
+      scale: 1
       diag: [1, 1, 1, 0, 0, 0]
 
   obstacles:

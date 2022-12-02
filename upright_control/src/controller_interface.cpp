@@ -143,6 +143,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     const bool recompile_libraries = true;
     settings_.sqp.integratorType = ocs2::SensitivityIntegratorType::RK4;
     settings_.sqp.hpipmSettings.use_slack = true;
+    settings_.sqp.hpipmSettings.warm_start = true;
 
     // Dynamics
     // NOTE: we don't have any branches here because every system we use

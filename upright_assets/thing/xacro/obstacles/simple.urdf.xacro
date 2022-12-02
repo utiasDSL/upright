@@ -41,8 +41,22 @@
     </geometry>
   </xacro:obstacle_link>
 
+  <xacro:obstacle_link name="sphere1_middle_link" material="red">
+    <origin rpy="0 0 0" xyz="0 0.25 0.5"/>
+    <geometry>
+      <sphere radius="0.25"/>
+    </geometry>
+  </xacro:obstacle_link>
+
   <xacro:obstacle_link name="sphere2_bottom_link" material="red">
     <origin rpy="0 0 0" xyz="1.5 1 0.25"/>
+    <geometry>
+      <sphere radius="0.25"/>
+    </geometry>
+  </xacro:obstacle_link>
+
+  <xacro:obstacle_link name="sphere2_middle_link" material="red">
+    <origin rpy="0 0 0" xyz="1.5 1 0.5"/>
     <geometry>
       <sphere radius="0.25"/>
     </geometry>

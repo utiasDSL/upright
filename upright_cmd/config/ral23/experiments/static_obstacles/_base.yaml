@@ -30,6 +30,9 @@ simulation:
     enabled: true
 
 controller:
+  mpc:
+    time_horizon: 2.0
+
   robot:
     urdf:
       args:
@@ -58,10 +61,10 @@ controller:
 
   weights:
     input:
-      scale: 0.001
+      scale: 0.01
       diag: [1rep9]
     state:
-      scale: 0.01
+      scale: 0.1
       diag: [0rep9, 10rep9, 1rep9]
     end_effector:
       scale: 1

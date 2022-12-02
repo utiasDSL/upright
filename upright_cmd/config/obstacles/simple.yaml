@@ -30,6 +30,8 @@ controller:
       - ["balanced_object_collision_link_0", "sphere2_top_link_0"]
       - ["balanced_object_collision_link_0", "sphere3_top_link_0"]
 
+      - ["balanced_object_collision_link_0", "sphere1_middle_link_0"]
+      - ["balanced_object_collision_link_0", "sphere2_middle_link_0"]
       - ["balanced_object_collision_link_0", "sphere3_middle_link_0"]
 
       # wrist and shoulder
