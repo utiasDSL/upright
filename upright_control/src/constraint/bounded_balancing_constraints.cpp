@@ -1,9 +1,9 @@
 #include <upright_control/types.h>
-#include <upright_core/nominal.h>
 #include <upright_core/bounded.h>
 #include <upright_core/bounded_constraints.h>
 #include <upright_core/contact.h>
 #include <upright_core/contact_constraints.h>
+#include <upright_core/nominal.h>
 
 #include "upright_control/constraint/bounded_balancing_constraints.h"
 
@@ -39,7 +39,6 @@ RigidBodyState<ocs2::ad_scalar_t> get_rigid_body_state(
     return X;
 }
 
-
 NominalBalancingConstraints::NominalBalancingConstraints(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
     const BalancingSettings& settings, const Vec3d& gravity,
@@ -70,7 +69,6 @@ NominalBalancingConstraints::NominalBalancingConstraints(
 VecXad NominalBalancingConstraints::constraintFunction(
     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
     const VecXad& parameters) const {
-
     RigidBodyState<ocs2::ad_scalar_t> X =
         get_rigid_body_state(pinocchioEEKinPtr_, state, input);
 
@@ -96,8 +94,13 @@ ContactForceBalancingConstraints::ContactForceBalancingConstraints(
 
     // Important: this needs to come before the call to initialize, because it
     // is used in the constraintFunction which is called therein
-    num_constraints_ = settings_.contacts.size() *
-                       NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT;
+    const bool frictionless = (dims.nf == 1);
+    if (frictionless) {
+        num_constraints_ = settings_.contacts.size();
+    } else {
+        num_constraints_ = settings_.contacts.size() *
+                           NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT;
+    }
 
     // compile the CppAD library
     initialize(dims.x(), dims.u(), 0, "upright_contact_force_constraints",

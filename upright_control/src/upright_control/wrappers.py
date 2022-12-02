@@ -257,6 +257,10 @@ class ControllerSettings(bindings.ControllerSettings):
         self.balancing_settings.contacts = contacts
         self.dims.c = len(contacts)
 
+        # dimension of each force variable: only one if we assume frictionless
+        # contacts; three otherwise
+        self.dims.nf = 1 if config["balancing"]["frictionless"] else 3
+
         self.balancing_settings.constraints_enabled.normal = config["balancing"][
             "enable_normal_constraint"
         ]

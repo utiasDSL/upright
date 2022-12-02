@@ -34,53 +34,6 @@ struct BalancingSettings {
 
 std::ostream& operator<<(std::ostream& out, const BalancingSettings& settings);
 
-// // Balancing constraints based on ZMP and friction limit surface, optionally
-// // with parameter uncertainty.
-// class BoundedBalancingConstraints final
-//     : public ocs2::StateInputConstraintCppAd {
-//    public:
-//     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-//
-//     BoundedBalancingConstraints(
-//         const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-//         const BalancingSettings& settings, const Vec3d& gravity,
-//         const OptimizationDimensions& dims, bool recompileLibraries);
-//
-//     BoundedBalancingConstraints* clone() const override {
-//         // Always pass recompileLibraries = false to avoid recompiling the same
-//         // library just because this object is cloned.
-//         return new BoundedBalancingConstraints(*pinocchioEEKinPtr_, settings_,
-//                                                gravity_, dims_, false);
-//     }
-//
-//     size_t getNumConstraints(ocs2::scalar_t time) const override {
-//         return num_constraints_;
-//     }
-//
-//     size_t getNumConstraints() const { return getNumConstraints(0); }
-//
-//     VecXd getParameters(ocs2::scalar_t time) const override {
-//         // Parameters are constant for now
-//         return VecXd(0);
-//     }
-//
-//    protected:
-//     VecXad constraintFunction(ocs2::ad_scalar_t time, const VecXad& state,
-//                               const VecXad& input,
-//                               const VecXad& parameters) const override;
-//
-//    private:
-//     BoundedBalancingConstraints(const BoundedBalancingConstraints& other) =
-//         default;
-//
-//     std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd>
-//         pinocchioEEKinPtr_;
-//     BalancingSettings settings_;
-//     OptimizationDimensions dims_;
-//     Vec3d gravity_;
-//     size_t num_constraints_;
-// };
-
 
 class NominalBalancingConstraints final
     : public ocs2::StateInputConstraintCppAd {

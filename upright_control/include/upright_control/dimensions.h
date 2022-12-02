@@ -25,6 +25,10 @@ struct OptimizationDimensions {
     // Number of contact points
     size_t c = 0;
 
+    // Dimension of each contact force variable. In general this is three, but
+    // if we assume that friction coefficient is zero we can set this to one.
+    size_t nf = 3;
+
     // Total configuration vector dimension
     size_t q() const { return robot.q + 3 * o; }
 
@@ -35,7 +39,7 @@ struct OptimizationDimensions {
     size_t x() const { return robot.x + 9 * o; }
 
     // Contact force vector dimension
-    size_t f() const { return 1 * c; }
+    size_t f() const { return nf * c; }
 
     // Input vector dimension
     size_t u() const { return robot.u + f(); }

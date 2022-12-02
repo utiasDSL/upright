@@ -55,6 +55,7 @@ balancing:
   constraint_type: hard
   enabled: false
   use_force_constraints: false
+  frictionless: true
   use_bounded_constraints: true
   enable_normal_constraint: true
   enable_friction_constraint: true

@@ -143,6 +143,7 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("robot", &OptimizationDimensions::robot)
         .def_readwrite("o", &OptimizationDimensions::o)
         .def_readwrite("c", &OptimizationDimensions::c)
+        .def_readwrite("nf", &OptimizationDimensions::nf)
         .def("q", &OptimizationDimensions::q)
         .def("v", &OptimizationDimensions::v)
         .def("x", &OptimizationDimensions::x)
