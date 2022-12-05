@@ -44,7 +44,7 @@ sqp:
   init_sqp_iteration: 1
   delta_tol: 1e-3
   cost_tol: 1e-4
-  use_feedback_policy: true
+  use_feedback_policy: false
   project_state_input_equality_constraints: false
   print_solver_status: true
   print_solver_statistics: true

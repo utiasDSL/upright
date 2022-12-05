@@ -7,13 +7,7 @@ simulation:
   arrangement: tall_simulation_box
 
 controller:
-  # keep this so that we use the correct controller arrangement for later
-  # logging/analysis
   balancing:
+    enabled: true
+    frictionless: false
     arrangement: tall_simulation_box
-
-  mpc:
-    time_horizon: 2.0
-
-  inertial_alignment:
-    constraint_enabled: true

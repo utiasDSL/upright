@@ -377,6 +377,10 @@ class BulletDynamicObstacle:
 
     def step(self, t):
         """Step the object forward in time."""
+        # no-op if obstacle hasn't been started
+        if self.start_time is None:
+            return
+
         # reset the obstacle if we've stepped into a new mode
         if self._mode_idx < len(self.times) - 1:
             if t - self.start_time >= self.times[self._mode_idx + 1]:

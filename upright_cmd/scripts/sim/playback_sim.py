@@ -83,12 +83,15 @@ def main():
 
     # settle sim to make sure everything is touching comfortably
     sim.settle(5.0)
+    # sim.launch_dynamic_obstacles()
 
     # initial time, state, input
     t = 0.0
     q, v = sim.robot.joint_states()
     a = np.zeros(sim.robot.nv)
-    x_obs = sim.dynamic_obstacle_state()
+
+    # we don't care about the simulated obstacle, so just give it zero values
+    x_obs = np.zeros(9)
     x = np.concatenate((q, v, a, x_obs))
     u = np.zeros(sim.robot.nu)
 
@@ -153,7 +156,7 @@ def main():
     projectile_ts = np.array([msg.header.stamp.to_sec() for msg in projectile_msgs])
     projectile_ts -= t0
     projectile = simulation.BulletDynamicObstacle(
-        projectile_positions[0, :], projectile_velocities[0, :]
+        [0], [projectile_positions[0, :]], [projectile_velocities[0, :]], [np.zeros(3)],
     )
     projectile.start(0)
     projectile_index = 0

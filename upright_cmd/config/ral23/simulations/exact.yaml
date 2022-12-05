@@ -6,3 +6,4 @@ include:
 controller:
   balancing:
     enabled: true
+    frictionless: false

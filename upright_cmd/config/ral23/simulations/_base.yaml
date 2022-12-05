@@ -30,7 +30,7 @@ controller:
         transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_sim.yaml"
 
   mpc:
-    time_horizon: 1.0
+    time_horizon: 2.0
 
   balancing:
     enabled: false

@@ -40,6 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <hpp/fcl/shape/geometric_shapes.h>
 
+#include <ocs2_core/constraint/BoundConstraint.h>
 #include <ocs2_core/constraint/LinearStateConstraint.h>
 #include <ocs2_core/constraint/LinearStateInputConstraint.h>
 #include <ocs2_core/cost/QuadraticStateCost.h>
@@ -178,16 +179,40 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
             get_soft_joint_state_input_limit_constraint());
         std::cerr << "Soft state and input limits are enabled." << std::endl;
     } else {
-        // TODO this should be a box constraint, but this is not implemented
-        // yet
-        std::unique_ptr<ocs2::StateInputConstraint>
-            joint_state_input_constraint(new JointStateInputConstraint(
-                settings_.dims, settings_.state_limit_lower,
-                settings_.state_limit_upper, settings_.input_limit_lower,
-                settings_.input_limit_upper));
-        problem_.inequalityConstraintPtr->add(
-            "joint_state_input_limits",
-            std::move(joint_state_input_constraint));
+        // std::unique_ptr<ocs2::StateInputConstraint>
+        //     joint_state_input_constraint(new JointStateInputConstraint(
+        //         settings_.dims, settings_.state_limit_lower,
+        //         settings_.state_limit_upper, settings_.input_limit_lower,
+        //         settings_.input_limit_upper));
+        // problem_.inequalityConstraintPtr->add(
+        //     "joint_state_input_limits",
+        //     std::move(joint_state_input_constraint));
+
+        // vector_t state_lb = vector_t::Zero(settings_.dims.x());
+        // vector_t state_ub = vector_t::Zero(settings_.dims.x());
+        // vector_t input_lb = vector_t::Zero(settings_.dims.u());
+        // vector_t input_ub = vector_t::Zero(settings_.dims.u());
+        //
+        // ocs2::BoundConstraint bounds(state_lb, state_ub, input_lb, input_ub);
+
+        problem_.boundConstraintPtr->setZero(settings_.dims.x(),
+                                             settings_.dims.u());
+        problem_.boundConstraintPtr->state_lb_.head(settings_.dims.robot.x) =
+            settings_.state_limit_lower;
+        problem_.boundConstraintPtr->state_ub_.head(settings_.dims.robot.x) =
+            settings_.state_limit_upper;
+        // problem_.boundConstraintPtr->state_idx_.setLinSpaced(
+        //     settings_.dims.robot.x, 0, settings_.dims.robot.x - 1);
+        problem_.boundConstraintPtr->setStateIndices(0, settings_.dims.robot.x);
+
+        problem_.boundConstraintPtr->input_lb_.head(settings_.dims.robot.u) =
+            settings_.input_limit_lower;
+        problem_.boundConstraintPtr->input_ub_.head(settings_.dims.robot.u) =
+            settings_.input_limit_upper;
+        // problem_.boundConstraintPtr->input_idx_.setLinSpaced(
+        //     settings_.dims.robot.u, 0, settings_.dims.robot.u - 1);
+        problem_.boundConstraintPtr->setInputIndices(0, settings_.dims.robot.u);
+
         std::cerr << "Hard state and input limits are enabled." << std::endl;
     }
 
@@ -321,8 +346,6 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     // TODO we're getting too nested here
     if (settings_.balancing_settings.enabled) {
         if (settings_.balancing_settings.use_force_constraints) {
-            // Currently we always use exact constraints for the object
-            // dynamics.
             problem_.equalityConstraintPtr->add(
                 "object_dynamics",
                 get_object_dynamics_constraint(end_effector_kinematics,
@@ -344,10 +367,29 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                 std::cerr
                     << "Hard contact force-based balancing constraints enabled."
                     << std::endl;
-                problem_.inequalityConstraintPtr->add(
-                    "contact_forces",
-                    get_contact_force_constraint(end_effector_kinematics,
-                                                 recompile_libraries));
+                const bool frictionless = (settings_.dims.nf == 1);
+                // const bool frictionless = false;
+                if (frictionless) {
+                    // lower bounds are already zero, make the upper ones
+                    // arbitrary high values
+                    problem_.boundConstraintPtr->input_ub_
+                        .tail(settings_.dims.f())
+                        .setConstant(1e6);
+                    // indicate that all inputs are now box constrained (real
+                    // inputs and contact forces)
+                    // problem_.boundConstraintPtr->input_idx_.setLinSpaced(
+                    //     settings_.dims.u(), 0, settings_.dims.u() - 1);
+                    problem_.boundConstraintPtr->setInputIndices(0, settings_.dims.u());
+
+                    // std::cout << problem_.boundConstraintPtr->input_idx_ << std::endl;
+                    std::cout << problem_.boundConstraintPtr->input_lb_.transpose() << std::endl;
+                    std::cout << problem_.boundConstraintPtr->input_ub_.transpose() << std::endl;
+                } else {
+                    problem_.inequalityConstraintPtr->add(
+                        "contact_forces",
+                        get_contact_force_constraint(end_effector_kinematics,
+                                                     recompile_libraries));
+                }
             }
         } else {
             if (settings_.balancing_settings.constraint_type ==

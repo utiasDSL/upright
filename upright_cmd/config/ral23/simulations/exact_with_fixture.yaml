@@ -9,4 +9,5 @@ simulation:
 controller:
   balancing:
     enabled: true
+    frictionless: false
     arrangement: simulation_box_with_fixture

@@ -288,6 +288,8 @@ int main(int argc, char** argv) {
             // the "awareness zone" but then leaves, such that the robot is
             // ready for the next throw
 
+            // TODO should this eventually stop? like when the obstacle goes
+            // below a certain threshold?
             if (avoid_dynamic_obstacle) {
                 Vec3d v_obs = projectile.v();
                 Vec3d a_obs = settings.obstacle_settings.dynamic_obstacles[0]
