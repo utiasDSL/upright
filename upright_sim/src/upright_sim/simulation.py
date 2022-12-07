@@ -329,7 +329,9 @@ class BulletDynamicObstacle:
         )
 
     def _initial_mode_values(self):
-        t = self.times[self._mode_idx] + self.start_time
+        t = self.times[self._mode_idx]
+        if self.start_time is not None:
+            t += self.start_time
         r = self.positions[self._mode_idx]
         v = self.velocities[self._mode_idx]
         a = self.accelerations[self._mode_idx]

@@ -143,7 +143,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     // Set some defaults
     const bool recompile_libraries = true;
     settings_.sqp.integratorType = ocs2::SensitivityIntegratorType::RK4;
-    settings_.sqp.hpipmSettings.use_slack = true;
+    settings_.sqp.hpipmSettings.slacks.enabled = true;
     settings_.sqp.hpipmSettings.warm_start = true;
 
     // Dynamics
@@ -188,33 +188,24 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         //     "joint_state_input_limits",
         //     std::move(joint_state_input_constraint));
 
-        // vector_t state_lb = vector_t::Zero(settings_.dims.x());
-        // vector_t state_ub = vector_t::Zero(settings_.dims.x());
-        // vector_t input_lb = vector_t::Zero(settings_.dims.u());
-        // vector_t input_ub = vector_t::Zero(settings_.dims.u());
-        //
-        // ocs2::BoundConstraint bounds(state_lb, state_ub, input_lb, input_ub);
-
         problem_.boundConstraintPtr->setZero(settings_.dims.x(),
                                              settings_.dims.u());
         problem_.boundConstraintPtr->state_lb_.head(settings_.dims.robot.x) =
             settings_.state_limit_lower;
         problem_.boundConstraintPtr->state_ub_.head(settings_.dims.robot.x) =
             settings_.state_limit_upper;
-        // problem_.boundConstraintPtr->state_idx_.setLinSpaced(
-        //     settings_.dims.robot.x, 0, settings_.dims.robot.x - 1);
         problem_.boundConstraintPtr->setStateIndices(0, settings_.dims.robot.x);
 
         problem_.boundConstraintPtr->input_lb_.head(settings_.dims.robot.u) =
             settings_.input_limit_lower;
         problem_.boundConstraintPtr->input_ub_.head(settings_.dims.robot.u) =
             settings_.input_limit_upper;
-        // problem_.boundConstraintPtr->input_idx_.setLinSpaced(
-        //     settings_.dims.robot.u, 0, settings_.dims.robot.u - 1);
         problem_.boundConstraintPtr->setInputIndices(0, settings_.dims.robot.u);
 
         std::cerr << "Hard state and input limits are enabled." << std::endl;
     }
+
+    std::cout << "empty = " << problem_.boundConstraintPtr->empty() << std::endl;
 
     // Collision avoidance
     if (settings_.obstacle_settings.enabled) {
@@ -455,7 +446,7 @@ ControllerInterface::get_quadratic_state_input_cost() {
 
     // TODO do I need weight on obstacle dynamics?
     MatXd state_weight =
-        MatXd::Identity(settings_.dims.x(), settings_.dims.x());
+        MatXd::Zero(settings_.dims.x(), settings_.dims.x());
     state_weight.topLeftCorner(settings_.dims.robot.x, settings_.dims.robot.x) =
         settings_.state_weight;
 

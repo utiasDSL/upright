@@ -118,6 +118,17 @@ class ControllerSettings(bindings.ControllerSettings):
         self.sqp.print_solver_statistics = config["sqp"]["print_solver_statistics"]
         self.sqp.print_line_search = config["sqp"]["print_line_search"]
 
+        # HPIPM (QP solver) settings
+        self.sqp.hpipm.warm_start = config["sqp"]["hpipm"]["warm_start"]
+        self.sqp.hpipm.iter_max = config["sqp"]["hpipm"]["iter_max"]
+        self.sqp.hpipm.slacks.enabled = config["sqp"]["hpipm"]["slacks"]["enabled"]
+        self.sqp.hpipm.slacks.upper_L2_penalty = config["sqp"]["hpipm"]["slacks"].get("upper_L2_penalty", 1e2)
+        self.sqp.hpipm.slacks.lower_L2_penalty = config["sqp"]["hpipm"]["slacks"].get("lower_L2_penalty", 1e2)
+        self.sqp.hpipm.slacks.upper_L1_penalty = config["sqp"]["hpipm"]["slacks"].get("upper_L1_penalty", 0)
+        self.sqp.hpipm.slacks.lower_L1_penalty = config["sqp"]["hpipm"]["slacks"].get("lower_L1_penalty", 0)
+        self.sqp.hpipm.slacks.upper_low_bound = config["sqp"]["hpipm"]["slacks"].get("upper_low_bound", 0)
+        self.sqp.hpipm.slacks.lower_low_bound = config["sqp"]["hpipm"]["slacks"].get("lower_low_bound", 0)
+
         self.end_effector_link_name = config["robot"]["tool_link_name"]
         self.robot_base_type = bindings.robot_base_type_from_string(
             config["robot"]["base_type"]

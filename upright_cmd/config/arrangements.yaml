@@ -72,9 +72,9 @@ arrangements:
       -
         first: ee
         second: bottle
-        mu: 0.2
-        mu_margin: 0.2
-        support_area_inset: 0.01
+        mu: 0.3
+        mu_margin: 0.05
+        support_area_inset: 0.005  # XXX
 
   # single foam die
   foam_die1:
@@ -130,9 +130,24 @@ arrangements:
       -
         first: ee
         second: bottle
-        mu: 0.3
+        mu: 0.2
         support_area_inset: 0.005
         mu_margin: 0.01
+
+  simulation_box_h0:
+    objects:
+      -
+        name: bottle
+        type: simulation_box_h0
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: bottle
+        mu: 0.5
+        support_area_inset: 0.005
+        mu_margin: 0.01
+        # mu_margin: 0.3
 
   simulation_box_with_fixture:
     objects:
@@ -151,13 +166,13 @@ arrangements:
       -
         first: ee
         second: bottle
-        mu: 0.3
+        mu: 0.2
         support_area_inset: 0.005
         mu_margin: 0.01
       -
         first: fixture
         second: bottle
-        mu: 0.3
+        mu: 0.2
         mu_margin: 0.01
 
   tall_simulation_box:

@@ -59,9 +59,6 @@ class DataLogger:
         data_path = dir_path / "data.npz"
         config_path = dir_path / "config.yaml"
 
-        # save the task.info file
-        core.util.copy_task_info_file(self.config, dir_path)
-
         # save the recorded data
         np.savez_compressed(data_path, **self.data)
 

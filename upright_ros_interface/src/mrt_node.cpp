@@ -301,6 +301,9 @@ int main(int argc, char** argv) {
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, u, mode);
 
+        // std::cout << "x_obs = " << x.tail(9).transpose() << std::endl;
+        // std::cout << "xd_obs = " << xd.tail(9).transpose() << std::endl;
+
         // Check that controller is not making the end effector leave allowed
         // region
         if (settings.tracking.enforce_ee_position_limits &&

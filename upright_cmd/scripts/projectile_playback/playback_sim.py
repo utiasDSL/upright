@@ -201,11 +201,11 @@ def main():
         sim.robot.command_velocity(cmd_vel, bodyframe=True)
 
         # manually steer the projectile
-        projectile_cmd_vel = (
-            K_proj
-            * (projectile_positions[projectile_index, :] - projectile.joint_state()[0])
-            + projectile_velocities[projectile_index, :]
-        )
+        # projectile_cmd_vel = (
+        #     K_proj
+        #     * (projectile_positions[projectile_index, :] - projectile.joint_state()[0])
+        #     + projectile_velocities[projectile_index, :]
+        # )
         # pyb.resetBaseVelocity(
         #     projectile.body.uid, linearVelocity=list(projectile_cmd_vel)
         # )
@@ -214,6 +214,9 @@ def main():
             list(projectile_positions[projectile_index, :]),
             [0, 0, 0, 1],
         )
+
+        # for recording the obstacle position
+        x_obs[:3] = projectile_positions[projectile_index, :]
 
         if logger.ready(t):
             x = np.concatenate((q, v, a, x_obs))
@@ -236,6 +239,9 @@ def main():
             r_ew_w_d, Q_we_d = ref.get_desired_pose(t)
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("Q_we_ds", Q_we_d)
+
+            d_obs = np.linalg.norm(r_ew_w - x_obs[:3])
+            logger.append("collision_pair_distances", np.array([d_obs]))
 
             # NOTE: not accurate due to lack of acceleration info
             model.update(x)

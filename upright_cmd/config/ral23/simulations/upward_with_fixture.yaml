@@ -1,0 +1,13 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/simulations/_base.yaml
+
+simulation:
+  arrangement: simulation_box_with_fixture
+
+controller:
+  inertial_alignment:
+    constraint_enabled: true
+    align_with_fixed_vector: true
+    contact_plane_normal: [0, 0, 1]

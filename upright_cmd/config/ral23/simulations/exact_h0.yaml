@@ -1,0 +1,13 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/simulations/_base.yaml
+
+simulation:
+  arrangement: simulation_box
+
+controller:
+  balancing:
+    enabled: true
+    frictionless: false
+    arrangement: simulation_box_h0

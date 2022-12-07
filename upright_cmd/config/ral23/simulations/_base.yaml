@@ -13,7 +13,7 @@ include:
 
 logging:
   timestep: 0.010
-  log_dir: /media/adam/Data/PhD/Data/upright/ral23/simulations
+  log_dir: /media/adam/Data/PhD/Data/upright/ral23/simulations/comparisons
 
 simulation:
   duration: 5.0
@@ -62,5 +62,5 @@ controller:
   waypoints:
     -
       time: 0
-      position: [0.0, 2.0, 0]
+      position: [-2.0, 1.0, 0]
       orientation: [0, 0, 0, 1]

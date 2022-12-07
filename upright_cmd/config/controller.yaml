@@ -40,8 +40,8 @@ tracking:
 # sequential quadratic programming
 sqp:
   dt: 0.1
-  sqp_iteration: 1
-  init_sqp_iteration: 1
+  sqp_iteration: 2
+  init_sqp_iteration: 2
   delta_tol: 1e-3
   cost_tol: 1e-4
   use_feedback_policy: false
@@ -49,6 +49,11 @@ sqp:
   print_solver_status: true
   print_solver_statistics: true
   print_line_search: true
+  hpipm:
+    iter_max: 30
+    warm_start: true
+    slacks:
+      enabled: true
 
 balancing:
   arrangement: nothing
@@ -231,6 +236,13 @@ objects:
       type: cuboid
       side_lengths: [0.06, 0.06, 0.2]
     com_offset: [0, 0, 0]
+    mass: 0.5
+
+  simulation_box_h0:
+    shape:
+      type: cuboid
+      side_lengths: [0.06, 0.06, 0.2]
+    com_offset: [0, 0, -0.1]
     mass: 0.5
 
   tall_simulation_box:

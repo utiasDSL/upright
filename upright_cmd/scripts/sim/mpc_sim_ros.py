@@ -30,7 +30,7 @@ USE_REAL_VICON = False
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    cli_args = cmd.cli.sim_arg_parser().parse_args()
+    cli_args, _ = cmd.cli.sim_arg_parser().parse_known_args()
 
     # load configuration
     config = core.parsing.load_config(cli_args.config)

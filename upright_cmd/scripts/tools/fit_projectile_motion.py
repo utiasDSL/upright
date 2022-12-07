@@ -12,7 +12,7 @@ import IPython
 
 
 # we only use data above this height
-H = 1.11
+H = 0.8
 
 
 def rollout_drag(ts, b, r0, v0, g):
@@ -120,35 +120,38 @@ def main():
     times = ros_utils.parse_time(msgs)
 
     # find portion of the ball undergoing projectile motion
-    idx = np.flatnonzero(positions[:, 2] >= H)
-    rp = positions[idx, :]
-    tp = times[idx]
+    # idx = np.flatnonzero(positions[:, 2] >= H)
+    # rp = positions[idx, :]
+    # tp = times[idx]
 
-    # use the first two timesteps to estimate initial state
-    r0 = rp[1, :]
-    v0 = (rp[1, :] - rp[0, :]) / (tp[1] - tp[0])
-    g = np.array([0, 0, -9.81])
+    rp = positions
+    tp = times
 
-    # discard first timestep now that we've "used it up"
-    rp = rp[1:, :]
-    tp = tp[1:]
-
-    # nominal model (perfect projectile motion)
-    tm = (tp - tp[0])[:, None]
-    rm = r0 + v0 * tm + 0.5 * tm ** 2 * g
-    vm = v0 + tm * g
-
-    # drag model
-    b = identify_drag(tp, rp, r0, v0, g)
-    print(f"b = {b}")
-    rd, vd = rollout_drag(tp, b, r0, v0, g)
-
-    # numerical diff to get velocity
-    vn = rollout_numerical_diff(tp, rp, r0, v0, τ=0.05)
-
-    # rollout with Kalman filter
-    xk = rollout_kalman(tp, rp, r0, v0, g)
-    rk, vk = xk[:, :3], xk[:, 3:]
+    # # use the first two timesteps to estimate initial state
+    # r0 = rp[1, :]
+    # v0 = (rp[1, :] - rp[0, :]) / (tp[1] - tp[0])
+    # g = np.array([0, 0, -9.81])
+    #
+    # # discard first timestep now that we've "used it up"
+    # rp = rp[1:, :]
+    # tp = tp[1:]
+    #
+    # # nominal model (perfect projectile motion)
+    # tm = (tp - tp[0])[:, None]
+    # rm = r0 + v0 * tm + 0.5 * tm ** 2 * g
+    # vm = v0 + tm * g
+    #
+    # # drag model
+    # b = identify_drag(tp, rp, r0, v0, g)
+    # print(f"b = {b}")
+    # rd, vd = rollout_drag(tp, b, r0, v0, g)
+    #
+    # # numerical diff to get velocity
+    # vn = rollout_numerical_diff(tp, rp, r0, v0, τ=0.05)
+    #
+    # # rollout with Kalman filter
+    # xk = rollout_kalman(tp, rp, r0, v0, g)
+    # rk, vk = xk[:, :3], xk[:, 3:]
 
     # Position models
 
@@ -159,15 +162,18 @@ def main():
     plt.plot(tp, rp[:, 1], label="y", color="g")
     plt.plot(tp, rp[:, 2], label="z", color="b")
 
+    plt.show()
+    return
+
     # assume perfect projectile motion
     plt.plot(tp, rm[:, 0], label="x_m", color="r", linestyle=":")
     plt.plot(tp, rm[:, 1], label="y_m", color="g", linestyle=":")
     plt.plot(tp, rm[:, 2], label="z_m", color="b", linestyle=":")
 
     # Kalman filter (no drag)
-    plt.plot(tp, rd[:, 0], label="x_k", color="r", linestyle="--")
-    plt.plot(tp, rd[:, 1], label="y_k", color="g", linestyle="--")
-    plt.plot(tp, rd[:, 2], label="z_k", color="b", linestyle="--")
+    # plt.plot(tp, rd[:, 0], label="x_k", color="r", linestyle="--")
+    # plt.plot(tp, rd[:, 1], label="y_k", color="g", linestyle="--")
+    # plt.plot(tp, rd[:, 2], label="z_k", color="b", linestyle="--")
 
     plt.xlabel("Time (s)")
     plt.ylabel("Position (m)")

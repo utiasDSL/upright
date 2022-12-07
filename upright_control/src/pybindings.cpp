@@ -3,6 +3,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include <hpipm_catkin/HpipmInterfaceSettings.h>
 #include <ocs2_core/Types.h>
 #include <ocs2_core/control/FeedforwardController.h>
 #include <ocs2_core/control/LinearController.h>
@@ -121,16 +122,6 @@ PYBIND11_MODULE(bindings, m) {
                        &ObstacleSettings::dynamic_obstacles)
         .def_readwrite("extra_spheres", &ObstacleSettings::extra_spheres);
 
-    // pybind11::class_<DynamicObstacleSettings>(m, "DynamicObstacleSettings")
-    //     .def(pybind11::init<>())
-    //     .def_readwrite("enabled", &DynamicObstacleSettings::enabled)
-    //     .def_readwrite("obstacle_radius",
-    //                    &DynamicObstacleSettings::obstacle_radius)
-    //     .def_readwrite("mu", &DynamicObstacleSettings::mu)
-    //     .def_readwrite("delta", &DynamicObstacleSettings::delta)
-    //     .def_readwrite("collision_spheres",
-    //                    &DynamicObstacleSettings::collision_spheres);
-
     pybind11::class_<RobotDimensions>(m, "RobotDimensions")
         .def(pybind11::init<>())
         .def_readwrite("q", &RobotDimensions::q)
@@ -192,6 +183,30 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("check_numerical_stability",
                        &ocs2::rollout::Settings::checkNumericalStability);
 
+    pybind11::class_<ocs2::hpipm_interface::SlackSettings>(m, "SlackSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("enabled",
+                       &ocs2::hpipm_interface::SlackSettings::enabled)
+        .def_readwrite("upper_L2_penalty",
+                       &ocs2::hpipm_interface::SlackSettings::upper_L2_penalty)
+        .def_readwrite("lower_L2_penalty",
+                       &ocs2::hpipm_interface::SlackSettings::lower_L2_penalty)
+        .def_readwrite("upper_L1_penalty",
+                       &ocs2::hpipm_interface::SlackSettings::upper_L1_penalty)
+        .def_readwrite("lower_L1_penalty",
+                       &ocs2::hpipm_interface::SlackSettings::lower_L1_penalty)
+        .def_readwrite("upper_low_bound",
+                       &ocs2::hpipm_interface::SlackSettings::upper_low_bound)
+        .def_readwrite("lower_low_bound",
+                       &ocs2::hpipm_interface::SlackSettings::lower_low_bound);
+
+    pybind11::class_<ocs2::hpipm_interface::Settings>(m, "HPIPMSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("iter_max", &ocs2::hpipm_interface::Settings::iter_max)
+        .def_readwrite("warm_start",
+                       &ocs2::hpipm_interface::Settings::warm_start)
+        .def_readwrite("slacks", &ocs2::hpipm_interface::Settings::slacks);
+
     pybind11::class_<ocs2::multiple_shooting::Settings>(m, "SQPSettings")
         .def(pybind11::init<>())
         .def_readwrite("sqp_iteration",
@@ -213,7 +228,9 @@ PYBIND11_MODULE(bindings, m) {
             "print_solver_statistics",
             &ocs2::multiple_shooting::Settings::printSolverStatistics)
         .def_readwrite("print_line_search",
-                       &ocs2::multiple_shooting::Settings::printLinesearch);
+                       &ocs2::multiple_shooting::Settings::printLinesearch)
+        .def_readwrite("hpipm",
+                       &ocs2::multiple_shooting::Settings::hpipmSettings);
 
     pybind11::class_<TrackingSettings>(m, "TrackingSettings")
         .def(pybind11::init<>())

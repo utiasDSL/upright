@@ -507,10 +507,10 @@ def parse_inertia(mass, shape_config, com_offset):
         raise ValueError(f"Unsupported shape type {type_}.")
 
     # adjust inertia for an offset CoM using parallel axis theorem
-    R = math.skew3(com_offset)
-    inertia = inertia - mass * R @ R
-
-    # inertia = np.zeros((3, 3))  # NOTE TODO
+    # NOTE: not actually doing this b/c I want to be able to specify these
+    # quantities independently
+    # R = math.skew3(com_offset)
+    # inertia = inertia - mass * R @ R
 
     return inertia
 
