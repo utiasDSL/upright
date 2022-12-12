@@ -224,11 +224,7 @@ def main():
                     "object_dynamics_constraints", object_dynamics_constraints
                 )
 
-        # if num_obs_resets == 0 and t >= 1.0:
-        #     num_obs_resets += 1
-        #     ctrl_manager.mpc.reset(ctrl_manager.ref)
-
-        t = sim.step(t, step_robot=False)
+        t = sim.step(t, step_robot=False)[0]
 
     try:
         print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")

@@ -30,7 +30,7 @@ controller:
     time_horizon: 2.0
 
   tracking:
-    enforce_state_limits: false
+    enforce_state_limits: true
     enforce_input_limits: false
     enforce_ee_position_limits: false
 
@@ -70,7 +70,7 @@ controller:
     minimum_distance: 0.2
 
   end_effector_box_constraint:
-    enabled: true
+    enabled: false
     xyz_lower: [-1., -1., -0.5]
     xyz_upper: [1., 1., 0.5]
 

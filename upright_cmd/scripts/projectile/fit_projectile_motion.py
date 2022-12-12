@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Plot position of Vicon objects from a ROS bag."""
+"""Plot position of Vicon objects from a ROS bag.
+
+Also fit the data with projectile motion models and filter with a Kalman filter.
+"""
 import argparse
 from scipy import optimize
 
@@ -120,60 +123,54 @@ def main():
     times = ros_utils.parse_time(msgs)
 
     # find portion of the ball undergoing projectile motion
-    # idx = np.flatnonzero(positions[:, 2] >= H)
-    # rp = positions[idx, :]
-    # tp = times[idx]
+    idx = np.flatnonzero(positions[:, 2] >= H)
+    rp = positions[idx, :]
+    tp = times[idx]
 
-    rp = positions
-    tp = times
+    # use the first two timesteps to estimate initial state
+    r0 = rp[1, :]
+    v0 = (rp[1, :] - rp[0, :]) / (tp[1] - tp[0])
+    g = np.array([0, 0, -9.81])
 
-    # # use the first two timesteps to estimate initial state
-    # r0 = rp[1, :]
-    # v0 = (rp[1, :] - rp[0, :]) / (tp[1] - tp[0])
-    # g = np.array([0, 0, -9.81])
-    #
-    # # discard first timestep now that we've "used it up"
-    # rp = rp[1:, :]
-    # tp = tp[1:]
-    #
-    # # nominal model (perfect projectile motion)
-    # tm = (tp - tp[0])[:, None]
-    # rm = r0 + v0 * tm + 0.5 * tm ** 2 * g
-    # vm = v0 + tm * g
-    #
-    # # drag model
-    # b = identify_drag(tp, rp, r0, v0, g)
-    # print(f"b = {b}")
-    # rd, vd = rollout_drag(tp, b, r0, v0, g)
-    #
-    # # numerical diff to get velocity
-    # vn = rollout_numerical_diff(tp, rp, r0, v0, τ=0.05)
-    #
-    # # rollout with Kalman filter
-    # xk = rollout_kalman(tp, rp, r0, v0, g)
-    # rk, vk = xk[:, :3], xk[:, 3:]
+    # discard first timestep now that we've "used it up"
+    rp = rp[1:, :]
+    tp = tp[1:]
+
+    # nominal model (perfect projectile motion)
+    tm = (tp - tp[0])[:, None]
+    rm = r0 + v0 * tm + 0.5 * tm ** 2 * g
+    vm = v0 + tm * g
+
+    # drag model
+    b = identify_drag(tp, rp, r0, v0, g)
+    print(f"b = {b}")
+    rd, vd = rollout_drag(tp, b, r0, v0, g)
+
+    # numerical diff to get velocity
+    vn = rollout_numerical_diff(tp, rp, r0, v0, τ=0.05)
+
+    # rollout with Kalman filter
+    xk = rollout_kalman(tp, rp, r0, v0, g)
+    rk, vk = xk[:, :3], xk[:, 3:]
 
     # Position models
 
     plt.figure()
 
     # ground truth
-    plt.plot(tp, rp[:, 0], label="x", color="r")
-    plt.plot(tp, rp[:, 1], label="y", color="g")
-    plt.plot(tp, rp[:, 2], label="z", color="b")
-
-    plt.show()
-    return
+    plt.plot(tp, rp[:, 0], label="x (vicon)", color="r")
+    plt.plot(tp, rp[:, 1], label="y (vicon)", color="g")
+    plt.plot(tp, rp[:, 2], label="z (vicon)", color="b")
 
     # assume perfect projectile motion
-    plt.plot(tp, rm[:, 0], label="x_m", color="r", linestyle=":")
-    plt.plot(tp, rm[:, 1], label="y_m", color="g", linestyle=":")
-    plt.plot(tp, rm[:, 2], label="z_m", color="b", linestyle=":")
+    plt.plot(tp, rm[:, 0], label="x (nominal)", color="r", linestyle=":")
+    plt.plot(tp, rm[:, 1], label="y (nominal)", color="g", linestyle=":")
+    plt.plot(tp, rm[:, 2], label="z (nominal)", color="b", linestyle=":")
 
     # Kalman filter (no drag)
-    # plt.plot(tp, rd[:, 0], label="x_k", color="r", linestyle="--")
-    # plt.plot(tp, rd[:, 1], label="y_k", color="g", linestyle="--")
-    # plt.plot(tp, rd[:, 2], label="z_k", color="b", linestyle="--")
+    plt.plot(tp, rd[:, 0], label="x (kalman)", color="r", linestyle="--")
+    plt.plot(tp, rd[:, 1], label="y (kalman)", color="g", linestyle="--")
+    plt.plot(tp, rd[:, 2], label="z (kalman)", color="b", linestyle="--")
 
     plt.xlabel("Time (s)")
     plt.ylabel("Position (m)")
@@ -186,19 +183,19 @@ def main():
     plt.figure()
 
     # ground truth
-    plt.plot(tp, rp[:, 0], label="x", color="r")
-    plt.plot(tp, rp[:, 1], label="y", color="g")
-    plt.plot(tp, rp[:, 2], label="z", color="b")
+    plt.plot(tp, rp[:, 0], label="x (vicon)", color="r")
+    plt.plot(tp, rp[:, 1], label="y (vicon)", color="g")
+    plt.plot(tp, rp[:, 2], label="z (vicon)", color="b")
 
     # assume perfect projectile motion
-    plt.plot(tp, rm[:, 0], label="x_m", color="r", linestyle=":")
-    plt.plot(tp, rm[:, 1], label="y_m", color="g", linestyle=":")
-    plt.plot(tp, rm[:, 2], label="z_m", color="b", linestyle=":")
+    plt.plot(tp, rm[:, 0], label="x (nominal)", color="r", linestyle=":")
+    plt.plot(tp, rm[:, 1], label="y (nominal)", color="g", linestyle=":")
+    plt.plot(tp, rm[:, 2], label="z (nominal)", color="b", linestyle=":")
 
     # projectile motion with drag
-    plt.plot(tp, rd[:, 0], label="x_d", color="r", linestyle="-.")
-    plt.plot(tp, rd[:, 1], label="y_d", color="g", linestyle="-.")
-    plt.plot(tp, rd[:, 2], label="z_d", color="b", linestyle="-.")
+    plt.plot(tp, rd[:, 0], label="x (drag)", color="r", linestyle="-.")
+    plt.plot(tp, rd[:, 1], label="y (drag)", color="g", linestyle="-.")
+    plt.plot(tp, rd[:, 2], label="z (drag)", color="b", linestyle="-.")
 
     plt.xlabel("Time (s)")
     plt.ylabel("Position (m)")
@@ -209,15 +206,22 @@ def main():
     # Velocity models
 
     plt.figure()
-    plt.plot(tp, vm[:, 0], label="x_m", color="r")
-    plt.plot(tp, vm[:, 1], label="y_m", color="g")
-    plt.plot(tp, vm[:, 2], label="z_m", color="b")
-    plt.plot(tp, vn[:, 0], label="x_n", color="r", linestyle=":")
-    plt.plot(tp, vn[:, 1], label="y_n", color="g", linestyle=":")
-    plt.plot(tp, vn[:, 2], label="z_n", color="b", linestyle=":")
-    plt.plot(tp, vk[:, 0], label="x_k", color="r", linestyle="--")
-    plt.plot(tp, vk[:, 1], label="y_k", color="g", linestyle="--")
-    plt.plot(tp, vk[:, 2], label="z_k", color="b", linestyle="--")
+
+    # numerically diffed model
+    plt.plot(tp, vn[:, 0], label="x (num diff)", color="r")
+    plt.plot(tp, vn[:, 1], label="y (num diff)", color="g")
+    plt.plot(tp, vn[:, 2], label="z (num diff)", color="b")
+
+    # perfect projectile motion
+    plt.plot(tp, vm[:, 0], label="x (nominal)", color="r", linestyle=":")
+    plt.plot(tp, vm[:, 1], label="y (nominal)", color="g", linestyle=":")
+    plt.plot(tp, vm[:, 2], label="z (nominal)", color="b", linestyle=":")
+
+    # kalman filter
+    plt.plot(tp, vk[:, 0], label="x (kalman)", color="r", linestyle="--")
+    plt.plot(tp, vk[:, 1], label="y (kalman)", color="g", linestyle="--")
+    plt.plot(tp, vk[:, 2], label="z (kalman)", color="b", linestyle="--")
+
     plt.xlabel("Time (s)")
     plt.ylabel("Velocity (m/s)")
     plt.title("Projectile velocity vs. time")

@@ -40,8 +40,8 @@ tracking:
 # sequential quadratic programming
 sqp:
   dt: 0.1
-  sqp_iteration: 2
-  init_sqp_iteration: 2
+  sqp_iteration: 1
+  init_sqp_iteration: 1
   delta_tol: 1e-3
   cost_tol: 1e-4
   use_feedback_policy: false

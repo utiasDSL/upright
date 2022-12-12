@@ -1,4 +1,5 @@
-"""Plot position of Vicon objects from a ROS bag."""
+#!/usr/bin/env python3
+"""Plot position of *simulated* Vicon objects from a ROS bag."""
 import argparse
 
 import numpy as np

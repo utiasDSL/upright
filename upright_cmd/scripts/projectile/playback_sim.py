@@ -10,6 +10,7 @@ import rospy
 import rosbag
 import numpy as np
 import pybullet as pyb
+import matplotlib.pyplot as plt
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
@@ -109,8 +110,6 @@ def main():
     logger.add("nx", ctrl_config["robot"]["dims"]["x"])
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
-    # TODO the problem is that the simulation does not currently have dynamic
-    # obstacles enabled, I think
     model = ctrl.manager.ControllerModel.from_config(ctrl_config, x0=x)
 
     bag = rosbag.Bag(bag_path)
@@ -161,6 +160,12 @@ def main():
     projectile.start(0)
     projectile_index = 0
     K_proj = 100
+
+    projectile_msgs_est = [msg for _, msg, _ in bag.read_messages("/Projectile/joint_states")]
+    projectile_ts_est = np.array([msg.header.stamp.to_sec() for msg in projectile_msgs_est])
+    projectile_ts_est -= t0
+    projectile_rs_est = np.array([msg.position for msg in projectile_msgs_est])
+    projectile_vs_est = np.array([msg.velocity for msg in projectile_msgs_est])
 
     # reference pose trajectory
     model.update(x)
@@ -251,6 +256,7 @@ def main():
             logger.append("orn_err", model.angle_between_acc_and_normal())
 
         t = sim.step(t, step_robot=False)
+        time.sleep(sim.timestep)
 
     try:
         print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")
@@ -258,8 +264,29 @@ def main():
         pass
 
     # visualize data
-    DataPlotter.from_logger(logger).plot_all(show=True)
+    DataPlotter.from_logger(logger).plot_all(show=False)
 
+    plt.figure()
+    plt.plot(projectile_ts_est, projectile_rs_est[:, 0], label="x")
+    plt.plot(projectile_ts_est, projectile_rs_est[:, 1], label="y")
+    plt.plot(projectile_ts_est, projectile_rs_est[:, 2], label="z")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Position (m)")
+    plt.title("Estimated obstacle position")
+    plt.legend()
+    plt.grid()
+
+    plt.figure()
+    plt.plot(projectile_ts_est, projectile_vs_est[:, 0], label="x")
+    plt.plot(projectile_ts_est, projectile_vs_est[:, 1], label="y")
+    plt.plot(projectile_ts_est, projectile_vs_est[:, 2], label="z")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Position (m)")
+    plt.title("Estimated obstacle velocity")
+    plt.legend()
+    plt.grid()
+
+    plt.show()
 
 if __name__ == "__main__":
     main()

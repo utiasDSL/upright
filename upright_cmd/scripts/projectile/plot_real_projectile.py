@@ -48,9 +48,11 @@ def main():
 
     # compare to measured (numerically-differentiated) velocities
     num_diff_velocities = np.zeros((nv - 1, 3))
+    Δs = np.zeros(nv - 1)
     for i in range(nv - 1):
         dt = vicon_times[i + 1] - vicon_times[i]
         dp = vicon_positions[i + 1, :] - vicon_positions[i, :]
+        Δs[i] = np.linalg.norm(dp)
         num_diff_velocities[i, :] = dp / dt
 
     # x, y, z position vs. time
@@ -79,6 +81,16 @@ def main():
     plt.xlabel("Time (s)")
     plt.ylabel("Velocity (m/s)")
     plt.title(f"Projectile velocity vs. time")
+    plt.legend()
+    plt.grid()
+
+    plt.figure()
+    plt.plot(vicon_times[1:], Δs)
+    plt.axvline(active_time, color="k")
+    plt.axhline(0.2, color=(0.5, 0.5, 0.5, 1))
+    plt.xlabel("Time (s)")
+    plt.ylabel("Distance (m)")
+    plt.title("Distance between position measurements")
     plt.legend()
     plt.grid()
 

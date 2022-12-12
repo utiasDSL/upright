@@ -7,6 +7,7 @@ import rospy
 import numpy as np
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
+from std_msgs.msg import Empty
 
 from upright_sim import simulation
 from upright_core.logging import DataLogger, DataPlotter
@@ -73,7 +74,8 @@ def main():
     logger.add("nx", ctrl_config["robot"]["dims"]["x"])
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
-    model = ctrl.manager.ControllerModel.from_config(ctrl_config, x0=x)
+    # model = ctrl.manager.ControllerModel.from_config(ctrl_config, x0=x)
+    model = ctrl.manager.ControllerModel.from_config(ctrl_config)
 
     # reference pose trajectory
     model.update(x=model.settings.initial_state)
@@ -95,6 +97,9 @@ def main():
     if use_projectile_interface:
         projectile_ros_interface = SimulatedViconObjectInterface("Projectile")
     ros_interface.publish_time(t)
+
+    # publisher for reset command to estimator
+    reset_projectile_pub = rospy.Publisher("reset_projectile_estimate", Empty, queue_size=1)
 
     # wait until a command has been received
     # note that we use real time here since this sim directly controls sim time
@@ -155,14 +160,13 @@ def main():
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("Q_we_ds", Q_we_d)
 
-            # NOTE: not accurate due to lack of acceleration info
-            model.update(x)
-            logger.append("ddC_we_norm", model.ddC_we_norm())
-            logger.append("balancing_constraints", model.balancing_constraints())
-            logger.append("sa_dists", model.support_area_distances())
-            logger.append("orn_err", model.angle_between_acc_and_normal())
+        t, obs_reset = sim.step(t, step_robot=False)
 
-        t = sim.step(t, step_robot=False)
+        # if obstacle is reset (i.e. instanstantly reset to a new state), we
+        # have to reset the estimator
+        if obs_reset:
+            reset_projectile_pub.publish(Empty())
+
         ros_interface.publish_time(t)
 
     try:

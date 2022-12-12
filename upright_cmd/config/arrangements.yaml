@@ -74,7 +74,7 @@ arrangements:
         second: bottle
         mu: 0.3
         mu_margin: 0.05
-        support_area_inset: 0.005  # XXX
+        support_area_inset: 0.01 # needs to be larger because of base inset
 
   # single foam die
   foam_die1:

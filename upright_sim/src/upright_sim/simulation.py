@@ -380,8 +380,9 @@ class BulletDynamicObstacle:
     def step(self, t):
         """Step the object forward in time."""
         # no-op if obstacle hasn't been started
+        reset = False
         if self.start_time is None:
-            return
+            return reset
 
         # reset the obstacle if we've stepped into a new mode
         if self._mode_idx < len(self.times) - 1:
@@ -390,6 +391,7 @@ class BulletDynamicObstacle:
                 _, r0, v0, _ = self._initial_mode_values()
                 pyb.resetBasePositionAndOrientation(self.body.uid, list(r0), [0, 0, 0, 1])
                 pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(v0))
+                reset = True
 
         # velocity needs to be reset at each step of the simulation to negate
         # the effects of gravity
@@ -398,6 +400,7 @@ class BulletDynamicObstacle:
             r, _ = self.body.get_pose()
             cmd_vel = self.K @ (rd - r) + vd
             pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(cmd_vel))
+        return reset
 
 
 class EEObject:
@@ -635,13 +638,14 @@ class BulletSimulation:
         if step_robot:
             self.robot.step(secs=self.timestep)
 
+        obstacle_reset = False
         for ghost in self.ghosts:
             ghost.update()
         for obstacle in self.dynamic_obstacles:
-            obstacle.step(t)
+            obstacle_reset = obstacle.step(t) or obstacle_reset
 
         self.video_manager.record(t)
 
         pyb.stepSimulation()
 
-        return t + self.timestep
+        return t + self.timestep, obstacle_reset
