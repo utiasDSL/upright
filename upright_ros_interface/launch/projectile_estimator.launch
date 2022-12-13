@@ -1,12 +1,10 @@
 <?xml version="1.0"?>
 
 <launch>
-  <!-- <param name="/use_sim_time" value="true" type="bool"/> -->
-
   <!-- Kalman filter estimator. Set process and measurement noise variance. -->
   <param name="activation_height" type="double" value="0.8"/>
-  <param name="pos_proc_var" type="double" value="1.0"/>
-  <param name="vel_proc_var" type="double" value="1.0"/>
-  <param name="pos_meas_var" type="double" value="1.0"/>
+  <param name="nis_bound" type="double" value="14.156"/>
+  <param name="proc_var" type="double" value="1000.0"/>
+  <param name="meas_var" type="double" value="0.0001"/>
   <node pkg="mobile_manipulation_central" type="projectile_vicon_estimator_node" name="projectile_vicon_estimator_node" output="screen" required="True"/>
 </launch>

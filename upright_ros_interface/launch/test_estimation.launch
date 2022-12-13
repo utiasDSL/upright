@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Test the projectile estimator by running back real Vicon data from a bag file and estimated the state. The estimates are recorded to a new bag file. -->
+
+<launch>
+  <arg name="bagfile"/>
+
+  <!-- use simulation time -->
+  <param name="/use_sim_time" value="true" type="bool"/>
+
+  <!-- Estimation -->
+  <include file="$(find upright_ros_interface)/launch/projectile_estimator.launch"></include>
+
+  <!-- Record the estimation results -->
+  <node pkg="rosbag" type="record" name="recorder" output="screen" required="true" args="--all -o $(find upright_ros_interface)/estimation"/>
+
+  <!-- Simulation -->
+  <node pkg="rosbag" type="play" name="player" required="true" output="screen" args="$(arg bagfile) --clock --topics /vicon/Projectile/Projectile" />
+</launch>
