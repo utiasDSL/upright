@@ -5,16 +5,12 @@ import argparse
 import numpy as np
 import rosbag
 import matplotlib.pyplot as plt
-from spatialmath.base import q2r
 import IPython
 
 from mobile_manipulation_central import ros_utils
 import upright_core as core
 import upright_control as ctrl
-
-
-CONFIG_PATH = "/media/adam/Data/PhD/Data/upright/experiments/thing/bags/2022-12-08/projectile_real7_22-09-11/config.yaml"
-BAGFILE_PATH = "/media/adam/Data/PhD/Data/upright/experiments/thing/bags/2022-12-08/projectile_real7_22-09-11/bag_2022-12-08-22-09-12.bag"
+import upright_cmd as cmd
 
 
 def parse_control_model(config_path):
@@ -24,24 +20,38 @@ def parse_control_model(config_path):
 
 
 def main():
-    model = parse_control_model(CONFIG_PATH)
+    np.set_printoptions(precision=3, suppress=True)
+
+    # parse CLI args (directory containing bag and config file)
+    parser = argparse.ArgumentParser()
+    cmd.cli.add_bag_dir_arguments(parser)
+    config_path, bag_path = cmd.cli.parse_bag_dir_args(parser.parse_args())
+
+    model = parse_control_model(config_path)
     robot = model.robot
 
-    bag = rosbag.Bag(BAGFILE_PATH)
+    bag = rosbag.Bag(bag_path)
 
     ur10_msgs = [msg for _, msg, _ in bag.read_messages("/ur10/joint_states")]
     ridgeback_msgs = [msg for _, msg, _ in bag.read_messages("/ridgeback/joint_states")]
-    tray_msgs = [msg for _, msg, _ in bag.read_messages("/vicon/ThingWoodTray/ThingWoodTray")]
+    tray_msgs = [
+        msg for _, msg, _ in bag.read_messages("/vicon/ThingWoodTray/ThingWoodTray")
+    ]
 
     ts = ros_utils.parse_time(tray_msgs, normalize_time=False)
-    ur10_ts, ur10_qs, _ = ros_utils.parse_ur10_joint_state_msgs(ur10_msgs, normalize_time=False)
-    rb_ts, rb_qs, _ = ros_utils.parse_ridgeback_joint_state_msgs(ridgeback_msgs, normalize_time=False)
+    ur10_ts, ur10_qs, _ = ros_utils.parse_ur10_joint_state_msgs(
+        ur10_msgs, normalize_time=False
+    )
+    rb_ts, rb_qs, _ = ros_utils.parse_ridgeback_joint_state_msgs(
+        ridgeback_msgs, normalize_time=False
+    )
 
     ur10_qs_aligned = ros_utils.interpolate_list(ts, ur10_ts, ur10_qs)
     rb_qs_aligned = ros_utils.interpolate_list(ts, rb_ts, rb_qs)
     qs = np.hstack((rb_qs_aligned, ur10_qs_aligned))
     n = qs.shape[0]
-    # prepend on default obstacle positions, which we don't care about
+
+    # prepend default obstacle positions, which we don't care about
     qs = np.hstack((np.zeros((n, 3)), qs))
     ts -= ts[0]
 
@@ -51,6 +61,7 @@ def main():
     robot.forward_qva(q_home)
     r_home, Q_home = robot.link_pose()
 
+    # compute modelled EE poses
     z = np.array([0, 0, 1])
     ee_positions = np.zeros((n, 3))
     ee_orientations = np.zeros((n, 4))
@@ -58,9 +69,12 @@ def main():
     for i in range(n):
         robot.forward_qva(qs[i, :])
         ee_positions[i, :], ee_orientations[i, :] = robot.link_pose()
-        R = q2r(ee_orientations[i, :], order="xyzs")
+        R = core.math.quat_to_rot(ee_orientations[i, :])
+
+        # angle from the upright direction
         ee_angles[i] = np.arccos(z @ R @ z)
 
+    # compute measured tray poses
     tray_positions = np.zeros((n, 3))
     tray_orientations = np.zeros((n, 4))
     tray_angles = np.zeros(n)
@@ -70,9 +84,10 @@ def main():
         Q = tray_msgs[i].transform.rotation
         orientation = np.array([Q.x, Q.y, Q.z, Q.w])
         tray_orientations[i, :] = orientation
-        R = q2r(orientation, order="xyzs")
+        R = core.math.quat_to_rot(orientation)
         tray_angles[i] = np.arccos(z @ R @ z)
 
+    # error between measured and modelled orientation
     orientation_errors = np.zeros((n, 4))
     angle_errors = np.zeros(n)
     for i in range(n):
@@ -81,8 +96,6 @@ def main():
         ΔQ = core.math.rot_to_quat(R1 @ R2.T)
         orientation_errors[i, :] = ΔQ
         angle_errors[i] = core.math.quat_angle(ΔQ)
-
-    IPython.embed()
 
     # EE (model) position vs. time
     plt.figure()

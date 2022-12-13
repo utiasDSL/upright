@@ -15,7 +15,7 @@ import IPython
 
 
 # we only use data above this height
-H = 0.8
+H = 0.1
 
 
 def rollout_drag(ts, b, r0, v0, g):
@@ -67,44 +67,74 @@ def rollout_kalman(ts, rs, r0, v0, g):
     n = ts.shape[0]
 
     # noise covariance
-    Q = 1e-2 * np.eye(6)
-    R = np.diag([1e-2, 1e-2, 1e-2, 1, 1, 1])
+    Q = 100 * np.eye(6)
+    R = np.eye(3)
+    # R = np.diag([1e-2, 1e-2, 1e-2])  #, 1, 1, 1])
 
     # (linear) motion model
     A = np.zeros((6, 6))
     A[:3, 3:] = np.eye(3)
     B = np.zeros((6, 3))
     B[3:, :] = np.eye(3)
+    C = np.zeros((3, 6))
+    C[:, :3] = np.eye(3)
 
     # initial state
     xs = np.zeros((n, 6))
-    xc = np.concatenate((r0, v0))
-    Pc = R
+    # xc = np.concatenate((r0, v0))
+    xc = np.concatenate((r0, r0))
+    # Pc = np.zeros_like(Q)
+    Pc = Q
 
     xs[0, :] = xc
+    xs_real = np.zeros_like(xs)
+    xs_real[0, :] = np.concatenate((r0, v0))
+    Ps = []
+
+    active = False
 
     for i in range(1, n):
         dt = ts[i] - ts[i - 1]
 
+        # Ai = np.eye(6) + dt * A
+        # Bi = np.vstack((0.5 * dt**2 * np.eye(3), dt * np.eye(3)))
+
+        Ai = np.zeros((6, 6))
+        Ai[:3, :3] = 2 * np.eye(3)
+        Ai[:3, 3:] = -np.eye(3)
+        Ai[3:, :3] = np.eye(3)
+        Bi = np.vstack((0.5 * dt**2 * np.eye(3), 0 * np.eye(3)))
+
         # predictor
-        Pc = dt ** 2 * A @ Pc @ A.T + Q
-        xc = xs[i - 1, :] + dt * (A @ xs[i - 1, :] + B @ g)
+        Pc = Ai @ Pc @ Ai.T + dt**2 * Q
+        # xc = xs[i - 1, :] + dt * (A @ xs[i - 1, :] + B @ g)
+        if rs[i, 2] >= 0.8:
+            active = True
+        elif rs[i, 2] <= 0.2:
+            active = False
+        if active:
+            u = g
+        else:
+            u = np.zeros(3)
+        xc = Ai @ xs[i - 1, :] + Bi @ u
 
         # velocity portion of R can be directly calculated from the position
         # portion, since velocity is computed directly from position
-        R[3:, 3:] = R[0, 0] * 2 * np.eye(3) / dt
+        # R[3:, 3:] = R[0, 0] * 2 * np.eye(3) / dt
 
         # measurement
-        r = rs[i, :]
-        v = (rs[i, :] - rs[i - 1, :]) / dt
-        y = np.concatenate((r, v))
+        y = rs[i, :]
+        # v = (rs[i, :] - rs[i - 1, :]) / dt
+        # y = np.concatenate((r, v))
 
         # corrector
-        K = Pc @ np.linalg.inv(Pc + R)
-        P = (np.eye(6) - K) @ Pc
-        xs[i, :] = xc + K @ (y - xc)
+        K = Pc @ C.T @ np.linalg.inv(C @ Pc @ C.T + R)
+        P = (np.eye(6) - K @ C) @ Pc
+        xs[i, :] = xc + K @ (y - C @ xc)
+        xs_real[i, 3:] = (xs[i, :3] - xs[i, 3:]) / dt
+        Ps.append(P)
 
-    return xs
+    return xs_real, np.array(Ps)
 
 
 def main():
@@ -150,7 +180,7 @@ def main():
     vn = rollout_numerical_diff(tp, rp, r0, v0, τ=0.05)
 
     # rollout with Kalman filter
-    xk = rollout_kalman(tp, rp, r0, v0, g)
+    xk, Pks = rollout_kalman(tp, rp, r0, v0, g)
     rk, vk = xk[:, :3], xk[:, 3:]
 
     # Position models
@@ -163,18 +193,24 @@ def main():
     plt.plot(tp, rp[:, 2], label="z (vicon)", color="b")
 
     # assume perfect projectile motion
-    plt.plot(tp, rm[:, 0], label="x (nominal)", color="r", linestyle=":")
-    plt.plot(tp, rm[:, 1], label="y (nominal)", color="g", linestyle=":")
-    plt.plot(tp, rm[:, 2], label="z (nominal)", color="b", linestyle=":")
+    # plt.plot(tp, rm[:, 0], label="x (nominal)", color="r", linestyle=":")
+    # plt.plot(tp, rm[:, 1], label="y (nominal)", color="g", linestyle=":")
+    # plt.plot(tp, rm[:, 2], label="z (nominal)", color="b", linestyle=":")
 
     # Kalman filter (no drag)
-    plt.plot(tp, rd[:, 0], label="x (kalman)", color="r", linestyle="--")
-    plt.plot(tp, rd[:, 1], label="y (kalman)", color="g", linestyle="--")
-    plt.plot(tp, rd[:, 2], label="z (kalman)", color="b", linestyle="--")
+    plt.plot(tp, rk[:, 0], label="x (kalman)", color="r", linestyle="--")
+    plt.plot(tp, rk[:, 1], label="y (kalman)", color="g", linestyle="--")
+    plt.plot(tp, rk[:, 2], label="z (kalman)", color="b", linestyle="--")
 
     plt.xlabel("Time (s)")
     plt.ylabel("Position (m)")
     plt.title("Projectile position vs. time")
+    plt.legend()
+    plt.grid()
+
+    plt.figure()
+    plt.plot(tp[1:], Pks[:, 0, 0], label="var(x)", color="r")
+    plt.plot(tp[1:], Pks[:, 3, 3], label="var(vx)", color="r", linestyle="--")
     plt.legend()
     plt.grid()
 

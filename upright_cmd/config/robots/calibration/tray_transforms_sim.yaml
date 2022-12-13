@@ -1,13 +1,1 @@
-# in sim we use the real EE position but everything else is exact/perfect
-T1:
-  rpy: [0, 0, 0]
-  xyz: [0, 0, 0]
-T2:
-  rpy:
-  - 0
-  - -1.57079633
-  - 3.14159265
-  xyz:
-  - 0.040178898721933365
-  - -0.004205073695629835
-  - 0.30870485305786133
+tray_transforms_sim_wood_2022-12-12_18-16-36.yaml

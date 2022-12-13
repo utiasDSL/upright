@@ -1,0 +1,13 @@
+# in sim we use the real EE position but everything else is exact/perfect
+T1:
+  rpy: [0, 0, 0]
+  xyz: [0, 0, 0]
+T2:
+  rpy:
+  - 0
+  - -1.57079633
+  - 3.14159265
+  xyz:
+  - 0.03502006456255913
+  - -0.0025813281536102295
+  - 0.30964773893356323

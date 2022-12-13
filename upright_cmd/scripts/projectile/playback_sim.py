@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Closed-loop upright simulation using Pybullet over ROS."""
+"""Simulation to play back the real projectile Vicon data and simulated robot response."""
 import argparse
 import datetime
-import glob
 import time
-from pathlib import Path
 
 import rospy
 import rosbag
@@ -23,54 +21,13 @@ import upright_cmd as cmd
 import IPython
 
 
-def parse_args():
-    """Parse CLI args into the required config and bag file paths."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "directory", help="Directory in which to find config and bag files."
-    )
-    parser.add_argument(
-        "--config_name",
-        help="Name of config file within the given directory.",
-        required=False,
-    )
-    parser.add_argument(
-        "--bag_name",
-        help="Name of bag file within the given directory.",
-        required=False,
-    )
-    cli_args = parser.parse_args()
-
-    dir_path = Path(cli_args.directory)
-
-    if cli_args.config_name is not None:
-        config_path = dir_path / cli_args.config_name
-    else:
-        config_files = glob.glob(dir_path.as_posix() + "/*.yaml")
-        if len(config_files) == 0:
-            raise FileNotFoundError("Error: could not find a config file in the specified directory.")
-        if len(config_files) > 1:
-            raise FileNotFoundError("Error: multiple possible config files in the specified directory. Please specify the name using the `--config_name` option.")
-        config_path = config_files[0]
-
-    if cli_args.bag_name is not None:
-        bag_path = dir_path / cli_args.bag_name
-    else:
-        bag_files = glob.glob(dir_path.as_posix() + "/*.bag")
-        if len(bag_files) == 0:
-            raise FileNotFoundError("Error: could not find a bag file in the specified directory.")
-        if len(config_files) > 1:
-            print(
-                "Error: multiple bag files in the specified directory. Please specify the name using the `--bag_name` option."
-            )
-        bag_path = bag_files[0]
-    return config_path, bag_path
-
-
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    config_path, bag_path = parse_args()
+    # parse CLI args (directory containing bag and config file)
+    parser = argparse.ArgumentParser()
+    cmd.cli.add_bag_dir_arguments(parser)
+    config_path, bag_path = cmd.cli.parse_bag_dir_args(parser.parse_args())
 
     # load configuration
     config = core.parsing.load_config(config_path)
@@ -255,7 +212,7 @@ def main():
             logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
 
-        t = sim.step(t, step_robot=False)
+        t = sim.step(t, step_robot=False)[0]
         time.sleep(sim.timestep)
 
     try:
