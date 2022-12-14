@@ -224,7 +224,9 @@ objects:
     com_offset: [0, 0, 0]
     shape:
       type: right_triangular_prism
-      side_lengths: [0.103, 0.09, 0.038]
+      # approx 15 deg slope with 0.09 long hypoteneuse
+      side_lengths: [0.0869, 0.103, 0.0233]
+      # side_lengths: [0.103, 0.09, 0.038]
 
   fixture:
     mass: 0.1

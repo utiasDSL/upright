@@ -18,6 +18,9 @@ simulation:
     enabled: true
 
 controller:
+  tracking:
+    use_projectile: false
+
   balancing:
     enabled: true
     use_force_constraints: true
