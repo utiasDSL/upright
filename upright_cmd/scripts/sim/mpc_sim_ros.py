@@ -133,7 +133,7 @@ def main():
             projectile_ros_interface.publish_ground_truth(t, r_obs, x_obs[3:6])
 
         # commands are always in the body frame (to match the real robot)
-        sim.robot.command_velocity(ros_interface.cmd_vel, bodyframe=True)
+        cmd_vel_world = sim.robot.command_velocity(ros_interface.cmd_vel, bodyframe=True)
 
         if logger.ready(t):
             # NOTE: we can try to approximate acceleration using finite
@@ -151,7 +151,7 @@ def main():
             logger.append("Q_wes", Q_we)
             logger.append("v_ew_ws", v_ew_w)
             logger.append("ω_ew_ws", ω_ew_w)
-            logger.append("cmd_vels", ros_interface.cmd_vel)
+            logger.append("cmd_vels", cmd_vel_world)
             logger.append("r_ow_ws", r_ow_ws)
             logger.append("Q_wos", Q_wos)
 

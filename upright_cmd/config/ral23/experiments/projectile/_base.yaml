@@ -60,7 +60,7 @@ controller:
       diag: [1rep9]
     state:
       scale: 0.01
-      diag: [0rep9, 10rep9, 1rep9]
+      diag: [0rep9, 100rep9, 10rep9]
     end_effector:
       scale: 1
       diag: [1, 1, 1, 0, 0, 0]

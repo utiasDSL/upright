@@ -160,7 +160,7 @@ def main():
         cmd_vel = np.concatenate(
             (base_cmd_vels[base_cmd_index, :], arm_cmd_vels[arm_cmd_index, :])
         )
-        cmd_vel_body = sim.robot.command_velocity(cmd_vel, bodyframe=True)
+        cmd_vel_world = sim.robot.command_velocity(cmd_vel, bodyframe=True)
 
         pyb.resetBasePositionAndOrientation(
             projectile.body.uid,
@@ -184,7 +184,7 @@ def main():
             logger.append("Q_wes", Q_we)
             logger.append("v_ew_ws", v_ew_w)
             logger.append("ω_ew_ws", ω_ew_w)
-            logger.append("cmd_vels", cmd_vel_body)
+            logger.append("cmd_vels", cmd_vel_world)
             logger.append("r_ow_ws", r_ow_ws)
             logger.append("Q_wos", Q_wos)
 
