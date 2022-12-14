@@ -176,6 +176,9 @@ class SimulatedRobot:
             targetVelocities=list(v_pyb_noisy),
         )
 
+        # return the actual commanded velocity
+        return v_pyb_noisy
+
     def joint_states(self, add_noise=False, bodyframe=False):
         """Get the current state of the joints.
 

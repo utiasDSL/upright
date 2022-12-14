@@ -160,17 +160,8 @@ def main():
         cmd_vel = np.concatenate(
             (base_cmd_vels[base_cmd_index, :], arm_cmd_vels[arm_cmd_index, :])
         )
-        sim.robot.command_velocity(cmd_vel, bodyframe=True)
+        cmd_vel_body = sim.robot.command_velocity(cmd_vel, bodyframe=True)
 
-        # manually steer the projectile
-        # projectile_cmd_vel = (
-        #     K_proj
-        #     * (projectile_positions[projectile_index, :] - projectile.joint_state()[0])
-        #     + projectile_velocities[projectile_index, :]
-        # )
-        # pyb.resetBaseVelocity(
-        #     projectile.body.uid, linearVelocity=list(projectile_cmd_vel)
-        # )
         pyb.resetBasePositionAndOrientation(
             projectile.body.uid,
             list(projectile_positions[projectile_index, :]),
@@ -193,7 +184,7 @@ def main():
             logger.append("Q_wes", Q_we)
             logger.append("v_ew_ws", v_ew_w)
             logger.append("ω_ew_ws", ω_ew_w)
-            logger.append("cmd_vels", cmd_vel)
+            logger.append("cmd_vels", cmd_vel_body)
             logger.append("r_ow_ws", r_ow_ws)
             logger.append("Q_wos", Q_wos)
 
