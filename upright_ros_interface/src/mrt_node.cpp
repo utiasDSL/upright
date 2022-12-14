@@ -19,6 +19,7 @@
 #include <upright_control/controller_interface.h>
 #include <upright_control/dynamics/system_pinocchio_mapping.h>
 #include <upright_control/reference_trajectory.h>
+#include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_ros_interface/parsing.h>
 
 using namespace upright;
@@ -248,8 +249,22 @@ int main(int argc, char** argv) {
     ros::Time last_policy_update_time = now;
     ros::Duration policy_update_delay(settings.tracking.min_policy_update_time);
 
+    // Obstacle setup.
+    const bool using_projectile = settings.dims.o > 0 && settings.tracking.use_projectile;
+    const bool using_stationary = settings.dims.o > 0 && !settings.tracking.use_projectile;
+
+    DynamicObstacle* obstacle;
+    if (settings.dims.o > 0) {
+        obstacle = &settings.obstacle_settings.dynamic_obstacles[0];
+        const size_t num_modes = obstacle->modes.size();
+        if ((using_projectile && num_modes != 1) || (using_stationary && num_modes != 2)) {
+            throw std::runtime_error("Dynamic obstacle has wrong number of modes.");
+        }
+    }
+
     ocs2::scalar_t t = now.toSec();
     ocs2::scalar_t last_t = t;
+    const ocs2::scalar_t t0 = t;
 
     while (ros::ok()) {
         now = ros::Time::now();
@@ -266,13 +281,12 @@ int main(int argc, char** argv) {
         VecXd u_robot = u.head(settings.dims.robot.u);
         std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u_robot, dt);
 
-        // Current state is built from robot feedback for q and v; for
+        // Current state is built from robot feedback for q; for velocity and
         // acceleration we just assume we are tracking well since we don't get
         // good feedback on this
         x.head(settings.dims.robot.x) << q, v_ff, a_ff;
 
-        // Dynamic obstacle
-        if (settings.dims.o > 0 && projectile.ready()) {
+        if (using_projectile && projectile.ready()) {
             Vec3d q_obs = projectile.q();
             if (q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
                 avoid_dynamic_obstacle = true;
@@ -281,9 +295,6 @@ int main(int argc, char** argv) {
                 std::cout << "~ q_obs = " << q_obs.transpose() << std::endl;
             }
 
-            // TODO we could also have this trigger a case where we now assume
-            // the trajectory of the object is perfect
-            //
             // TODO we could have the MPC reset if the projectile was inside
             // the "awareness zone" but then leaves, such that the robot is
             // ready for the next throw
@@ -292,11 +303,39 @@ int main(int argc, char** argv) {
             // below a certain threshold?
             if (avoid_dynamic_obstacle) {
                 Vec3d v_obs = projectile.v();
-                Vec3d a_obs = settings.obstacle_settings.dynamic_obstacles[0]
-                                  .acceleration;
+                Vec3d a_obs = obstacle->modes[0].acceleration;
                 x.tail(9) << q_obs, v_obs, a_obs;
             }
+        } else if (using_stationary) {
+            if (t - t0 <= obstacle->modes[1].time) {
+                x.tail(9) = obstacle->modes[0].state();
+            } else {
+                x.tail(9) = obstacle->modes[1].state();
+            }
         }
+
+        // // Dynamic obstacle
+        // if (settings.dims.o > 0 && projectile.ready()) {
+        //     Vec3d q_obs = projectile.q();
+        //     if (q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
+        //         avoid_dynamic_obstacle = true;
+        //         std::cout << "  q_obs = " << q_obs.transpose() << std::endl;
+        //     } else {
+        //         std::cout << "~ q_obs = " << q_obs.transpose() << std::endl;
+        //     }
+        //
+        //     // TODO we could have the MPC reset if the projectile was inside
+        //     // the "awareness zone" but then leaves, such that the robot is
+        //     // ready for the next throw
+        //
+        //     // TODO should this eventually stop? like when the obstacle goes
+        //     // below a certain threshold?
+        //     if (avoid_dynamic_obstacle) {
+        //         Vec3d v_obs = projectile.v();
+        //         Vec3d a_obs = obstacle.modes[0].acceleration;
+        //         x.tail(9) << q_obs, v_obs, a_obs;
+        //     }
+        // }
 
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, u, mode);

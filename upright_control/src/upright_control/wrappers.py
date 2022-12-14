@@ -145,6 +145,7 @@ class ControllerSettings(bindings.ControllerSettings):
         self.tracking.enforce_ee_position_limits = config["tracking"][
             "enforce_ee_position_limits"
         ]
+        self.tracking.use_projectile = config["tracking"]["use_projectile"]
 
         self.tracking.state_violation_margin = config["tracking"][
             "state_violation_margin"
@@ -333,16 +334,20 @@ class ControllerSettings(bindings.ControllerSettings):
                     obs = bindings.DynamicObstacle()
                     obs.name = obs_config["name"]
                     obs.radius = obs_config["radius"]
-                    obs.position = np.array(obs_config["position"])
-                    obs.velocity = np.array(obs_config["velocity"])
-                    obs.acceleration = np.array(obs_config["acceleration"])
+                    for mode_config in obs_config["modes"]:
+                        mode = bindings.DynamicObstacleMode()
+                        mode.time = mode_config["time"]
+                        mode.position = np.array(mode_config["position"])
+                        mode.velocity = np.array(mode_config["velocity"])
+                        mode.acceleration = np.array(mode_config["acceleration"])
+                        obs.modes.push_back(mode)
                     self.obstacle_settings.dynamic_obstacles.push_back(obs)
 
                     # the initial state for the obstacles has zero velocity and
                     # acceleration, so they are static. It is expected that the
                     # simulation or real sensors would update this when
                     # appropriate
-                    x0_obs.append(np.concatenate((obs.position, np.zeros(6))))
+                    x0_obs.append(np.concatenate((obs.modes[0].position, np.zeros(6))))
 
                 x0_obs = np.concatenate(x0_obs)
 

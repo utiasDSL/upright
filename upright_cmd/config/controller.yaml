@@ -33,6 +33,8 @@ tracking:
   enforce_input_limits: false
   enforce_ee_position_limits: false
 
+  use_projectile: true
+
   state_violation_margin: 0.1
   input_violation_margin: 1.0
   ee_position_violation_margin: 0.1

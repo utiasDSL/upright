@@ -4,14 +4,22 @@ controller:
     dynamic:
       -
         name: chair1
+        radius: 0.25
         # NOTE: these are *initial conditions*. In real experiment, the
         # position is relative to the origin of the world frame. In simulation,
         # position and velocity are (typically) (re-)set by the simulator for
         # maximum accuracy.
-        position: [1, 0, 0.25]  # out of the way
-        velocity: [0, 0, 0]
-        acceleration: [0, 0, 0]
-        radius: 0.25
+        modes:
+          -
+            time: 0
+            position: [1, 0, 0.25]  # out of the way
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, 0]
+          -
+            time: 1
+            position: [0.5, 0.5, 0.25]
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, 0]
 
     collision_pairs:
       # wrist and ground

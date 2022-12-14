@@ -8,10 +8,13 @@ controller:
         # position is relative to the origin of the world frame. In simulation,
         # position and velocity are (typically) (re-)set by the simulator for
         # maximum accuracy.
-        position: [0, -10, 0]  # out of the way
-        velocity: [0, 0, 0]
-        acceleration: [0, 0, -9.81]
         radius: 0.05
+        modes:
+          -
+            time: 0
+            position: [0, -10, 0]  # out of the way
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, -9.81]
 
     collision_pairs:
       # wrist and shoulder

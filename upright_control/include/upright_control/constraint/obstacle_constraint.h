@@ -6,6 +6,7 @@
 
 namespace upright {
 
+// TODO deprecated
 template <typename Scalar>
 struct CollisionSphere {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -39,17 +40,25 @@ struct CollisionSphere {
     Scalar radius;
 };
 
-struct DynamicObstacle {
+struct DynamicObstacleMode {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    DynamicObstacle() {}
-    // DynamicObstacle(ocs2::scalar_t radius, Vec3d position, Vec3d velocity, Vec3d
-
-    std::string name;
-    ocs2::scalar_t radius = 0;
+    ocs2::scalar_t time;
     Vec3d position;
     Vec3d velocity;
     Vec3d acceleration;
+
+    VecXd state() const {
+        VecXd state(9);
+        state << position, velocity, acceleration;
+        return state;
+    }
+};
+
+struct DynamicObstacle {
+    std::string name;
+    ocs2::scalar_t radius = 0;
+    std::vector<DynamicObstacleMode> modes;
 };
 
 struct ObstacleSettings {

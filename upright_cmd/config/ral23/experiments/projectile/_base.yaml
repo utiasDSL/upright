@@ -33,6 +33,7 @@ controller:
     enforce_state_limits: true
     enforce_input_limits: false
     enforce_ee_position_limits: false
+    use_projectile: true
 
   balancing:
     enabled: false

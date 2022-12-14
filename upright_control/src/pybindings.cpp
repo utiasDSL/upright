@@ -41,6 +41,7 @@ using SystemMapping =
 PYBIND11_MAKE_OPAQUE(CollisionSphereVector)
 PYBIND11_MAKE_OPAQUE(StringPairVector)
 PYBIND11_MAKE_OPAQUE(std::vector<DynamicObstacle>)
+PYBIND11_MAKE_OPAQUE(std::vector<DynamicObstacleMode>)
 PYBIND11_MAKE_OPAQUE(std::map<std::string, ocs2::scalar_t>)
 
 /* create a python module */
@@ -53,6 +54,7 @@ PYBIND11_MODULE(bindings, m) {
     VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
     VECTOR_TYPE_BINDING(std::vector<DynamicObstacle>, "DynamicObstacleVector")
+    VECTOR_TYPE_BINDING(std::vector<DynamicObstacleMode>, "DynamicObstacleModeVector")
 
     pybind11::bind_map<std::map<std::string, ocs2::scalar_t>>(
         m, "MapStringScalar");
@@ -99,13 +101,18 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("offset", &CollisionSphere<scalar_t>::offset)
         .def_readwrite("radius", &CollisionSphere<scalar_t>::radius);
 
+    pybind11::class_<DynamicObstacleMode>(m, "DynamicObstacleMode")
+        .def(pybind11::init<>())
+        .def_readwrite("time", &DynamicObstacleMode::time)
+        .def_readwrite("position", &DynamicObstacleMode::position)
+        .def_readwrite("velocity", &DynamicObstacleMode::velocity)
+        .def_readwrite("acceleration", &DynamicObstacleMode::acceleration);
+
     pybind11::class_<DynamicObstacle>(m, "DynamicObstacle")
         .def(pybind11::init<>())
         .def_readwrite("name", &DynamicObstacle::name)
         .def_readwrite("radius", &DynamicObstacle::radius)
-        .def_readwrite("position", &DynamicObstacle::position)
-        .def_readwrite("velocity", &DynamicObstacle::velocity)
-        .def_readwrite("acceleration", &DynamicObstacle::acceleration);
+        .def_readwrite("modes", &DynamicObstacle::modes);
 
     pybind11::class_<ObstacleSettings>(m, "ObstacleSettings")
         .def(pybind11::init<>())
@@ -243,6 +250,8 @@ PYBIND11_MODULE(bindings, m) {
                        &TrackingSettings::enforce_input_limits)
         .def_readwrite("enforce_ee_position_limits",
                        &TrackingSettings::enforce_ee_position_limits)
+        .def_readwrite("use_projectile",
+                       &TrackingSettings::use_projectile)
         .def_readwrite("state_violation_margin",
                        &TrackingSettings::state_violation_margin)
         .def_readwrite("input_violation_margin",

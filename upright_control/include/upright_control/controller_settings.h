@@ -28,6 +28,10 @@ struct TrackingSettings {
     bool enforce_input_limits = false;
     bool enforce_ee_position_limits = false;
 
+    // True if dynamic obstacles should use a projectile model; false if they
+    // should use a stationary model.
+    bool use_projectile = false;
+
     ocs2::scalar_t state_violation_margin = 0.1;
     ocs2::scalar_t input_violation_margin = 1.0;
     ocs2::scalar_t ee_position_violation_margin = 0.1;
