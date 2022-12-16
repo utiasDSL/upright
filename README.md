@@ -58,14 +58,14 @@ software"):
 * [mobile_manipulation_central](https://github.com/utiasDSL/dsl__projects__mobile_manipulation_central)
   and its dependenices.
 
-Clone this repo:
+Clone this repo into the catkin workspace:
 ```
-git clone https://github.com/utiasDSL/dsl__projects__tray_balance
+git clone https://github.com/utiasDSL/dsl__projects__tray_balance catkin_ws/src/upright
 ```
 
 Install Python dependencies:
 ```
-python3 -m pip install -r upright/requirements.txt
+python3 -m pip install -r catkin_ws/src/upright/requirements.txt
 ```
 
 Build the workspace:
