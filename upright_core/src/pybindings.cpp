@@ -5,7 +5,6 @@
 #include "upright_core/bounded.h"
 #include "upright_core/bounded_constraints.h"
 #include "upright_core/contact.h"
-#include "upright_core/ellipsoid.h"
 #include "upright_core/nominal.h"
 #include "upright_core/support_area.h"
 #include "upright_core/types.h"

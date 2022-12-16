@@ -23,12 +23,10 @@ natively.
 
 ## Setup and Installation
 
-Install required apt packages (TODO: this list is not exhaustive):
+Install required apt packages:
 ```
 sudo apt install ros-noetic-eigenpy ros-noetic-hpp-fcl
 ```
-
-TODO Python dependencies
 
 Clone and build [pinocchio](https://github.com/stack-of-tasks/pinocchio) in a
 separate folder outside of the catkin workspace. It can be built with catkin,
@@ -37,18 +35,42 @@ compiling pinocchio takes ages, and (2) I ran into an issue where it would
 cause sourcing `devel/setup.bash` not to work properly (`ROS_PACKAGE_PATH`
 wasn't set). Be sure to build it with hpp-fcl support (this can be done by
 either editing the CMakeLists.txt or passing the compile option
-`-DPINOCCHIO_WITH_HPP_FCL`), as well as the correct Python binary.
+`-DPINOCCHIO_WITH_HPP_FCL`), as well as the correct Python binary. Follow the
+installation directions
+[here](https://stack-of-tasks.github.io/pinocchio/download.html), using the
+cmake command:
+```
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DPYTHON_EXECUTABLE=/usr/bin/python3 -DBUILD_WITH_COLLISION_SUPPORT=ON
+```
+Ensure that you also modify `$PYTHONPATH` to include the location of
+pinocchio's Python bindings.
 
-Clone dependencies into the `src` folder of your catkin workspace (I like to
-put them in a subfolder called `tps` for "third-party software"):
-* [OCS2](https://github.com/leggedrobotics/ocs2)
+Clone catkin package dependencies into the `src` folder of your catkin
+workspace (I like to put them in a subfolder called `tps` for "third-party
+software"):
+* Our custom fork of [OCS2](https://github.com/utiasDSL/ocs2). Install
+  dependencies as listed
+  [here](https://leggedrobotics.github.io/ocs2/installation.html) and then
+  clone:
+  ```
+  git clone -b upright https://github.com/utiasDSL/ocs2
+  ```
 * [mobile_manipulation_central](https://github.com/utiasDSL/dsl__projects__mobile_manipulation_central)
-* TODO more dependencies required for experiments
+  and its dependenices.
 
-Clone this repo and build the workspace:
+Clone this repo:
 ```
 git clone https://github.com/utiasDSL/dsl__projects__tray_balance
-catkin build
+```
+
+Install Python dependencies:
+```
+python3 -m pip install -r upright/requirements.txt
+```
+
+Build the workspace:
+```
+catkin build -DCMAKE_BUILD_TYPE=RelWithDebInfo
 ```
 
 ## Simulation
