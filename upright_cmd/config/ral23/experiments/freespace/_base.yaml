@@ -40,6 +40,7 @@ controller:
 
   balancing:
     enabled: true
+    frictionless: true
     use_force_constraints: true
     arrangement: foam_die1
     constraint_type: hard

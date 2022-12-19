@@ -249,26 +249,27 @@ arrangements:
   #       second: box1
   #       mu: 0.15
   #
-  # wedge:
-  #   support_area_inset: 0.01
-  #   mu_margin: 0.01
-  #   objects:
-  #     -
-  #       name: wedge1
-  #       type: wedge
-  #       parent: ee
-  #     -
-  #       name: box1
-  #       type: wood_block
-  #       orientation: [0, 0.17580172, 0, 0.9844256]
-  #       parent: wedge1
-  #   contacts:
-  #     -
-  #       first: ee
-  #       second: wedge1
-  #       mu: 0.4
-  #     -
-  #       first: wedge1
-  #       second: box1
-  #       mu: 0.4
+  wedge:
+    support_area_inset: 0.01
+    mu_margin: 0.01
+    objects:
+      -
+        name: wedge1
+        type: wedge
+        parent: ee
+      -
+        name: box1
+        type: wood_block
+        # orientation: [0, 0.17580172, 0, 0.9844256]
+        orientation: [0, 0.130526, 0, 0.9914449]
+        parent: wedge1
+    contacts:
+      -
+        first: ee
+        second: wedge1
+        mu: 0.4
+      -
+        first: wedge1
+        second: box1
+        mu: 0.4
 

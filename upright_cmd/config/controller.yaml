@@ -225,7 +225,7 @@ objects:
     shape:
       type: right_triangular_prism
       # approx 15 deg slope with 0.09 long hypoteneuse
-      side_lengths: [0.0869, 0.103, 0.0233]
+      side_lengths: [0.0869333, 0.103, 0.0232937]
       # side_lengths: [0.103, 0.09, 0.038]
 
   fixture:

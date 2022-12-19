@@ -64,13 +64,13 @@ class ConvexPolyhedron:
         projection = project_vertices_on_axes(self.vertices, point, normal)
         return self.vertices[np.nonzero(np.abs(projection) < tol)]
 
-    def get_polygon_in_plane(self, point, plane_normal, plane_span):
+    def get_polygon_in_plane(self, point, plane_normal, plane_span, tol=1e-8):
         """Get the interection of this shape with the plane defined by the
         point and normal.
 
         The resultant polygon is projected onto the span basis.
         """
-        V_3d = self.get_vertices_in_plane(point, plane_normal)
+        V_3d = self.get_vertices_in_plane(point, plane_normal, tol=tol)
         V_2d = project_vertices_on_axes(V_3d, point, plane_span)
         return wind_polygon_vertices(V_2d)
 
@@ -221,7 +221,7 @@ def clip_polygon_with_polygon(V1, V2, tol=1e-8):
         if np.linalg.norm(a) < tol:
             raise ValueError("Clipping polygon has repeated vertices.")
         a = a / np.linalg.norm(a)
-        V = clip_polygon(V, p, a)
+        V = clip_polygon(V, p, a, tol=tol)
 
     return V
 
@@ -300,11 +300,11 @@ def box_box_axis_aligned_contact(box1, box2, tol=1e-8, debug=False):
     span = plane_span(plane_normal)
 
     # get the polygonal "slice" of each box in the contact plane
-    V1 = box1.get_polygon_in_plane(point, plane_normal, span)
-    V2 = box2.get_polygon_in_plane(point, plane_normal, span)
+    V1 = box1.get_polygon_in_plane(point, plane_normal, span, tol=tol)
+    V2 = box2.get_polygon_in_plane(point, plane_normal, span, tol=tol)
 
     # find the overlapping region
-    Vp = clip_polygon_with_polygon(V1, V2)
+    Vp = clip_polygon_with_polygon(V1, V2, tol=tol)
 
     # unproject back into world coordinates
     V = point + Vp @ span

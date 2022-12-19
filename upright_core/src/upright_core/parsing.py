@@ -220,7 +220,7 @@ def _parse_objects_with_contacts(
 
         box1 = wrappers[name1].box
         box2 = wrappers[name2].box
-        points, normal = geometry.box_box_axis_aligned_contact(box1, box2)
+        points, normal = geometry.box_box_axis_aligned_contact(box1, box2, tol=1e-7)
         assert points is not None, "No contact points found."
 
         body1 = wrappers[name1].body

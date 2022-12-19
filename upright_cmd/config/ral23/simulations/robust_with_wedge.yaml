@@ -1,0 +1,13 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/simulations/_base.yaml
+
+simulation:
+  arrangement: wedge
+
+controller:
+  balancing:
+    enabled: true
+    frictionless: false
+    arrangement: wedge
