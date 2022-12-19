@@ -359,7 +359,7 @@ class BulletDynamicObstacle:
     def _desired_state(self, t):
         t0, r0, v0, a0 = self._initial_mode_values()
         dt = t - t0
-        rd = r0 + dt * v0 + 0.5 * dt ** 2 * a0
+        rd = r0 + dt * v0 + 0.5 * dt**2 * a0
         vd = v0 + dt * a0
         return rd, vd
 
@@ -389,7 +389,9 @@ class BulletDynamicObstacle:
             if t - self.start_time >= self.times[self._mode_idx + 1]:
                 self._mode_idx += 1
                 _, r0, v0, _ = self._initial_mode_values()
-                pyb.resetBasePositionAndOrientation(self.body.uid, list(r0), [0, 0, 0, 1])
+                pyb.resetBasePositionAndOrientation(
+                    self.body.uid, list(r0), [0, 0, 0, 1]
+                )
                 pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(v0))
                 reset = True
 
@@ -481,8 +483,9 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
     for contact in arrangement["contacts"]:
         name1 = contact["first"]
         name2 = contact["second"]
-        print(f"{name1} {name2}")
-        points, _ = geometry.box_box_axis_aligned_contact(boxes[name1], boxes[name2], tol=1e-7)
+        points, _ = geometry.box_box_axis_aligned_contact(
+            boxes[name1], boxes[name2], tol=1e-7
+        )
         if points is None:
             raise ValueError(f"No contact points found between {name1} and {name2}.")
         contact_points.append(points)
@@ -490,8 +493,6 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
     contact_points = np.vstack(contact_points)
     colors = [[1, 1, 1] for _ in contact_points]
     pyb.addUserDebugPoints([v for v in contact_points], colors, pointSize=10)
-
-    IPython.embed()
 
     # get rid of "fake" EE object before returning
     objects.pop("ee")

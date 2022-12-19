@@ -92,7 +92,7 @@ With each other (smooth sides):
 
 == Tall water bottle ==
 * Mass: 716g
-* Height: 20.5cm (no including nipple)
+* Height: 20.5cm (not including nipple)
 * Diameter: 7cm
 
 === Friction ===
@@ -105,3 +105,8 @@ With wood tray (side):
 * tray length = 28.5 cm
 * height at sliding ~= 10 cm
 * μ = 10 / 28.5 ~= 0.35
+
+== Pink water bottle ==
+* Mass: 827g
+* Height: 20.5cm (until taper); 25.5cm (full height)
+* Diameter: 7cm

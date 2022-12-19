@@ -12,12 +12,14 @@ arrangements:
         type: wood_block_rotx
         parent: ee
         offset:
+          x: 0.0515
           y: 0.0325
       -
         name: block2
         type: wood_block_rotx
         parent: ee
         offset:
+          x: 0.0515
           y: -0.0325
       -
         name: block3
@@ -76,6 +78,22 @@ arrangements:
         mu_margin: 0.05
         support_area_inset: 0.01 # needs to be larger because of base inset
 
+  pink_bottle:
+    objects:
+      -
+        name: bottle
+        type: pink_bottle
+        parent: ee
+        offset:
+          x: 0.035
+    contacts:
+      -
+        first: ee
+        second: bottle
+        mu: 0.2
+        mu_margin: 0.1
+        support_area_inset: 0.005
+
   # single foam die
   foam_die1:
     objects:
@@ -83,6 +101,8 @@ arrangements:
         name: foam_die1
         type: foam_die
         parent: ee
+        offset:
+          x: 0.0325
     contacts:
       -
         first: ee
@@ -99,7 +119,7 @@ arrangements:
         type: foam_die
         parent: ee
         offset:
-          y: -0.06
+          x: 0.0325
       -
         name: foam_die2
         type: foam_die
@@ -118,7 +138,7 @@ arrangements:
         mu: 0.4
         # mu: 0.615
         mu_margin: 0.1
-        support_area_inset: 0.015
+        support_area_inset: 0.01
 
   simulation_box:
     objects:

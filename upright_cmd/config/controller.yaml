@@ -168,6 +168,14 @@ objects:
       radius: 0.035
       height: 0.205
 
+  pink_bottle:
+    mass: 0.827
+    com_offset: [0, 0, 0]
+    shape:
+      type: cylinder
+      radius: 0.035
+      height: 0.255
+
   wood_block:
     mass: 0.18
     com_offset: [0, 0, 0]  # relative to centroid of shape

@@ -20,7 +20,7 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: tall_bottle
+  arrangement: pink_bottle
 
   dynamic_obstacles:
     enabled: true
@@ -37,8 +37,9 @@ controller:
 
   balancing:
     enabled: false
+    frictionless: true
     use_force_constraints: true
-    arrangement: tall_bottle
+    arrangement: pink_bottle
     constraint_type: hard
     enable_normal_constraint: true
     enable_friction_constraint: true
@@ -60,7 +61,7 @@ controller:
       diag: [1rep9]
     state:
       scale: 0.01
-      diag: [0rep9, 100rep9, 2rep9]  # XXX note tuning here
+      diag: [0rep9, 50rep9, 1rep9]
     end_effector:
       scale: 1
       diag: [1, 1, 1, 0, 0, 0]
@@ -68,7 +69,7 @@ controller:
   obstacles:
     enabled: true
     constraint_type: hard
-    minimum_distance: 0.2
+    minimum_distance: 0.25
 
   end_effector_box_constraint:
     enabled: false

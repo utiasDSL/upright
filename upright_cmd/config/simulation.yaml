@@ -68,6 +68,14 @@ objects:
     height: 0.205
     color: [0, 0, 1, 0.9]
 
+  pink_bottle:
+    mass: 0.827
+    com_offset: [0, 0, 0]
+    shape: cylinder
+    radius: 0.035
+    height: 0.255
+    color: [1, 0.46, 0.73, 0.9]
+
   foam_die:
     shape: cuboid
     mass: 0.02

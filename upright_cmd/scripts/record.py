@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import datetime
+import os
 from pathlib import Path
 import subprocess
 import signal
@@ -11,8 +12,6 @@ import upright_core as core
 
 import IPython
 
-
-LOG_DIR_ROOT = Path("/media/adam/Data/PhD/Data/upright/experiments/thing/bags")
 
 ROSBAG_CMD_ROOT = ["rosbag", "record"]
 # fmt: off
@@ -45,7 +44,7 @@ def main():
     else:
         dir_name = Path(ymd) / hms
 
-    log_dir = LOG_DIR_ROOT / dir_name
+    log_dir = os.environ["MOBILE_MANIPULATION_CENTRAL_BAG_DIR"] / dir_name
     log_dir.mkdir(parents=True)
 
     # load configuration and write it out as a single yaml file

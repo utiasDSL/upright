@@ -40,25 +40,26 @@ simulation:
         modes:
           -
             time: 0
-            position: [0.1, -1.87, 0]  # relative to EE if relative=true
+            position: [0, -2.0, 0]  # relative to EE if relative=true
             velocity: [0, 2.67, 3.68]
             acceleration: [0, 0, -9.81]
-            # acceleration: [0, 0, -12]
           -
             time: 2
-            position: [0.1, -1.87, 0]
-            velocity: [0, 2.67, 3.68]
+            position: [1.414, -1.414, 0]
+            velocity: [-1.89, 1.89, 3.68]
             acceleration: [0, 0, -9.81]
-            # acceleration: [0, 0, -12]
           -
             time: 4
-            position: [0.1, -1.87, 0]
-            velocity: [0, 2.67, 3.68]
+            position: [2.0, 0, 0]
+            velocity: [-2.67, 0, 3.68]
             acceleration: [0, 0, -9.81]
-            # acceleration: [0, 0, -12]
           -
             time: 6
-            position: [0.1, -1.87, 0]
-            velocity: [0, 2.67, 3.68]
+            position: [1.414, 1.414, 0]
+            velocity: [-1.89, -1.89, 3.68]
             acceleration: [0, 0, -9.81]
-            # acceleration: [0, 0, -12]
+          -
+            time: 8
+            position: [0, 2.0, 0]
+            velocity: [0, -2.67, 3.68]
+            acceleration: [0, 0, -9.81]

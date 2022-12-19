@@ -4,16 +4,16 @@ include:
     path: config/ral23/experiments/freespace/_base.yaml
   -
     package: upright_cmd
-    path: config/ral23/experiments/_point1.yaml
+    path: config/ral23/experiments/_point2.yaml
 
 
 simulation:
   duration: 5.0
-  arrangement: tall_bottle
+  arrangement: pink_bottle
 
 controller:
   balancing:
     enabled: true
-    use_force_constraints: true
-    arrangement: tall_bottle
+    frictionless: true
+    arrangement: pink_bottle
     constraint_type: hard
