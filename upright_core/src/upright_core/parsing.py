@@ -123,11 +123,13 @@ def millis_to_secs(ms):
     return 0.001 * ms
 
 
-def parse_ros_path(d):
+def parse_ros_path(d, as_string=True):
     """Resolve full path from a dict of containing ROS package and relative path."""
     rospack = rospkg.RosPack()
     path = Path(rospack.get_path(d["package"])) / d["path"]
-    return path.as_posix()
+    if as_string:
+        path = path.as_posix()
+    return path
 
 
 def xacro_include(path):
@@ -138,7 +140,6 @@ def xacro_include(path):
 
 def parse_and_compile_urdf(d, max_runs=10):
     """Parse and compile a URDF from a xacro'd URDF file."""
-    output_path = parse_ros_path(d)
 
     s = """
     <?xml version="1.0" ?>
@@ -168,10 +169,16 @@ def parse_and_compile_urdf(d, max_runs=10):
         raise ValueError("URDF file did not converge.")
 
     # write the final document to a file for later consumption
+    output_path = parse_ros_path(d, as_string=False)
+
+    # make sure path exists
+    if not output_path.parent.exists():
+        output_path.parent.mkdir()
+
     with open(output_path, "w") as f:
         f.write(doc.toprettyxml(indent="  "))
 
-    return output_path
+    return output_path.as_posix()
 
 
 def parse_support_offset(d):

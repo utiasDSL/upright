@@ -123,7 +123,6 @@ void add_ground_plane(const ocs2::PinocchioInterface::Model& model,
     auto ground_placement = pinocchio::SE3::Identity();
     pinocchio::GeometryObject::CollisionGeometryPtr ground_shape_ptr(
         new hpp::fcl::Halfspace(Vec3d::UnitZ(), 0));
-    std::cout << "parent joint index = " << model.frames[0].parent << std::endl;
     pinocchio::GeometryObject ground_obj("ground", model.frames[0].parent,
                                          ground_shape_ptr, ground_placement);
     geom_model.addGeometryObject(ground_obj);
@@ -204,8 +203,6 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
 
         std::cerr << "Hard state and input limits are enabled." << std::endl;
     }
-
-    std::cout << "empty = " << problem_.boundConstraintPtr->empty() << std::endl;
 
     // Collision avoidance
     if (settings_.obstacle_settings.enabled) {

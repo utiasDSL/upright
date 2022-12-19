@@ -79,10 +79,10 @@ def _append_model(
 ):
     """Append models to create new models."""
     new_model, new_collision_model = pinocchio.appendModel(
-        robot.model, model, geom.collision_model, geom_model, 0, placement
+        robot.model, model, geom.collision_model, geom_model, frame_index, placement
     )
     _, new_visual_model = pinocchio.appendModel(
-        robot.model, model, geom.visual_model, geom_model, 0, placement
+        robot.model, model, geom.visual_model, geom_model, frame_index, placement
     )
 
     new_robot = PinocchioRobot(new_model, robot.mapping, robot.tool_link_name)
