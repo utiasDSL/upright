@@ -209,7 +209,7 @@ class _BalancedObjectWrapper:
         self.fixture = fixture
 
 
-def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-8):
+def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-7):
     """
     wrappers is the dict of name: object wrappers
     neighbours is a list of pairs of names specifying objects in contact
@@ -225,7 +225,7 @@ def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-8):
 
         box1 = wrappers[name1].box
         box2 = wrappers[name2].box
-        points, normal = polyhedron.box_box_axis_aligned_contact(box1, box2, tol=1e-7)
+        points, normal = polyhedron.axis_aligned_contact(box1, box2, tol=1e-7)
         assert points is not None, "No contact points found."
 
         body1 = wrappers[name1].body
@@ -248,7 +248,7 @@ def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-8):
                 r1_inset = r1
             else:
                 # project point into tangent plane and inset the tangent part
-                # TODO this does not make sense for non-planar contacts
+                # NOTE this does not make sense for non-planar contacts
                 r1_t = span @ r1
                 r1_t_inset = math.inset_vertex(r1_t, inset)
 

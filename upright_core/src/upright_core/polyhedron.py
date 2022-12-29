@@ -126,11 +126,8 @@ class ConvexPolyhedron:
             # get the vertices on this face
             projection = project_vertices_on_axes(self.vertices, point, normal)
             (idx,) = np.nonzero(np.abs(projection) < tol)
-            try:
-                assert len(idx) >= 3
-            except:
-                print("less than three vertices to a face?")
-                IPython.embed()
+            # each face must have at least three vertices
+            assert len(idx) >= 3
             V_3d = self.vertices[idx]
 
             # project into 2D to wind them
@@ -216,10 +213,6 @@ class ConvexPolyhedron:
 
         b_eq = np.ones(4)
         b_eq[:3] = -(self.position + offset)
-
-        # TODO probably don't need the bounds: distance should be non-negative
-        # bounds = [(None, None)]
-        # bounds.extend([(0, None) for _ in range(n)])
 
         # solve the LP
         res = linprog(c, A_eq=A_eq, b_eq=b_eq)  # , bounds=bounds)
@@ -464,9 +457,7 @@ def wind_polygon_vertices(V):
     idx = np.argsort(angles)
     return V[idx, :], idx
 
-
-# TODO rename now that we can handle arbitrary polyhedra
-def box_box_axis_aligned_contact(box1, box2, tol=DEFAULT_TOLERANCE):
+def axis_aligned_contact(box1, box2, tol=DEFAULT_TOLERANCE):
 
     # in general, we need to test all face normals and all axes that are cross
     # products between pairs of face normals, one from each shape

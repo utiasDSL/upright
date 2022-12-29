@@ -49,8 +49,7 @@ class BulletBody:
 
         # we need to get the box's orientation correct here for accurate height
         # computation
-        C0 = math.quat_to_rot(self.q0)
-        self.box = self.box.transform(rotation=C0)
+        self.box = self.box.transform(rotation=math.quat_to_rot(self.q0))
 
         if inertial_orientation is None:
             inertial_orientation = np.array([0, 0, 0, 1])
@@ -76,9 +75,8 @@ class BulletBody:
             baseOrientation=tuple(self.q0),
         )
 
-        # update bounding box
-        C0 = math.quat_to_rot(self.q0)
-        self.box = self.box.transform(translation=self.r0, rotation=C0)
+        # update bounding polyhedron with actual position
+        self.box = self.box.transform(translation=self.r0)
 
         # set friction
         # I do not set a spinning friction coefficient here directly, but let
@@ -480,9 +478,7 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
     for contact in arrangement["contacts"]:
         name1 = contact["first"]
         name2 = contact["second"]
-        points, _ = polyhedron.box_box_axis_aligned_contact(
-            boxes[name1], boxes[name2], tol=1e-7
-        )
+        points, _ = polyhedron.axis_aligned_contact(boxes[name1], boxes[name2], tol=1e-7)
         if points is None:
             raise ValueError(f"No contact points found between {name1} and {name2}.")
         contact_points.append(points)
