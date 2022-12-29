@@ -231,7 +231,7 @@ objects:
     mass: 0.09
     com_offset: [0, 0, 0]
     shape:
-      type: right_triangular_prism
+      type: wedge
       # approx 15 deg slope with 0.09 long hypoteneuse
       side_lengths: [0.0869333, 0.103, 0.0232937]
       # side_lengths: [0.103, 0.09, 0.038]

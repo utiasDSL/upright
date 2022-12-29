@@ -10,11 +10,11 @@ import upright_core as core
 import IPython
 
 
-def right_triangular_prism_mesh(half_extents):
-    vertices, _ = core.right_triangle.right_triangular_prism_vertices_normals(half_extents)
+def wedge_mesh(half_extents):
+    wedge = core.polyhedron.ConvexPolyhedron.wedge(half_extents)
 
     # convert to raw list of lists
-    vertices = [list(v) for v in vertices]
+    vertices = [list(v) for v in wedge.vertices]
 
     # sets of vertices making up triangular faces
     # counter-clockwise winding about normal facing out of the shape

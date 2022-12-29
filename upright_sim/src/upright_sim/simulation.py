@@ -6,10 +6,10 @@ import pybullet_data
 from pyb_utils.frame import debug_frame_world
 
 import upright_core as core
-from upright_core import parsing, math, geometry
+from upright_core import parsing, math, polyhedron
 from upright_sim.robot import SimulatedRobot
 from upright_sim.camera import VideoManager
-from upright_sim.util import right_triangular_prism_mesh
+from upright_sim.util import wedge_mesh
 
 import IPython
 
@@ -50,7 +50,7 @@ class BulletBody:
         # we need to get the box's orientation correct here for accurate height
         # computation
         C0 = math.quat_to_rot(self.q0)
-        self.box.update_pose(rotation=C0)
+        self.box = self.box.transform(rotation=C0)
 
         if inertial_orientation is None:
             inertial_orientation = np.array([0, 0, 0, 1])
@@ -76,9 +76,9 @@ class BulletBody:
             baseOrientation=tuple(self.q0),
         )
 
-        # update bounding polygon
+        # update bounding box
         C0 = math.quat_to_rot(self.q0)
-        self.box.update_pose(self.r0, C0)
+        self.box = self.box.transform(translation=self.r0, rotation=C0)
 
         # set friction
         # I do not set a spinning friction coefficient here directly, but let
@@ -127,7 +127,7 @@ class BulletBody:
 
         w = np.sqrt(2) * radius
         half_extents = 0.5 * np.array([w, w, height])
-        box = geometry.Box3d(half_extents)
+        box = polyhedron.ConvexPolyhedron.box(half_extents)
 
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_CYLINDER,
@@ -156,7 +156,7 @@ class BulletBody:
     ):
         """Construct a cuboid object."""
         half_extents = 0.5 * np.array(side_lengths)
-        box = geometry.Box3d(half_extents)
+        box = polyhedron.ConvexPolyhedron.box(half_extents)
 
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_BOX,
@@ -181,7 +181,7 @@ class BulletBody:
     def sphere(mass, mu, radius, orientation=None, com_offset=None, color=(0, 0, 1, 1)):
         """Construct a cylinder object."""
         half_extents = np.ones(3) * radius / 2
-        box = geometry.Box3d(half_extents)
+        box = polyhedron.ConvexPolyhedron.box(half_extents)
 
         collision_uid = pyb.createCollisionShape(
             shapeType=pyb.GEOM_SPHERE,
@@ -202,15 +202,12 @@ class BulletBody:
         )
 
     @staticmethod
-    def right_triangular_prism(
+    def wedge(
         mass, mu, side_lengths, orientation=None, com_offset=None, color=(0, 0, 1, 1)
     ):
         half_extents = 0.5 * np.array(side_lengths)
-        vertices, normals = core.right_triangle.right_triangular_prism_vertices_normals(
-            half_extents
-        )
-        _, indices = right_triangular_prism_mesh(half_extents)
-        box = geometry.ConvexPolyhedron(vertices, normals)
+        vertices, indices = wedge_mesh(half_extents)
+        box = polyhedron.ConvexPolyhedron.wedge(half_extents)
 
         collision_uid = pyb.createCollisionShape(
             pyb.GEOM_MESH, vertices=vertices, indices=indices
@@ -226,10 +223,8 @@ class BulletBody:
         com_offset = com_offset + np.array([-hx / 3, 0, -hz / 3])
 
         # compute inertia and inertial frame orientation
-        D, C = core.right_triangle.right_triangular_prism_inertia_normalized(
-            half_extents
-        )
-        local_inertia_diagonal = mass * np.diag(D)
+        D, C = core.math.wedge_inertia_matrix(mass, side_lengths)
+        local_inertia_diagonal = np.diag(D)
         inertial_orientation = core.math.rot_to_quat(C)
 
         return BulletBody(
@@ -266,8 +261,8 @@ class BulletBody:
                 orientation=orientation,
                 com_offset=com_offset,
             )
-        elif d["shape"] == "right_triangular_prism":
-            return BulletBody.right_triangular_prism(
+        elif d["shape"] == "wedge":
+            return BulletBody.wedge(
                 mass=d["mass"],
                 mu=mu,
                 side_lengths=d["side_lengths"],
@@ -411,7 +406,9 @@ class EEObject:
         self.side_lengths = side_lengths
         self.mu = 1.0
         # C = math.quat_to_rot(orientation)
-        self.box = geometry.Box3d(0.5 * self.side_lengths, self.r0)
+        self.box = polyhedron.ConvexPolyhedron.box(0.5 * self.side_lengths).transform(
+            translation=self.r0
+        )
 
     @property
     def height(self):
@@ -483,7 +480,7 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
     for contact in arrangement["contacts"]:
         name1 = contact["first"]
         name2 = contact["second"]
-        points, _ = geometry.box_box_axis_aligned_contact(
+        points, _ = polyhedron.box_box_axis_aligned_contact(
             boxes[name1], boxes[name2], tol=1e-7
         )
         if points is None:

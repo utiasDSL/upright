@@ -112,6 +112,27 @@ def cuboid_inertia_matrix(mass, side_lengths):
     return mass * np.diag([xx, yy, zz]) / 12.0
 
 
+def wedge_inertia_matrix(mass, side_lengths):
+    """Compute inertia matrix of a wedge."""
+    hx, hy, hz = 0.5 * np.array(side_lengths)
+
+    # computed using sympy script right_triangular_prism_inertia.py
+    # fmt: off
+    J = np.array([
+        [hy**2/3 + 2*hz**2/9,                     0,             hx*hz/9],
+        [                  0, 2*hx**2/9 + 2*hz**2/9,                   0],
+        [            hx*hz/9,                     0, 2*hx**2/9 + hy**2/3]])
+    # fmt: on
+
+    d, C = np.linalg.eig(J)
+    D = np.diag(d)
+
+    # J = C @ D @ C.T
+    # D is the (diagonal) inertia tensor in the local inertial frame
+    # C is the orientation of the inertial frame w.r.t. the object frame
+    return mass * D, C
+
+
 def inset_vertex(v, inset):
     """Move a vertex v closer to the origin by inset distance to the origin
 

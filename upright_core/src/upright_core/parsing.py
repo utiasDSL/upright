@@ -15,7 +15,7 @@ from upright_core.bindings import (
     PolygonSupportArea,
     ContactPoint,
 )
-from upright_core import math, geometry, right_triangle
+from upright_core import math, polyhedron
 
 import IPython
 
@@ -209,9 +209,7 @@ class _BalancedObjectWrapper:
         self.fixture = fixture
 
 
-def _parse_objects_with_contacts(
-    wrappers, contact_conf, tol=1e-8
-):
+def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-8):
     """
     wrappers is the dict of name: object wrappers
     neighbours is a list of pairs of names specifying objects in contact
@@ -227,7 +225,7 @@ def _parse_objects_with_contacts(
 
         box1 = wrappers[name1].box
         box2 = wrappers[name2].box
-        points, normal = geometry.box_box_axis_aligned_contact(box1, box2, tol=1e-7)
+        points, normal = polyhedron.box_box_axis_aligned_contact(box1, box2, tol=1e-7)
         assert points is not None, "No contact points found."
 
         body1 = wrappers[name1].body
@@ -377,7 +375,7 @@ def _parse_composite_objects(wrappers, contact_conf):
 
 def parse_local_half_extents(shape_config):
     type_ = shape_config["type"].lower()
-    if type_ == "cuboid" or type_ == "right_triangular_prism":
+    if type_ == "cuboid" or type_ == "wedge":
         return 0.5 * np.array(shape_config["side_lengths"])
     elif type_ == "cylinder":
         r = shape_config["radius"]
@@ -393,20 +391,17 @@ def parse_box(shape_config, position=None, rotation=None):
 
     type_ = shape_config["type"].lower()
     local_half_extents = parse_local_half_extents(shape_config)
-    if type_ == "right_triangular_prism":
-        vertices, normals = right_triangle.right_triangular_prism_vertices_normals(
-            local_half_extents
-        )
-        box = geometry.ConvexPolyhedron(vertices, normals, position, rotation)
+    if type_ == "wedge":
+        box = polyhedron.ConvexPolyhedron.wedge(local_half_extents)
     elif type_ == "cuboid":
-        box = geometry.Box3d(local_half_extents, position, rotation)
+        box = polyhedron.ConvexPolyhedron.box(local_half_extents)
     elif type_ == "cylinder":
         # for the cylinder, we rotate by 45 deg about z so that contacts occur
         # aligned with x-y axes
         rotation = rotation @ math.rotz(np.pi / 4)
-        box = geometry.Box3d(local_half_extents, position, rotation)
+        box = polyhedron.ConvexPolyhedron.box(local_half_extents)
 
-    return box
+    return box.transform(translation=position, rotation=rotation)
 
 
 def compute_support_area(box, parent_box, com_offset, inset, tol=1e-6):
@@ -425,7 +420,7 @@ def compute_support_area(box, parent_box, com_offset, inset, tol=1e-6):
     """
     # TODO this approach is not too general for cylinders, where we may want
     # contacts with more than just their boxes
-    support_points, normal = geometry.box_box_axis_aligned_contact(box, parent_box)
+    support_points, normal = polyhedron.box_box_axis_aligned_contact(box, parent_box)
     assert inset >= 0, "Support area inset must be non-negative."
 
     # check all points are coplanar:
@@ -505,10 +500,8 @@ def parse_inertia(mass, shape_config, com_offset):
         inertia = math.cuboid_inertia_matrix(
             mass=mass, side_lengths=shape_config["side_lengths"]
         )
-    elif type_ == "right_triangular_prism":
-        D, C = right_triangle.right_triangular_prism_inertia_normalized(
-            0.5 * np.array(shape_config["side_lengths"])
-        )
+    elif type_ == "wedge":
+        D, C = math.wedge_inertia_matrix(mass, shape_config["side_lengths"])
         inertia = C @ D @ C.T
     else:
         raise ValueError(f"Unsupported shape type {type_}.")
@@ -529,7 +522,7 @@ def _parse_rigid_body_and_box(obj_type_conf, base_position, quat):
     C = math.quat_to_rot(quat)
 
     local_com_offset = np.array(obj_type_conf["com_offset"], dtype=np.float64)
-    if shape_config["type"].lower() == "right_triangular_prism":
+    if shape_config["type"].lower() == "wedge":
         hx, hy, hz = 0.5 * np.array(shape_config["side_lengths"])
         local_com_offset += np.array([-hx, 0, -hz]) / 3
     com_offset = C @ local_com_offset

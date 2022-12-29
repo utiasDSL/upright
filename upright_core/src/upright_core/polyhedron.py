@@ -6,7 +6,7 @@ from upright_core.math import plane_span
 
 import IPython
 
-# TODO rename this file to polyhedron
+DEFAULT_TOLERANCE = 1e-8
 
 
 class ConvexPolyhedron:
@@ -14,31 +14,32 @@ class ConvexPolyhedron:
         self.nv = vertices.shape[0]  # number of vertices
         self.nf = normals.shape[0]  # number of faces
 
-        self.local_vertices = vertices
-        self.local_normals = normals
-        self.update_pose(position, rotation)
+        self.vertices = vertices
+        self.normals = normals
 
-        # if position is None:
-        #     position = np.zeros(3)
-        # if rotation is None:
-        #     rotation = np.eye(3)
-        #
-        # self.position = position
-        # self.rotation = rotation
-        # self.vertices = position + (rotation @ self.local_vertices.T).T
-        # self.normals = (rotation @ self.local_normals.T).T
+        # nominal position and rotation are stored alongside the vertices
+        # when transformed, these values along with the vertices and normals
+        # are updated
+        if position is None:
+            position = np.zeros(3)
+        if rotation is None:
+            rotation = np.eye(3)
+        self.position = position
+        self.rotation = rotation
 
         # TODO possibly more convenient to compute wound indices of vertices
         # for each face: then clipping can be done face-wise
         if incidence is None:
             self.incidence = self._compute_incidence_matrix()
-            self.ne = np.count_nonzero(np.tril(self.incidence))
         else:
             assert incidence.dtype == bool, "Incidence matrix must have dtype=bool"
-            assert incidence.shape == (self.nv, self.nv), "Incidence matrix of wrong size"
-            assert incidence == edges.T, "Incidence matrix is not symmetric"
+            assert incidence.shape == (
+                self.nv,
+                self.nv,
+            ), "Incidence matrix of wrong size"
+            assert np.all(incidence == incidence.T), "Incidence matrix is not symmetric"
             self.incidence = incidence
-            self.ne = np.count_nonzero(np.tril(incidence))  # number of edges
+        self.ne = np.count_nonzero(np.tril(self.incidence))  # number of edges
 
     @classmethod
     def box(cls, half_extents, position=None, rotation=None):
@@ -47,8 +48,8 @@ class ConvexPolyhedron:
         x, y, z = half_extents
 
         # fmt: off
-        local_normals = np.vstack((np.eye(3), -np.eye(3)))
-        local_vertices = np.array([
+        normals = np.vstack((np.eye(3), -np.eye(3)))
+        vertices = np.array([
             [ x,  y,  z],
             [ x,  y, -z],
             [ x, -y, -z],
@@ -59,34 +60,60 @@ class ConvexPolyhedron:
             [-x, -y,  z]])
         # fmt: on
 
-        return cls(local_vertices, local_normals, position, rotation)
+        return cls(vertices, normals, position, rotation)
 
-    # TODO might be nice to have this return a new object
-    def update_pose(self, position=None, rotation=None):
-        if position is None:
-            position = np.zeros(3)
+    @classmethod
+    def wedge(cls, half_extents, position=None, rotation=None):
+        half_extents = np.array(half_extents)
+        assert (half_extents > 0).all(), "Half extents must be positive."
+        hx, hy, hz = half_extents
+
+        # fmt: off
+        vertices = np.array([
+            [-hx, -hy, -hz], [hx, -hy, -hz], [-hx, -hy, hz],
+            [-hx,  hy, -hz], [hx,  hy, -hz], [-hx,  hy, hz]])
+        # fmt: on
+
+        # compute normal of the non-axis-aligned face
+        e12 = vertices[2, :] - vertices[1, :]
+        e14 = vertices[4, :] - vertices[1, :]
+        n = np.cross(e14, e12)
+        n = n / np.linalg.norm(n)
+
+        # other normals point backward (-x), down (-z), and to each side (+- y)
+        normals = np.vstack((-np.eye(3), np.array([0, 1, 0]), n))
+
+        return cls(vertices, normals, position, rotation)
+
+    def transform(self, translation=None, rotation=None):
+        """Apply a rigid body transform to the polyhedron.
+
+        A new transformed polyhedron is returned; the original is unchanged.
+        """
+        if translation is None:
+            translation = np.zeros(3)
         if rotation is None:
             rotation = np.eye(3)
 
-        self.position = position
-        self.rotation = rotation
-        self.vertices = position + (rotation @ self.local_vertices.T).T
-        self.normals = (rotation @ self.local_normals.T).T
-
-    def transform(self, position=None, rotation=None):
-        if position is None:
-            position = np.zeros(3)
-        if rotation is None:
-            rotation = np.eye(3)
-
-        # TODO: update existing position and rotation and create a new object
-        new_position = rotation @ self.position + position
+        # apply transform to existing pose
+        new_position = rotation @ self.position + translation
         new_rotation = rotation @ self.rotation
 
-        return ConvexPolyhedron()  # TODO
+        # apply transform to vertices and normals
+        vertices = translation + (rotation @ self.vertices.T).T
+        normals = (rotation @ self.normals.T).T
 
+        # build the new polyhedron
+        # the incidence matrix is invariant to tranforms
+        return ConvexPolyhedron(
+            vertices=vertices,
+            normals=normals,
+            position=new_position,
+            rotation=new_rotation,
+            incidence=self.incidence.copy(),
+        )
 
-    def _compute_incidence_matrix(self, tol=1e-8):
+    def _compute_incidence_matrix(self, tol=DEFAULT_TOLERANCE):
         C = np.zeros((self.nv, self.nv), dtype=bool)
         for i in range(self.nf):
             # plane defining this face
@@ -99,7 +126,11 @@ class ConvexPolyhedron:
             # get the vertices on this face
             projection = project_vertices_on_axes(self.vertices, point, normal)
             (idx,) = np.nonzero(np.abs(projection) < tol)
-            assert len(idx) >= 3
+            try:
+                assert len(idx) >= 3
+            except:
+                print("less than three vertices to a face?")
+                IPython.embed()
             V_3d = self.vertices[idx]
 
             # project into 2D to wind them
@@ -140,12 +171,14 @@ class ConvexPolyhedron:
         projection = axis @ self.vertices.T
         return self.vertices[np.argmax(projection), :]
 
-    def get_vertices_in_plane(self, point, normal, tol=1e-8):
+    def get_vertices_in_plane(self, point, normal, tol=DEFAULT_TOLERANCE):
         """Get the vertices that lie in the plane defined by the point and normal."""
         projection = project_vertices_on_axes(self.vertices, point, normal)
         return self.vertices[np.nonzero(np.abs(projection) < tol)]
 
-    def get_polygon_in_plane(self, point, plane_normal, plane_span, tol=1e-8):
+    def get_polygon_in_plane(
+        self, point, plane_normal, plane_span, tol=DEFAULT_TOLERANCE
+    ):
         """Get the interection of this shape with the plane defined by the
         point and normal.
 
@@ -155,7 +188,9 @@ class ConvexPolyhedron:
         V_2d = project_vertices_on_axes(V_3d, point, plane_span)
         return wind_polygon_vertices(V_2d)[0]
 
-    def distance_from_centroid_to_boundary(self, axis, offset=None, tol=1e-8):
+    def distance_from_centroid_to_boundary(
+        self, axis, offset=None, tol=DEFAULT_TOLERANCE
+    ):
         """Get the distance from the shape's position to its boundary in
         direction given by axis.
 
@@ -192,7 +227,8 @@ class ConvexPolyhedron:
         assert d >= -tol, "Distance to boundary is negative!"
         return d
 
-    def clip_with_half_space(V, point, normal, tol=1e-8):
+    def clip_with_half_space(V, point, normal, tol=DEFAULT_TOLERANCE):
+        raise NotImplementedError()
         clipped_V = []
         clipped_indices = []
 
@@ -245,7 +281,7 @@ def orth2d(a):
 
 
 # TODO it would be nice to generalize this to a half space
-def edge_line_intersection(v1, v2, p, a, tol=1e-8):
+def edge_line_intersection(v1, v2, p, a, tol=DEFAULT_TOLERANCE):
     """Find the intersection point of an edge with end points v1 and v2 and
        line going through point p in direction a.
 
@@ -264,7 +300,7 @@ def edge_line_intersection(v1, v2, p, a, tol=1e-8):
     return v1 + bd * b
 
 
-def line_segment_half_space_intersection(v1, v2, point, normal, tol=1e-8):
+def line_segment_half_space_intersection(v1, v2, point, normal, tol=DEFAULT_TOLERANCE):
     assert v1.shape == v2.shape == point.shape == normal.shape
 
     normal = normal / np.linalg.norm(normal)
@@ -289,7 +325,7 @@ def line_segment_half_space_intersection(v1, v2, point, normal, tol=1e-8):
     return v1 + t * (v2 - v1)
 
 
-def clip_line_segment_with_half_space(v1, v2, point, normal, tol=1e-8):
+def clip_line_segment_with_half_space(v1, v2, point, normal, tol=DEFAULT_TOLERANCE):
     assert v1.shape == v2.shape == point.shape == normal.shape
 
     normal = normal / np.linalg.norm(normal)
@@ -315,7 +351,7 @@ def clip_line_segment_with_half_space(v1, v2, point, normal, tol=1e-8):
 
 
 # TODO it would be nice to generalize this to a half space
-def clip_line_segment_with_line(v1, v2, p, a, tol=1e-8):
+def clip_line_segment_with_line(v1, v2, p, a, tol=DEFAULT_TOLERANCE):
     """Clip a line segment with a line.
 
     The line segment is defined by end points v1 and v2. The half space is
@@ -326,7 +362,7 @@ def clip_line_segment_with_line(v1, v2, p, a, tol=1e-8):
     and the intersection point of the edge and line (can be None).
     """
     assert v1.shape == v2.shape == p.shape == a.shape == (2,)
-    a = a / np.linalg(a)
+    a = a / np.linalg.norm(a)
 
     c = orth2d(a)
     d1 = c @ (v1 - p)
@@ -350,42 +386,7 @@ def clip_line_segment_with_line(v1, v2, p, a, tol=1e-8):
         return (1,), intersection
 
 
-def clip_polyhedron_with_half_space(V, point, normal, tol=1e-8):
-    clipped_V = []
-    clipped_indices = []
-
-    # iterate over all edges (pairs of vertices)
-    # TODO this is more complicated because there isn't an obvious canonical
-    # way to get edges from just the vertices
-    for i in range(V.shape[0]):
-        j = (i + 1) % V.shape[0]
-        v1 = V[i, :]
-        v2 = V[j, :]
-        indices, new_v = clip_line_segment_with_half_space(
-            v1, v2, point, normal, tol=tol
-        )
-        if 0 in indices:
-            clipped_V.append(V[i, :])
-            clipped_indices.append(i)
-        if new_v is not None:
-            clipped_V.append(new_v)
-            clipped_indices.append(None)
-        if 1 in indices:
-            clipped_V.append(V[j, :])
-            clipped_indices.append(j)
-
-    new_V = []
-    for i in range(len(clipped_V)):
-        idx = clipped_indices[i]
-        if idx is not None and clipped_indices[(i + 1) % len(clipped_V)] == idx:
-            continue
-        new_V.append(clipped_V[i])
-    assert len(new_V) > 0
-
-    return np.vstack(new_V)
-
-
-def clip_polygon_with_line(V, p, a, tol=1e-8):
+def clip_polygon_with_line(V, p, a, tol=DEFAULT_TOLERANCE):
     assert V.shape[1] == 2
 
     clipped_V = []
@@ -417,7 +418,7 @@ def clip_polygon_with_line(V, p, a, tol=1e-8):
     return np.vstack(new_V)
 
 
-def clip_polygon_with_polygon(V1, V2, tol=1e-8):
+def clip_polygon_with_polygon(V1, V2, tol=DEFAULT_TOLERANCE):
     """Get the polygonal overlap between convex polygons V1 and V2.
 
     Parameters:
@@ -465,7 +466,7 @@ def wind_polygon_vertices(V):
 
 
 # TODO rename now that we can handle arbitrary polyhedra
-def box_box_axis_aligned_contact(box1, box2, tol=1e-8):
+def box_box_axis_aligned_contact(box1, box2, tol=DEFAULT_TOLERANCE):
 
     # in general, we need to test all face normals and all axes that are cross
     # products between pairs of face normals, one from each shape
