@@ -176,7 +176,67 @@ def test_line_segment_half_space_intersection_3d():
     assert r is None
 
 
+def test_wedge():
+    """Test that wedge shape is build correctly."""
+    wedge = core.polyhedron.ConvexPolyhedron.wedge([1, 1, 1])
+    V_expected = np.array(
+        [[-1, 1, 1], [-1, 1, -1], [-1, -1, -1], [-1, -1, 1], [1, -1, -1], [1, 1, -1]]
+    )
+    n = np.array([1, 0, 1])  # non-axis-aligned normal
+    N_expected = np.vstack((-np.eye(3), [0, 1, 0], n / np.linalg.norm(n)))
+    assert np.allclose(sort_canonical(wedge.vertices), sort_canonical(V_expected))
+    assert np.allclose(sort_canonical(wedge.normals), sort_canonical(N_expected))
+
+
+def test_box_box_contact():
+    box1 = core.polyhedron.ConvexPolyhedron.box([1, 1, 1])
+    box2 = core.polyhedron.ConvexPolyhedron.box([0.5, 0.5, 0.5])
+
+    # place box2 atop box1, and offset into a corner
+    box2 = box2.transform(translation=[0.5, 0.5, 1.5])
+
+    points, normal = core.polyhedron.axis_aligned_contact(box1, box2)
+    points_expected = np.array([[0, 0, 1], [0, 1, 1], [1, 1, 1], [1, 0, 1]])
+
+    assert np.allclose(normal, [0, 0, -1])
+    assert np.allclose(sort_canonical(points_expected), sort_canonical(points))
+
+    # shapes are penetrating: nothing should be returned
+    box3 = box2.transform(translation=[0, 0, -0.1])
+    ret = core.polyhedron.axis_aligned_contact(box1, box3)
+    assert ret == (None, None)
+
+    # shapes are not intersecting: nothing should be returned
+    box4 = box2.transform(translation=[0, 0, 0.1])
+    ret = core.polyhedron.axis_aligned_contact(box1, box4)
+    assert ret == (None, None)
+
+
+def test_wedge_box_contact():
+    wedge = core.polyhedron.ConvexPolyhedron.wedge([1, 1, 1])
+    box = core.polyhedron.ConvexPolyhedron.box([1, 1, 1])
+
+    n = np.array([1, 0, 1])
+    n = n / np.linalg.norm(n)
+
+    # rotate the box so its bottom face is aligned with the slope of the wedge
+    rotation = core.math.roty(-np.pi / 4)
+    box = box.transform(rotation=rotation, translation=n)
+
+    points, normal = core.polyhedron.axis_aligned_contact(wedge, box)
+
+    # normal should point into the wedge (the first shape)
+    assert np.allclose(normal, -n)
+
+    a = np.sqrt(2) / 2
+    points_expected = np.array([[-a, 1, a], [-a, -1, a], [a, -1, -a], [a, 1, -a]])
+    assert np.allclose(sort_canonical(points_expected), sort_canonical(points))
+
+
+# NOTE: experimental
 def test_incidence():
+    # TODO this relies on internal implementation details of the box (i.e. the
+    # order of vertices): should be revised
     box = core.polyhedron.ConvexPolyhedron.box([1, 1, 1])
 
     C_expected = np.zeros((box.nv, box.nv), dtype=bool)

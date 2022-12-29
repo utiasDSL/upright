@@ -44,6 +44,7 @@ class ConvexPolyhedron:
 
     @classmethod
     def box(cls, half_extents, position=None, rotation=None):
+        """Create a box: three pairs of parellel sides."""
         half_extents = np.array(half_extents)
         assert (half_extents > 0).all(), "Half extents must be positive."
         x, y, z = half_extents
@@ -65,6 +66,10 @@ class ConvexPolyhedron:
 
     @classmethod
     def wedge(cls, half_extents, position=None, rotation=None):
+        """Create a wedge: two right-angle triangular faces and three rectangular faces.
+
+        The slope faces the positive x-direction.
+        """
         half_extents = np.array(half_extents)
         assert (half_extents > 0).all(), "Half extents must be positive."
         hx, hy, hz = half_extents
@@ -143,6 +148,10 @@ class ConvexPolyhedron:
                 C[a, b] = True
                 C[b, a] = True
         return C
+
+    def _compute_faces(self):
+        # TODO compute 2d list of lists: one list of vertex indices per face
+        pass
 
     def limits_along_axis(self, axis):
         """Minimum and maximum values of the shape projected onto an axis."""
@@ -261,11 +270,6 @@ class ConvexPolyhedron:
         assert len(new_V) > 0
 
         return np.vstack(new_V)
-
-
-# TODO deprecate in favour of polygon
-# def Box3d(half_extents, position=None, rotation=None):
-#     return ConvexPolyhedron.box(half_extents, position, rotation)
 
 
 def orth2d(a):
@@ -458,26 +462,31 @@ def wind_polygon_vertices(V):
     idx = np.argsort(angles)
     return V[idx, :], idx
 
-def axis_aligned_contact(box1, box2, tol=DEFAULT_TOLERANCE):
+def axis_aligned_contact(poly1, poly2, tol=DEFAULT_TOLERANCE):
+    """Compute contact points and normal between two polyhedra.
+
+    Returns: a tuple (V, n), where V is the array of contact points (one per
+    row) and n is the (shared) contact normal.
+    """
 
     # in general, we need to test all face normals and all axes that are cross
     # products between pairs of face normals, one from each shape
     # <https://www.geometrictools.com/Documentation/DynamicCollisionDetection.pdf>
     cross_normals = []
-    for i in range(box1.normals.shape[0]):
-        for j in range(box2.normals.shape[0]):
-            a = np.cross(box1.normals[i, :], box2.normals[j, :])
+    for i in range(poly1.normals.shape[0]):
+        for j in range(poly2.normals.shape[0]):
+            a = np.cross(poly1.normals[i, :], poly2.normals[j, :])
             mag = np.linalg.norm(a)
             if mag > tol:
                 cross_normals.append(a / mag)
-    axes = np.vstack((box1.normals, box2.normals, cross_normals))
+    axes = np.vstack((poly1.normals, poly2.normals, cross_normals))
     axis_idx = None
 
     for i in range(axes.shape[0]):
         axis = axes[i, :]
 
-        limits1 = box1.limits_along_axis(axis)
-        limits2 = box2.limits_along_axis(axis)
+        limits1 = poly1.limits_along_axis(axis)
+        limits2 = poly2.limits_along_axis(axis)
 
         upper = np.min([limits1[1], limits2[1]])
         lower = np.max([limits1[0], limits2[0]])
@@ -486,21 +495,21 @@ def axis_aligned_contact(box1, box2, tol=DEFAULT_TOLERANCE):
         # intersect
         if np.abs(upper - lower) < tol:
             if limits1[0] < limits2[0]:
-                # projection of first box is smaller on this axis
+                # projection of first polyhedron is smaller on this axis
                 # this means we also want to return the normal pointing in the
-                # reverse direction, such that it points into the first box
-                point = box1.max_vertex_along_axis(axis)
+                # reverse direction, such that it points into the first polyhedron
+                point = poly1.max_vertex_along_axis(axis)
                 normal_multiplier = -1
             else:
-                point = box2.max_vertex_along_axis(axis)
+                point = poly2.max_vertex_along_axis(axis)
                 normal_multiplier = 1
             axis_idx = i
         elif upper < lower:
             # shapes are not intersecting with distance of at least `lower -
             # upper` between them: nothing more to do
             print("Shapes not intersecting.")
-            import IPython
-            IPython.embed()
+            # import IPython
+            # IPython.embed()
             return None, None
 
     # shapes are penetrating: this is more complicated, and we don't deal with
@@ -512,9 +521,9 @@ def axis_aligned_contact(box1, box2, tol=DEFAULT_TOLERANCE):
     plane_normal = axes[axis_idx, :]
     span = plane_span(plane_normal)
 
-    # get the polygonal "slice" of each box in the contact plane
-    V1 = box1.get_polygon_in_plane(point, plane_normal, span, tol=tol)
-    V2 = box2.get_polygon_in_plane(point, plane_normal, span, tol=tol)
+    # get the polygonal "slice" of each polyhedron in the contact plane
+    V1 = poly1.get_polygon_in_plane(point, plane_normal, span, tol=tol)
+    V2 = poly2.get_polygon_in_plane(point, plane_normal, span, tol=tol)
 
     # find the overlapping region
     Vp = clip_polygon_with_polygon(V1, V2, tol=tol)
