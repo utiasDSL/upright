@@ -4,6 +4,7 @@ from scipy.optimize import linprog
 
 from upright_core.math import plane_span
 
+# TODO remove when done
 import IPython
 
 DEFAULT_TOLERANCE = 1e-8
@@ -495,10 +496,10 @@ def axis_aligned_contact(box1, box2, tol=DEFAULT_TOLERANCE):
                 normal_multiplier = 1
             axis_idx = i
         elif upper < lower:
-            # shapes are not intersecting, nothing more to do
+            # shapes are not intersecting with distance of at least `lower -
+            # upper` between them: nothing more to do
             print("Shapes not intersecting.")
             import IPython
-
             IPython.embed()
             return None, None
 

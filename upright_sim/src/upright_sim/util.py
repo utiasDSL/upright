@@ -1,16 +1,10 @@
-import argparse
-
 import pybullet as pyb
 import numpy as np
-from scipy.linalg import expm
-import yaml
-
 import upright_core as core
-
-import IPython
 
 
 def wedge_mesh(half_extents):
+    """Generate vertices and indices required to build a mesh object in PyBullet."""
     wedge = core.polyhedron.ConvexPolyhedron.wedge(half_extents)
 
     # convert to raw list of lists
@@ -31,42 +25,6 @@ def wedge_mesh(half_extents):
     # fmt: on
 
     return vertices, list(indices.flatten())
-
-
-# TODO: unused
-def dhtf(q, a, d, α):
-    """Constuct a transformation matrix from D-H parameters."""
-    cα = np.cos(α)
-    sα = np.sin(α)
-    cq = np.cos(q)
-    sq = np.sin(q)
-    return np.array(
-        [
-            [cq, -sq * cα, sq * sα, a * cq],
-            [sq, cq * cα, -cq * sα, a * sq],
-            [0, sα, cα, d],
-            [0, 0, 0, 1],
-        ]
-    )
-
-
-def zoh(A, B, dt):
-    """Compute discretized system matrices assuming zero-order hold on input."""
-    ra, ca = A.shape
-    rb, cb = B.shape
-
-    assert ra == ca  # A is square
-    assert ra == rb  # B has same number of rows as A
-
-    ch = ca + cb
-    rh = ch
-
-    H = np.block([[A, B], [np.zeros((rh - ra, ch))]])
-    Hd = expm(dt * H)
-    Ad = Hd[:ra, :ca]
-    Bd = Hd[:rb, ca : ca + cb]
-
-    return Ad, Bd
 
 
 def draw_curve(waypoints, rgb=(1, 0, 0), dist=0.05, linewidth=1, dashed=False):
