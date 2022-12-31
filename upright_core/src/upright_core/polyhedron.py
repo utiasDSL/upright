@@ -4,8 +4,6 @@ from scipy.optimize import linprog
 
 from upright_core.math import plane_span
 
-# TODO remove when done
-import IPython
 
 DEFAULT_TOLERANCE = 1e-8
 
@@ -232,6 +230,7 @@ class ConvexPolyhedron:
 
     def clip_with_half_space(V, point, normal, tol=DEFAULT_TOLERANCE):
         raise NotImplementedError()
+
         clipped_V = []
         clipped_indices = []
 
@@ -273,32 +272,23 @@ class ConvexPolyhedron:
 
 
 def orth2d(a):
-    """Return vector `a` rotated by 90 degrees counter-clockwise."""
+    """Return vector `a` rotated by 90 degrees counter-clockwise.
+
+    For a polygon with counter-clockwise winding, this gives the inward-facing
+    normal for  agiven edge.
+    """
     # equivalent to np.array([[0, -1], [1, 0]]) @ a
     return np.array([-a[1], a[0]])
 
 
-# TODO it would be nice to generalize this to a half space
-def edge_line_intersection(v1, v2, p, a, tol=DEFAULT_TOLERANCE):
-    """Find the intersection point of an edge with end points v1 and v2 and
-       line going through point p in direction a.
-
-    Returns:
-        The intersection point if it exists, otherwise None.
-    """
-    b = v2 - v1
-    c = orth2d(a)
-
-    if np.abs(b @ c) < tol:
-        return None
-
-    bd = (p - v1) @ c / (b @ c)
-    if bd < 0 or bd > 1.0:
-        return None
-    return v1 + bd * b
-
-
 def line_segment_half_space_intersection(v1, v2, point, normal, tol=DEFAULT_TOLERANCE):
+    """Intersection of a line segment and a half space.
+
+    The line segment is defined by vertices `v1` and `v2`. The half-space
+    passes through `point` and is defined by `normal`.
+
+    Returns the intersection point or None if there is no intersection.
+    """
     assert v1.shape == v2.shape == point.shape == normal.shape
 
     normal = normal / np.linalg.norm(normal)
@@ -324,6 +314,14 @@ def line_segment_half_space_intersection(v1, v2, point, normal, tol=DEFAULT_TOLE
 
 
 def clip_line_segment_with_half_space(v1, v2, point, normal, tol=DEFAULT_TOLERANCE):
+    """Clip a line segment with a half space.
+
+    The line segment is defined by vertices `v1` and `v2`. The half-space
+    passes through `point` and is defined by `normal`.
+
+    Returns a tuple consisting of the indices of the vertices kept and the new
+    vertex, or None if there is no intersection between segment and half space.
+    """
     assert v1.shape == v2.shape == point.shape == normal.shape
 
     normal = normal / np.linalg.norm(normal)
@@ -348,43 +346,12 @@ def clip_line_segment_with_half_space(v1, v2, point, normal, tol=DEFAULT_TOLERAN
         return (1,), intersection
 
 
-# TODO it would be nice to generalize this to a half space
-def clip_line_segment_with_line(v1, v2, p, a, tol=DEFAULT_TOLERANCE):
-    """Clip a line segment with a line.
+def clip_polygon_with_half_space(V, point, normal, tol=DEFAULT_TOLERANCE):
+    """Clip a polygon consisting of vertices `V` by a line passing through `p`
+    in direction `a`.
 
-    The line segment is defined by end points v1 and v2. The half space is
-    defined by point p and axis a. All arguments are 2D.
-
-    Returns a tuple of indices for the vertices kept (i.e., (0, 1) when both
-    vertices kept, (0,) only the first, (1,) only the second, () for neither)
-    and the intersection point of the edge and line (can be None).
+    Returns a new set of vertices defining the clipped polygon.
     """
-    assert v1.shape == v2.shape == p.shape == a.shape == (2,)
-    a = a / np.linalg.norm(a)
-
-    c = orth2d(a)
-    d1 = c @ (v1 - p)
-    d2 = c @ (v2 - p)
-
-    # if both vertices are on one side of the line, we either keep both or
-    # discard both (discard if the edge is a subset of the line)
-    if d1 >= -tol and d2 >= -tol:
-        return (0, 1), None
-    elif d1 <= tol and d2 <= tol:
-        return (), None
-
-    intersection = edge_line_intersection(v1, v2, p, a, tol=tol)
-    assert intersection is not None
-
-    # keep the vertex on the left of the line as well as the intersection
-    # point, while maintaining vertex order
-    if d1 > 0:
-        return (0,), intersection
-    else:
-        return (1,), intersection
-
-
-def clip_polygon_with_line(V, p, a, tol=DEFAULT_TOLERANCE):
     assert V.shape[1] == 2
 
     clipped_V = []
@@ -394,7 +361,9 @@ def clip_polygon_with_line(V, p, a, tol=DEFAULT_TOLERANCE):
         j = (i + 1) % V.shape[0]
         v1 = V[i, :]
         v2 = V[j, :]
-        indices, new_v = clip_line_segment_with_line(v1, v2, p, a, tol=tol)
+        indices, new_v = clip_line_segment_with_half_space(
+            v1, v2, point, normal, tol=tol
+        )
         if 0 in indices:
             clipped_V.append(V[i, :])
             clipped_indices.append(i)
@@ -411,8 +380,9 @@ def clip_polygon_with_line(V, p, a, tol=DEFAULT_TOLERANCE):
         if idx is not None and clipped_indices[(i + 1) % len(clipped_V)] == idx:
             continue
         new_V.append(clipped_V[i])
-    assert len(new_V) > 0
 
+    if len(new_V) == 0:
+        return None
     return np.vstack(new_V)
 
 
@@ -432,17 +402,26 @@ def clip_polygon_with_polygon(V1, V2, tol=DEFAULT_TOLERANCE):
 
     V = V1
     for i in range(n):
-        p = V2[i, :]
-        a = V2[(i + 1) % n] - p
+        point = V2[i, :]
+        a = V2[(i + 1) % n] - point
         if np.linalg.norm(a) < tol:
             raise ValueError("Clipping polygon has repeated vertices.")
         a = a / np.linalg.norm(a)
-        V = clip_polygon_with_line(V, p, a, tol=tol)
+        normal = orth2d(a)  # inward-facing normal
+        V = clip_polygon_with_half_space(V, point, normal, tol=tol)
 
+        # if the clip ever excluded the whole polygon (i.e. there is no
+        # overlap), then we are done
+        if V is None:
+            return None
     return V
 
 
 def project_vertices_on_axes(vertices, point, axes):
+    """Project vertices on a plane spanned by `axes` and passing through `point`."""
+    # NOTE: there is of course a loss of information in that vertices that
+    # differ only in the nullspace of `axes` map to the same point in the
+    # projection
     return (axes @ (vertices - point).T).T
 
 
@@ -461,6 +440,7 @@ def wind_polygon_vertices(V):
     angles = np.arctan2(V[:, 1] - c[1], V[:, 0] - c[0])
     idx = np.argsort(angles)
     return V[idx, :], idx
+
 
 def axis_aligned_contact(poly1, poly2, tol=DEFAULT_TOLERANCE):
     """Compute contact points and normal between two polyhedra.
@@ -508,8 +488,6 @@ def axis_aligned_contact(poly1, poly2, tol=DEFAULT_TOLERANCE):
             # shapes are not intersecting with distance of at least `lower -
             # upper` between them: nothing more to do
             print("Shapes not intersecting.")
-            # import IPython
-            # IPython.embed()
             return None, None
 
     # shapes are penetrating: this is more complicated, and we don't deal with

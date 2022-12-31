@@ -10,6 +10,8 @@ from upright_core.math import skew3
 
 import IPython
 
+# NOTE: the contents of this file are currently unused and deprecated
+
 
 def compute_com(masses, coms):
     assert masses.shape[1] == 1, "masses.shape[1] != 1"

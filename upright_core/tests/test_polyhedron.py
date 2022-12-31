@@ -233,10 +233,103 @@ def test_wedge_box_contact():
     assert np.allclose(sort_canonical(points_expected), sort_canonical(points))
 
 
+def test_vertices_projection_on_axes():
+    axes = np.array([[1, 0, 0], [0, 1, 0]])
+    point = np.array([0, 0, 1])
+
+    vertices = core.polyhedron.ConvexPolyhedron.box([1, 1, 1]).vertices
+    projection = core.polyhedron.project_vertices_on_axes(vertices, point, axes)
+
+    assert np.allclose(projection, vertices[:, :2])
+
+
+def test_wind_polygon_vertices():
+    # same sets of vertices, different orders
+    V1 = np.array([[1, 1], [-1, -1], [1, -1], [-1, 1]])
+    V2 = np.array([[-1, -1], [1, 1], [-1, 1], [1, -1]])
+
+    V1_wound, _ = core.polyhedron.wind_polygon_vertices(V1)
+    V2_wound, _ = core.polyhedron.wind_polygon_vertices(V2)
+
+    # wound order should be the same
+    assert np.allclose(V1_wound, V2_wound)
+
+
+def test_clip_line_segment_with_line():
+    v1 = np.array([0, 0])
+    v2 = np.array([2, 0])
+
+    # line along x=1
+    point = np.array([1, 0])
+    normal = np.array([-1, 0])
+
+    # clip the line
+    idx, intersection = core.polyhedron.clip_line_segment_with_half_space(
+        v1, v2, point, normal
+    )
+    assert idx == (0,)
+    assert np.allclose(intersection, [1, 0])
+
+    # no intersection and the segment is kept
+    point = np.array([3, 0])
+    idx, intersection = core.polyhedron.clip_line_segment_with_half_space(
+        v1, v2, point, normal
+    )
+    assert idx == (0, 1)
+    assert intersection is None
+
+    # no intersection and the segment is discarded
+    point = np.array([-1, 0])
+    idx, intersection = core.polyhedron.clip_line_segment_with_half_space(
+        v1, v2, point, normal
+    )
+    assert idx == ()
+    assert intersection is None
+
+
+def test_clip_polygon_with_line():
+    # square
+    V = np.array([[1, 1], [-1, -1], [1, -1], [-1, 1]])
+    V, _ = core.polyhedron.wind_polygon_vertices(V)
+
+    point = np.array([0, 0])
+    normal = np.array([-1, 1]) / np.sqrt(2)
+
+    V_clipped = core.polyhedron.clip_polygon_with_half_space(V, point, normal)
+    V_clipped_expected = np.array([[-1, -1], [1, 1], [-1, 1]])
+    assert np.allclose(sort_canonical(V_clipped), sort_canonical(V_clipped_expected))
+
+    # no intersection but shape is kept
+    point = np.array([1, -1])
+    V_clipped = core.polyhedron.clip_polygon_with_half_space(V, point, normal)
+    assert np.allclose(sort_canonical(V_clipped), sort_canonical(V))
+
+    # no intersection and shape is discarded
+    point = np.array([-1, 1])
+    V_clipped = core.polyhedron.clip_polygon_with_half_space(V, point, normal)
+    assert V_clipped is None
+
+
+def test_clip_polygon_with_polygon():
+    # square
+    V1 = np.array([[1, 1], [-1, -1], [1, -1], [-1, 1]])
+    V1, _ = core.polyhedron.wind_polygon_vertices(V1)
+    V2 = V1 + [1, 1]
+
+    V = core.polyhedron.clip_polygon_with_polygon(V1, V2)
+    V_expected = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
+    assert np.allclose(sort_canonical(V), sort_canonical(V_expected))
+
+    # no overlap
+    V2 = V1 + [-2, 2]
+    V = core.polyhedron.clip_polygon_with_polygon(V1, V2)
+    assert V is None
+
+
 # NOTE: experimental
 def test_incidence():
     # TODO this relies on internal implementation details of the box (i.e. the
-    # order of vertices): should be revised
+    # order of vertices): should be revised (i.e. specify the vertices manually)
     box = core.polyhedron.ConvexPolyhedron.box([1, 1, 1])
 
     C_expected = np.zeros((box.nv, box.nv), dtype=bool)
