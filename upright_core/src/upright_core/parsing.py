@@ -118,11 +118,6 @@ def parse_diag_matrix_dict(d):
     return scale * base
 
 
-def millis_to_secs(ms):
-    """Convert milliseconds to seconds."""
-    return 0.001 * ms
-
-
 def parse_ros_path(d, as_string=True):
     """Resolve full path from a dict of containing ROS package and relative path."""
     rospack = rospkg.RosPack()
