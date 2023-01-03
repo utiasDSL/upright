@@ -1,0 +1,94 @@
+objects:
+  ee:
+    shape:
+      type: cuboid
+      side_lengths: [0.4, 0.4, 0.02]
+    position: [0, 0, -0.01]  # box centroid relative to r_ew_w
+
+  box:
+    mass: 1.0
+    com_offset: [0, 0, 0]
+    shape:
+        type: cuboid
+        side_lengths: [0.2, 0.2, 0.2]
+
+  cylinder:
+    mass: 1.0
+    com_offset: [0, 0, 0]
+    shape:
+      type: cylinder
+      radius: 0.03
+      height: 0.3
+
+  wedge:
+    mass: 1.0
+    com_offset: [0, 0, 0]
+    shape:
+      type: wedge
+      side_lengths: [0.3, 0.3, 0.3]  # 45-deg slope
+
+arrangements:
+  box:
+    objects:
+      -
+        name: box
+        type: box
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.5
+        mu_margin: 0.05
+
+  cylinder_box:
+    objects:
+      -
+        name: cylinder
+        type: cylinder
+        parent: ee
+        offset:
+          x: -0.03
+      -
+        name: box
+        type: box
+        parent: ee
+        offset:
+          x: 0.1
+    contacts:
+      -
+        first: ee
+        second: cylinder
+        mu: 0.5
+      -
+        first: ee
+        second: box
+        mu: 0.5
+      -
+        first: cylinder
+        second: box
+        mu: 0.5
+
+  wedge_box:
+    objects:
+      -
+        name: wedge
+        type: wedge
+        parent: ee
+      -
+        name: box
+        type: box
+        parent: wedge
+        orientation: [0, 0.382683432, 0,  0.923879533]
+    contacts:
+      -
+        first: ee
+        second: wedge
+        mu: 0.5
+      -
+        first: wedge
+        second: box
+        mu: 0.5
+
+balancing:
+  use_force_constraints: true

@@ -319,8 +319,11 @@ def clip_line_segment_with_half_space(v1, v2, point, normal, tol=DEFAULT_TOLERAN
     The line segment is defined by vertices `v1` and `v2`. The half-space
     passes through `point` and is defined by `normal`.
 
-    Returns a tuple consisting of the indices of the vertices kept and the new
-    vertex, or None if there is no intersection between segment and half space.
+    Returns a tuple consisting the new vertices, which be either:
+    * the first vertex and the intersection point;
+    * the intersection point and the second vertex;
+    * both existing vertices (whole segment is kept);
+    * empty (whole segment is discarded).
     """
     assert v1.shape == v2.shape == point.shape == normal.shape
 
@@ -329,21 +332,19 @@ def clip_line_segment_with_half_space(v1, v2, point, normal, tol=DEFAULT_TOLERAN
     d2 = normal @ (v2 - point)
 
     # if both vertices are on one side of the line, we either keep both or
-    # discard both (discard if the edge is a subset of the line)
+    # discard both
     if d1 >= -tol and d2 >= -tol:
-        return (0, 1), None
+        return v1, v2
     if d1 <= tol and d2 <= tol:
-        return (), None
+        return ()
 
     intersection = line_segment_half_space_intersection(v1, v2, point, normal, tol=tol)
     assert intersection is not None
 
-    # keep the vertex on the left of the line as well as the intersection
-    # point, while maintaining vertex order
     if d1 > 0:
-        return (0,), intersection
+        return v1, intersection
     else:
-        return (1,), intersection
+        return intersection, v2
 
 
 def clip_polygon_with_half_space(V, point, normal, tol=DEFAULT_TOLERANCE):
@@ -354,43 +355,42 @@ def clip_polygon_with_half_space(V, point, normal, tol=DEFAULT_TOLERANCE):
     """
     assert V.shape[1] == 2
 
-    clipped_V = []
-    clipped_indices = []
-
+    # clip each edge of the polygon with the half space
+    clipped_vertices = []
     for i in range(V.shape[0]):
         j = (i + 1) % V.shape[0]
         v1 = V[i, :]
         v2 = V[j, :]
-        indices, new_v = clip_line_segment_with_half_space(
-            v1, v2, point, normal, tol=tol
-        )
-        if 0 in indices:
-            clipped_V.append(V[i, :])
-            clipped_indices.append(i)
-        if new_v is not None:
-            clipped_V.append(new_v)
-            clipped_indices.append(None)
-        if 1 in indices:
-            clipped_V.append(V[j, :])
-            clipped_indices.append(j)
+        new_vs = clip_line_segment_with_half_space(v1, v2, point, normal, tol=tol)
+        clipped_vertices.extend(new_vs)
 
-    new_V = []
-    for i in range(len(clipped_V)):
-        idx = clipped_indices[i]
-        if idx is not None and clipped_indices[(i + 1) % len(clipped_V)] == idx:
-            continue
-        new_V.append(clipped_V[i])
-
-    if len(new_V) == 0:
+    # early return if the whole polygon is removed
+    if len(clipped_vertices) == 0:
         return None
-    return np.vstack(new_V)
+
+    # filter out duplicate vertices
+    new_vertices = []
+    for candidate_vertex in clipped_vertices:
+        exists = False
+        for existing_vertex in new_vertices:
+            if np.linalg.norm(candidate_vertex - existing_vertex) < tol:
+                exists = True
+                break
+        if exists:
+            continue
+        new_vertices.append(candidate_vertex)
+
+    # NOTE: no need to re-wind vertices because ordering is preserved by above
+    # routines
+    return np.array(new_vertices)
 
 
 def clip_polygon_with_polygon(V1, V2, tol=DEFAULT_TOLERANCE):
     """Get the polygonal overlap between convex polygons V1 and V2.
 
     Parameters:
-        V1 and V2 are vertex arrays of shape (m, 2) and (n, 2)
+        V1 and V2 are vertex arrays of shape (m, 2) and (n, 2), assumed to be
+        wound in counter-clockwise order.
 
     Returns:
         Array of vertices defining the overlap region.

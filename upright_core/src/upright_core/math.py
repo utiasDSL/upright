@@ -6,6 +6,14 @@ from spatialmath.base import q2r, r2q, qunit, rotx, roty, rotz
 QUAT_ORDER = "xyzs"
 
 
+def unit(x, tol=1e-8):
+    """Normalize vector to unit magnitude."""
+    d = np.linalg.norm(x)
+    if d < tol:
+        raise ValueError("Zero vector cannot be normalized.")
+    return x / d
+
+
 def skew3(v):
     """Form a skew-symmetric matrix out of 3-dimensional vector v."""
     x, y, z = v

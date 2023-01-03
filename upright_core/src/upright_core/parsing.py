@@ -71,16 +71,12 @@ def load_config(path, depth=0, max_depth=5):
 def parse_number(x, dtype=float):
     """Parse a number from the config.
 
-    If the number can be converted to a float, then it is and is returned.
-    Otherwise, check if it ends with "pi" and convert it to a float that is a
-    multiple of pi.
+    If the number is a string that ends with pi, then it is parsed as type
+    `dtype` that is a multiple of pi. Otherwise, it is convered to type `dtype`.
     """
-    try:
-        # this also handles strings like '1e-2'
-        return dtype(x)
-    except ValueError:
-        # TODO not robust
-        return float(x[:-2]) * np.pi
+    if type(x) == str and x.endswith("pi"):
+        return dtype(x[:-2]) * np.pi
+    return dtype(x)
 
 
 def parse_array_element(x):
@@ -186,13 +182,15 @@ def parse_support_offset(d):
 
     Returns: the numpy array [x, y] defining the offset.
     """
-    x = d["x"] if "x" in d else 0
-    y = d["y"] if "y" in d else 0
+    x = d.get("x", 0)
+    y = d.get("y", 0)
     if "r" in d and "θ" in d:
         r = d["r"]
         θ = parse_number(d["θ"])
         x += r * np.cos(θ)
         y += r * np.sin(θ)
+    elif "r" in d or "θ" in d:
+        raise ValueError("Radius and angle must *both* be specified in support offset.")
     return np.array([x, y])
 
 
@@ -280,9 +278,11 @@ def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-7):
         )
 
         # find the convex hull of support points to get support area
+        # assume support area is in the plane with normal aligned with object's
+        # z-axis
+        support_normal = box.rotation @ [0, 0, 1]
+        support_span = math.plane_span(support_normal)
         support_points = []
-        support_normal = None
-        support_span = None
         for contact_point in contact_points:
             # we are assuming that the object being supported is always the
             # second one listed in the contact point
@@ -291,21 +291,19 @@ def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-7):
             else:
                 continue
 
-            # the points that have height equal to the CoM height are in the
-            # support plane
-            if np.abs(contact_point.normal @ p - com_height) < tol:
-                # normal is pointing downward out of this object, but we want
-                # it pointing upward into it
-                span = math.plane_span(-contact_point.normal)
-                support_points.append(span @ p)
-                if support_normal is None:
-                    support_normal = -contact_point.normal
-                    support_span = span
-                else:
-                    if (np.abs(support_normal + contact_point.normal) > tol).any():
-                        raise ValueError(
-                            f"Normals of SA points for object {name} are not equal!"
-                        )
+            # normal is pointing downward out of this object, but we want
+            # it pointing upward into it
+            normal = -contact_point.normal
+
+            # reject points misaligned with the normal
+            if (np.abs(support_normal - normal) > tol).any():
+                continue
+
+            # reject points without height equal to the CoM height
+            if np.abs(-normal @ p - com_height) > tol:
+                continue
+
+            support_points.append(support_span @ p)
 
         # take the convex hull of the support points
         support_points = np.array(support_points)
@@ -413,9 +411,9 @@ def compute_support_area(box, parent_box, com_offset, inset, tol=1e-6):
     Returns:
         support area, r_tau
     """
-    # TODO this approach is not too general for cylinders, where we may want
-    # contacts with more than just their boxes
-    support_points, normal = polyhedron.box_box_axis_aligned_contact(box, parent_box)
+    # NOTE this approach is not completely general for cylinders, where we may
+    # want contacts with more than just their boxes
+    support_points, normal = polyhedron.axis_aligned_contact(box, parent_box)
     assert inset >= 0, "Support area inset must be non-negative."
 
     # check all points are coplanar:
@@ -432,7 +430,6 @@ def compute_support_area(box, parent_box, com_offset, inset, tol=1e-6):
     ), f"Support area is not rectangular!"
 
     # translate points to be relative to the CoM position
-    # TODO check this is right
     com_position = box.position + com_offset
     local_support_points = support_points - com_position
 
@@ -501,12 +498,6 @@ def parse_inertia(mass, shape_config, com_offset):
     else:
         raise ValueError(f"Unsupported shape type {type_}.")
 
-    # adjust inertia for an offset CoM using parallel axis theorem
-    # NOTE: not actually doing this b/c I want to be able to specify these
-    # quantities independently
-    # R = math.skew3(com_offset)
-    # inertia = inertia - mass * R @ R
-
     return inertia
 
 
@@ -518,6 +509,8 @@ def _parse_rigid_body_and_box(obj_type_conf, base_position, quat):
 
     local_com_offset = np.array(obj_type_conf["com_offset"], dtype=np.float64)
     if shape_config["type"].lower() == "wedge":
+        # wedge reference position is the centroid of the box of which it is a
+        # half, but that is of course not the CoM: add required offset now
         hx, hy, hz = 0.5 * np.array(shape_config["side_lengths"])
         local_com_offset += np.array([-hx, 0, -hz]) / 3
     com_offset = C @ local_com_offset

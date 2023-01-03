@@ -1,14 +1,7 @@
 import numpy as np
 import pytest
 import upright_core as core
-
-
-def sort_canonical(A):
-    """Helper to sort an nd-array into a canonical order, column by column."""
-    B = np.copy(A)
-    for i in range(len(B.shape)):
-        B.sort(axis=-i - 1)
-    return B
+from upright_core.util import sort_canonical
 
 
 def test_polyhedron_transform():
@@ -233,6 +226,31 @@ def test_wedge_box_contact():
     assert np.allclose(sort_canonical(points_expected), sort_canonical(points))
 
 
+def test_line_contact():
+    """Test when contact area is a line (i.e. contact polygon is degenerate)."""
+    box1 = core.polyhedron.ConvexPolyhedron.box([0.03, 0.03, 0.3])
+    rotation = core.math.rotz(np.pi / 4)
+    box1 = box1.transform(rotation=rotation)
+
+    box2 = core.polyhedron.ConvexPolyhedron.box([0.1, 0.1, 0.1])
+    dx = box1.distance_from_centroid_to_boundary([1, 0, 0])
+    box2 = box2.transform(translation=[dx + 0.1, 0, 0])
+
+    points, normal = core.polyhedron.axis_aligned_contact(box1, box2)
+
+    # print(points)
+    # print(normal)
+    #
+    # import IPython
+    # IPython.embed()
+
+    # only two contact points
+    points_expected = np.array([[dx, 0, -0.1], [dx, 0, 0.1]])
+
+    assert np.allclose(normal, [-1, 0, 0])
+    assert np.allclose(sort_canonical(points), sort_canonical(points_expected))
+
+
 def test_vertices_projection_on_axes():
     axes = np.array([[1, 0, 0], [0, 1, 0]])
     point = np.array([0, 0, 1])
@@ -255,7 +273,7 @@ def test_wind_polygon_vertices():
     assert np.allclose(V1_wound, V2_wound)
 
 
-def test_clip_line_segment_with_line():
+def test_clip_line_segment_with_half_space():
     v1 = np.array([0, 0])
     v2 = np.array([2, 0])
 
@@ -264,30 +282,27 @@ def test_clip_line_segment_with_line():
     normal = np.array([-1, 0])
 
     # clip the line
-    idx, intersection = core.polyhedron.clip_line_segment_with_half_space(
+    new_vs = core.polyhedron.clip_line_segment_with_half_space(
         v1, v2, point, normal
     )
-    assert idx == (0,)
-    assert np.allclose(intersection, [1, 0])
+    assert np.allclose(new_vs, [[0, 0], [1, 0]])
 
     # no intersection and the segment is kept
     point = np.array([3, 0])
-    idx, intersection = core.polyhedron.clip_line_segment_with_half_space(
+    new_vs = core.polyhedron.clip_line_segment_with_half_space(
         v1, v2, point, normal
     )
-    assert idx == (0, 1)
-    assert intersection is None
+    assert np.allclose(new_vs, [v1, v2])
 
     # no intersection and the segment is discarded
     point = np.array([-1, 0])
-    idx, intersection = core.polyhedron.clip_line_segment_with_half_space(
+    new_vs = core.polyhedron.clip_line_segment_with_half_space(
         v1, v2, point, normal
     )
-    assert idx == ()
-    assert intersection is None
+    assert new_vs == ()
 
 
-def test_clip_polygon_with_line():
+def test_clip_polygon_with_half_space():
     # square
     V = np.array([[1, 1], [-1, -1], [1, -1], [-1, 1]])
     V, _ = core.polyhedron.wind_polygon_vertices(V)

@@ -1,14 +1,18 @@
-import time
-import shutil
-from pathlib import Path
-
 import numpy as np
-import upright_core as core
+from upright_core import math
+
+
+def sort_canonical(A):
+    """Helper to sort an nd-array into a canonical order, column by column."""
+    B = np.copy(A)
+    for i in range(len(B.shape)):
+        B.sort(axis=-i - 1)
+    return B
 
 
 def support_area_distance(ctrl_object, Q_we):
     """Compute distance outside of SA at current EE orientation Q_we."""
-    C_we = core.math.quat_to_rot(Q_we)
+    C_we = math.quat_to_rot(Q_we)
     normal = ctrl_object.support_area.normal()
 
     # position of CoM relative to center of SA
