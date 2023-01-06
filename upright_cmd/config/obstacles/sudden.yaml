@@ -1,3 +1,7 @@
+# the "sudden" obstacle is a dynamic obstacle that never has any velocity, just
+# a sudden jump in position
+# the static obstacles are the standard scene
+
 # these values are either updated by the simulation environment or by Vicon
 controller:
   obstacles:

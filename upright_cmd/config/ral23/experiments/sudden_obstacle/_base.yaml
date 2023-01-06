@@ -1,0 +1,124 @@
+include:
+  -
+    key: simulation
+    package: upright_cmd
+    path: config/simulation.yaml
+  -
+    key: controller
+    package: upright_cmd
+    path: config/controller.yaml
+  -
+    package: upright_cmd
+    path: config/robots/thing.yaml
+
+logging:
+  timestep: 0.010
+  log_dir: /media/adam/Data/PhD/Data/upright/ral23/experiments/static_obstacles
+
+simulation:
+  duration: 5.0
+  arrangement: pink_bottle
+  robot:
+    urdf:
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+
+  static_obstacles:
+    enabled: true
+
+  dynamic_obstacles:
+    enabled: true
+
+controller:
+  mpc:
+    time_horizon: 2.0
+
+  tracking:
+    use_projectile: false
+
+  robot:
+    urdf:
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+
+  obstacles:
+    enabled: true
+    constraint_type: hard
+    minimum_distance: 0.1
+
+    urdf:
+      package: "upright_assets"
+      path: "thing/urdf/obstacles.urdf"
+      includes:
+        - "$(find upright_assets)/thing/xacro/obstacles/simple.urdf.xacro"
+
+    collision_pairs:
+      # wrist and ground
+      - ["wrist3_collision_link_0", "ground"]
+
+      # robot dynamic obstacles
+      - ["balanced_object_collision_link_0", "chair1"]
+      - ["base_collision_link_0", "chair1"]
+
+      # arm and obstacles
+      - ["wrist1_collision_link_0", "sphere1_top_link_0"]
+      - ["wrist1_collision_link_0", "sphere2_top_link_0"]
+      - ["wrist1_collision_link_0", "sphere3_top_link_0"]
+      - ["forearm_collision_sphere_link1_0", "sphere1_top_link_0"]
+      - ["forearm_collision_sphere_link2_0", "sphere1_top_link_0"]
+      - ["forearm_collision_sphere_link1_0", "sphere2_top_link_0"]
+      - ["forearm_collision_sphere_link2_0", "sphere2_top_link_0"]
+      - ["forearm_collision_sphere_link1_0", "sphere3_top_link_0"]
+      - ["forearm_collision_sphere_link2_0", "sphere3_top_link_0"]
+
+      # base and obstacles
+      - ["base_collision_link_0", "sphere1_bottom_link_0"]
+      - ["base_collision_link_0", "sphere2_bottom_link_0"]
+      - ["base_collision_link_0", "sphere3_bottom_link_0"]
+
+      # balanced objects and obstacles
+      - ["balanced_object_collision_link_0", "sphere1_top_link_0"]
+      - ["balanced_object_collision_link_0", "sphere2_top_link_0"]
+      - ["balanced_object_collision_link_0", "sphere3_top_link_0"]
+
+      - ["balanced_object_collision_link_0", "sphere3_middle_link_0"]
+
+      # wrist and shoulder
+      - ["wrist1_collision_link_0", "shoulder_collision_link_0"]
+
+      # wrist and base
+      - ["wrist1_collision_link_0", "base_collision_link_0"]
+
+  balancing:
+    enabled: true
+    use_force_constraints: true
+    frictionless: true
+    arrangement: pink_bottle
+    constraint_type: hard
+
+  inertial_alignment:
+    cost_enabled: false
+    constraint_enabled: false
+    use_angular_acceleration: false
+    align_with_fixed_vector: false
+    cost_weight: 100
+    contact_plane_normal: [0, 0, 1]
+    alpha: 0
+    com: [0, 0, 0]
+
+  weights:
+    input:
+      scale: 0.01
+      diag: [1rep9]
+    state:
+      scale: 0.1
+      diag: [0rep9, 10rep9, 1rep9]
+    end_effector:
+      scale: 1
+      diag: [1, 1, 1, 0, 0, 0]
+
+  waypoints:
+    -
+      time: 0
+      position: [-2.0, 1.0, 0]
+      orientation: [0, 0, 0, 1]

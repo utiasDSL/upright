@@ -33,6 +33,9 @@ controller:
   mpc:
     time_horizon: 2.0
 
+  tracking:
+    use_projectile: false
+
   robot:
     urdf:
       args:
@@ -46,6 +49,7 @@ controller:
   balancing:
     enabled: true
     use_force_constraints: true
+    frictionless: true
     arrangement: foam_die1
     constraint_type: hard
 

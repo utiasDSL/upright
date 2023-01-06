@@ -4,7 +4,7 @@ include:
     path: config/ral23/experiments/freespace/_base.yaml
   -
     package: upright_cmd
-    path: config/ral23/experiments/_point1.yaml
+    path: config/ral23/experiments/_point2.yaml
 
 
 simulation:
@@ -12,13 +12,7 @@ simulation:
   arrangement: box_arch
 
 controller:
-  mpc:
-    time_horizon: 2.0
-
   balancing:
-    enabled: false
+    enabled: true
+    frictionless: true
     arrangement: box_arch
-    constraint_type: hard
-
-  inertial_alignment:
-    constraint_enabled: true

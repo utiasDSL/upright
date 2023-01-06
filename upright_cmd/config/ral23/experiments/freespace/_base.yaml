@@ -57,16 +57,9 @@ controller:
 
   weights:
     input:
-      # scale: 0.01
-      # diag: [1rep9]
-      # diag: [5rep9]
-      # diag: [10rep3, 1rep6]
       scale: 0.001
       diag: [1rep9]
     state:
-      # scale: 0.1
-      # diag: [0rep9, 10rep9, 1rep9]
-      # diag: [0rep9, 100rep3, 10rep6, 10rep3, 1rep6]
       scale: 0.01
       diag: [0rep9, 10rep9, 1rep9]
     end_effector:
