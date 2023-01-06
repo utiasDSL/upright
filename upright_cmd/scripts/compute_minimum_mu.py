@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+"""Compute minimum feasible friction coefficients for a given arrangement."""
 import argparse
 import numpy as np
 from scipy.optimize import minimize
@@ -6,7 +8,26 @@ from spatialmath.base import rpy2r
 import upright_core as core
 import upright_control as ctrl
 
-import IPython
+
+def update_friction_coefficients(contacts, contact_idx, mus):
+    for i in range(len(contacts)):
+        contacts[i].mu = mus[contact_idx[i]]
+
+
+def compute_contact_idx(contacts):
+    """Assign indices such that all contact points between the same pair of
+    objects has the same value."""
+    n = len(contacts)
+    contact_idx = np.zeros(n, dtype=int)
+    counter = 0
+    contact_dict = {}
+    for i, contact in enumerate(contacts):
+        p = (contact.object1_name, contact.object2_name)
+        if p not in contact_dict:
+            contact_dict[p] = counter
+            counter += 1
+        contact_idx[i] = contact_dict[p]
+    return contact_idx
 
 
 def main():
@@ -24,50 +45,41 @@ def main():
     objects = settings.balancing_settings.objects
     gravity = settings.gravity
 
-    # TODO why doesn't this weighting scheme work?
-    mu0s = np.ones(dims.c)
-    # mu0s = np.array([0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1])
+    # we could optimize each contact mu individually, but for simplicity we
+    # assume friction is the same between each pair of objects
+    contact_idx = compute_contact_idx(contacts)
+    nc = np.max(contact_idx) + 1
 
-    # optimization variables
-    rpy = np.zeros(3)
-    mus = mu0s.copy()
-    fs = np.zeros(3 * dims.c)  # forces
+    # upper bounds on mu, also used for weighting
+    # NOTE: user sets these
+    mu0s = np.ones(nc)
+    # mu0s = np.array([0.25, 1.0])
 
+    # optimization variables and initial guess
+    rpy = np.zeros(3)  # EE orientation
+    mus = mu0s.copy()  # friction coefficients
+    fs = np.zeros(3 * dims.c)  # contact forces
     x0 = np.concatenate((rpy, mus, fs))
 
     def unwrap_opt_vars(x):
         rpy = x[:3]
-        mus = x[3 : 3 + dims.c]
-        fs = x[3 + dims.c :]
+        mus = x[3 : 3 + nc]
+        fs = x[3 + nc :]
         return rpy, mus, fs
 
     def cost(x):
-        _, mus, fs = unwrap_opt_vars(x)
-        y = mus / mu0s
-        return np.sum(y)
-        # return 0.5 * y @ y  #+ 0.005 * fs @ fs
-
-    def jac(x):
-        _, mus, fs = unwrap_opt_vars(x)
-        J = np.zeros_like(x)
-        # J[3 : 3 + dims.c] = mus / (mu0s ** 2)
-        J[3 : 3 + dims.c] = 1 / mu0s
-        # J[3+dims.c:] = 0.01 * fs
-        return J
+        _, mus, _ = unwrap_opt_vars(x)
+        y = mus / np.sqrt(mu0s)
+        return 0.5 * y @ y
 
     def eq_constraints(x):
         rpy, mus, fs = unwrap_opt_vars(x)
-        C = rpy2r(rpy)
 
         # (static) EE state
         state = core.bindings.RigidBodyState.Zero()
-        state.pose.orientation = C
+        state.pose.orientation = rpy2r(rpy)
 
-        # update friction coefficients
-        for i in range(dims.c):
-            contacts[i].mu = mus[i]
-
-        # TODO it would be nice to only optimize over roll and pitch
+        update_friction_coefficients(contacts, contact_idx, mus)
 
         return core.bindings.compute_object_dynamics_constraints(
             objects, contacts, fs, state, gravity
@@ -75,34 +87,33 @@ def main():
 
     def ineq_constraints(x):
         _, mus, fs = unwrap_opt_vars(x)
-
-        # update friction coefficients
-        for i in range(dims.c):
-            contacts[i].mu = mus[i]
-
+        update_friction_coefficients(contacts, contact_idx, mus)
         return core.bindings.compute_contact_force_constraints_linearized(contacts, fs)
 
     bounds = (
         [(None, None) for _ in range(3)]
-        + [(0, mu0s[i]) for i in range(dims.c)]
+        + [(0, mu0s[i]) for i in range(nc)]
         + [(None, None) for _ in range(3 * dims.c)]
     )
+
+    assert len(bounds) == len(x0)
 
     res = minimize(
         cost,
         x0,
         method="slsqp",
-        # jac=jac,
         bounds=bounds,
         constraints=[
             {"type": "eq", "fun": eq_constraints},
             {"type": "ineq", "fun": ineq_constraints},
         ],
     )
-    rpy, mus, fs = unwrap_opt_vars(res.x)
-    C = rpy2r(rpy)
 
-    IPython.embed()
+    if not res.success:
+        print("Optimization was not successful!")
+
+    rpy, mus, fs = unwrap_opt_vars(res.x)
+    print(f"μ = {mus}")
 
 
 main()
