@@ -10,6 +10,8 @@ import IPython
 
 
 def main():
+    np.set_printoptions(suppress=True)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True, help="Path to configuration file.")
     args = parser.parse_args()
@@ -22,20 +24,16 @@ def main():
     objects = settings.balancing_settings.objects
     gravity = settings.gravity
 
+    # TODO why doesn't this weighting scheme work?
+    mu0s = np.ones(dims.c)
+    # mu0s = np.array([0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1])
+
     # optimization variables
-    # Q = np.array([0, 0, 0, 1])  # orientation
     rpy = np.zeros(3)
-    mus = np.zeros(dims.c)  # friction coefficients
-    fs = np.zeros(dims.f())  # forces
-
-    # J = np.concatenate((np.zeros_like(Q), np.ones_like(mus), np.zeros_like(fs)))
-
-    # TODO doesn't make sense
-    # mu0s = np.zeros_like(mus)
+    mus = mu0s.copy()
+    fs = np.zeros(3 * dims.c)  # forces
 
     x0 = np.concatenate((rpy, mus, fs))
-
-    z = np.array([0, 0, 1])
 
     def unwrap_opt_vars(x):
         rpy = x[:3]
@@ -45,13 +43,16 @@ def main():
 
     def cost(x):
         _, mus, fs = unwrap_opt_vars(x)
-        # return np.sum(mus)  # + 0.01 * np.sum(np.abs(fs))
-        return 0.5 * mus @ mus
+        y = mus / mu0s
+        return np.sum(y)
+        # return 0.5 * y @ y  #+ 0.005 * fs @ fs
 
     def jac(x):
         _, mus, fs = unwrap_opt_vars(x)
         J = np.zeros_like(x)
-        J[3 : 3 + dims.c] = mus
+        # J[3 : 3 + dims.c] = mus / (mu0s ** 2)
+        J[3 : 3 + dims.c] = 1 / mu0s
+        # J[3+dims.c:] = 0.01 * fs
         return J
 
     def eq_constraints(x):
@@ -65,6 +66,8 @@ def main():
         # update friction coefficients
         for i in range(dims.c):
             contacts[i].mu = mus[i]
+
+        # TODO it would be nice to only optimize over roll and pitch
 
         return core.bindings.compute_object_dynamics_constraints(
             objects, contacts, fs, state, gravity
@@ -81,15 +84,15 @@ def main():
 
     bounds = (
         [(None, None) for _ in range(3)]
-        + [(0, None) for _ in range(dims.c)]
-        + [(None, None) for _ in range(dims.f())]
+        + [(0, mu0s[i]) for i in range(dims.c)]
+        + [(None, None) for _ in range(3 * dims.c)]
     )
 
     res = minimize(
         cost,
         x0,
         method="slsqp",
-        jac=jac,
+        # jac=jac,
         bounds=bounds,
         constraints=[
             {"type": "eq", "fun": eq_constraints},
