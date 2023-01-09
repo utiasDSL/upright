@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Simulation of moving the robot to a sequence of desired joint configurations."""
 import time
 import datetime
 

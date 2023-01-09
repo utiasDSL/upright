@@ -10,6 +10,13 @@ import upright_core as core
 
 import IPython
 
+TRAY_VICON_NAME = "ThingWoodTray"
+OBJECT_VICON_NAME = "ThingPinkBottle"
+
+
+def vicon_topic_name(name):
+    return "/".join(["/vicon", name, name])
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -17,12 +24,20 @@ def main():
     args = parser.parse_args()
     bag = rosbag.Bag(args.bagfile)
 
-    tray_msgs = [msg for _, msg, _ in bag.read_messages("/vicon/ThingTray2/ThingTray2")]
-    ts, tray_poses = ros_utils.parse_transform_stamped_msgs(tray_msgs, normalize_time=False)
+    tray_msgs = [
+        msg for _, msg, _ in bag.read_messages(vicon_topic_name(TRAY_VICON_NAME))
+    ]
+    ts, tray_poses = ros_utils.parse_transform_stamped_msgs(
+        tray_msgs, normalize_time=False
+    )
 
-    obj_msgs = [msg for _, msg, _ in bag.read_messages("/vicon/ThingFoamDie/ThingFoamDie")]
-    obj_ts, obj_poses = ros_utils.parse_transform_stamped_msgs(obj_msgs, normalize_time=False)
-    obj_poses = np.array(ros_utils.align_lists_linear_interpolate(ts, obj_ts, obj_poses))
+    obj_msgs = [
+        msg for _, msg, _ in bag.read_messages(vicon_topic_name(OBJECT_VICON_NAME))
+    ]
+    obj_ts, obj_poses = ros_utils.parse_transform_stamped_msgs(
+        obj_msgs, normalize_time=False
+    )
+    obj_poses = np.array(ros_utils.interpolate_list(ts, obj_ts, obj_poses))
     ts -= ts[0]
 
     # compute angle of tray from horizontal (which is equal to angle from the

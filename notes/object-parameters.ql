@@ -1,37 +1,10 @@
 = Object Parameters =
 
-== Restaurant tray ==
-* Mass: 493g
-* Center point relative to Vicon marker origin (approximately):
-  x ~= 9 cm
-  y ~= 11.5 cm
-  z ~= -3 cm
-
 == Wooden tray ==
 * Total dimensions:
   width: 28.5 cm
   depth: 28.5 cm
 * The Vicon object center is the actual center of the top of the tray
-
-== Fiji water bottle ==
-* Mass: ~500 g (needs confirmation)
-* Width: ~65 mm
-* Height (without taper): 130mm
-* Height (incl taper, without lid): 150mm
-
-The conservative approach would be to treat it as 65 * 65 * 150 mm
-
-=== Friction ===
-With box:
-* box length = 29.5 cm
-* height at sliding = ~5cm
-* μ = height / length ~= 5 / 30 ~= 0.16
-
-With tray:
-* tray length (measurement location) = 24cm
-* starts to tip at ~5.5cm
-* using the side of the bottle, we got ~9cm before sliding
-* μ = 9 / 24 ~= 0.375
 
 == Foam die ==
 * Mass: 22g
@@ -84,29 +57,17 @@ With each other (smooth sides):
 * height at sliding = 3cm
 * μ = 3 / 10.3 ~= 0.29
 
-=== 2 ===
-* Mass: 180g
-* Height: 38mm
-* Width: 90mm
-* Length: 103mm
-
-== Tall water bottle ==
-* Mass: 716g
-* Height: 20.5cm (not including nipple)
-* Diameter: 7cm
-
-=== Friction ===
-With restaurant tray (side):
-* tray length = 24 cm
-* height at sliding ~= 13cm
-* μ = 13 / 24 ~= 0.54
-
-With wood tray (side):
-* tray length = 28.5 cm
-* height at sliding ~= 10 cm
-* μ = 10 / 28.5 ~= 0.35
-
 == Pink water bottle ==
 * Mass: 827g
 * Height: 20.5cm (until taper); 25.5cm (full height)
 * Diameter: 7cm
+
+== Blue solo cup ==
+* Mass: 7g
+* Bottom diameter: 5cm
+* Top diameter: 8cm
+* Full height: 11cm
+* Height to top of (2) beanbags: ~8cm
+* Friction: μ = ~0.286 (Vicon data)
+
+Reasonable approximation is a 2.5cm radius by 8cm height cylinder

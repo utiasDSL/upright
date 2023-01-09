@@ -1,0 +1,42 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/simulations/_base.yaml
+
+simulation:
+  arrangements:
+    simulation_box:
+      objects:
+        -
+          name: box
+          type: simulation_box
+          parent: ee
+      contacts:
+        -
+          first: ee
+          second: box
+          mu: 0.5  # real mu (change as desired)
+
+controller:
+  balancing:
+    enabled: true
+    frictionless: true
+
+  objects:
+    simulation_box:
+      com_offset: [0, 0, 0]
+      mass: 0.5
+
+  arrangements:
+    simulation_box:
+      objects:
+        -
+          name: box
+          type: simulation_box
+          parent: ee
+      contacts:
+        -
+          first: ee
+          second: box
+          mu: 0.5  # doesn't matter with frictionless=true
+          support_area_inset: 0.005
