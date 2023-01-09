@@ -11,7 +11,7 @@ import upright_core as core
 import IPython
 
 TRAY_VICON_NAME = "ThingWoodTray"
-OBJECT_VICON_NAME = "ThingPinkBottle"
+OBJECT_VICON_NAME = "ThingWoodBlock"
 
 
 def vicon_topic_name(name):
@@ -61,10 +61,10 @@ def main():
     mus = np.tan(angles)
     slip0 = np.mean(slips[:10])
 
-    # find time and mu when object has slipped by 1cm
+    # find time and mu when object has slipped by 5mm
     slip_time = None
     for i in range(n):
-        if np.abs(slips[i] - slip0) >= 0.01:
+        if np.abs(slips[i] - slip0) >= 0.005:
             break
     slip_time = ts[i]
     mu = mus[i]
