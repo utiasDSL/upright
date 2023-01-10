@@ -24,7 +24,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 add_compile_definitions(BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS)
 add_compile_definitions(BOOST_MPL_LIMIT_LIST_SIZE=30)
 
-# catkin_python_setup()
+catkin_python_setup()
 
 
 ###################################

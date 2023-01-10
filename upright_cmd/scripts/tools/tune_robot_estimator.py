@@ -6,29 +6,13 @@ import numpy as np
 import rosbag
 import matplotlib.pyplot as plt
 from mobile_manipulation_central import ros_utils
+from upright_ros_interface.parsing import parse_mpc_observation_msgs
 
 import IPython
 
 
 ROBOT_PROC_VAR = 1000
-ROBOT_MEAS_VAR = 0.0001
-
-
-def parse_mpc_observation_msgs(msgs, normalize_time=True):
-    ts = []
-    xs = []
-    us = []
-
-    for msg in msgs:
-        ts.append(msg.time)
-        xs.append(msg.state.value)
-        us.append(msg.input.value)
-
-    ts = np.array(ts)
-    if normalize_time:
-        ts -= ts[0]
-
-    return ts, np.array(xs), np.array(us)
+ROBOT_MEAS_VAR = 0.001
 
 
 class GaussianEstimate:

@@ -66,8 +66,7 @@ controller:
   weights:
     input:
       scale: 0.001
-      # diag: [1rep9]
-      diag: [10rep3, 1rep6]
+      diag: [1rep9]
     state:
       scale: 0.01
       diag: [0rep9, 10rep9, 1rep9]

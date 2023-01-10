@@ -1,31 +1,13 @@
 #!/usr/bin/env python3
-"""Plot UR10 and Ridgeback joint position and velocity from a ROS bag."""
+"""Plot robot true and estimated joint state from a bag file."""
 import argparse
 
 import numpy as np
 import rosbag
 import matplotlib.pyplot as plt
+
 from mobile_manipulation_central import ros_utils
-
-import IPython
-
-
-# TODO move this to a shared library
-def parse_mpc_observation_msgs(msgs, normalize_time=True):
-    ts = []
-    xs = []
-    us = []
-
-    for msg in msgs:
-        ts.append(msg.time)
-        xs.append(msg.state.value)
-        us.append(msg.input.value)
-
-    ts = np.array(ts)
-    if normalize_time:
-        ts -= ts[0]
-
-    return ts, np.array(xs), np.array(us)
+from upright_ros_interface.parsing import parse_mpc_observation_msgs
 
 
 def main():
