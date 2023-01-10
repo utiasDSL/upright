@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Given a robot configuration, find velocity and acceleration that satisfy balancing constraints."""
 import os
 import numpy as np
 import sys

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- Test the projectile estimator by running back real Vicon data from a bag file and estimated the state. The estimates are recorded to a new bag file. -->
+<!-- Test the projectile estimator by running back real Vicon data from a bag file and estimating the state. The estimates are recorded to a new bag file. -->
 
 <launch>
   <arg name="bagfile"/>

@@ -65,17 +65,11 @@ controller:
 
   weights:
     input:
-      scale: 0.01
+      scale: 0.001
       diag: [1rep9]
     state:
-      scale: 0.1
+      scale: 0.01
       diag: [0rep9, 10rep9, 1rep9]
     end_effector:
       scale: 1
       diag: [1, 1, 1, 0, 0, 0]
-
-  waypoints:
-    -
-      time: 0
-      position: [-2.0, 1.0, 0]
-      orientation: [0, 0, 0, 1]

@@ -1,26 +1,24 @@
-#include <pinocchio/algorithm/frames.hpp>
-#include <pinocchio/fwd.hpp>
-
-#include <signal.h>
-#include <iostream>
-
-#include <pybind11/embed.h>
-#include <ros/init.h>
-#include <ros/package.h>
-
+#include <mobile_manipulation_central/kalman_filter.h>
+#include <mobile_manipulation_central/projectile.h>
+#include <mobile_manipulation_central/robot_interfaces.h>
 #include <ocs2_mpc/SystemObservation.h>
+#include <ocs2_msgs/mpc_observation.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
-
-#include <mobile_manipulation_central/projectile.h>
-#include <mobile_manipulation_central/robot_interfaces.h>
-
+#include <pybind11/embed.h>
+#include <ros/init.h>
+#include <ros/package.h>
+#include <signal.h>
+#include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/controller_interface.h>
 #include <upright_control/dynamics/system_pinocchio_mapping.h>
 #include <upright_control/reference_trajectory.h>
-#include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_ros_interface/parsing.h>
+
+#include <iostream>
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/fwd.hpp>
 
 using namespace upright;
 
@@ -178,6 +176,15 @@ int main(int argc, char** argv) {
     mrt.initRollout(&interface.get_rollout());
     mrt.launchNodes(nh);
 
+    double robot_proc_var, robot_meas_var;
+    nh.param<double>("robot_proc_var", robot_proc_var, 1.0);
+    nh.param<double>("robot_meas_var", robot_meas_var, 1.0);
+    std::cout << "Robot process variance = " << robot_proc_var << std::endl;
+    std::cout << "Robot measurement variance = " << robot_meas_var << std::endl;
+
+    ros::Publisher est_pub =
+        nh.advertise<ocs2_msgs::mpc_observation>("/mobile_manipulator_state_estimate", 1);
+
     // nominal initial state and interface to the real robot
     VecXd x0 = interface.get_initial_state();
 
@@ -250,21 +257,44 @@ int main(int argc, char** argv) {
     ros::Duration policy_update_delay(settings.tracking.min_policy_update_time);
 
     // Obstacle setup.
-    const bool using_projectile = settings.dims.o > 0 && settings.tracking.use_projectile;
-    const bool using_stationary = settings.dims.o > 0 && !settings.tracking.use_projectile;
+    const bool using_projectile =
+        settings.dims.o > 0 && settings.tracking.use_projectile;
+    const bool using_stationary =
+        settings.dims.o > 0 && !settings.tracking.use_projectile;
+
+    std::cout << "using_projectile = " << using_projectile << std::endl;
+    std::cout << "using_stationary = " << using_stationary << std::endl;
 
     DynamicObstacle* obstacle;
     if (settings.dims.o > 0) {
         obstacle = &settings.obstacle_settings.dynamic_obstacles[0];
         const size_t num_modes = obstacle->modes.size();
-        if ((using_projectile && num_modes != 1) || (using_stationary && num_modes != 2)) {
-            throw std::runtime_error("Dynamic obstacle has wrong number of modes.");
+        if ((using_projectile && num_modes != 1) ||
+            (using_stationary && num_modes != 2)) {
+            throw std::runtime_error(
+                "Dynamic obstacle has wrong number of modes.");
         }
     }
 
     ocs2::scalar_t t = now.toSec();
     ocs2::scalar_t last_t = t;
     const ocs2::scalar_t t0 = t;
+
+    // Estimation
+    mm::GaussianEstimate estimate;
+    estimate.x = x;
+    estimate.P = MatXd::Identity(settings.dims.robot.x, settings.dims.robot.x);
+
+    MatXd I = MatXd::Identity(settings.dims.robot.q, settings.dims.robot.q);
+    MatXd Z = MatXd::Zero(settings.dims.robot.q, settings.dims.robot.q);
+    MatXd C(settings.dims.robot.q, settings.dims.robot.x);
+    C << I, Z, Z;
+
+    MatXd Q0 = robot_proc_var * I;
+    MatXd R0 = robot_meas_var * I;
+
+    MatXd A(settings.dims.robot.x, settings.dims.robot.x);
+    MatXd B(settings.dims.robot.x, settings.dims.robot.v);
 
     while (ros::ok()) {
         now = ros::Time::now();
@@ -274,11 +304,29 @@ int main(int argc, char** argv) {
 
         // Robot feedback
         VecXd q = robot_ptr->q();
-        // VecXd v = robot.get_joint_velocity_raw();
+
+        // clang-format off
+        A << I, dt * I, 0.5 * dt * dt * I,
+             Z, I, dt * I,
+             Z, Z, I;
+        B << dt * dt * dt * I / 6, 0.5 * dt * dt * I, dt * I;
+        // clang-format on
+
+        MatXd Q = B * Q0 * B.transpose();
 
         // Integrate our internal model to get velocity and acceleration
         // "feedback"
         VecXd u_robot = u.head(settings.dims.robot.u);
+
+        estimate = mm::kf_predict(estimate, A, Q, B * u_robot);
+        estimate = mm::kf_correct(estimate, C, R0, q);
+
+        ocs2_msgs::mpc_observation obs_msg;
+        obs_msg.time = t;
+        VecX<float> xf = estimate.x.cast<float>();
+        obs_msg.state.value = std::vector<float>(xf.data(), xf.data() + xf.size());
+        est_pub.publish(obs_msg);
+
         std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u_robot, dt);
 
         // Current state is built from robot feedback for q; for velocity and
@@ -340,8 +388,10 @@ int main(int argc, char** argv) {
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, u, mode);
 
-        std::cout << "x_obs = " << x.tail(9).transpose() << std::endl;
-        std::cout << "xd_obs = " << xd.tail(9).transpose() << std::endl;
+        if (using_projectile || using_stationary) {
+            std::cout << "x_obs = " << x.tail(9).transpose() << std::endl;
+            std::cout << "xd_obs = " << xd.tail(9).transpose() << std::endl;
+        }
 
         // Check that controller is not making the end effector leave allowed
         // region
