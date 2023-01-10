@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Plot UR10 and Ridgeback joint position and velocity from a ROS bag."""
 import argparse
 
@@ -9,6 +10,7 @@ from mobile_manipulation_central import ros_utils
 import IPython
 
 
+# TODO move this to a shared library
 def parse_mpc_observation_msgs(msgs, normalize_time=True):
     ts = []
     xs = []
@@ -38,9 +40,6 @@ def main():
     mpc_obs_msgs = [
         msg for _, msg, _ in bag.read_messages("/mobile_manipulator_mpc_observation")
     ]
-    mpc_est_msgs = [
-        msg for _, msg, _ in bag.read_messages("/mobile_manipulator_state_estimate")
-    ]
 
     tas, qas, vas = ros_utils.parse_ur10_joint_state_msgs(
         ur10_msgs, normalize_time=False
@@ -49,27 +48,30 @@ def main():
         ridgeback_msgs, normalize_time=False
     )
     tms, xms, ums = parse_mpc_observation_msgs(mpc_obs_msgs, normalize_time=False)
-    tes, xes, _ = parse_mpc_observation_msgs(mpc_est_msgs, normalize_time=False)
 
+    # use arm messages for timing
     ts = tas
+
+    # align base messages with the arm messages
     qbs_aligned = ros_utils.interpolate_list(ts, tbs, qbs)
     vbs_aligned = ros_utils.interpolate_list(ts, tbs, vbs)
 
     qs_real = np.hstack((qbs_aligned, qas))
     vs_real = np.hstack((vbs_aligned, vas))
 
+    # align the estimates and input
+    n = 9
     xms_aligned = np.array(ros_utils.interpolate_list(ts, tms, xms))
-    qs_obs = xms_aligned[:, :9]
-    vs_obs = xms_aligned[:, 9:18]
-
-    xes_aligned = np.array(ros_utils.interpolate_list(ts, tes, xes))
-    qs_est = xes_aligned[:, :9]
-    vs_est = xes_aligned[:, 9:18]
+    ums_aligned = np.array(ros_utils.interpolate_list(ts, tms, ums))
+    qs_obs = xms_aligned[:, :n]
+    vs_obs = xms_aligned[:, n:2*n]
+    as_obs = xms_aligned[:, 2*n:3*n]
+    us_obs = ums_aligned[:, :n]
 
     ts -= ts[0]
 
     plt.figure()
-    for i in range(9):
+    for i in range(n):
         plt.plot(ts, qs_real[:, i], label=f"q_{i+1}")
     plt.title("Real Joint Positions")
     plt.xlabel("Time (s)")
@@ -78,25 +80,16 @@ def main():
     plt.grid()
 
     plt.figure()
-    for i in range(9):
+    for i in range(n):
         plt.plot(ts, qs_obs[:, i], label=f"q_{i+1}")
-    plt.title("Observed Joint Positions")
+    plt.title("Estimated Joint Positions")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint position")
     plt.legend()
     plt.grid()
 
     plt.figure()
-    for i in range(9):
-        plt.plot(ts, qs_est[:, i], label=f"q_{i+1}")
-    plt.title("Estimated Joint Position")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Joint position")
-    plt.legend()
-    plt.grid()
-
-    plt.figure()
-    for i in range(9):
+    for i in range(n):
         plt.plot(ts, qs_real[:, i] - qs_obs[:, i], label=f"q_{i+1}")
     plt.title("Joint Position Error")
     plt.xlabel("Time (s)")
@@ -105,16 +98,7 @@ def main():
     plt.grid()
 
     plt.figure()
-    for i in range(9):
-        plt.plot(ts, qs_real[:, i] - qs_est[:, i], label=f"q_{i+1}")
-    plt.title("Joint Position Estimate Error")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Joint position")
-    plt.legend()
-    plt.grid()
-
-    plt.figure()
-    for i in range(9):
+    for i in range(n):
         plt.plot(ts, vs_real[:, i], label=f"v_{i+1}")
     plt.title("Real Joint Velocity")
     plt.xlabel("Time (s)")
@@ -123,17 +107,8 @@ def main():
     plt.grid()
 
     plt.figure()
-    for i in range(9):
+    for i in range(n):
         plt.plot(ts, vs_obs[:, i], label=f"v_{i+1}")
-    plt.title("Observed Joint Velocity")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Joint velocity")
-    plt.legend()
-    plt.grid()
-
-    plt.figure()
-    for i in range(9):
-        plt.plot(ts, vs_est[:, i], label=f"v_{i+1}")
     plt.title("Estimated Joint Velocity")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint velocity")
@@ -141,7 +116,7 @@ def main():
     plt.grid()
 
     plt.figure()
-    for i in range(9):
+    for i in range(n):
         plt.plot(ts, vs_real[:, i] - vs_obs[:, i], label=f"v_{i+1}")
     plt.title("Joint Velocity Error")
     plt.xlabel("Time (s)")
@@ -150,11 +125,20 @@ def main():
     plt.grid()
 
     plt.figure()
-    for i in range(9):
-        plt.plot(ts, vs_real[:, i] - vs_est[:, i], label=f"v_{i+1}")
-    plt.title("Joint Velocity Estimate Error")
+    for i in range(n):
+        plt.plot(ts, as_obs[:, i], label=f"a_{i+1}")
+    plt.title("Estimated Joint Acceleration")
     plt.xlabel("Time (s)")
-    plt.ylabel("Joint velocity")
+    plt.ylabel("Joint acceleration")
+    plt.legend()
+    plt.grid()
+
+    plt.figure()
+    for i in range(n):
+        plt.plot(ts, us_obs[:, i], label=f"j_{i+1}")
+    plt.title("Joint (Jerk) Input")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Joint jerk")
     plt.legend()
     plt.grid()
 

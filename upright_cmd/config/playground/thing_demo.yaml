@@ -17,13 +17,16 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: really_tall_box
+  arrangement: foam_die1
 
 controller:
+  mpc:
+    time_horizon: 2.0
+
   balancing:
     enabled: false
     use_force_constraints: false
-    arrangement: really_tall_box
+    arrangement: foam_die1
     constraint_type: hard
     enable_normal_constraint: true
     enable_friction_constraint: true
@@ -31,16 +34,15 @@ controller:
 
   inertial_alignment:
     cost_enabled: false
-    constraint_enabled: true
+    constraint_enabled: false
     use_angular_acceleration: false
     cost_weight: 1
     contact_plane_normal: [0, 0, 1]
-    alpha: 0  # TODO tune/calculate properly
+    alpha: 0
     com: [0, 0, 0]
 
   waypoints:
     -
       time: 0
-      # position: [0, 0, 0]
-      position: [0, 2.0, -0.5]
+      position: [0, 0, 0]  # stay still
       orientation: [0, 0, 0, 1]

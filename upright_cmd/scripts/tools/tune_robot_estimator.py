@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot UR10 and Ridgeback joint position and velocity from a ROS bag."""
+"""Tune Kalman filter for estimation of robot state."""
 import argparse
 
 import numpy as np
@@ -11,7 +11,7 @@ import IPython
 
 
 ROBOT_PROC_VAR = 1000
-ROBOT_MEAS_VAR = 0.001
+ROBOT_MEAS_VAR = 0.0001
 
 
 def parse_mpc_observation_msgs(msgs, normalize_time=True):

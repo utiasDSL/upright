@@ -37,6 +37,7 @@ void sigint_handler(int sig) {
 }
 
 // Double integration using semi-implicit Euler method
+// TODO move elsewhere
 std::tuple<VecXd, VecXd> double_integrate(const VecXd& v, const VecXd& a,
                                           const VecXd& u,
                                           ocs2::scalar_t timestep) {
@@ -59,6 +60,7 @@ std::tuple<VecXd, VecXd> double_integrate_repeated(const VecXd& v,
     return std::tuple<VecXd, VecXd>(v_new, a_new);
 }
 
+// TODO move elsewhere
 class SafetyMonitor {
    public:
     SafetyMonitor(const ControllerSettings& settings,
@@ -168,6 +170,7 @@ int main(int argc, char** argv) {
     ControllerSettings settings = parse_control_settings(config_path);
     std::cout << settings << std::endl;
     ControllerInterface interface(settings);
+    const auto& r = settings.dims.robot;
 
     SafetyMonitor monitor(settings, interface.get_pinocchio_interface());
 
@@ -176,24 +179,22 @@ int main(int argc, char** argv) {
     mrt.initRollout(&interface.get_rollout());
     mrt.launchNodes(nh);
 
+    // Estimation parameters
     double robot_proc_var, robot_meas_var;
     nh.param<double>("robot_proc_var", robot_proc_var, 1.0);
     nh.param<double>("robot_meas_var", robot_meas_var, 1.0);
     std::cout << "Robot process variance = " << robot_proc_var << std::endl;
     std::cout << "Robot measurement variance = " << robot_meas_var << std::endl;
 
-    ros::Publisher est_pub =
-        nh.advertise<ocs2_msgs::mpc_observation>("/mobile_manipulator_state_estimate", 1);
-
     // nominal initial state and interface to the real robot
     VecXd x0 = interface.get_initial_state();
 
     // Initialize the robot interface
-    if (settings.dims.robot.q == 3) {
+    if (r.q == 3) {
         robot_ptr.reset(new mm::RidgebackROSInterface(nh));
-    } else if (settings.dims.robot.q == 6) {
+    } else if (r.q == 6) {
         robot_ptr.reset(new mm::UR10ROSInterface(nh));
-    } else if (settings.dims.robot.q == 9) {
+    } else if (r.q == 9) {
         robot_ptr.reset(new mm::MobileManipulatorROSInterface(nh));
     } else {
         throw std::runtime_error("Unsupported base type.");
@@ -221,7 +222,7 @@ int main(int argc, char** argv) {
     std::cout << "Received feedback from robot." << std::endl;
 
     // update to the real initial state
-    x0.head(settings.dims.robot.q) = robot_ptr->q();
+    x0.head(r.q) = robot_ptr->q();
 
     // reset MPC
     ocs2::TargetTrajectories target = parse_target_trajectory(config_path, x0);
@@ -249,9 +250,6 @@ int main(int argc, char** argv) {
     VecXd u = VecXd::Zero(settings.dims.u());
     size_t mode = 0;
 
-    VecXd v_ff = VecXd::Zero(settings.dims.robot.v);
-    VecXd a_ff = VecXd::Zero(settings.dims.robot.v);
-
     ros::Time now = ros::Time::now();
     ros::Time last_policy_update_time = now;
     ros::Duration policy_update_delay(settings.tracking.min_policy_update_time);
@@ -261,9 +259,6 @@ int main(int argc, char** argv) {
         settings.dims.o > 0 && settings.tracking.use_projectile;
     const bool using_stationary =
         settings.dims.o > 0 && !settings.tracking.use_projectile;
-
-    std::cout << "using_projectile = " << using_projectile << std::endl;
-    std::cout << "using_stationary = " << using_stationary << std::endl;
 
     DynamicObstacle* obstacle;
     if (settings.dims.o > 0) {
@@ -279,22 +274,24 @@ int main(int argc, char** argv) {
     ocs2::scalar_t t = now.toSec();
     ocs2::scalar_t last_t = t;
     const ocs2::scalar_t t0 = t;
+    const ocs2::scalar_t dt0 = 1 / settings.tracking.rate;
+    const ocs2::scalar_t dt_warn = 1.5 / settings.tracking.rate;
 
     // Estimation
     mm::GaussianEstimate estimate;
     estimate.x = x;
-    estimate.P = MatXd::Identity(settings.dims.robot.x, settings.dims.robot.x);
+    estimate.P = MatXd::Identity(r.x, r.x);
 
-    MatXd I = MatXd::Identity(settings.dims.robot.q, settings.dims.robot.q);
-    MatXd Z = MatXd::Zero(settings.dims.robot.q, settings.dims.robot.q);
-    MatXd C(settings.dims.robot.q, settings.dims.robot.x);
+    const MatXd I = MatXd::Identity(r.q, r.q);
+    const MatXd Z = MatXd::Zero(r.q, r.q);
+    MatXd C(r.q, r.x);
     C << I, Z, Z;
 
-    MatXd Q0 = robot_proc_var * I;
-    MatXd R0 = robot_meas_var * I;
+    const MatXd Q0 = robot_proc_var * I;
+    const MatXd R0 = robot_meas_var * I;
 
-    MatXd A(settings.dims.robot.x, settings.dims.robot.x);
-    MatXd B(settings.dims.robot.x, settings.dims.robot.v);
+    MatXd A(r.x, r.x);
+    MatXd B(r.x, r.v);
 
     while (ros::ok()) {
         now = ros::Time::now();
@@ -302,37 +299,30 @@ int main(int argc, char** argv) {
         t = now.toSec();
         ocs2::scalar_t dt = t - last_t;
 
+        if (dt >= dt_warn) {
+            ROS_WARN_STREAM("Loop is slow: dt = " << 1000 * dt << " ms.");
+        }
+
         // Robot feedback
         VecXd q = robot_ptr->q();
 
+        // Build KF matrices
+        // TODO if we assume dt is constant, then these can all be precomputed
         // clang-format off
         A << I, dt * I, 0.5 * dt * dt * I,
              Z, I, dt * I,
              Z, Z, I;
-        B << dt * dt * dt * I / 6, 0.5 * dt * dt * I, dt * I;
         // clang-format on
 
+        B << dt * dt * dt * I / 6, 0.5 * dt * dt * I, dt * I;
         MatXd Q = B * Q0 * B.transpose();
 
-        // Integrate our internal model to get velocity and acceleration
-        // "feedback"
-        VecXd u_robot = u.head(settings.dims.robot.u);
-
+        // Estimate current state from joint position and jerk input using
+        // Kalman filter
+        VecXd u_robot = u.head(r.u);
         estimate = mm::kf_predict(estimate, A, Q, B * u_robot);
         estimate = mm::kf_correct(estimate, C, R0, q);
-
-        ocs2_msgs::mpc_observation obs_msg;
-        obs_msg.time = t;
-        VecX<float> xf = estimate.x.cast<float>();
-        obs_msg.state.value = std::vector<float>(xf.data(), xf.data() + xf.size());
-        est_pub.publish(obs_msg);
-
-        std::tie(v_ff, a_ff) = double_integrate(v_ff, a_ff, u_robot, dt);
-
-        // Current state is built from robot feedback for q; for velocity and
-        // acceleration we just assume we are tracking well since we don't get
-        // good feedback on this
-        x.head(settings.dims.robot.x) << q, v_ff, a_ff;
+        x.head(r.x) = estimate.x;
 
         if (using_projectile && projectile.ready()) {
             Vec3d q_obs = projectile.q();
@@ -411,7 +401,14 @@ int main(int argc, char** argv) {
             break;
         }
 
-        robot_ptr->publish_cmd_vel(v_ff, /* bodyframe = */ false);
+        // Given current state, controller produces a desired jerk. We can
+        // start using that jerk by incorporating it into the command now
+        // TODO does this actually make sense?
+        VecXd v_cmd = xd.segment(r.q, r.v) + dt0 * xd.segment(r.q + r.v, r.v) +
+                      0.5 * dt0 * dt0 * u.head(r.u);
+
+        // TODO probably should be a real-time publisher
+        robot_ptr->publish_cmd_vel(v_cmd, /* bodyframe = */ false);
 
         // Send observation to MPC
         observation.time = t;

@@ -348,7 +348,7 @@ def _parse_composite_objects(wrappers, contact_conf):
         )
 
         parent_box = wrappers[parent_name].box
-        inset = insets[parent_name]
+        inset = insets[parent_name][name]
         support_area, r_tau = compute_support_area(box, parent_box, com_offset, inset)
 
         obj = BalancedObject(body, com_height, support_area, r_tau, mu)
@@ -475,11 +475,11 @@ def parse_inset_dict(contact_conf):
         parent_name = contact["first"]
         child_name = contact["second"]
         inset = contact.get("support_area_inset", 0)
-        if parent_name in mus:
+        if parent_name in insets:
             insets[parent_name][child_name] = inset
         else:
             insets[parent_name] = {child_name: inset}
-    return mus
+    return insets
 
 
 def parse_inertia(mass, shape_config, com_offset):
