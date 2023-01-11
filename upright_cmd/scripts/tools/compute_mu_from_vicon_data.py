@@ -24,16 +24,14 @@ def main():
     args = parser.parse_args()
     bag = rosbag.Bag(args.bagfile)
 
-    tray_msgs = [
-        msg for _, msg, _ in bag.read_messages(vicon_topic_name(TRAY_VICON_NAME))
-    ]
+    tray_topic = ros_utils.vicon_topic_name(TRAY_VICON_NAME)
+    tray_msgs = [msg for _, msg, _ in bag.read_messages(tray_topic)]
     ts, tray_poses = ros_utils.parse_transform_stamped_msgs(
         tray_msgs, normalize_time=False
     )
 
-    obj_msgs = [
-        msg for _, msg, _ in bag.read_messages(vicon_topic_name(OBJECT_VICON_NAME))
-    ]
+    obj_topic = ros_utils.vicon_topic_name(OBJECT_VICON_NAME)
+    obj_msgs = [msg for _, msg, _ in bag.read_messages(obj_topic))]
     obj_ts, obj_poses = ros_utils.parse_transform_stamped_msgs(
         obj_msgs, normalize_time=False
     )
