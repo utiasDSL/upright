@@ -1,11 +1,12 @@
 # Upright: Nonprehensile Object Transportation (with a Position-Controlled Mobile Manipulator)
 
-Simulation and testing code for a mobile manipulator balancing objects on its
+Simulation and experiment code for a mobile manipulator balancing objects on its
 end effector. Simulator is Pybullet.
 
 The code is designed to run on ROS Noetic. There is Docker image available in
 the `docker/` directory if you are not running Ubuntu 20.04 with Noetic
-natively.
+natively. For experiments on real hardware, it is highly recommended to use a
+real-time system like Linux with the PREEMPT_RT patch.
 
 ## Contents
 * `docker/`: Dockerfile and utility scripts to install and run things under ROS
@@ -16,10 +17,10 @@ natively.
 * `upright_control`: Model predictive controller using the
   [OCS2](https://github.com/leggedrobotics/ocs2) framework.
 * `upright_cmd`: Configuration and command scripts. Simulations and experiments
-  are run from here.
+  are run from here, as well as other smaller scripts and tools.
 * `upright_ros_interface`: Tools for ROS communication. These can be useful in
   simulation for multi-processing, or to support real hardware.
-* `upright_sim`: Simulation environments for balancing objects.
+* `upright_sim`: (PyBullet) simulation environments for balancing objects.
 
 ## Setup and Installation
 
@@ -73,10 +74,35 @@ Build the workspace:
 catkin build -DCMAKE_BUILD_TYPE=RelWithDebInfo
 ```
 
-## Simulation
+## Simulation Experiments
 
-Simulation scripts are in `upright_cmd/scripts/sim`.
+Simulation scripts are in `upright_cmd/scripts/simulations`. For example, to
+run a simulation without ROS, do something like:
+```
+upright_cmd/scripts/simulations
+./mpc_sim --config <path to yaml file>
+```
+All experiments, whether simulated or real, are specified by configuration
+files in the YAML format, which are stored under `upright_cmd/config`.
 
-## Hardware
+## Hardware Experiments
 
-Interaction with hardware is done over ROS via mobile_manipulation_central.
+Interaction with hardware is done over ROS via
+[mobile_manipulation_central](https://github.com/utiasDSL/dsl__projects__mobile_manipulation_central).
+So far we have targetted an omnidirectional mobile manipulator consisting of a
+Ridgeback mobile base and a UR10 manipulator arm. The general flow of
+experiments is to connect to the robot, and run
+```
+roslaunch mobile_manipulation_central thing.launch
+```
+Then in another terminal run
+```
+roslaunch upright_ros_interface mpc_mrt.launch config:=<path to yaml file>
+```
+You may wish to record the results in a bag file using the
+`upright_cmd/scripts/record.py` script, which is just a wrapper around `rosbag`.
+
+## Tests
+
+Some packages contain tests. Python tests use [pytest](https://pytest.org/).
+Run `pytest .` inside a package's `tests` directory to run the Python tests.
