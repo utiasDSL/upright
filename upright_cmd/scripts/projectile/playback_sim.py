@@ -89,13 +89,8 @@ def main():
     arm_cmd_ts -= t0
     arm_cmd_index = 0
 
-    # projectile_msgs = [
-    #     msg for _, msg, _ in bag.read_messages("/Projectile/joint_states")
-    # ]
-    # projectile_positions = np.array([msg.position for msg in projectile_msgs])
-    # projectile_velocities = np.array([msg.velocity for msg in projectile_msgs])
     projectile_msgs = [
-        msg for _, msg, _ in bag.read_messages("/vicon/Projectile/Projectile")
+        msg for _, msg, _ in bag.read_messages("/vicon/ThingProjectile/ThingProjectile")
     ]
     projectile_positions = np.array(
         [
@@ -118,7 +113,7 @@ def main():
     projectile_index = 0
     K_proj = 100
 
-    projectile_msgs_est = [msg for _, msg, _ in bag.read_messages("/Projectile/joint_states")]
+    projectile_msgs_est = [msg for _, msg, _ in bag.read_messages("/ThingProjectile/joint_states")]
     projectile_ts_est = np.array([msg.header.stamp.to_sec() for msg in projectile_msgs_est])
     projectile_ts_est -= t0
     projectile_rs_est = np.array([msg.position for msg in projectile_msgs_est])

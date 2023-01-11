@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
     signal(SIGINT, sigint_handler);
 
     // Initialize interface to dynamic obstacle estimator
-    mm::ProjectileROSInterface projectile(nh, "Projectile");
+    mm::ProjectileROSInterface projectile(nh, "ThingProjectile");
     bool avoid_dynamic_obstacle = false;
 
     ocs2::scalar_t timestep = 1.0 / settings.tracking.rate;

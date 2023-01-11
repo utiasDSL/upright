@@ -132,7 +132,7 @@ def main():
 
     bag = rosbag.Bag(args.bagfile)
 
-    msgs = [msg for _, msg, _ in bag.read_messages("/vicon/Projectile/Projectile")]
+    msgs = [msg for _, msg, _ in bag.read_messages("/vicon/ThingProjectile/ThingProjectile")]
     positions = []
     for msg in msgs:
         p = msg.transform.translation

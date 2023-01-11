@@ -95,7 +95,7 @@ def main():
     else:
         raise ValueError("Unsupported robot base type.")
     if use_projectile_interface:
-        projectile_ros_interface = SimulatedViconObjectInterface("Projectile")
+        projectile_ros_interface = SimulatedViconObjectInterface("ThingProjectile")
     ros_interface.publish_time(t)
 
     # publisher for reset command to estimator
