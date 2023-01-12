@@ -24,22 +24,39 @@ real-time system like Linux with the PREEMPT_RT patch.
 
 ## Setup and Installation
 
-Install required apt packages:
+Install eigenpy (a Pinocchio dependency) from apt:
 ```
-sudo apt install ros-noetic-eigenpy ros-noetic-hpp-fcl
+sudo apt install ros-noetic-eigenpy
 ```
 
-Clone and build [pinocchio](https://github.com/stack-of-tasks/pinocchio) in a
+Clone and build [hpp-fcl](https://github.com/humanoid-path-planner/hpp-fcl)
+from source. Unfortunately the master branch and the version available on apt
+under the name `ros-noetic-hpp-fcl` has a
+[bug](https://github.com/humanoid-path-planner/hpp-fcl/issues/344) which causes
+contact normals to contain NaN values. However, that is fixed on the more
+recent `hppfcl3x` branch. Do:
+```
+# get the code with the bug fixed
+git clone https://github.com/humanoid-path-planner/hpp-fcl
+cd hpp-fcl
+git checkout hppfcl3x
+
+# build and install it
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j4
+sudo make install
+```
+
+Clone and build [Pinocchio](https://github.com/stack-of-tasks/pinocchio) in a
 separate folder outside of the catkin workspace. It can be built with catkin,
 but I prefer not to because (1) if you ever clean and rebuild the workspace,
 compiling pinocchio takes ages, and (2) I ran into an issue where it would
 cause sourcing `devel/setup.bash` not to work properly (`ROS_PACKAGE_PATH`
-wasn't set). Be sure to build it with hpp-fcl support (this can be done by
-either editing the CMakeLists.txt or passing the compile option
-`-DPINOCCHIO_WITH_HPP_FCL`), as well as the correct Python binary. Follow the
-installation directions
-[here](https://stack-of-tasks.github.io/pinocchio/download.html), using the
-cmake command:
+wasn't set). Follow the installation directions
+[here](https://stack-of-tasks.github.io/pinocchio/download.html) (under the
+"Build from Source" tab), using the cmake command:
 ```
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DPYTHON_EXECUTABLE=/usr/bin/python3 -DBUILD_WITH_COLLISION_SUPPORT=ON
 ```
