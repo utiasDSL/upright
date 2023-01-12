@@ -214,6 +214,7 @@ int main(int argc, char** argv) {
         estimate = mm::kf::correct(estimate, C, R0, q);
         x.head(r.x) = estimate.x;
 
+        // Dynamic obstacles
         if (using_projectile && projectile.ready()) {
             Vec3d q_obs = projectile.q();
             if (q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
@@ -242,36 +243,13 @@ int main(int argc, char** argv) {
             }
         }
 
-        // // Dynamic obstacle
-        // if (settings.dims.o > 0 && projectile.ready()) {
-        //     Vec3d q_obs = projectile.q();
-        //     if (q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
-        //         avoid_dynamic_obstacle = true;
-        //         std::cout << "  q_obs = " << q_obs.transpose() << std::endl;
-        //     } else {
-        //         std::cout << "~ q_obs = " << q_obs.transpose() << std::endl;
-        //     }
-        //
-        //     // TODO we could have the MPC reset if the projectile was inside
-        //     // the "awareness zone" but then leaves, such that the robot is
-        //     // ready for the next throw
-        //
-        //     // TODO should this eventually stop? like when the obstacle goes
-        //     // below a certain threshold?
-        //     if (avoid_dynamic_obstacle) {
-        //         Vec3d v_obs = projectile.v();
-        //         Vec3d a_obs = obstacle.modes[0].acceleration;
-        //         x.tail(9) << q_obs, v_obs, a_obs;
-        //     }
-        // }
-
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, u, mode);
 
-        if (using_projectile || using_stationary) {
-            std::cout << "x_obs = " << x.tail(9).transpose() << std::endl;
-            std::cout << "xd_obs = " << xd.tail(9).transpose() << std::endl;
-        }
+        // if (using_projectile || using_stationary) {
+        //     std::cout << "x_obs = " << x.tail(9).transpose() << std::endl;
+        //     std::cout << "xd_obs = " << xd.tail(9).transpose() << std::endl;
+        // }
 
         // Check that controller is not making the end effector leave allowed
         // region

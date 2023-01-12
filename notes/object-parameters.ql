@@ -30,7 +30,7 @@ are rounded and thus do not provide full support
 * Friction: μ = ~0.26 (Vicon data)
 
 == Blue solo cup ==
-* Mass: 7g
+* Mass: ~7g (with two beanbags: ~200g)
 * Bottom diameter: 5cm
 * Top diameter: 8cm
 * Full height: 11cm

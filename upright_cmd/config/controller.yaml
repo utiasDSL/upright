@@ -263,3 +263,12 @@ objects:
       side_lengths: [0.06, 0.06, 0.64]
     com_offset: [0, 0, 0]
     mass: 0.5
+
+  blue_cup:
+    shape:
+      type: cylinder
+      radius: 0.025
+      height: 0.08
+    com_offset: [0, 0, 0]
+    mass: 0.2
+

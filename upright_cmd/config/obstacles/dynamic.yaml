@@ -25,7 +25,8 @@ controller:
 
       # arm and dynamic obstacles
       - ["balanced_object_collision_link_0", "projectile1"]
-      # - ["wrist3_collision_link_0", "projectile1"]
+      # - ["balanced_object_collision_link_large_0", "projectile1"]
+      - ["wrist3_collision_link_0", "projectile1"]
 
 simulation:
   dynamic_obstacles:
@@ -40,26 +41,26 @@ simulation:
         modes:
           -
             time: 0
-            position: [0, -2.0, 0]  # relative to EE if relative=true
+            position: [0, -2.0, 0.4]  # relative to EE if relative=true
             velocity: [0, 2.67, 3.68]
             acceleration: [0, 0, -9.81]
           -
             time: 2
-            position: [1.414, -1.414, 0]
+            position: [1.414, -1.414, 0.4]
             velocity: [-1.89, 1.89, 3.68]
             acceleration: [0, 0, -9.81]
           -
             time: 4
-            position: [2.0, 0, 0]
+            position: [2.0, 0, 0.4]
             velocity: [-2.67, 0, 3.68]
             acceleration: [0, 0, -9.81]
           -
             time: 6
-            position: [1.414, 1.414, 0]
+            position: [1.414, 1.414, 0.4]
             velocity: [-1.89, -1.89, 3.68]
             acceleration: [0, 0, -9.81]
           -
             time: 8
-            position: [0, 2.0, 0]
+            position: [0, 2.0, 0.4]
             velocity: [0, -2.67, 3.68]
             acceleration: [0, 0, -9.81]

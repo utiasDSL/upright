@@ -37,7 +37,7 @@ controller:
         modes:
           -
             time: 0
-            position: [2, 1, 0.25]  # out of the way
+            position: [1.5, 1, 0.25]
             velocity: [0, 0, 0]
             acceleration: [0, 0, 0]
           -

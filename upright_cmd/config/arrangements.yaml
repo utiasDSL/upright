@@ -210,8 +210,6 @@ arrangements:
         mu_margin: 0.01
 
   wedge:
-    support_area_inset: 0.01
-    mu_margin: 0.01
     objects:
       -
         name: wedge1
@@ -233,3 +231,81 @@ arrangements:
         second: box1
         mu: 0.3
         mu_margin: 0.1683
+
+  blue_cups:
+    objects:
+      -
+        name: cup1
+        type: blue_cup
+        parent: ee
+        offset:
+          x: -0.105
+          y: -0.105
+      -
+        name: cup2
+        type: blue_cup
+        parent: ee
+        offset:
+          y: -0.105
+      -
+        name: cup3
+        type: blue_cup
+        parent: ee
+        offset:
+          x: 0.105
+          y: -0.105
+      -
+        name: cup4
+        type: blue_cup
+        parent: ee
+        offset:
+          x: 0.105
+      -
+        name: cup5
+        type: blue_cup
+        parent: ee
+        offset:
+          x: 0.105
+          y: 0.105
+      -
+        name: cup6
+        type: blue_cup
+        parent: ee
+        offset:
+          y: 0.105
+      -
+        name: cup7
+        type: blue_cup
+        parent: ee
+        offset:
+          x: -0.105
+          y: 0.105
+    contacts:
+      -
+        first: ee
+        second: cup1
+        mu: 0.28
+      -
+        first: ee
+        second: cup2
+        mu: 0.28
+      -
+        first: ee
+        second: cup3
+        mu: 0.28
+      -
+        first: ee
+        second: cup4
+        mu: 0.28
+      -
+        first: ee
+        second: cup5
+        mu: 0.28
+      -
+        first: ee
+        second: cup6
+        mu: 0.28
+      -
+        first: ee
+        second: cup7
+        mu: 0.28

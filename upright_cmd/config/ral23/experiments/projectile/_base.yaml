@@ -61,7 +61,7 @@ controller:
       diag: [1rep9]
     state:
       scale: 0.01
-      diag: [0rep9, 50rep9, 1rep9]
+      diag: [0rep9, 10rep9, 1rep9]  # NOTE
     end_effector:
       scale: 1
       diag: [1, 1, 1, 0, 0, 0]
@@ -69,7 +69,7 @@ controller:
   obstacles:
     enabled: true
     constraint_type: hard
-    minimum_distance: 0.25
+    minimum_distance: 0.1  # NOTE
 
   end_effector_box_constraint:
     enabled: false

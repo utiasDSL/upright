@@ -145,3 +145,11 @@ objects:
     mass: 0.09
     side_lengths: [0.0869333, 0.103, 0.0232937]
     color: [0, 1, 0, 0.9]
+
+  blue_cup:
+    shape: cylinder
+    radius: 0.025
+    height: 0.08
+    com_offset: [0, 0, 0]
+    mass: 0.2
+    color: [0, 0, 1, 1]

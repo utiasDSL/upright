@@ -52,7 +52,7 @@ sudo make install
 Clone and build [Pinocchio](https://github.com/stack-of-tasks/pinocchio) in a
 separate folder outside of the catkin workspace. It can be built with catkin,
 but I prefer not to because (1) if you ever clean and rebuild the workspace,
-compiling pinocchio takes ages, and (2) I ran into an issue where it would
+compiling Pinocchio takes ages, and (2) I ran into an issue where it would
 cause sourcing `devel/setup.bash` not to work properly (`ROS_PACKAGE_PATH`
 wasn't set). Follow the installation directions
 [here](https://stack-of-tasks.github.io/pinocchio/download.html) (under the
@@ -61,7 +61,7 @@ wasn't set). Follow the installation directions
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DPYTHON_EXECUTABLE=/usr/bin/python3 -DBUILD_WITH_COLLISION_SUPPORT=ON
 ```
 Ensure that you also modify `$PYTHONPATH` to include the location of
-pinocchio's Python bindings.
+Pinocchio's Python bindings.
 
 Clone catkin package dependencies into the `src` folder of your catkin
 workspace (I like to put them in a subfolder called `tps` for "third-party
@@ -107,8 +107,8 @@ files in the YAML format, which are stored under `upright_cmd/config`.
 Interaction with hardware is done over ROS via
 [mobile_manipulation_central](https://github.com/utiasDSL/dsl__projects__mobile_manipulation_central).
 So far we have targetted an omnidirectional mobile manipulator consisting of a
-Ridgeback mobile base and a UR10 manipulator arm. The general flow of
-experiments is to connect to the robot, and run
+Ridgeback mobile base and a UR10 manipulator arm (collectively named the
+"Thing"). The general flow of experiments is to connect to the robot, and run
 ```
 roslaunch mobile_manipulation_central thing.launch
 ```

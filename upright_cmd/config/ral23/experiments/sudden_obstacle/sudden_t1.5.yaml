@@ -26,7 +26,7 @@ simulation:
             velocity: [0, 0, 0]
             acceleration: [0, 0, 0]
           -
-            time: 1
+            time: 1.5
             position: [1.5, 1.5, 0.25]
             velocity: [0, 0, 0]
             acceleration: [0, 0, 0]
@@ -44,7 +44,7 @@ controller:
             velocity: [0, 0, 0]
             acceleration: [0, 0, 0]
           -
-            time: 1
+            time: 1.5
             position: [1.5, 1.5, 0.25]
             velocity: [0, 0, 0]
             acceleration: [0, 0, 0]

@@ -22,38 +22,12 @@
     </link>
   </xacro:macro>
 
-  <!-- Box tray -->
-  <!-- <xacro:collision_link name="balanced_object_collision_link"> -->
-  <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
-  <!--   <geometry> -->
-      <!-- <sphere radius="0.21"/> -->
-  <!--     <box size="0.23 0.3 0.2" /> -->
-  <!--   </geometry> -->
-  <!-- </xacro:collision_link> -->
-  <!-- <joint name="balanced_object_collision_joint" type="fixed"> -->
-  <!--   <origin rpy="0 0 0" xyz="0.1 0.13 0.036"/> -->
-  <!--   <parent link="gripped_object"/> -->
-  <!--   <child link="balanced_object_collision_link"/> -->
-  <!-- </joint> -->
-
-  <!-- Restaurant tray -->
-  <!-- <xacro:collision_link name="balanced_object_collision_link"> -->
-  <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
-  <!--   <geometry> -->
-  <!--     <sphere radius="0.2"/> -->
-  <!--   </geometry> -->
-  <!-- </xacro:collision_link> -->
-  <!-- <joint name="balanced_object_collision_joint" type="fixed"> -->
-  <!--   <origin rpy="0 0 0" xyz="0.09 0.12 0.03"/> -->
-  <!--   <parent link="gripped_object"/> -->
-  <!--   <child link="balanced_object_collision_link"/> -->
-  <!-- </joint> -->
-
   <!-- Wood tray -->
   <xacro:collision_link name="balanced_object_collision_link">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 0 0" xyz="0 0 0.05"/>
     <geometry>
-      <sphere radius="0.21"/>
+      <!-- <sphere radius="0.21"/> -->
+      <sphere radius="0.25"/>
     </geometry>
   </xacro:collision_link>
   <joint name="balanced_object_collision_joint" type="fixed">
@@ -61,6 +35,18 @@
     <parent link="gripped_object"/>
     <child link="balanced_object_collision_link"/>
   </joint>
+
+  <!-- <xacro:collision_link name="balanced_object_collision_link_large"> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
+  <!--   <geometry> -->
+  <!--     <sphere radius="0.36"/> -->
+  <!--   </geometry> -->
+  <!-- </xacro:collision_link> -->
+  <!-- <joint name="balanced_object_collision_joint_large" type="fixed"> -->
+  <!--   <origin rpy="0 0 0" xyz="0 0 0.02"/> -->
+  <!--   <parent link="gripped_object"/> -->
+  <!--   <child link="balanced_object_collision_link_large"/> -->
+  <!-- </joint> -->
 
   <!-- Collision sphere for the shoulder -->
   <xacro:collision_link name="shoulder_collision_link">
