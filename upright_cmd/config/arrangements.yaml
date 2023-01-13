@@ -31,52 +31,23 @@ arrangements:
       -
         first: ee
         second: block1
-        mu: 0.27
-        mu_margin: 0.27
+        mu: 0.376
+        mu_margin: 0.0376
       -
         first: ee
         second: block2
-        mu: 0.27
-        mu_margin: 0.27
+        mu: 0.376
+        mu_margin: 0.0376
       -
         first: block1
         second: block3
-        mu: 0.27  # TODO measure
-        mu_margin: 0.27
+        mu: 0.30
+        mu_margin: 0.03
       -
         first: block2
         second: block3
-        mu: 0.27  # TODO measure
-        mu_margin: 0.27
-
-  # single water bottle
-  bottle:
-    objects:
-      -
-        name: bottle1
-        type: bottle
-        parent: ee
-    contacts:
-      -
-        first: ee
-        second: bottle1
-        mu: 0.3
-
-  tall_bottle:
-    objects:
-      -
-        name: bottle
-        type: tall_bottle
-        parent: ee
-        offset:
-          x: 0.035
-    contacts:
-      -
-        first: ee
-        second: bottle
-        mu: 0.3
-        mu_margin: 0.05
-        support_area_inset: 0.01 # needs to be larger because of base inset
+        mu: 0.30
+        mu_margin: 0.03
 
   pink_bottle:
     objects:
@@ -90,9 +61,9 @@ arrangements:
       -
         first: ee
         second: bottle
-        mu: 0.2
-        mu_margin: 0.1
-        support_area_inset: 0.005
+        mu: 0.26
+        mu_margin: 0.026
+        support_area_inset: 0.005  # TODO?
 
   # single foam die
   foam_die1:
@@ -108,8 +79,8 @@ arrangements:
         first: ee
         second: foam_die1
         mu: 0.54
-        mu_margin: 0.05
-        support_area_inset: 0.005
+        mu_margin: 0.054
+        support_area_inset: 0.015
 
   # two foam dice stacked atop one another
   foam_die2:
@@ -128,14 +99,14 @@ arrangements:
       -
         first: ee
         second: foam_die1
-        mu: 0.5
-        mu_margin: 0
+        mu: 0.54
+        mu_margin: 0.054
         support_area_inset: 0.015
       -
         first: foam_die1
         second: foam_die2
-        mu: 0.5
-        mu_margin: 0
+        mu: 0.71
+        mu_margin: 0.71
         support_area_inset: 0.015
 
   simulation_box:
@@ -149,8 +120,8 @@ arrangements:
         first: ee
         second: bottle
         mu: 0.2
+        mu_margin: 0.02
         support_area_inset: 0.005
-        mu_margin: 0.01
 
   simulation_box_h0:
     objects:
@@ -162,10 +133,9 @@ arrangements:
       -
         first: ee
         second: bottle
-        mu: 0.5
+        mu: 0.5  # TODO under development
         support_area_inset: 0.005
-        mu_margin: 0.01
-        # mu_margin: 0.3
+        mu_margin: 0.05
 
   simulation_box_with_fixture:
     objects:
@@ -186,12 +156,12 @@ arrangements:
         second: bottle
         mu: 0.2
         support_area_inset: 0.005
-        mu_margin: 0.01
+        mu_margin: 0.02
       -
         first: fixture
         second: bottle
         mu: 0.2
-        mu_margin: 0.01
+        mu_margin: 0.02
 
   tall_simulation_box:
     objects:
@@ -203,9 +173,9 @@ arrangements:
       -
         first: ee
         second: bottle
-        mu: 0.3
+        mu: 0.2
         support_area_inset: 0.005
-        mu_margin: 0.01
+        mu_margin: 0.02
 
   wedge:
     objects:
@@ -222,13 +192,13 @@ arrangements:
       -
         first: ee
         second: wedge1
-        mu: 0.3
-        mu_margin: 0.1683 # computed to achieve minimum found by compute_minimum_mu.py script
+        mu: 0.2
+        mu_margin: 0.0683 # computed to achieve minimum found by compute_minimum_mu.py script
       -
         first: wedge1
         second: box1
-        mu: 0.3
-        mu_margin: 0.1683
+        mu: 0.2
+        mu_margin: 0.0683
 
   blue_cups:
     objects:
@@ -283,27 +253,34 @@ arrangements:
         first: ee
         second: cup1
         mu: 0.28
+        mu_margin: 0.028
       -
         first: ee
         second: cup2
         mu: 0.28
+        mu_margin: 0.028
       -
         first: ee
         second: cup3
         mu: 0.28
+        mu_margin: 0.028
       -
         first: ee
         second: cup4
         mu: 0.28
+        mu_margin: 0.028
       -
         first: ee
         second: cup5
         mu: 0.28
+        mu_margin: 0.028
       -
         first: ee
         second: cup6
         mu: 0.28
+        mu_margin: 0.028
       -
         first: ee
         second: cup7
         mu: 0.28
+        mu_margin: 0.028
