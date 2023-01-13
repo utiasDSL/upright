@@ -128,17 +128,15 @@ arrangements:
       -
         first: ee
         second: foam_die1
-        # mu: 0.54
-        mu: 0.4
-        mu_margin: 0.1
-        support_area_inset: 0.01
+        mu: 0.5
+        mu_margin: 0
+        support_area_inset: 0.015
       -
         first: foam_die1
         second: foam_die2
-        mu: 0.4
-        # mu: 0.615
-        mu_margin: 0.1
-        support_area_inset: 0.01
+        mu: 0.5
+        mu_margin: 0
+        support_area_inset: 0.015
 
   simulation_box:
     objects:
