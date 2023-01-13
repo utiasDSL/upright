@@ -1,0 +1,18 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/static_obstacles/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point1.yaml
+
+
+simulation:
+  duration: 5.0
+  arrangement: blue_cups
+
+controller:
+  balancing:
+    enabled: true
+    frictionless: false
+    arrangement: blue_cups

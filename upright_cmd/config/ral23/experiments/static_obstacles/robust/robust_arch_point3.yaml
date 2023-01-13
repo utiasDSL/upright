@@ -4,7 +4,7 @@ include:
     path: config/ral23/experiments/static_obstacles/_base.yaml
   -
     package: upright_cmd
-    path: config/ral23/experiments/_point2.yaml
+    path: config/ral23/experiments/_point3.yaml
 
 
 simulation:
@@ -14,6 +14,5 @@ simulation:
 controller:
   balancing:
     enabled: true
-    use_force_constraints: true
+    frictionless: true
     arrangement: box_arch
-    constraint_type: hard

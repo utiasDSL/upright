@@ -78,7 +78,8 @@ def parse_object_error(bag):
         obj_msgs, normalize_time=False
     )
     r_ow_ws = np.array(ros_utils.interpolate_list(ts, ts_obj, obj_poses[:, :3]))
-    ts -= ts[0]
+    t0 = ts[0]
+    ts -= t0
 
     n = len(ts)
     r_ot_ts = []
@@ -98,8 +99,6 @@ def parse_object_error(bag):
     r_ot_ts = np.array(r_ot_ts)
 
     # compute distance w.r.t. the initial position
-    # TODO this does not really seem right: error gets large and then goes down
-    # over time?
     r_ot_t_err = r_ot_ts - r_ot_ts[0, :]
     distances = np.linalg.norm(r_ot_t_err, axis=1)
 
@@ -109,6 +108,16 @@ def parse_object_error(bag):
     plt.xlabel("Time [s]")
     plt.ylabel("Distance error [mm]")
 
+    # plt.figure()
+    # plt.plot(ts_obj - t0, obj_poses[:, 3], label="Qx")
+    # plt.plot(ts_obj - t0, obj_poses[:, 4], label="Qy")
+    # plt.plot(ts_obj - t0, obj_poses[:, 5], label="Qz")
+    # plt.plot(ts_obj - t0, obj_poses[:, 6], label="Qw")
+    # plt.grid()
+    # plt.legend()
+    # plt.xlabel("Time [s]")
+    # plt.ylabel("Quaternion")
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -116,7 +125,7 @@ def main():
     args = parser.parse_args()
 
     bag = rosbag.Bag(args.bagfile)
-    parse_mpc_solve_times(bag, plot=True)
+    # parse_mpc_solve_times(bag, plot=True)
     parse_object_error(bag)
     plt.show()
 

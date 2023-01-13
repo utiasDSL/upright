@@ -1,7 +1,7 @@
 include:
   -
     package: upright_cmd
-    path: config/ral23/experiments/static_obstacles/_base.yaml
+    path: config/ral23/experiments/freespace/_base.yaml
   -
     package: upright_cmd
     path: config/ral23/experiments/_point2.yaml
@@ -14,6 +14,6 @@ simulation:
 controller:
   balancing:
     enabled: true
-    use_force_constraints: true
+    frictionless: false
     arrangement: pink_bottle
     constraint_type: hard

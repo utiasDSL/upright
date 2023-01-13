@@ -9,11 +9,10 @@ include:
 
 simulation:
   duration: 5.0
-  arrangement: box_arch
+  arrangement: blue_cups
 
 controller:
   balancing:
     enabled: true
-    use_force_constraints: true
-    arrangement: box_arch
-    constraint_type: hard
+    frictionless: true
+    arrangement: blue_cups

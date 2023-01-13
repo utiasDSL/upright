@@ -4,16 +4,15 @@ include:
     path: config/ral23/experiments/static_obstacles/_base.yaml
   -
     package: upright_cmd
-    path: config/ral23/experiments/_point2.yaml
+    path: config/ral23/experiments/_point3.yaml
 
 
 simulation:
   duration: 5.0
-  arrangement: foam_die2
+  arrangement: pink_bottle
 
 controller:
   balancing:
     enabled: true
-    use_force_constraints: true
-    arrangement: foam_die2
-    constraint_type: hard
+    frictionless: false
+    arrangement: pink_bottle
