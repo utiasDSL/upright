@@ -471,21 +471,22 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
         objects[obj_name] = obj
         obj.fixture = fixture
 
-    # for debugging, generate contact points
-    boxes = {name: obj.box for name, obj in objects.items()}
+    # for debugging, generate and show contact points
+    if config.get("show_contact_points", False):
+        boxes = {name: obj.box for name, obj in objects.items()}
 
-    contact_points = []
-    for contact in arrangement["contacts"]:
-        name1 = contact["first"]
-        name2 = contact["second"]
-        points, _ = polyhedron.axis_aligned_contact(boxes[name1], boxes[name2], tol=1e-7)
-        if points is None:
-            raise ValueError(f"No contact points found between {name1} and {name2}.")
-        contact_points.append(points)
+        contact_points = []
+        for contact in arrangement["contacts"]:
+            name1 = contact["first"]
+            name2 = contact["second"]
+            points, _ = polyhedron.axis_aligned_contact(boxes[name1], boxes[name2], tol=1e-7)
+            if points is None:
+                raise ValueError(f"No contact points found between {name1} and {name2}.")
+            contact_points.append(points)
 
-    contact_points = np.vstack(contact_points)
-    colors = [[1, 1, 1] for _ in contact_points]
-    pyb.addUserDebugPoints([v for v in contact_points], colors, pointSize=10)
+        contact_points = np.vstack(contact_points)
+        colors = [[1, 1, 1] for _ in contact_points]
+        pyb.addUserDebugPoints([v for v in contact_points], colors, pointSize=10)
 
     # get rid of "fake" EE object before returning
     objects.pop("ee")
@@ -544,7 +545,8 @@ class BulletSimulation:
         self.objects = balanced_object_setup(r_ew_w, Q_we, config, self.robot)
 
         # mark frame at the initial position
-        debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
+        if config.get("show_debug_frames", False):
+            debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
 
         # video recording
         video_name = cli_args.video if cli_args is not None else None

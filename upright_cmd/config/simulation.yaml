@@ -11,6 +11,8 @@ timestep: 0.001
 duration: 5.0
 gravity: [0, 0, -9.81]
 arrangement: nothing
+show_contact_points: true
+show_debug_frames: true
 
 video:
   save_frames: true
@@ -143,8 +145,9 @@ objects:
   wedge:
     shape: wedge
     mass: 0.09
-    side_lengths: [0.0869333, 0.103, 0.0232937]
-    color: [0, 1, 0, 0.9]
+    # side_lengths: [0.0869333, 0.103, 0.0232937]
+    side_lengths: [0.15, 0.15, 0.0401923788646684]
+    color: [0, 1, 0, 1]
 
   blue_cup:
     shape: cylinder

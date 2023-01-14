@@ -69,10 +69,10 @@ def main():
     logger.add("nx", ctrl_config["robot"]["dims"]["x"])
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
 
-    # frames and ghost (i.e., pure visual) objects
-    for r_ew_w_d, Q_we_d in ref.poses():
-        # sim.ghosts.append(GhostSphere(radius=0.05, position=r_ew_w_d, color=(0, 1, 0, 1)))
-        debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
+    # frames for desired waypoints
+    if sim_config.get("show_debug_frames", False):
+        for r_ew_w_d, Q_we_d in ref.poses():
+            debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
     # ctrl_manager.warmstart()
 

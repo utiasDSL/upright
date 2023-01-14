@@ -233,8 +233,8 @@ objects:
     shape:
       type: wedge
       # approx 15 deg slope with 0.09 long hypoteneuse
-      side_lengths: [0.0869333, 0.103, 0.0232937]
-      # side_lengths: [0.103, 0.09, 0.038]
+      # side_lengths: [0.0869333, 0.103, 0.0232937]
+      side_lengths: [0.15, 0.15, 0.0401923788646684]
 
   fixture:
     mass: 0.1

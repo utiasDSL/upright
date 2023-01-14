@@ -192,13 +192,13 @@ arrangements:
       -
         first: ee
         second: wedge1
-        mu: 0.2
-        mu_margin: 0.0683 # computed to achieve minimum found by compute_minimum_mu.py script
+        mu: 0.3
+        mu_margin: 0.1683 # computed to achieve minimum found by compute_minimum_mu.py script
       -
         first: wedge1
         second: box1
-        mu: 0.2
-        mu_margin: 0.0683
+        mu: 0.3
+        mu_margin: 0.1683
 
   blue_cups:
     objects:

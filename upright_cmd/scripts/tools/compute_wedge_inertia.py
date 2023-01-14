@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""This script computes the inertia tensor for right triangular prisms."""
+"""Symbolically compute the inertia tensor for a wedge."""
 import sympy
 import numpy as np
 import IPython
