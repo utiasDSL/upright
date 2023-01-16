@@ -2,7 +2,7 @@
 <robot name="end_effector_gripped_object" xmlns:xacro="http://wiki.ros.org/xacro">
 
   <joint name="gripped_object_joint" type="fixed">
-    <xacro:transformed_origin name="T2" />
+    <xacro:transformed_origin name="ee_to_tray_transform" />
     <parent link="gripper"/>
     <child link="gripped_object"/>
   </joint>
@@ -14,22 +14,6 @@
       <box size="0.285 0.285 0.02" />
     </geometry>
   </xacro:macro>
-
-  <!-- Box tray -->
-  <!-- <xacro:macro name="gripped_object_geometry"> -->
-  <!--   <origin rpy="0 0 0" xyz="0.1 0.13 -0.032"/> -->
-  <!--   <geometry> -->
-  <!--     <box size="0.23 0.3 0.064" /> -->
-  <!--   </geometry> -->
-  <!-- </xacro:macro> -->
-
-  <!-- Restaurant tray -->
-  <!-- <xacro:macro name="gripped_object_geometry"> -->
-  <!--   <origin rpy="0 0 0" xyz="0.064 0.127 -0.005"/> -->
-  <!--   <geometry> -->
-  <!--     <cylinder length="0.01" radius="0.178" /> -->
-  <!--   </geometry> -->
-  <!-- </xacro:macro> -->
 
   <!-- Extra link for the gripped object, which must be calibrated. -->
   <link name="gripped_object">

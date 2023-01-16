@@ -1,8 +1,8 @@
 # in sim we use the real EE position but everything else is exact/perfect
-T1:
+base_to_arm_transform:
   rpy: [0, 0, 0]
   xyz: [0, 0, 0]
-T2:
+ee_to_tray_transform:
   rpy:
   - 0
   - -1.57079633
