@@ -50,12 +50,12 @@ def main():
     print(f"Tool pose: r = {r}, Q = {Q}")
 
     # note that this is the classical acceleration, not the spatial acceleration
-    ddr, α = robot.link_acceleration()
+    ddr, α = robot.link_classical_acceleration()
 
     # forward kinematics derivatives
     robot.forward_derivatives(x, u)
     dVdq, dVdv = robot.link_velocity_derivatives()
-    dAdq, dAdv, dAda = robot.link_acceleration_derivatives()
+    dAdq, dAdv, dAda = robot.link_classical_acceleration_derivatives()
 
     # J == dVdv == dAda
     np.testing.assert_allclose(J, dVdv, atol=1e-5)

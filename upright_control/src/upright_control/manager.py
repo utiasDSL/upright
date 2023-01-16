@@ -29,7 +29,7 @@ class ControllerModel:
 
     def update(self, x, u=None):
         """Update model with state x and input u. Required before calling other methods."""
-        self.robot.forward(x, u)
+        self.robot.forward_xu(x, u)
 
     def is_using_force_constraints(self):
         b = self.settings.balancing_settings
@@ -39,7 +39,7 @@ class ControllerModel:
         """Evaluate the balancing constraints at time t and state x."""
         _, Q_we = self.robot.link_pose()
         _, ω_ew_w = self.robot.link_velocity()
-        a_ew_w, α_ew_w = self.robot.link_acceleration()
+        a_ew_w, α_ew_w = self.robot.link_classical_acceleration()
         C_we = core.math.quat_to_rot(Q_we)
 
         X = core.bindings.RigidBodyState()
@@ -73,7 +73,7 @@ class ControllerModel:
 
         _, Q_we = self.robot.link_pose()
         C_we = core.math.quat_to_rot(Q_we)
-        a_ew_w, _ = self.robot.link_acceleration()
+        a_ew_w, _ = self.robot.link_classical_acceleration()
 
         # find EE normal vector in the world frame
         z_e = np.array([0, 0, 1])
@@ -92,7 +92,7 @@ class ControllerModel:
         _, Q_we = self.robot.link_pose()
         C_we = core.math.quat_to_rot(Q_we)
         _, ω_ew_w = self.robot.link_velocity()
-        _, α_ew_w = self.robot.link_acceleration()
+        _, α_ew_w = self.robot.link_classical_acceleration()
 
         Sα = core.math.skew3(α_ew_w)
         Sω = core.math.skew3(ω_ew_w)

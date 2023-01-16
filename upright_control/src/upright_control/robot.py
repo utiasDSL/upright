@@ -4,8 +4,7 @@ import hppfcl as fcl
 
 import upright_core as core
 from upright_control import bindings
-
-import IPython
+from mobile_manipulation_central.kinematics import RobotKinematics
 
 
 def _build_pinocchio_model(urdf_path, base_type, locked_joints, base_pose):
@@ -85,8 +84,8 @@ def _append_model(
         robot.model, model, geom.visual_model, geom_model, frame_index, placement
     )
 
-    new_robot = PinocchioRobot(new_model, robot.mapping, robot.tool_link_name)
-    new_geom = PinocchioGeometry(new_robot, new_collision_model, new_visual_model)
+    new_robot = UprightRobotKinematics(new_model, robot.mapping, robot.tool_link_name)
+    new_geom = UprightRobotGeometry(new_robot, new_collision_model, new_visual_model)
     return new_robot, new_geom
 
 
@@ -100,14 +99,14 @@ def build_robot_interfaces(settings):
         base_pose=settings.base_pose,
     )
     mapping = bindings.SystemPinocchioMapping(settings.dims)
-    robot = PinocchioRobot(
+    robot = UprightRobotKinematics(
         model=model,
         mapping=mapping,
         tool_link_name=settings.end_effector_link_name,
     )
 
     # build geometry
-    geom = PinocchioGeometry.from_robot_and_urdf(robot, settings.robot_urdf_path)
+    geom = UprightRobotGeometry.from_robot_and_urdf(robot, settings.robot_urdf_path)
 
     # add a ground plane
     ground_placement = pinocchio.SE3.Identity()
@@ -141,7 +140,7 @@ def build_robot_interfaces(settings):
     return robot, geom
 
 
-class PinocchioGeometry:
+class UprightRobotGeometry:
     """Visual and collision geometry models for a robot and environment."""
 
     def __init__(self, robot, collision_model, visual_model):
@@ -217,46 +216,12 @@ class PinocchioGeometry:
         return viz
 
 
-# TODO revise to inherit from RobotKinematics in mm_central
-class PinocchioRobot:
+class UprightRobotKinematics(RobotKinematics):
     def __init__(self, model, mapping, tool_link_name):
-        self.model = model
+        super().__init__(model, tool_link_name)
         self.mapping = mapping
-        self.data = self.model.createData()
-        self.tool_link_name = tool_link_name
-        self.tool_idx = self.model.getBodyId(tool_link_name)
-        self.nq = self.model.nq
-        self.nv = self.model.nv
 
-    def forward_qva(self, q, v=None, a=None):
-        """Forward kinematics using (q, v, a) all in the world frame (i.e.,
-        corresponding directly to the Pinocchio model."""
-        if v is None:
-            v = np.zeros(self.nv)
-        if a is None:
-            a = np.zeros(self.nv)
-
-        assert q.shape == (self.nq,)
-        assert v.shape == (self.nv,)
-        assert a.shape == (self.nv,)
-
-        pinocchio.forwardKinematics(self.model, self.data, q, v, a)
-        pinocchio.updateFramePlacements(self.model, self.data)
-
-    def forward_derivatives_qva(self, q, v, a=None):
-        """Compute derivatives of the forward kinematics using (q, v, a) all in
-        the world frame (i.e., corresponding directly to the Pinocchio
-        model."""
-        if a is None:
-            a = np.zeros(self.nv)
-
-        assert q.shape == (self.nq,)
-        assert v.shape == (self.nv,)
-        assert a.shape == (self.nv,)
-
-        pinocchio.computeForwardKinematicsDerivatives(self.model, self.data, q, v, a)
-
-    def forward(self, x, u=None):
+    def forward_xu(self, x, u=None):
         """Forward kinematics. Must be called before the link pose, velocity,
         or acceleration methods."""
         if u is None:
@@ -267,105 +232,12 @@ class PinocchioRobot:
         v = self.mapping.get_pinocchio_joint_velocity(x, u)
         a = self.mapping.get_pinocchio_joint_acceleration(x, u)
 
-        self.forward_qva(q, v, a)
+        self.forward(q, v, a)
 
-    def forward_derivatives(self, x, u=None):
+    def forward_derivatives_xu(self, x, u=None):
         # get values in Pinocchio coordinates
         q = self.mapping.get_pinocchio_joint_position(x)
         v = self.mapping.get_pinocchio_joint_velocity(x, u)
         a = self.mapping.get_pinocchio_joint_acceleration(x, u)
 
-        self.forward_derivatives_qva(q, v, a)
-
-    def link_pose(self, link_idx=None):
-        if link_idx is None:
-            link_idx = self.tool_idx
-        pose = self.data.oMf[link_idx]
-        r = pose.translation
-        Q = core.math.rot_to_quat(pose.rotation)
-        return r.copy(), Q.copy()
-
-    def link_velocity(self, link_idx=None):
-        if link_idx is None:
-            link_idx = self.tool_idx
-        V = pinocchio.getFrameVelocity(
-            self.model,
-            self.data,
-            link_idx,
-            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
-        )
-        return V.linear, V.angular
-
-    def link_acceleration(self, link_idx=None):
-        if link_idx is None:
-            link_idx = self.tool_idx
-        A = pinocchio.getFrameClassicalAcceleration(
-            self.model,
-            self.data,
-            link_idx,
-            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
-        )
-        return A.linear, A.angular
-
-    def link_spatial_acceleration(self, link_idx=None):
-        if link_idx is None:
-            link_idx = self.tool_idx
-        A = pinocchio.getFrameAcceleration(
-            self.model,
-            self.data,
-            link_idx,
-            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
-        )
-        return A.linear, A.angular
-
-    def jacobian(self, q):
-        return pinocchio.computeFrameJacobian(
-            self.model,
-            self.data,
-            q,
-            self.tool_idx,
-            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
-        )
-
-    def link_velocity_derivatives(self, link_idx=None):
-        """Compute derivative of link velocity with respect to q and v."""
-        if link_idx is None:
-            link_idx = self.tool_idx
-        dVdq, dVdv = pinocchio.getFrameVelocityDerivatives(
-            self.model,
-            self.data,
-            link_idx,
-            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
-        )
-        return dVdq, dVdv
-
-    def link_acceleration_derivatives(self, link_idx=None):
-        """Compute derivative of link classical acceleration with respect to q, v, a."""
-        dr, ω = self.link_velocity(link_idx=link_idx)
-        dVdq, dVdv = self.link_velocity_derivatives(link_idx=link_idx)
-        dAdq, dAdv, dAda = self.link_spatial_acceleration_derivatives(link_idx=link_idx)
-
-        # derivative of the coriolis term
-        ddrdq, dwdq = dVdq[:3, :], dVdq[3:, :]
-        ddrdv, dwdv = dVdv[:3, :], dVdv[3:, :]
-        dcdq = (np.cross(dwdq.T, dr) + np.cross(ω, ddrdq.T)).T
-        dcdv = (np.cross(dwdv.T, dr) + np.cross(ω, ddrdv.T)).T
-
-        # add the coriolis term to the spatial acceleration
-        dAs_dq = dAdq + np.vstack((dcdq, np.zeros((3, self.nq))))
-        dAs_dv = dAdv + np.vstack((dcdv, np.zeros((3, self.nv))))
-        dAs_da = dAda
-
-        return dAs_dq, dAs_dv, dAs_da
-
-    def link_spatial_acceleration_derivatives(self, link_idx=None):
-        """Compute derivative of link spatial acceleration with respect to q, v, a."""
-        if link_idx is None:
-            link_idx = self.tool_idx
-        _, dAdq, dAdv, dAda = pinocchio.getFrameAccelerationDerivatives(
-            self.model,
-            self.data,
-            link_idx,
-            pinocchio.ReferenceFrame.LOCAL_WORLD_ALIGNED,
-        )
-        return dAdq, dAdv, dAda
+        self.forward_derivatives(q, v, a)

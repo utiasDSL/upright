@@ -47,7 +47,7 @@ def main():
         robot.forward(xs[i, :])
         ee_poses[i, :] = np.concatenate(robot.link_pose())
         ee_velocities[i, :] = np.concatenate(robot.link_velocity())
-        ee_accelerations[i, :] = np.concatenate(robot.link_acceleration())
+        ee_accelerations[i, :] = np.concatenate(robot.link_classical_acceleration())
 
     velocity_magnitudes = np.linalg.norm(ee_velocities[:, :3], axis=1)
     max_vel_idx = np.argmax(velocity_magnitudes)

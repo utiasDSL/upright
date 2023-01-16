@@ -39,7 +39,6 @@ find_package(Boost REQUIRED COMPONENTS
 )
 
 find_package(PkgConfig REQUIRED)
-# pkg_check_modules(pinocchio REQUIRED pinocchio)
 find_package(pinocchio REQUIRED)
 find_package(hpp-fcl REQUIRED)
 
@@ -61,8 +60,7 @@ catkin_package(
     pinocchio
 )
 
-###########
-## Build ##
+########### ## Build ##
 ###########
 
 set(FLAGS ${OCS2_CXX_FLAGS} ${pinocchio_CFLAGS_OTHER} -Wno-invalid-partial-specialization -DPINOCCHIO_WITH_HPP_FCL)
