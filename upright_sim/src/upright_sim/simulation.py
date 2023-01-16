@@ -8,7 +8,7 @@ from pyb_utils.frame import debug_frame_world
 import upright_core as core
 from upright_core import parsing, math, polyhedron
 from upright_sim.robot import SimulatedRobot
-from upright_sim.camera import VideoManager
+from upright_sim.camera import camera_from_dict, VideoManager
 from upright_sim.util import wedge_mesh
 
 import IPython
@@ -479,9 +479,13 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
         for contact in arrangement["contacts"]:
             name1 = contact["first"]
             name2 = contact["second"]
-            points, _ = polyhedron.axis_aligned_contact(boxes[name1], boxes[name2], tol=1e-7)
+            points, _ = polyhedron.axis_aligned_contact(
+                boxes[name1], boxes[name2], tol=1e-7
+            )
             if points is None:
-                raise ValueError(f"No contact points found between {name1} and {name2}.")
+                raise ValueError(
+                    f"No contact points found between {name1} and {name2}."
+                )
             contact_points.append(points)
 
         contact_points = np.vstack(contact_points)
@@ -494,8 +498,12 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
     return objects
 
 
+# TODO basically we want to get rid of the config options and balanced object
+# related stuff
+
+
 class BulletSimulation:
-    def __init__(self, config, timestamp, cli_args=None):
+    def __init__(self, config, timestamp, video_name=None, extra_gui=False):
         self.config = config
 
         self.timestep = config["timestep"]
@@ -512,8 +520,9 @@ class BulletSimulation:
             cameraTargetPosition=[1.28, 0.045, 0.647],
         )
 
-        # get rid of extra parts of the GUI
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
+        # get rid of extra parts of the GUI unless desired
+        if not extra_gui:
+            pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
 
         # setup ground plane
         pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -548,8 +557,12 @@ class BulletSimulation:
         if config.get("show_debug_frames", False):
             debug_frame_world(0.2, list(r_ew_w), orientation=Q_we, line_width=3)
 
+        # static cameras
+        self.cameras = {
+            k: camera_from_dict(v) for k, v in config.get("cameras", {}).items()
+        }
+
         # video recording
-        video_name = cli_args.video if cli_args is not None else None
         self.video_manager = VideoManager.from_config(
             video_name=video_name, config=config, timestamp=timestamp, r_ew_w=r_ew_w
         )

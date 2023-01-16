@@ -14,6 +14,27 @@ simulation:
         - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
         - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
 
+  # for taking pictures of start and end configurations
+  cameras:
+    wedge_init:
+      target: [0.33, 1.45, 0.28]
+      distance: 1.0
+      roll: 0
+      pitch: -51.4
+      yaw: 27.6
+    wedge_init_side:
+      target: [0.47, 1.8, 0.47]
+      distance: 1.0
+      roll: 0
+      pitch: -19.40
+      yaw: 0
+    wedge_final_side:
+      target: [-2.07, 2.34, 0.75]
+      distance: 1.0
+      roll: 0
+      pitch: 0
+      yaw: 74.4
+
 controller:
   balancing:
     enabled: true

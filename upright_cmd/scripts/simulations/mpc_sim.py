@@ -7,8 +7,8 @@ import pybullet as pyb
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 
-from upright_sim import simulation
 from upright_core.logging import DataLogger, DataPlotter
+import upright_sim as sim
 import upright_core as core
 import upright_control as ctrl
 import upright_cmd as cmd
@@ -29,22 +29,26 @@ def main():
 
     # start the simulation
     timestamp = datetime.datetime.now()
-    sim = simulation.BulletSimulation(
-        config=sim_config, timestamp=timestamp, cli_args=cli_args
+    env = sim.simulation.BulletSimulation(
+        config=sim_config, timestamp=timestamp, video_name=cli_args.video, extra_gui=True
     )
 
     # settle sim to make sure everything is touching comfortably
-    sim.settle(5.0)
-    sim.launch_dynamic_obstacles()
-    sim.fixture_objects()
+    env.settle(5.0)
+    env.launch_dynamic_obstacles()
+    env.fixture_objects()
+
+    for name in ["wedge_init", "wedge_init_side"]:
+        if name in env.cameras:
+            env.cameras[name].save_frame(f"{name}.png")
 
     # initial time, state, input
     t = 0.0
-    q, v = sim.robot.joint_states()
-    a = np.zeros(sim.robot.nv)
-    x_obs = sim.dynamic_obstacle_state()
+    q, v = env.robot.joint_states()
+    a = np.zeros(env.robot.nv)
+    x_obs = env.dynamic_obstacle_state()
     x = np.concatenate((q, v, a, x_obs))
-    u = np.zeros(sim.robot.nu)
+    u = np.zeros(env.robot.nu)
 
     # controller
     integrator = ctrl.trajectory.DoubleIntegrator(v.shape[0])
@@ -59,10 +63,10 @@ def main():
     # data logging
     logger = DataLogger(config)
 
-    logger.add("sim_timestep", sim.timestep)
-    logger.add("duration", sim.duration)
+    logger.add("sim_timestep", env.timestep)
+    logger.add("duration", env.duration)
     logger.add("ctrl_timestep", ctrl_manager.timestep)
-    logger.add("object_names", [str(name) for name in sim.objects.keys()])
+    logger.add("object_names", [str(name) for name in env.objects.keys()])
 
     logger.add("nq", ctrl_config["robot"]["dims"]["q"])
     logger.add("nv", ctrl_config["robot"]["dims"]["v"])
@@ -82,26 +86,18 @@ def main():
     v_ff = v.copy()
     a_ff = a.copy()
 
-    use_direct_velocity_command = False
-    use_velocity_feedback = True
-
-    num_obs_resets = 0
-
     # simulation loop
-    while t <= sim.duration:
+    while t <= env.duration:
         # get the true robot feedback
-        q, v = sim.robot.joint_states(add_noise=False)
-        x_obs = sim.dynamic_obstacle_state()
+        q, v = env.robot.joint_states(add_noise=False)
+        x_obs = env.dynamic_obstacle_state()
         x = np.concatenate((q, v, a_ff, x_obs))
 
         # now get the noisy version for use in the controller
         # we can choose to use v_ff rather than v_noisy if we can to avoid
         # noisy velocity feedback
-        q_noisy, v_noisy = sim.robot.joint_states(add_noise=True)
-        if use_velocity_feedback:
-            x_noisy = np.concatenate((q_noisy, v_noisy, a_ff, x_obs))
-        else:
-            x_noisy = np.concatenate((q_noisy, v_ff, a_ff, x_obs))
+        q_noisy, v_noisy = env.robot.joint_states(add_noise=True)
+        x_noisy = np.concatenate((q_noisy, v_noisy, a_ff, x_obs))
 
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
@@ -125,20 +121,19 @@ def main():
         # here we use the input u to generate the feedforward signal---using
         # the jerk level ensures smoothness at the velocity level
         qd, vd, ad = mapping.xu2qva(xd_robot)
-
-        # u_cmd = Kp @ (qd - q_noisy) + (vd - v_ff) + (ad - a_ff) + u_robot
-        # v_ff, a_ff = integrator.integrate_approx(v_ff, ad, u_robot, sim.timestep)
-        v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, sim.timestep)
+        # v_ff, a_ff = integrator.integrate_approx(v_ff, ad, u_robot, env.timestep)
+        v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, env.timestep)
         v_cmd = v_ff
 
-        sim.robot.command_velocity(v_cmd, bodyframe=False)
+        # generated velocity is in the world frame
+        env.robot.command_velocity(v_cmd, bodyframe=False)
 
         # TODO more logger reforms to come
         if logger.ready(t):
             # log sim stuff
-            r_ew_w, Q_we = sim.robot.link_pose()
-            v_ew_w, ω_ew_w = sim.robot.link_velocity()
-            r_ow_ws, Q_wos = sim.object_poses()
+            r_ew_w, Q_we = env.robot.link_pose()
+            v_ew_w, ω_ew_w = env.robot.link_velocity()
+            r_ow_ws, Q_wos = env.object_poses()
             logger.append("ts", t)
             logger.append("us", u)
             logger.append("xs", x)
@@ -224,7 +219,10 @@ def main():
                     "object_dynamics_constraints", object_dynamics_constraints
                 )
 
-        t = sim.step(t, step_robot=False)[0]
+        t = env.step(t, step_robot=False)[0]
+
+    if "wedge_final_side" in env.cameras:
+        env.cameras["wedge_final_side"].save_frame("wedge_final_side.png")
 
     try:
         print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")
@@ -238,8 +236,8 @@ def main():
     if cli_args.log is not None:
         logger.save(timestamp, name=cli_args.log)
 
-    if sim.video_manager.save:
-        print(f"Saved video to {sim.video_manager.path}")
+    if env.video_manager.save:
+        print(f"Saved video to {env.video_manager.path}")
 
     # visualize data
     DataPlotter.from_logger(logger).plot_all(show=True)

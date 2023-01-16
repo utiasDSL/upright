@@ -1,0 +1,21 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/simulations/_base.yaml
+
+simulation:
+  arrangement: wedge
+  show_contact_points: false
+  show_debug_frames: false
+  robot:
+    urdf:
+      includes:
+        - "$(find upright_assets)/thing/xacro/cartesian_base_joints.urdf.xacro"
+        - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
+
+controller:
+  balancing:
+    enabled: true
+    frictionless: true
+    arrangement: wedge

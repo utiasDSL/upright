@@ -2,9 +2,6 @@ include:
   -
     package: upright_cmd
     path: config/arrangements.yaml
-  -
-    package: upright_cmd
-    path: config/simulation/cameras.yaml
 
 # all times are in seconds
 timestep: 0.001
@@ -14,13 +11,35 @@ arrangement: nothing
 show_contact_points: true
 show_debug_frames: true
 
+# Define virtual cameras to capture static shots of the scene or as a viewpoint
+# for a video. Examples:
+# 1. camera defined by (absolute) target and camera position;
+# 2. camera defined by a target and camera position *relative* to EE initial
+#    position;
+# 3. camera defined by a target position and distance and orientation of the
+#    camera (roll, pitch, yaw in degrees)
+cameras:
+  example1:
+    target: [1, 0, 1]
+    position: [1, 1, 1]
+  example2:
+    relative_target: [0, 0, 0.1]
+    relative_position: [0.4, -1, 0.6]
+  example3:
+    target: [1.28, 0.045, 0.647]
+    distance: 1.8
+    roll: 0
+    pitch: -29
+    yaw: 147.6
+
+# Define videos to be captured during the simulation
 video:
   save_frames: true
   dir: "/media/adam/Data/PhD/Videos/upright/"
   timestep: 0.040
   views:
     -
-      camera: pose_to_pose1
+      camera: example1
       name: view1
 
 static_obstacles:
