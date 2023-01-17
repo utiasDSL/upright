@@ -36,7 +36,7 @@ def main():
 
     # start the simulation
     timestamp = datetime.datetime.now()
-    env = sim.simulation.BulletSimulation(
+    env = sim.simulation.UprightSimulation(
         config=sim_config, timestamp=timestamp, video_name=cli_args.video
     )
 

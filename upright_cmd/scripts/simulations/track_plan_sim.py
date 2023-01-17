@@ -31,7 +31,7 @@ def main():
 
     # start the simulation
     timestamp = datetime.datetime.now()
-    sim = simulation.BulletSimulation(
+    sim = simulation.UprightSimulation(
         config=sim_config, timestamp=timestamp, cli_args=cli_args
     )
 

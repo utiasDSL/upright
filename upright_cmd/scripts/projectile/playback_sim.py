@@ -37,7 +37,7 @@ def main():
 
     # start the simulation
     timestamp = datetime.datetime.now()
-    sim = simulation.BulletSimulation(config=sim_config, timestamp=timestamp)
+    sim = simulation.UprightSimulation(config=sim_config, timestamp=timestamp)
 
     # settle sim to make sure everything is touching comfortably
     sim.settle(5.0)

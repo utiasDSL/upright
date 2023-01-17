@@ -4,10 +4,11 @@ import numpy as np
 import pybullet as pyb
 import pybullet_data
 from pyb_utils.frame import debug_frame_world
+from mobile_manipulation_central.simulation import BulletSimulation
 
 import upright_core as core
 from upright_core import parsing, math, polyhedron
-from upright_sim.robot import SimulatedRobot
+from upright_sim.robot import UprightSimulatedRobot
 from upright_sim.camera import camera_from_dict, VideoManager
 from upright_sim.util import wedge_mesh
 
@@ -498,38 +499,17 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
     return objects
 
 
-# TODO basically we want to get rid of the config options and balanced object
-# related stuff
-
-
-class BulletSimulation:
+class UprightSimulation(BulletSimulation):
     def __init__(self, config, timestamp, video_name=None, extra_gui=False):
-        self.config = config
-
-        self.timestep = config["timestep"]
-        self.duration = config["duration"]
-
-        pyb.connect(pyb.GUI, options="--width=1280 --height=720")
-        pyb.setGravity(*config["gravity"])
-        pyb.setTimeStep(self.timestep)
-
-        pyb.resetDebugVisualizerCamera(
-            cameraDistance=4,
-            cameraYaw=42,
-            cameraPitch=-35.8,
-            cameraTargetPosition=[1.28, 0.045, 0.647],
+        super().__init__(
+            timestep=config["timestep"], gravity=config["gravity"], extra_gui=extra_gui
         )
 
-        # get rid of extra parts of the GUI unless desired
-        if not extra_gui:
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 0)
-
-        # setup ground plane
-        pyb.setAdditionalSearchPath(pybullet_data.getDataPath())
-        pyb.loadURDF("plane.urdf", [0, 0, 0])
+        self.config = config
+        self.duration = config["duration"]
 
         # setup robot
-        self.robot = SimulatedRobot(config)
+        self.robot = UprightSimulatedRobot(config)
         self.robot.reset_joint_configuration(self.robot.home)
 
         # simulate briefly to let the robot settle down after being positioned
@@ -584,16 +564,6 @@ class BulletSimulation:
         for i, obj in enumerate(self.objects.values()):
             r_ow_ws[i, :], Q_wos[i, :] = obj.get_pose()
         return r_ow_ws, Q_wos
-
-    def settle(self, duration):
-        """Run simulation while doing nothing.
-
-        Useful to let objects settle to rest before applying control.
-        """
-        t = 0
-        while t < duration:
-            pyb.stepSimulation()
-            t += self.timestep
 
     def launch_dynamic_obstacles(self, t0=0):
         """Start the dynamic obstacles.

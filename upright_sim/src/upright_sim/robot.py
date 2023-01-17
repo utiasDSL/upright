@@ -4,6 +4,7 @@ import numpy as np
 import pybullet as pyb
 
 import upright_core as core
+from mobile_manipulation_central.simulation import SimulatedRobot
 
 import IPython
 
@@ -69,6 +70,7 @@ class PyBulletInputMapping:
         forward(q, v) -> (q_pyb, v_pyb)
         inverse(q_pyb, v_pyb) -> (q, v)
     """
+
     @staticmethod
     def from_string(s):
         s = s.lower()
@@ -84,14 +86,24 @@ class PyBulletInputMapping:
             raise ValueError(f"Cannot create base type from string {s}.")
 
 
-class SimulatedRobot:
+class UprightSimulatedRobot(SimulatedRobot):
     def __init__(self, config, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
-        # NOTE: passing the flag URDF_MERGE_FIXED_LINKS is good for performance
-        # but messes up the origins of the merged links, so this is not
-        # recommended. Instead, if performance is an issue, consider using the
-        # base_simple.urdf model instead of the Ridgeback.
         urdf_path = core.parsing.parse_and_compile_urdf(config["robot"]["urdf"])
-        self.uid = pyb.loadURDF(urdf_path, position, orientation, useFixedBase=True)
+
+        locked_joints = config["robot"].get("locked_joints", {})
+        locked_joints = {
+            name: core.parsing.parse_number(value)
+            for name, value in locked_joints.items()
+        }
+
+        super().__init__(
+            urdf_path,
+            tool_joint_name=config["robot"]["tool_joint_name"],
+            position=position,
+            orientation=orientation,
+            actuated_joints=config["robot"]["joint_names"],
+            locked_joints=locked_joints,
+        )
 
         # home position
         self.home = core.parsing.parse_array(config["robot"]["home"])
@@ -112,51 +124,13 @@ class SimulatedRobot:
         self.v_meas_std_dev = config["robot"]["noise"]["measurement"]["v_std_dev"]
         self.v_cmd_std_dev = config["robot"]["noise"]["process"]["v_std_dev"]
 
-        # build a dict of all joints, keyed by name
-        self.joints = {}
-        self.links = {}
-        for i in range(pyb.getNumJoints(self.uid)):
-            info = pyb.getJointInfo(self.uid, i)
-            joint_name = info[1].decode("utf-8")
-            link_name = info[12].decode("utf-8")
-            self.joints[joint_name] = info
-            self.links[link_name] = info
-
-        # get the indices for the actuated joints
-        self.robot_joint_indices = []
-        for name in config["robot"]["joint_names"]:
-            idx = self.joints[name][0]
-            self.robot_joint_indices.append(idx)
-
-        # set any locked joints to appropriate values
-        self.locked_joints = {}
-        if "locked_joints" in config["robot"]:
-            for name, value in config["robot"]["locked_joints"].items():
-                idx = self.joints[name][0]
-                self.locked_joints[idx] = core.parsing.parse_number(value)
-
-        # Link index (of the tool, in this case) is the same as the joint
-        self.tool_idx = self.joints[config["robot"]["tool_joint_name"]][0]
-
         # set tool to have friction coefficient μ=1 for convenience
         pyb.changeDynamics(self.uid, self.tool_idx, lateralFriction=1.0)
 
     def reset_arm_joints(self, qa):
+        """Reset the configuration of the arm only."""
         for idx, angle in zip(self.robot_joint_indices[3:], qa):
             pyb.resetJointState(self.uid, idx, angle)
-
-    def reset_joint_configuration(self, q):
-        """Reset the robot to a particular configuration.
-
-        It is best not to do this during a simulation, as this overrides are
-        dynamic effects.
-        """
-        for idx, angle in zip(self.robot_joint_indices, q):
-            pyb.resetJointState(self.uid, idx, angle)
-
-        # reset the locked/fixed joints as well
-        for idx, value in self.locked_joints.items():
-            pyb.resetJointState(self.uid, idx, value)
 
     def command_velocity(self, cmd_vel, bodyframe=False):
         """Command the velocity of the robot's joints."""
@@ -167,14 +141,11 @@ class SimulatedRobot:
         _, v_pyb = self.pyb_mapping.forward(q, cmd_vel, bodyframe=bodyframe)
 
         # add process noise
-        v_pyb_noisy = v_pyb + np.random.normal(scale=self.v_cmd_std_dev, size=v_pyb.shape)
-
-        pyb.setJointMotorControlArray(
-            self.uid,
-            self.robot_joint_indices,
-            controlMode=pyb.VELOCITY_CONTROL,
-            targetVelocities=list(v_pyb_noisy),
+        v_pyb_noisy = v_pyb + np.random.normal(
+            scale=self.v_cmd_std_dev, size=v_pyb.shape
         )
+
+        super().command_velocity(v_pyb_noisy)
 
         # return the actual commanded velocity
         return v_pyb_noisy
@@ -185,9 +156,7 @@ class SimulatedRobot:
         Return a tuple (q, v), where q is the n-dim array of positions and v is
         the n-dim array of velocities.
         """
-        states = pyb.getJointStates(self.uid, self.robot_joint_indices)
-        q_pyb = np.array([state[0] for state in states])
-        v_pyb = np.array([state[1] for state in states])
+        q_pyb, v_pyb = super().joint_states()
 
         # convert from PyBullet coordinates
         q, v = self.pyb_mapping.inverse(q_pyb, v_pyb, bodyframe=bodyframe)
@@ -196,40 +165,3 @@ class SimulatedRobot:
             q += np.random.normal(scale=self.q_meas_std_dev, size=q.shape)
             v += np.random.normal(scale=self.v_meas_std_dev, size=v.shape)
         return q, v
-
-    def link_pose(self, link_idx=None):
-        """Get the pose of a particular link in the world frame.
-
-        It is the pose of origin of the link w.r.t. the world. The origin of
-        the link is the location of its parent joint.
-
-        If no link_idx is provided, defaults to that of the tool.
-        """
-        if link_idx is None:
-            link_idx = self.tool_idx
-        state = pyb.getLinkState(self.uid, link_idx, computeForwardKinematics=True)
-        pos, orn = state[4], state[5]
-        return np.array(pos), np.array(orn)
-
-    def link_velocity(self, link_idx=None):
-        if link_idx is None:
-            link_idx = self.tool_idx
-        state = pyb.getLinkState(
-            self.uid,
-            link_idx,
-            computeLinkVelocity=True,
-        )
-        return np.array(state[-2]), np.array(state[-1])
-
-    def jacobian(self, q=None):
-        """Get the end effector Jacobian at the current configuration."""
-
-        if q is None:
-            q, _ = self.joint_states()
-        z = list(np.zeros_like(q))
-        q = list(q)
-
-        tool_offset = [0, 0, 0]
-        Jv, Jw = pyb.calculateJacobian(self.uid, self.tool_idx, tool_offset, q, z, z)
-        J = np.vstack((Jv, Jw))
-        return J
