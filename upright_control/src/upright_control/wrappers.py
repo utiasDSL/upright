@@ -53,7 +53,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
         # we don't care about the dynamic obstacle state here because we're
         # only after the EE pose
         robot, _ = build_robot_interfaces(settings)
-        robot.forward_x0(x0)
+        robot.forward_xu(x0)
         r_ew_w, Q_we = robot.link_pose()
         u0 = np.zeros(settings.dims.robot.u)
         return cls.from_config(config, r_ew_w, Q_we, u0)
