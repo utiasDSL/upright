@@ -29,17 +29,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // NOTE: pinocchio needs to be included before other things to prevent the
 // compiler fussing
-#include <pinocchio/algorithm/frames.hpp>
-#include <pinocchio/algorithm/kinematics.hpp>
-#include <pinocchio/algorithm/model.hpp>
-#include <pinocchio/fwd.hpp>
-#include <pinocchio/multibody/geometry.hpp>
-#include <pinocchio/multibody/joint/joint-composite.hpp>
-#include <pinocchio/multibody/model.hpp>
-#include <pinocchio/parsers/urdf.hpp>
+#include "upright_control/controller_interface.h"
 
 #include <hpp/fcl/shape/geometric_shapes.h>
-
 #include <ocs2_core/constraint/BoundConstraint.h>
 #include <ocs2_core/constraint/LinearStateConstraint.h>
 #include <ocs2_core/constraint/LinearStateInputConstraint.h>
@@ -61,7 +53,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_self_collision/PinocchioGeometryInterface.h>
 #include <ocs2_self_collision/SelfCollisionConstraintCppAd.h>
 #include <ocs2_sqp/MultipleShootingMpc.h>
-
 #include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/constraint/end_effector_box_constraint.h>
 #include <upright_control/constraint/joint_state_input_limits.h>
@@ -75,7 +66,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <upright_control/inertial_alignment.h>
 #include <upright_control/util.h>
 
-#include "upright_control/controller_interface.h"
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
+#include <pinocchio/algorithm/model.hpp>
+#include <pinocchio/fwd.hpp>
+#include <pinocchio/multibody/geometry.hpp>
+#include <pinocchio/multibody/joint/joint-composite.hpp>
+#include <pinocchio/multibody/model.hpp>
+#include <pinocchio/parsers/urdf.hpp>
 
 namespace upright {
 
@@ -140,7 +138,7 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
             settings_.locked_joints, settings_.base_pose)));
 
     // Set some defaults
-    const bool recompile_libraries = true;
+    const bool recompile_libraries = settings_.recompile_libraries;
     settings_.sqp.integratorType = ocs2::SensitivityIntegratorType::RK4;
     settings_.sqp.hpipmSettings.slacks.enabled = true;
     settings_.sqp.hpipmSettings.warm_start = true;
@@ -287,6 +285,21 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     problem_.stateCostPtr->add("end_effector_cost",
                                std::move(end_effector_cost));
 
+    // std::unique_ptr<ocs2::StateCost> final_end_effector_cost(
+    //     new EndEffectorCost(settings_.end_effector_weight,
+    //                         end_effector_kinematics));
+    // problem_.finalCostPtr->add("final_end_effector_cost",
+    //                            std::move(final_end_effector_cost));
+    //
+
+    MatXd Qf = MatXd::Zero(settings_.dims.x(), settings_.dims.x());
+    Qf.topLeftCorner(settings_.dims.robot.x, settings_.dims.robot.x) =
+        settings_.state_weight;
+    std::unique_ptr<ocs2::StateCost> final_joint_state_cost(
+        new QuadraticJointStateCost(Qf));
+    problem_.finalCostPtr->add("final_joint_state_cost",
+                               std::move(final_joint_state_cost));
+
     // Alternative auto-diff version with full Hessian
     // std::unique_ptr<ocs2::StateCost> end_effector_cost(new
     // EndEffectorCostCppAd(
@@ -356,7 +369,6 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                     << "Hard contact force-based balancing constraints enabled."
                     << std::endl;
                 const bool frictionless = (settings_.dims.nf == 1);
-                // const bool frictionless = false;
                 if (frictionless) {
                     // lower bounds are already zero, make the upper ones
                     // arbitrary high values
@@ -365,13 +377,15 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                         .setConstant(1e6);
                     // indicate that all inputs are now box constrained (real
                     // inputs and contact forces)
-                    // problem_.boundConstraintPtr->input_idx_.setLinSpaced(
-                    //     settings_.dims.u(), 0, settings_.dims.u() - 1);
-                    problem_.boundConstraintPtr->setInputIndices(0, settings_.dims.u());
+                    problem_.boundConstraintPtr->setInputIndices(
+                        0, settings_.dims.u());
 
-                    // std::cout << problem_.boundConstraintPtr->input_idx_ << std::endl;
-                    std::cout << problem_.boundConstraintPtr->input_lb_.transpose() << std::endl;
-                    std::cout << problem_.boundConstraintPtr->input_ub_.transpose() << std::endl;
+                    std::cout
+                        << problem_.boundConstraintPtr->input_lb_.transpose()
+                        << std::endl;
+                    std::cout
+                        << problem_.boundConstraintPtr->input_ub_.transpose()
+                        << std::endl;
                 } else {
                     problem_.inequalityConstraintPtr->add(
                         "contact_forces",
@@ -442,8 +456,7 @@ ControllerInterface::get_quadratic_state_input_cost() {
         settings_.input_weight;
 
     // TODO do I need weight on obstacle dynamics?
-    MatXd state_weight =
-        MatXd::Zero(settings_.dims.x(), settings_.dims.x());
+    MatXd state_weight = MatXd::Zero(settings_.dims.x(), settings_.dims.x());
     state_weight.topLeftCorner(settings_.dims.robot.x, settings_.dims.robot.x) =
         settings_.state_weight;
 

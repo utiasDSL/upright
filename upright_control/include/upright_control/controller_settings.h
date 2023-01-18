@@ -48,6 +48,9 @@ struct ControllerSettings {
     VecXd initial_state;
     Vec3d gravity;
 
+    // True to recompile the auto-diff libraries at the start of each run.
+    bool recompile_libraries = true;
+
     SolverMethod solver_method = SolverMethod::SQP;
     ocs2::mpc::Settings mpc;
     ocs2::multiple_shooting::Settings sqp;

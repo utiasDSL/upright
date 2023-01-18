@@ -131,7 +131,7 @@ class ControllerManager:
         model = ControllerModel.from_config(config, x0=x0)
 
         # control should be done every timestep
-        timestep = config["timestep"]
+        timestep = config["tracking"]["min_policy_update_time"]
 
         # compute EE pose
         model.update(x=model.settings.initial_state)

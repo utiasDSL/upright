@@ -30,7 +30,7 @@ def main():
     # start the simulation
     timestamp = datetime.datetime.now()
     env = sim.simulation.UprightSimulation(
-        config=sim_config, timestamp=timestamp, video_name=cli_args.video, extra_gui=True
+        config=sim_config, timestamp=timestamp, video_name=cli_args.video, extra_gui=False
     )
 
     # settle sim to make sure everything is touching comfortably
@@ -83,27 +83,25 @@ def main():
     print("Ready to start.")
     IPython.embed()
 
-    v_ff = v.copy()
-    a_ff = a.copy()
+    # estimate of acceleration
+    a_est = a.copy()
 
     # simulation loop
     while t <= env.duration:
         # get the true robot feedback
         q, v = env.robot.joint_states(add_noise=False)
         x_obs = env.dynamic_obstacle_state()
-        x = np.concatenate((q, v, a_ff, x_obs))
+        x = np.concatenate((q, v, a_est, x_obs))
 
         # now get the noisy version for use in the controller
-        # we can choose to use v_ff rather than v_noisy if we can to avoid
-        # noisy velocity feedback
         q_noisy, v_noisy = env.robot.joint_states(add_noise=True)
-        x_noisy = np.concatenate((q_noisy, v_noisy, a_ff, x_obs))
+        x_noisy = np.concatenate((q_noisy, v_noisy, a_est, x_obs))
 
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
         try:
             xd, u = ctrl_manager.step(t, x_noisy)
-            xd_robot = x[: dims.robot.x]
+            xd_robot = xd[: dims.robot.x]
             u_robot = u[: dims.robot.u]
             f = u[-dims.f() :]
         except RuntimeError as e:
@@ -117,13 +115,17 @@ def main():
             IPython.embed()
             break
 
-        # TODO why is this better than using the zero-order hold?
-        # here we use the input u to generate the feedforward signal---using
-        # the jerk level ensures smoothness at the velocity level
         qd, vd, ad = mapping.xu2qva(xd_robot)
-        # v_ff, a_ff = integrator.integrate_approx(v_ff, ad, u_robot, env.timestep)
-        v_ff, a_ff = integrator.integrate_approx(v_ff, a_ff, u_robot, env.timestep)
-        v_cmd = v_ff
+
+        # forward integrate to get the velocity command (from jerk input)
+        v_cmd = vd + env.timestep * ad + 0.5 * env.timestep**2 * u_robot
+
+        # instead of a proper estimator (e.g. Kalman filter) we're being lazy
+        # and just open-loop integrating acceleration, under the assumption
+        # that the simulator is quite accurate
+        # TODO this is no good: PyBullet doesn't like really small commands, so
+        # we do in fact get some model error
+        a_est = a_est + env.timestep * u_robot
 
         # generated velocity is in the world frame
         env.robot.command_velocity(v_cmd, bodyframe=False)

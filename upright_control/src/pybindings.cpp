@@ -263,6 +263,7 @@ PYBIND11_MODULE(bindings, m) {
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("gravity", &ControllerSettings::gravity)
         .def_readwrite("solver_method", &ControllerSettings::solver_method)
+        .def_readwrite("recompile_libraries", &ControllerSettings::recompile_libraries)
         .def_readwrite("mpc", &ControllerSettings::mpc)
         .def_readwrite("sqp", &ControllerSettings::sqp)
         .def_readwrite("rollout", &ControllerSettings::rollout)

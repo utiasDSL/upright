@@ -8,7 +8,7 @@ include:
 
 
 simulation:
-  duration: 5.0
+  duration: 10.0
   arrangement: blue_cups
 
 controller:

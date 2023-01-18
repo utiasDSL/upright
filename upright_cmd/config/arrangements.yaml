@@ -33,21 +33,25 @@ arrangements:
         second: block1
         mu: 0.376
         mu_margin: 0.0376
+        support_area_inset: 0.005
       -
         first: ee
         second: block2
         mu: 0.376
         mu_margin: 0.0376
+        support_area_inset: 0.005
       -
         first: block1
         second: block3
         mu: 0.30
         mu_margin: 0.03
+        support_area_inset: 0.005
       -
         first: block2
         second: block3
         mu: 0.30
         mu_margin: 0.03
+        # NOTE: doesn't really make sense to have an inset here
 
   pink_bottle:
     objects:
@@ -57,13 +61,14 @@ arrangements:
         parent: ee
         offset:
           x: 0.035
+          y: -0.035
     contacts:
       -
         first: ee
         second: bottle
         mu: 0.26
         mu_margin: 0.026
-        support_area_inset: 0.005  # TODO?
+        support_area_inset: 0.005
 
   # single foam die
   foam_die1:
@@ -106,7 +111,7 @@ arrangements:
         first: foam_die1
         second: foam_die2
         mu: 0.71
-        mu_margin: 0.71
+        mu_margin: 0.071
         support_area_inset: 0.015
 
   simulation_box:
@@ -194,11 +199,13 @@ arrangements:
         second: wedge1
         mu: 0.3
         mu_margin: 0.1683 # computed to achieve minimum found by compute_minimum_mu.py script
+        support_area_inset: 0.005
       -
         first: wedge1
         second: box1
         mu: 0.3
         mu_margin: 0.1683
+        support_area_inset: 0.005
 
   blue_cups:
     objects:
@@ -207,80 +214,89 @@ arrangements:
         type: blue_cup
         parent: ee
         offset:
-          x: -0.105
-          y: -0.105
+          x: -0.1075
+          y: -0.0925
       -
         name: cup2
         type: blue_cup
         parent: ee
         offset:
-          y: -0.105
+          x: -0.0075
+          y: -0.0925
       -
         name: cup3
         type: blue_cup
         parent: ee
         offset:
-          x: 0.105
-          y: -0.105
+          x: 0.0925
+          y: -0.0925
       -
         name: cup4
         type: blue_cup
         parent: ee
         offset:
-          x: 0.105
+          x: 0.1075
       -
         name: cup5
         type: blue_cup
         parent: ee
         offset:
-          x: 0.105
-          y: 0.105
+          x: 0.0925
+          y: 0.0925
       -
         name: cup6
         type: blue_cup
         parent: ee
         offset:
-          y: 0.105
+          x: -0.0075
+          y: 0.0925
       -
         name: cup7
         type: blue_cup
         parent: ee
         offset:
-          x: -0.105
-          y: 0.105
+          x: -0.1075
+          y: 0.0925
     contacts:
       -
         first: ee
         second: cup1
         mu: 0.28
         mu_margin: 0.028
+        support_area_inset: 0.005
       -
         first: ee
         second: cup2
         mu: 0.28
         mu_margin: 0.028
+        support_area_inset: 0.005
       -
         first: ee
         second: cup3
         mu: 0.28
         mu_margin: 0.028
+        support_area_inset: 0.005
       -
         first: ee
         second: cup4
         mu: 0.28
         mu_margin: 0.028
+        support_area_inset: 0.005
       -
         first: ee
         second: cup5
         mu: 0.28
         mu_margin: 0.028
+        support_area_inset: 0.005
       -
         first: ee
         second: cup6
         mu: 0.28
         mu_margin: 0.028
+        support_area_inset: 0.005
       -
         first: ee
         second: cup7
         mu: 0.28
         mu_margin: 0.028
+        support_area_inset: 0.005

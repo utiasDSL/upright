@@ -19,7 +19,7 @@ from upright_ros_interface.parsing import parse_mpc_observation_msgs
 def parse_control_model(config_path):
     config = core.parsing.load_config(config_path)
     ctrl_config = config["controller"]
-    return ctrl.manager.ControllerModel.from_config(ctrl_config)
+    return ctrl.manager.ControllerModel.from_config(ctrl_config), config
 
 
 def main():
@@ -27,7 +27,7 @@ def main():
     cmd.cli.add_bag_dir_arguments(parser)
     config_path, bag_path = cmd.cli.parse_bag_dir_args(parser.parse_args())
 
-    model = parse_control_model(config_path)
+    model, config = parse_control_model(config_path)
     robot = model.robot
 
     bag = rosbag.Bag(bag_path)
@@ -44,10 +44,13 @@ def main():
     ee_accelerations = np.zeros((n, 6))
 
     for i in range(n):
-        robot.forward(xs[i, :])
+        robot.forward_xu(xs[i, :])
         ee_poses[i, :] = np.concatenate(robot.link_pose())
         ee_velocities[i, :] = np.concatenate(robot.link_velocity())
         ee_accelerations[i, :] = np.concatenate(robot.link_classical_acceleration())
+
+    # reference position is relative to the initial position
+    ref = config["controller"]["waypoints"][0]["position"] + ee_poses[0, :3]
 
     velocity_magnitudes = np.linalg.norm(ee_velocities[:, :3], axis=1)
     max_vel_idx = np.argmax(velocity_magnitudes)
@@ -62,9 +65,12 @@ def main():
     )
 
     plt.figure()
-    plt.plot(ts, ee_poses[:, 0], label="x")
-    plt.plot(ts, ee_poses[:, 1], label="y")
-    plt.plot(ts, ee_poses[:, 2], label="z")
+    lx, = plt.plot(ts, ee_poses[:, 0], label="x")
+    ly, = plt.plot(ts, ee_poses[:, 1], label="y")
+    lz, = plt.plot(ts, ee_poses[:, 2], label="z")
+    plt.axhline(ref[0], label="xd", linestyle="--", color=lx.get_color())
+    plt.axhline(ref[1], label="yd", linestyle="--", color=ly.get_color())
+    plt.axhline(ref[2], label="zd", linestyle="--", color=lz.get_color())
     plt.title("EE position")
     plt.xlabel("Time [s]")
     plt.ylabel("Position [m]")

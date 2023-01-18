@@ -160,6 +160,8 @@ class ControllerSettings(bindings.ControllerSettings):
         # gravity
         self.gravity = config["gravity"]
 
+        self.recompile_libraries = config["recompile_libraries"]
+
         # robot dimensions
         self.dims.robot.q = config["robot"]["dims"]["q"]
         self.dims.robot.v = config["robot"]["dims"]["v"]
