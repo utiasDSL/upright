@@ -8,7 +8,6 @@ include:
 
 
 simulation:
-  duration: 5.0
   arrangement: pink_bottle
 
 controller:
@@ -16,4 +15,3 @@ controller:
     enabled: true
     frictionless: true
     arrangement: pink_bottle
-    constraint_type: hard

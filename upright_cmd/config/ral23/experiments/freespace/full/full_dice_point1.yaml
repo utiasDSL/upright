@@ -8,7 +8,6 @@ include:
 
 
 simulation:
-  duration: 5.0
   arrangement: foam_die2
 
 controller:
@@ -16,4 +15,3 @@ controller:
     enabled: true
     frictionless: false
     arrangement: foam_die2
-    constraint_type: hard
