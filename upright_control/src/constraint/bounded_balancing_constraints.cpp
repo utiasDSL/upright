@@ -169,8 +169,11 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
 
     Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
 
+    // Normalizing by the number of objects appears to improve the convergence
+    // of the controller (cost landscape is better behaved)
+    ocs2::ad_scalar_t n(ad_objects.size());
     return compute_object_dynamics_constraints(ad_objects, ad_contacts, forces,
-                                               X, ad_gravity);
+                                               X, ad_gravity) / n;
 }
 
 }  // namespace upright

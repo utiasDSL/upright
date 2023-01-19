@@ -137,11 +137,8 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
             settings_.robot_urdf_path, settings_.robot_base_type,
             settings_.locked_joints, settings_.base_pose)));
 
-    // Set some defaults
     const bool recompile_libraries = settings_.recompile_libraries;
     settings_.sqp.integratorType = ocs2::SensitivityIntegratorType::RK4;
-    settings_.sqp.hpipmSettings.slacks.enabled = true;
-    settings_.sqp.hpipmSettings.warm_start = true;
 
     // Dynamics
     // NOTE: we don't have any branches here because every system we use
@@ -284,21 +281,6 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         settings_.end_effector_weight, end_effector_kinematics));
     problem_.stateCostPtr->add("end_effector_cost",
                                std::move(end_effector_cost));
-
-    // std::unique_ptr<ocs2::StateCost> final_end_effector_cost(
-    //     new EndEffectorCost(settings_.end_effector_weight,
-    //                         end_effector_kinematics));
-    // problem_.finalCostPtr->add("final_end_effector_cost",
-    //                            std::move(final_end_effector_cost));
-    //
-
-    MatXd Qf = MatXd::Zero(settings_.dims.x(), settings_.dims.x());
-    Qf.topLeftCorner(settings_.dims.robot.x, settings_.dims.robot.x) =
-        settings_.state_weight;
-    std::unique_ptr<ocs2::StateCost> final_joint_state_cost(
-        new QuadraticJointStateCost(Qf));
-    problem_.finalCostPtr->add("final_joint_state_cost",
-                               std::move(final_joint_state_cost));
 
     // Alternative auto-diff version with full Hessian
     // std::unique_ptr<ocs2::StateCost> end_effector_cost(new

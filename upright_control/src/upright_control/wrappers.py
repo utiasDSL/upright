@@ -122,8 +122,8 @@ class ControllerSettings(bindings.ControllerSettings):
         self.sqp.hpipm.warm_start = config["sqp"]["hpipm"]["warm_start"]
         self.sqp.hpipm.iter_max = config["sqp"]["hpipm"]["iter_max"]
         self.sqp.hpipm.slacks.enabled = config["sqp"]["hpipm"]["slacks"]["enabled"]
-        self.sqp.hpipm.slacks.upper_L2_penalty = config["sqp"]["hpipm"]["slacks"].get("upper_L2_penalty", 1e2)
-        self.sqp.hpipm.slacks.lower_L2_penalty = config["sqp"]["hpipm"]["slacks"].get("lower_L2_penalty", 1e2)
+        self.sqp.hpipm.slacks.upper_L2_penalty = config["sqp"]["hpipm"]["slacks"].get("upper_L2_penalty", 100)
+        self.sqp.hpipm.slacks.lower_L2_penalty = config["sqp"]["hpipm"]["slacks"].get("lower_L2_penalty", 100)
         self.sqp.hpipm.slacks.upper_L1_penalty = config["sqp"]["hpipm"]["slacks"].get("upper_L1_penalty", 0)
         self.sqp.hpipm.slacks.lower_L1_penalty = config["sqp"]["hpipm"]["slacks"].get("lower_L1_penalty", 0)
         self.sqp.hpipm.slacks.upper_low_bound = config["sqp"]["hpipm"]["slacks"].get("upper_low_bound", 0)

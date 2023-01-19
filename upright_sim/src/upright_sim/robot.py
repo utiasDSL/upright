@@ -4,7 +4,7 @@ import numpy as np
 import pybullet as pyb
 
 import upright_core as core
-from mobile_manipulation_central.simulation import SimulatedRobot
+from mobile_manipulation_central.simulation import BulletSimulatedRobot
 
 import IPython
 
@@ -86,7 +86,7 @@ class PyBulletInputMapping:
             raise ValueError(f"Cannot create base type from string {s}.")
 
 
-class UprightSimulatedRobot(SimulatedRobot):
+class UprightSimulatedRobot(BulletSimulatedRobot):
     def __init__(self, config, position=(0, 0, 0), orientation=(0, 0, 0, 1)):
         urdf_path = core.parsing.parse_and_compile_urdf(config["robot"]["urdf"])
 

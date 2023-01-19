@@ -30,7 +30,10 @@ def main():
     # start the simulation
     timestamp = datetime.datetime.now()
     env = sim.simulation.UprightSimulation(
-        config=sim_config, timestamp=timestamp, video_name=cli_args.video, extra_gui=False
+        config=sim_config,
+        timestamp=timestamp,
+        video_name=cli_args.video,
+        extra_gui=False,
     )
 
     # settle sim to make sure everything is touching comfortably
@@ -83,19 +86,23 @@ def main():
     print("Ready to start.")
     IPython.embed()
 
-    # estimate of acceleration
-    a_est = a.copy()
+    # velocity and acceleration commands are integrated from the jerk input
+    # trajectory
+    a_cmd = np.zeros_like(a)
+    v_cmd = np.zeros_like(v)
 
     # simulation loop
     while t <= env.duration:
         # get the true robot feedback
+        # instead of a proper estimator (e.g. Kalman filter) we're being lazy
+        # and just open-loop integrating acceleration
         q, v = env.robot.joint_states(add_noise=False)
         x_obs = env.dynamic_obstacle_state()
-        x = np.concatenate((q, v, a_est, x_obs))
+        x = np.concatenate((q, v, a_cmd, x_obs))
 
         # now get the noisy version for use in the controller
         q_noisy, v_noisy = env.robot.joint_states(add_noise=True)
-        x_noisy = np.concatenate((q_noisy, v_noisy, a_est, x_obs))
+        x_noisy = np.concatenate((q_noisy, v_noisy, a_cmd, x_obs))
 
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
@@ -117,15 +124,12 @@ def main():
 
         qd, vd, ad = mapping.xu2qva(xd_robot)
 
-        # forward integrate to get the velocity command (from jerk input)
-        v_cmd = vd + env.timestep * ad + 0.5 * env.timestep**2 * u_robot
-
-        # instead of a proper estimator (e.g. Kalman filter) we're being lazy
-        # and just open-loop integrating acceleration, under the assumption
-        # that the simulator is quite accurate
-        # TODO this is no good: PyBullet doesn't like really small commands, so
-        # we do in fact get some model error
-        a_est = a_est + env.timestep * u_robot
+        # integrate the command
+        # it appears to be desirable to open-loop integrate velocity like this
+        # to avoid PyBullet not handling velocity commands accurately at very
+        # small values
+        v_cmd = v_cmd + env.timestep * a_cmd + 0.5 * env.timestep**2 * u_robot
+        a_cmd = a_cmd + env.timestep * u_robot
 
         # generated velocity is in the world frame
         env.robot.command_velocity(v_cmd, bodyframe=False)
@@ -193,21 +197,6 @@ def main():
             # TODO eventually it would be nice to also compute this directly
             # via the core library
             if model.is_using_force_constraints():
-                # if (
-                #     model.settings.balancing_settings.constraint_type
-                #     == ctrl.bindings.ConstraintType.Soft
-                # ):
-                #     contact_force_constraints = (
-                #         ctrl_manager.mpc.getSoftStateInputInequalityConstraintValue(
-                #             "contact_forces", t, x, u
-                #         )
-                #     )
-                # else:
-                #     contact_force_constraints = (
-                #         ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                #             "contact_forces", t, x, u
-                #         )
-                #     )
                 object_dynamics_constraints = (
                     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
                         "object_dynamics", t, x, u

@@ -13,11 +13,10 @@ include:
 
 logging:
   timestep: 0.010
-  log_dir: /media/adam/Data/PhD/Data/upright/ral23/experiments/static_obstacles
+  log_dir: /media/adam/Data/PhD/Data/upright/ral23/experiments/static_obstacles  # TODO
 
 simulation:
-  duration: 5.0
-  arrangement: foam_die1
+  duration: 10.0
   robot:
     urdf:
       args:
@@ -42,8 +41,8 @@ controller:
     enabled: true
     frictionless: true
     use_force_constraints: true
-    arrangement: foam_die1
     constraint_type: hard
+    force_weight: 0.001
 
   inertial_alignment:
     cost_enabled: false
