@@ -8,33 +8,12 @@ import matplotlib.pyplot as plt
 
 import upright_core as core
 from mobile_manipulation_central import ros_utils
+from upright_ros_interface.parsing import parse_object_error, parse_mpc_solve_times
 
 import IPython
 
 
 TRAY_VICON_NAME = "ThingWoodTray"
-OBJECT_VICON_NAME = "ThingPinkBottle"
-
-
-def parse_mpc_solve_times(bag, plot=False):
-    policy_msgs = [
-        msg for _, msg, _ in bag.read_messages("/mobile_manipulator_mpc_policy")
-    ]
-    policy_times = np.array(
-        [t.to_sec() for _, _, t in bag.read_messages("/mobile_manipulator_mpc_policy")]
-    )
-
-    policy_solve_times = np.array([msg.solveTime for msg in policy_msgs])
-
-    print("SOLVE TIME")
-    print(f"max  = {np.max(policy_solve_times):.2f} ms")
-    print(f"min  = {np.min(policy_solve_times):.2f} ms")
-    print(f"mean = {np.mean(policy_solve_times):.2f} ms")
-
-    if plot:
-        plt.figure()
-        plt.plot(policy_times, policy_solve_times)
-        plt.grid()
 
 
 def get_bag_topics(bag):
@@ -50,7 +29,7 @@ def vicon_object_topics(bag):
         if (
             topic.endswith("markers")
             or topic.endswith("ThingBase")
-            or topic.endswith("ThingWoodTray")
+            or topic.endswith(TRAY_VICON_NAME)
         ):
             return False
         return True
@@ -63,72 +42,37 @@ def vicon_object_topics(bag):
     return topics[0]
 
 
-def parse_object_error(bag):
-    tray_topic = ros_utils.vicon_topic_name(TRAY_VICON_NAME)
-    tray_msgs = [msg for _, msg, _ in bag.read_messages(tray_topic)]
-
-    obj_topic = ros_utils.vicon_topic_name(OBJECT_VICON_NAME)
-    obj_msgs = [msg for _, msg, _ in bag.read_messages(obj_topic)]
-
-    # parse and align messages
-    ts, tray_poses = ros_utils.parse_transform_stamped_msgs(
-        tray_msgs, normalize_time=False
-    )
-    ts_obj, obj_poses = ros_utils.parse_transform_stamped_msgs(
-        obj_msgs, normalize_time=False
-    )
-    r_ow_ws = np.array(ros_utils.interpolate_list(ts, ts_obj, obj_poses[:, :3]))
-    t0 = ts[0]
-    ts -= t0
-
-    n = len(ts)
-    r_ot_ts = []
-    for i in range(n):
-        r_tw_w, Q_wt = tray_poses[i, :3], tray_poses[i, 3:]
-        r_ow_w = r_ow_ws[i, :]
-
-        # tray rotation w.r.t. world
-        C_wt = core.math.quat_to_rot(Q_wt)
-        C_tw = C_wt.T
-
-        # compute offset of object in tray's frame
-        r_ot_w = r_ow_w - r_tw_w
-        r_ot_t = C_tw @ r_ot_w
-        r_ot_ts.append(r_ot_t)
-
-    r_ot_ts = np.array(r_ot_ts)
-
-    # compute distance w.r.t. the initial position
-    r_ot_t_err = r_ot_ts - r_ot_ts[0, :]
-    distances = np.linalg.norm(r_ot_t_err, axis=1)
-
-    plt.figure()
-    plt.plot(ts, 1000 * distances)
-    plt.grid()
-    plt.xlabel("Time [s]")
-    plt.ylabel("Distance error [mm]")
-
-    # plt.figure()
-    # plt.plot(ts_obj - t0, obj_poses[:, 3], label="Qx")
-    # plt.plot(ts_obj - t0, obj_poses[:, 4], label="Qy")
-    # plt.plot(ts_obj - t0, obj_poses[:, 5], label="Qz")
-    # plt.plot(ts_obj - t0, obj_poses[:, 6], label="Qw")
-    # plt.grid()
-    # plt.legend()
-    # plt.xlabel("Time [s]")
-    # plt.ylabel("Quaternion")
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("bagfile", help="Bag file to plot.")
     args = parser.parse_args()
 
     bag = rosbag.Bag(args.bagfile)
-    # parse_mpc_solve_times(bag, plot=True)
-    parse_object_error(bag)
-    plt.show()
+    solve_times, ts1 = parse_mpc_solve_times(bag, max_time=5, return_times=True)
+    object_vicon_name = vicon_object_topics(bag).split("/")[-1]
+    print(f"Object is {object_vicon_name}")
+    errors, ts2 = parse_object_error(
+        bag, TRAY_VICON_NAME, object_vicon_name, return_times=True
+    )
 
+    print("SOLVE TIME")
+    print(f"max  = {np.max(solve_times):.2f} ms")
+    print(f"min  = {np.min(solve_times):.2f} ms")
+    print(f"mean = {np.mean(solve_times):.2f} ms")
+
+    plt.figure()
+    plt.plot(ts1, solve_times)
+    plt.xlabel("Time [s]")
+    plt.ylabel("Solve time [ms]")
+    plt.grid()
+
+    plt.figure()
+    plt.plot(ts2, 1000 * errors)  # convert to mm
+    plt.grid()
+    plt.xlabel("Time [s]")
+    plt.ylabel("Distance error [mm]")
+
+    plt.show()
 
 
 if __name__ == "__main__":
