@@ -9,17 +9,8 @@ import numpy as np
 import rosbag
 import matplotlib.pyplot as plt
 
-from mobile_manipulation_central import ros_utils
-import upright_core as core
-import upright_control as ctrl
 import upright_cmd as cmd
-from upright_ros_interface.parsing import parse_mpc_observation_msgs
-
-
-def parse_control_model(config_path):
-    config = core.parsing.load_config(config_path)
-    ctrl_config = config["controller"]
-    return ctrl.manager.ControllerModel.from_config(ctrl_config), config
+import upright_ros_interface as rosi
 
 
 def main():
@@ -27,7 +18,7 @@ def main():
     cmd.cli.add_bag_dir_arguments(parser)
     config_path, bag_path = cmd.cli.parse_bag_dir_args(parser.parse_args())
 
-    model, config = parse_control_model(config_path)
+    config, model = rosi.parsing.parse_config_and_control_model(config_path)
     robot = model.robot
 
     bag = rosbag.Bag(bag_path)
@@ -35,7 +26,7 @@ def main():
     mpc_obs_msgs = [
         msg for _, msg, _ in bag.read_messages("/mobile_manipulator_mpc_observation")
     ]
-    ts, xs, us = parse_mpc_observation_msgs(mpc_obs_msgs, normalize_time=True)
+    ts, xs, us = rosi.parsing.parse_mpc_observation_msgs(mpc_obs_msgs, normalize_time=True)
 
     n = len(ts)
 

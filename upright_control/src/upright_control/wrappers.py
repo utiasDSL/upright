@@ -160,7 +160,9 @@ class ControllerSettings(bindings.ControllerSettings):
         # gravity
         self.gravity = config["gravity"]
 
-        self.recompile_libraries = config["recompile_libraries"]
+        # whether we should recompile the auto-diff libraries even if the
+        # library already exists
+        self.recompile_libraries = config.get("recompile_libraries", True)
 
         # robot dimensions
         self.dims.robot.q = config["robot"]["dims"]["q"]

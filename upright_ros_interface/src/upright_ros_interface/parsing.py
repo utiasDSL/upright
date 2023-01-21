@@ -1,6 +1,7 @@
 import numpy as np
 
 import upright_core as core
+import upright_control as ctrl
 from mobile_manipulation_central import ros_utils
 
 
@@ -103,3 +104,10 @@ def parse_mpc_solve_times(
     if return_times:
         return solve_times, policy_times
     return solve_times
+
+
+def parse_config_and_control_model(config_path):
+    """Load the config and the associated control model from a yaml file path."""
+    config = core.parsing.load_config(config_path)
+    ctrl_config = config["controller"]
+    return config, ctrl.manager.ControllerModel.from_config(ctrl_config)
