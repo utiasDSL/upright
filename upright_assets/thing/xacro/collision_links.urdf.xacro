@@ -24,14 +24,14 @@
 
   <!-- Wood tray -->
   <xacro:collision_link name="balanced_object_collision_link">
-    <origin rpy="0 0 0" xyz="0 0 0.05"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
     <geometry>
       <!-- <sphere radius="0.21"/> -->
       <sphere radius="0.25"/>
     </geometry>
   </xacro:collision_link>
   <joint name="balanced_object_collision_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.02"/>
+    <origin rpy="0 0 0" xyz="0 0 0.07"/>
     <parent link="gripped_object"/>
     <child link="balanced_object_collision_link"/>
   </joint>
