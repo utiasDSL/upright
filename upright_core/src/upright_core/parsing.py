@@ -1,7 +1,5 @@
 """Utilities for parsing general configuration dictionaries."""
-from collections import deque
 from pathlib import Path
-import tempfile
 
 import rospkg
 import numpy as np
@@ -129,7 +127,7 @@ def xacro_include(path):
     """
 
 
-def parse_and_compile_urdf(d, max_runs=10):
+def parse_and_compile_urdf(d, max_runs=10, compare_existing=True):
     """Parse and compile a URDF from a xacro'd URDF file."""
 
     s = """
@@ -166,8 +164,23 @@ def parse_and_compile_urdf(d, max_runs=10):
     if not output_path.parent.exists():
         output_path.parent.mkdir()
 
+    text = doc.toprettyxml(indent="  ")
+
+    # if the full path already exists, we can check if the contents are the
+    # same to avoid writing it if it hasn't changed. This avoids some race
+    # conditions if the file is being compiled by multiple processes
+    # concurrently.
+    if output_path.exists() and compare_existing:
+        with open(output_path) as f:
+            text_current = f.read()
+        if text_current == text:
+            print("URDF files are the same - not writing.")
+            return output_path.as_posix()
+        else:
+            print("URDF files are not the same - writing.")
+
     with open(output_path, "w") as f:
-        f.write(doc.toprettyxml(indent="  "))
+        f.write(text)
 
     return output_path.as_posix()
 

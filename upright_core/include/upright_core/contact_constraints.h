@@ -164,7 +164,11 @@ VecX<Scalar> compute_object_dynamics_constraints(
 
     VecX<Scalar> constraints(NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT *
                              objects.size());
+
+    // Scale force by square root of number of contacts so that L2-penalized
+    // soft constraint is invariant to number of contacts
     const Scalar force_scale(1. / sqrt(contacts.size()));
+
     size_t i = 0;
     for (const auto& kv : objects) {
         auto& name = kv.first;

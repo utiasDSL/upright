@@ -6,7 +6,7 @@ include:
 # compute a new control policy every `control_period` seconds
 use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
-recompile_libraries: true
+recompile_libraries: false
 
 solver_method: SQP  # only SQP is supported now
 
