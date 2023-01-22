@@ -114,6 +114,7 @@ obstacles:
 operating_points:
   enabled: false
 
+# TODO deprecated and can be removed
 infofile:
   package: "upright_control"
   path: "config/mpc/task.info"

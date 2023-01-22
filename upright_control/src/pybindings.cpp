@@ -72,6 +72,7 @@ PYBIND11_MODULE(bindings, m) {
     pybind11::class_<BalancingSettings>(m, "BalancingSettings")
         .def(pybind11::init<>())
         .def_readwrite("enabled", &BalancingSettings::enabled)
+        .def_readwrite("arrangement_name", &BalancingSettings::arrangement_name)
         .def_readwrite("use_force_constraints",
                        &BalancingSettings::use_force_constraints)
         .def_readwrite("constraints_enabled",

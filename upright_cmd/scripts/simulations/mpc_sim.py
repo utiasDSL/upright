@@ -204,7 +204,17 @@ def main():
                 )
                 logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
 
-                # logger.append("contact_force_constraints", contact_force_constraints)
+                # if not frictionless, get the constraint values
+                # if we are frictionless, then the forces just all need to be
+                # non-negative
+                if dims.nf == 3:
+                    contact_force_constraints = (
+                        ctrl_manager.mpc.getStateInputInequalityConstraintValue(
+                            "contact_forces", t, x, u
+                        )
+                    )
+                    logger.append("contact_force_constraints", contact_force_constraints)
+
                 logger.append("contact_forces", f)
                 logger.append(
                     "object_dynamics_constraints", object_dynamics_constraints

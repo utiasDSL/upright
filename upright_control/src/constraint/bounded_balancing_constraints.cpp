@@ -1,11 +1,11 @@
+#include "upright_control/constraint/bounded_balancing_constraints.h"
+
 #include <upright_control/types.h>
 #include <upright_core/bounded.h>
 #include <upright_core/bounded_constraints.h>
 #include <upright_core/contact.h>
 #include <upright_core/contact_constraints.h>
 #include <upright_core/nominal.h>
-
-#include "upright_control/constraint/bounded_balancing_constraints.h"
 
 namespace upright {
 
@@ -103,8 +103,9 @@ ContactForceBalancingConstraints::ContactForceBalancingConstraints(
     }
 
     // compile the CppAD library
-    initialize(dims.x(), dims.u(), 0, "upright_contact_force_constraints",
-               "/tmp/ocs2", recompileLibraries, true);
+    const std::string lib_name = "upright_contact_force_constraints";
+    initialize(dims.x(), dims.u(), 0, lib_name, "/tmp/ocs2", recompileLibraries,
+               true);
 }
 
 VecXad ContactForceBalancingConstraints::constraintFunction(
@@ -118,6 +119,7 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
         ad_contacts.push_back(contact.template cast<ocs2::ad_scalar_t>());
     }
 
+    ocs2::ad_scalar_t n(ad_contacts.size());
     return compute_contact_force_constraints_linearized(ad_contacts, forces);
 }
 
@@ -141,8 +143,9 @@ ObjectDynamicsConstraints::ObjectDynamicsConstraints(
         settings_.objects.size() * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT;
 
     // compile the CppAD library
-    initialize(dims.x(), dims.u(), 0, "upright_object_dynamics_constraints",
-               "/tmp/ocs2", recompileLibraries, true);
+    const std::string lib_name = "upright_object_dynamics_constraints";
+    initialize(dims.x(), dims.u(), 0, lib_name, "/tmp/ocs2", recompileLibraries,
+               true);
 }
 
 VecXad ObjectDynamicsConstraints::constraintFunction(
@@ -169,9 +172,10 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
 
     Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
 
-    // Normalizing by the number of objects appears to improve the convergence
-    // of the controller (cost landscape is better behaved)
-    ocs2::ad_scalar_t n(ad_objects.size());
+    // Normalizing by the number of constraints appears to improve the
+    // convergence of the controller (cost landscape is better behaved)
+    // TODO
+    ocs2::ad_scalar_t n(sqrt(6 * ad_objects.size()));
     return compute_object_dynamics_constraints(ad_objects, ad_contacts, forces,
                                                X, ad_gravity) / n;
 }

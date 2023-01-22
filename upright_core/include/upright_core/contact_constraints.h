@@ -85,12 +85,12 @@ VecX<Scalar> compute_contact_force_constraints_linearized(
 template <typename Scalar>
 Wrench<Scalar> compute_object_dynamics_constraint(
     const RigidBody<Scalar>& body, const Wrench<Scalar>& wrench,
-    const RigidBodyState<Scalar>& state, const Vec3<Scalar>& gravity) {
+    const RigidBodyState<Scalar>& state, const Vec3<Scalar>& gravity, const Scalar scale) {
+    // TODO we might like to scale the forces by sqrt(# of contacts)
     Scalar m = body.mass;
     Mat3<Scalar> C_ew = state.pose.orientation.transpose();
     Vec3<Scalar> gravito_inertial_force =
         m * C_ew *
-        // (state.acceleration.linear - gravity);
         (state.acceleration.linear + dC_dtt(state) * body.com - gravity);
 
     Vec3<Scalar> angular_vel_e = C_ew * state.velocity.angular;
@@ -98,11 +98,12 @@ Wrench<Scalar> compute_object_dynamics_constraint(
     Mat3<Scalar> I_e = body.inertia;
     Vec3<Scalar> inertial_torque =
         angular_vel_e.cross(I_e * angular_vel_e) + I_e * angular_acc_e;
-    // Vec3<Scalar> inertial_torque = Vec3<Scalar>::Zero();
 
+    // Normalize the entire constraint by the mass to make the constraint
+    // values invariant to object mass
     Wrench<Scalar> constraints;
-    constraints.force = gravito_inertial_force - wrench.force;
-    constraints.torque = inertial_torque - wrench.torque;
+    constraints.force = (scale * gravito_inertial_force - wrench.force) / m;
+    constraints.torque = (scale * inertial_torque - wrench.torque) / m;
     return constraints;
 }
 
@@ -163,6 +164,7 @@ VecX<Scalar> compute_object_dynamics_constraints(
 
     VecX<Scalar> constraints(NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT *
                              objects.size());
+    const Scalar force_scale(1. / sqrt(contacts.size()));
     size_t i = 0;
     for (const auto& kv : objects) {
         auto& name = kv.first;
@@ -170,7 +172,7 @@ VecX<Scalar> compute_object_dynamics_constraints(
 
         Wrench<Scalar> wrench = object_wrenches[name];
         Wrench<Scalar> constraint =
-            compute_object_dynamics_constraint(body, wrench, state, gravity);
+            compute_object_dynamics_constraint(body, wrench, state, gravity, force_scale);
         constraints.segment(i * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT,
                             NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT)
             << constraint.force,

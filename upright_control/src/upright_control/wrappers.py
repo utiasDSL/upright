@@ -254,6 +254,7 @@ class ControllerSettings(bindings.ControllerSettings):
 
         # tray balance settings
         self.balancing_settings.enabled = config["balancing"]["enabled"]
+        self.balancing_settings.arrangement_name = config["balancing"]["arrangement"]
         self.balancing_settings.use_force_constraints = config["balancing"][
             "use_force_constraints"
         ]
