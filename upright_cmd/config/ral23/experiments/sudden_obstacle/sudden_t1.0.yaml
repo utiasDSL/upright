@@ -14,15 +14,13 @@ simulation:
         # just be allowed to evolve subject to gravity
         # Note that acceleration is still required either way
         controlled: true
+        collides: False
         radius: 0.25
         relative: false
         modes:
           -
             time: 0
-            # NOTE: does not match controller because the obstacle will bounce
-            # around in sim if we put in under/in collision with another
-            # obstacle
-            position: [2, 1, 0.25]
+            position: [1.5, 1, 0.25]
             velocity: [0, 0, 0]
             acceleration: [0, 0, 0]
           -

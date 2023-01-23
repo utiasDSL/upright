@@ -275,18 +275,25 @@ class BulletBody:
 
 class BulletDynamicObstacle:
     def __init__(
-        self, times, positions, velocities, accelerations, radius=0.1, controlled=False
+        self,
+        times,
+        positions,
+        velocities,
+        accelerations,
+        radius=0.1,
+        controlled=False,
+        collides=True,
     ):
         self.start_time = None
         self._mode_idx = 0
-        # self.v0 = np.array(velocity)
-        # self.a0 = np.array(acceleration) if acceleration is not None else np.zeros(3)
+
         self.times = times
         self.positions = positions
         self.velocities = velocities
         self.accelerations = accelerations
 
         self.controlled = controlled
+        self.collides = collides
         self.K = 10 * np.eye(3)  # position gain
 
         self.body = BulletBody.sphere(mass=1, mu=1, radius=radius)
@@ -302,6 +309,7 @@ class BulletDynamicObstacle:
             offset = np.zeros(3)
 
         controlled = config["controlled"]
+        collides = config.get("collides", True)
 
         times = []
         positions = []
@@ -320,6 +328,7 @@ class BulletDynamicObstacle:
             accelerations=accelerations,
             radius=config["radius"],
             controlled=controlled,
+            collides=collides,
         )
 
     def _initial_mode_values(self):
@@ -335,20 +344,13 @@ class BulletDynamicObstacle:
         """Add the obstacle to the simulation."""
         self.start_time = t0
         self.body.add_to_sim()
+
+        if not self.collides:
+            # make the obstacle not collide with anything else
+            pyb.setCollisionFilterGroupMask(self.body.uid, -1, 0, 0)
+
         v0 = self._initial_mode_values()[2]
         pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(v0))
-
-    # def reset(self, t, r=None, v=None):
-    #     self.t0 = t
-    #     if r is not None:
-    #         self.body.r0 = r
-    #     if v is not None:
-    #         self.v0 = v
-    #
-    #     pyb.resetBasePositionAndOrientation(
-    #         self.body.uid, list(self.body.r0), [0, 0, 0, 1]
-    #     )
-    #     pyb.resetBaseVelocity(self.body.uid, linearVelocity=list(self.v0))
 
     def _desired_state(self, t):
         t0, r0, v0, a0 = self._initial_mode_values()

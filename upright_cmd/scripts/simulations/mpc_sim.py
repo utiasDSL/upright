@@ -39,7 +39,6 @@ def main():
     # settle sim to make sure everything is touching comfortably
     env.settle(5.0)
     env.launch_dynamic_obstacles()
-    # pyb.setCollisionFilterGroupMask(env.dynamic_obstacles[0].body.uid, -1, 0, 0)
     env.fixture_objects()
 
     for name in ["wedge_init", "wedge_init_side"]:
