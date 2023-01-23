@@ -66,6 +66,7 @@ def parse_object_error(bag, tray_vicon_name, object_vicon_name, return_times=Fal
 
     # compute distance w.r.t. the initial position
     r_ot_t_err = r_ot_ts - r_ot_ts[0, :]
+    print(f"Initial offset of object w.r.t. tray = {r_ot_ts[0, :]} (distance = {np.linalg.norm(r_ot_ts[0, :])})")
     distances = np.linalg.norm(r_ot_t_err, axis=1)
     if return_times:
         return distances, ts

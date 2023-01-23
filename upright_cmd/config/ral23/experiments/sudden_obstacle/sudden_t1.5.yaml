@@ -13,7 +13,7 @@ simulation:
         # True if the object's trajectory should be tracked, false if it should
         # just be allowed to evolve subject to gravity
         # Note that acceleration is still required either way
-        controlled: false
+        controlled: true
         radius: 0.25
         relative: false
         modes:
@@ -27,7 +27,7 @@ simulation:
             acceleration: [0, 0, 0]
           -
             time: 1.5
-            position: [1.5, 1.5, 0.25]
+            position: [1.25, 1.5, 0.25]
             velocity: [0, 0, 0]
             acceleration: [0, 0, 0]
 
@@ -45,6 +45,6 @@ controller:
             acceleration: [0, 0, 0]
           -
             time: 1.5
-            position: [1.5, 1.5, 0.25]
+            position: [1.25, 1.5, 0.25]
             velocity: [0, 0, 0]
             acceleration: [0, 0, 0]

@@ -7,6 +7,7 @@ import rospy
 import numpy as np
 from pyb_utils.frame import debug_frame_world
 from std_msgs.msg import Empty
+import pybullet as pyb
 
 from upright_core.logging import DataLogger, DataPlotter
 import upright_sim as sim
@@ -113,6 +114,8 @@ def main():
 
     # add dynamic obstacles and start them moving
     env.launch_dynamic_obstacles(t0=t0)
+
+    pyb.setCollisionFilterGroupMask(env.dynamic_obstacles[0].body.uid, -1, 0, 0)
 
     # simulation loop
     while not rospy.is_shutdown() and t - t0 <= env.duration:

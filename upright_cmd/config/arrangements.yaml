@@ -31,14 +31,14 @@ arrangements:
       -
         first: ee
         second: block1
-        mu: 0.376
-        mu_margin: 0.0376
+        mu: 0.38
+        mu_margin: 0.038
         support_area_inset: 0.005
       -
         first: ee
         second: block2
-        mu: 0.376
-        mu_margin: 0.0376
+        mu: 0.38
+        mu_margin: 0.038
         support_area_inset: 0.005
       -
         first: block1
