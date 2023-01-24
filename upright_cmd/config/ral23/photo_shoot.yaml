@@ -1,0 +1,36 @@
+# this simulation is just for generating the image of the robot and obstacles
+# with collision spheres
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/static_obstacles/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point1.yaml
+
+
+simulation:
+  show_contact_points: false
+  show_debug_frames: false
+  extra_gui: true
+  arrangement: pink_bottle
+
+  cameras:
+    init:
+      target: [0.74, 0.36, 1.09]
+      distance: 1.2
+      roll: 0
+      pitch: -36.6
+      yaw: 29.2
+
+  photos:
+    start:
+      -
+        camera: init
+        name: robot_with_collision_spheres
+
+controller:
+  balancing:
+    enabled: true
+    frictionless: false
+    arrangement: pink_bottle

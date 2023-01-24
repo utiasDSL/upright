@@ -42,6 +42,19 @@ video:
       camera: example1
       name: view1
 
+# Define photos to be taken during the simulation
+# Currently only support doing so a the start or end
+# photos:
+#   start:
+#     -
+#       camera: example1
+#       name: example_start_photo  # file with be saved as {name}.png
+#   end:
+#     -
+#       camera: example1
+#       name: example_end_photo
+
+
 static_obstacles:
   enabled: false
   urdf:

@@ -16,6 +16,16 @@ import upright_cmd as cmd
 import IPython
 
 
+def take_photos(sim_config, env, when):
+    assert when == "start" or when == "end"
+    if "photos" in sim_config:
+        for photo in sim_config["photos"].get(when, []):
+            cam_name = photo["camera"]
+            img_name = photo["name"]
+            env.cameras[cam_name].save_frame(f"{img_name}.png")
+            print(f"Saved photo to {img_name}.png")
+
+
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
@@ -33,7 +43,7 @@ def main():
         config=sim_config,
         timestamp=timestamp,
         video_name=cli_args.video,
-        extra_gui=False,
+        extra_gui=sim_config.get("extra_gui", False),
     )
 
     # settle sim to make sure everything is touching comfortably
@@ -41,9 +51,7 @@ def main():
     env.launch_dynamic_obstacles()
     env.fixture_objects()
 
-    for name in ["wedge_init", "wedge_init_side"]:
-        if name in env.cameras:
-            env.cameras[name].save_frame(f"{name}.png")
+    take_photos(sim_config, env, when="start")
 
     # initial time, state, input
     t = 0.0
@@ -222,8 +230,7 @@ def main():
 
         t = env.step(t, step_robot=False)[0]
 
-    if "wedge_final_side" in env.cameras:
-        env.cameras["wedge_final_side"].save_frame("wedge_final_side.png")
+    take_photos(sim_config, env, when="end")
 
     try:
         print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")

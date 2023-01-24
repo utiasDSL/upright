@@ -16,7 +16,7 @@ logging:
   log_dir: /media/adam/Data/PhD/Data/upright/npz
 
 simulation:
-  duration: 5.0
+  duration: 6.0
   arrangement: simulation_box
   robot:
     urdf:

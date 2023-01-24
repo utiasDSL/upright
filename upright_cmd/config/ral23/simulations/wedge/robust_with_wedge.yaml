@@ -35,6 +35,19 @@ simulation:
       pitch: 0
       yaw: 74.4
 
+  photos:
+    start:
+      -
+        camera: wedge_init
+        name: wedge_init
+      -
+        camera: wedge_init_side
+        name: wedge_init_side
+    end:
+      -
+        camera: wedge_final_side
+        name: wedge_final_side
+
 controller:
   balancing:
     enabled: true
