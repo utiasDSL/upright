@@ -9,48 +9,45 @@ arrangements:
     objects:
       -
         name: block1
-        type: wood_block_rotx
+        type: wood_block_standing
         parent: ee
         offset:
-          x: 0.0515
-          y: 0.0325
+          x: 0.019
       -
         name: block2
-        type: wood_block_rotx
+        type: wood_block_standing
         parent: ee
         offset:
-          x: 0.0515
-          y: -0.0325
+          x: 0.084
       -
         name: block3
-        type: wood_block_rotz
+        type: wood_block
         parent: block2
         offset:
-          y: 0.0325
+          x: -0.0325
     contacts:
       -
         first: ee
         second: block1
-        mu: 0.38
-        mu_margin: 0.038
+        mu: 0.30
+        mu_margin: 0.03
         support_area_inset: 0.005
       -
         first: ee
         second: block2
-        mu: 0.38
-        mu_margin: 0.038
+        mu: 0.30
+        mu_margin: 0.03
         support_area_inset: 0.005
       -
         first: block1
         second: block3
-        mu: 0.30
-        mu_margin: 0.03
-        support_area_inset: 0.005
+        mu: 0.42
+        mu_margin: 0.042
       -
         first: block2
         second: block3
-        mu: 0.30
-        mu_margin: 0.03
+        mu: 0.42
+        mu_margin: 0.042
         # NOTE: doesn't really make sense to have an inset here
 
   pink_bottle:
@@ -106,7 +103,7 @@ arrangements:
         second: foam_die1
         mu: 0.54
         mu_margin: 0.054
-        support_area_inset: 0.015
+        support_area_inset: 0.015  # NOTE large inset here
       -
         first: foam_die1
         second: foam_die2

@@ -116,6 +116,12 @@ objects:
     side_lengths: [0.065, 0.065, 0.065]
     color: [0, 0, 1, 1]
 
+  foam_die_with_markers:
+    mass: 0.034
+    shape: cuboid
+    side_lengths: [0.065, 0.065, 0.065]
+    color: [0, 0, 1, 1]
+
   wood_block:
     shape: cuboid
     mass: 0.18
@@ -132,6 +138,12 @@ objects:
     shape: cuboid
     mass: 0.18
     side_lengths: [0.09, 0.103, 0.038]
+    color: [1, 0, 0, 0.9]
+
+  wood_block_standing:
+    shape: cuboid
+    mass: 0.18
+    side_lengths: [0.038, 0.09, 0.103]
     color: [1, 0, 0, 0.9]
 
   cube:

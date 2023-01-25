@@ -1,17 +1,17 @@
 include:
   -
     package: upright_cmd
-    path: config/ral23/experiments/freespace/_base.yaml
+    path: config/ral23/experiments/freespace/_arm_only_base.yaml
   -
     package: upright_cmd
     path: config/ral23/experiments/_point1.yaml
 
 
 simulation:
-  arrangement: foam_die2
+  arrangement: blue_cups
 
 controller:
   balancing:
     enabled: true
-    frictionless: true
-    arrangement: foam_die2
+    frictionless: false
+    arrangement: blue_cups

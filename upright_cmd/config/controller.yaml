@@ -198,15 +198,22 @@ objects:
       type: cuboid
       side_lengths: [0.09, 0.103, 0.038]
 
-  wood_block_composite:
-    mass: 0.54
+  wood_block_standing:
+    mass: 0.18
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
-      side_lengths: [0.103, 0.103, 0.128]
+      side_lengths: [0.038, 0.09, 0.103]
 
   foam_die:
     mass: 0.02
+    com_offset: [0, 0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.065, 0.065, 0.065]
+
+  foam_die_with_markers:
+    mass: 0.034
     com_offset: [0, 0, 0]
     shape:
       type: cuboid

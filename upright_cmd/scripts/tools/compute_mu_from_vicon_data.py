@@ -8,18 +8,14 @@ import matplotlib.pyplot as plt
 from mobile_manipulation_central import ros_utils
 import upright_core as core
 
-import IPython
 
 TRAY_VICON_NAME = "ThingWoodTray"
-OBJECT_VICON_NAME = "ThingWoodBlock"
-
-
-def vicon_topic_name(name):
-    return "/".join(["/vicon", name, name])
+SLIP_MARGIN = 0.005  # 5 mm slip is considered "slipping"
 
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("object_name", help="Name of object in Vicon system.")
     parser.add_argument("bagfile", help="Bag file to plot.")
     args = parser.parse_args()
     bag = rosbag.Bag(args.bagfile)
@@ -30,8 +26,8 @@ def main():
         tray_msgs, normalize_time=False
     )
 
-    obj_topic = ros_utils.vicon_topic_name(OBJECT_VICON_NAME)
-    obj_msgs = [msg for _, msg, _ in bag.read_messages(obj_topic))]
+    obj_topic = ros_utils.vicon_topic_name(args.object_name)
+    obj_msgs = [msg for _, msg, _ in bag.read_messages(obj_topic)]
     obj_ts, obj_poses = ros_utils.parse_transform_stamped_msgs(
         obj_msgs, normalize_time=False
     )
@@ -48,21 +44,26 @@ def main():
         normal = core.math.quat_rotate(q_we, z)
         angles[i] = np.arccos(z @ normal)
 
-    # compute slip in the contact plane
-    slips = np.zeros(n)
+    # corresponding coefficients of friction
+    mus = np.tan(angles)
+
+    # compute offset of object from tray in tray's local frame
+    r_locals = np.zeros((n, 3))
     for i in range(n):
         C_we = core.math.quat_to_rot(tray_poses[i, 3:])
         r_world = obj_poses[i, :3] - tray_poses[i, :3]
-        r_local = C_we.T @ r_world
-        slips[i] = np.linalg.norm(r_local[:2])
+        r_locals[i, :] = C_we.T @ r_world
 
-    mus = np.tan(angles)
-    slip0 = np.mean(slips[:10])
+    # normalize by initial offset
+    r_locals -= r_locals[0, :]
+
+    # slip is the distance in the contact (x-y) plane
+    slips = np.linalg.norm(r_locals[:, :2], axis=1)
 
     # find time and mu when object has slipped by 5mm
     slip_time = None
     for i in range(n):
-        if np.abs(slips[i] - slip0) >= 0.005:
+        if np.abs(slips[i]) >= SLIP_MARGIN:
             break
     slip_time = ts[i]
     mu = mus[i]

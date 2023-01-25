@@ -8,7 +8,7 @@ controller:
         # position is relative to the origin of the world frame. In simulation,
         # position and velocity are (typically) (re-)set by the simulator for
         # maximum accuracy.
-        radius: 0.05
+        radius: 0.1
         modes:
           -
             time: 0
@@ -36,7 +36,7 @@ simulation:
         # just be allowed to evolve subject to gravity
         # Note that acceleration is still required either way
         controlled: false
-        radius: 0.05
+        radius: 0.1
         relative: true
         modes:
           -

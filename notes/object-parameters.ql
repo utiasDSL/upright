@@ -38,3 +38,6 @@ are rounded and thus do not provide full support
 * Friction: μ = ~0.28 (Vicon data)
 
 Reasonable approximation is a 2.5cm radius by 8cm height cylinder
+
+== Volleyball ==
+* Diameter: ~20cm
