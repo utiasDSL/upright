@@ -5,6 +5,7 @@
 #include <ocs2_msgs/mpc_observation.h>
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
 #include <pybind11/embed.h>
+#include <realtime_tools/realtime_publisher.h>
 #include <ros/init.h>
 #include <ros/package.h>
 #include <signal.h>
@@ -70,15 +71,13 @@ int main(int argc, char** argv) {
     mrt.initRollout(&interface.get_rollout());
     mrt.launchNodes(nh);
 
-    // Estimation parameters
-    double robot_proc_var, robot_meas_var;
-    nh.param<double>("robot_proc_var", robot_proc_var, 1.0);
-    nh.param<double>("robot_meas_var", robot_meas_var, 1.0);
-    std::cout << "Robot process variance = " << robot_proc_var << std::endl;
-    std::cout << "Robot measurement variance = " << robot_meas_var << std::endl;
+    // When debugging, we publish the desired state and input planned by the
+    // MPC at each timestep.
+    realtime_tools::RealtimePublisher<ocs2_msgs::mpc_observation> mpc_plan_pub(
+        nh, robot_name + "_mpc_plan", 1);
 
-    // nominal initial state and interface to the real robot
-    VecXd x0 = interface.get_initial_state();
+    realtime_tools::RealtimePublisher<ocs2_msgs::mpc_observation> cmd_pub(
+        nh, robot_name + "_cmds", 1);
 
     // Initialize the robot interface
     if (r.q == 3) {
@@ -99,10 +98,9 @@ int main(int argc, char** argv) {
     mm::ProjectileROSInterface projectile(nh, "ThingProjectile");
     bool avoid_dynamic_obstacle = false;
 
-    ocs2::scalar_t timestep = 1.0 / settings.tracking.rate;
     ros::Rate rate(settings.tracking.rate);
 
-    // wait until we get feedback from the robot
+    // Wait until we get feedback from the robot to do remaining setup.
     while (ros::ok()) {
         ros::spinOnce();
         if (robot_ptr->ready()) {
@@ -112,38 +110,23 @@ int main(int argc, char** argv) {
     }
     std::cout << "Received feedback from robot." << std::endl;
 
-    // update to the real initial state
+    // Update initial state with robot feedback
+    VecXd x0 = interface.get_initial_state();
     x0.head(r.q) = robot_ptr->q();
 
-    // reset MPC
+    // Reset MPC with our desired target trajectory
     ocs2::TargetTrajectories target = parse_target_trajectory(config_path, x0);
     mrt.resetMpcNode(target);
 
-    ocs2::SystemObservation observation;
-    observation.state = x0;
-    observation.input.setZero(settings.dims.u());
-    observation.time = ros::Time::now().toSec();
-    mrt.setCurrentObservation(observation);
-
-    // Let MPC generate the initial plan
-    while (ros::ok()) {
-        mrt.spinMRT();
-        if (mrt.initialPolicyReceived()) {
-            break;
-        }
-        rate.sleep();
-    }
-    mrt.updatePolicy();
-    std::cout << "Received first policy." << std::endl;
-
+    // Initial state and input
     VecXd x = x0;
     VecXd xd = VecXd::Zero(x.size());
     VecXd u = VecXd::Zero(settings.dims.u());
     size_t mode = 0;
 
-    ros::Time now = ros::Time::now();
-    ros::Time last_policy_update_time = now;
-    ros::Duration policy_update_delay(settings.tracking.min_policy_update_time);
+    ocs2::SystemObservation observation;
+    observation.state = x0;
+    observation.input = u;
 
     // Obstacle setup.
     const bool using_projectile =
@@ -162,28 +145,59 @@ int main(int argc, char** argv) {
         }
     }
 
-    ocs2::scalar_t t = now.toSec();
-    ocs2::scalar_t last_t = t;
-    const ocs2::scalar_t t0 = t;
+    ros::Duration policy_update_delay(settings.tracking.min_policy_update_time);
     const ocs2::scalar_t dt0 = 1 / settings.tracking.rate;
     const ocs2::scalar_t dt_warn = 1.5 / settings.tracking.rate;
 
     // Estimation
     mm::kf::GaussianEstimate estimate;
     estimate.x = x;
-    estimate.P = MatXd::Identity(r.x, r.x);
+    estimate.P =
+        settings.estimation.robot_init_variance * MatXd::Identity(r.x, r.x);
 
     const MatXd I = MatXd::Identity(r.q, r.q);
     const MatXd Z = MatXd::Zero(r.q, r.q);
     MatXd C(r.q, r.x);
     C << I, Z, Z;
 
-    const MatXd Q0 = robot_proc_var * I;
-    const MatXd R0 = robot_meas_var * I;
+    const MatXd Q0 = settings.estimation.robot_process_variance * I;
+    const MatXd R0 = settings.estimation.robot_measurement_variance * I;
 
     MatXd A(r.x, r.x);
     MatXd B(r.x, r.v);
 
+    // Command integrators
+    VecXd v_cmd = VecXd::Zero(r.v);
+    VecXd a_cmd = VecXd::Zero(r.v);
+    VecXd u_cmd = VecXd::Zero(r.u);
+
+    // Manual state feedback gain
+    MatXd Kx(r.u, r.x);
+    Kx << settings.tracking.kp * I, settings.tracking.kv * I,
+        settings.tracking.ka * I;
+
+    // Let MPC generate the initial plan
+    observation.time = ros::Time::now().toSec();
+    mrt.setCurrentObservation(observation);
+    while (ros::ok()) {
+        mrt.spinMRT();
+        if (mrt.initialPolicyReceived()) {
+            break;
+        }
+        rate.sleep();
+    }
+    mrt.updatePolicy();
+    std::cout << "Received first policy." << std::endl;
+
+    // Initialize time
+    ros::Time now = ros::Time::now();
+    ros::Time last_policy_update_time = now;
+    ocs2::scalar_t t = now.toSec();
+    ocs2::scalar_t last_t = t;
+    const ocs2::scalar_t t0 = t;
+
+    // Now that we're all set up and have an initial policy, we can get started
+    // moving the robot.
     while (ros::ok()) {
         now = ros::Time::now();
         last_t = t;
@@ -209,8 +223,8 @@ int main(int argc, char** argv) {
 
         // Estimate current state from joint position and jerk input using
         // Kalman filter
-        VecXd u_robot = u.head(r.u);
-        estimate = mm::kf::predict(estimate, A, Q, B * u_robot);
+        // VecXd u_robot = u.head(r.u);
+        estimate = mm::kf::predict(estimate, A, Q, B * u_cmd);
         estimate = mm::kf::correct(estimate, C, R0, q);
         x.head(r.x) = estimate.x;
 
@@ -246,10 +260,37 @@ int main(int argc, char** argv) {
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, u, mode);
 
-        // if (using_projectile || using_stationary) {
-        //     std::cout << "x_obs = " << x.tail(9).transpose() << std::endl;
-        //     std::cout << "xd_obs = " << xd.tail(9).transpose() << std::endl;
-        // }
+        if (settings.debug) {
+            if (using_projectile) {
+                std::cout << "x_obs = " << x.tail(9).transpose() << std::endl;
+                std::cout << "xd_obs = " << xd.tail(9).transpose() << std::endl;
+            }
+
+            // Publish planned state and input
+            if (mpc_plan_pub.trylock()) {
+                VecX<float> xf = xd.cast<float>();
+                VecX<float> uf = u.cast<float>();
+
+                mpc_plan_pub.msg_.time = t;
+                mpc_plan_pub.msg_.state.value =
+                    std::vector<float>(xf.data(), xf.data() + xf.size());
+                mpc_plan_pub.msg_.input.value =
+                    std::vector<float>(uf.data(), uf.data() + uf.size());
+                mpc_plan_pub.unlockAndPublish();
+            }
+
+            // Publish commanded (integrated) velocity and acceleration
+            if (cmd_pub.trylock()) {
+                VecX<float> xf = VecX<float>::Zero(r.x);
+                xf.segment(r.q, r.v) = v_cmd.cast<float>();
+                xf.tail(r.v) = a_cmd.cast<float>();
+
+                cmd_pub.msg_.time = t;
+                cmd_pub.msg_.state.value =
+                    std::vector<float>(xf.data(), xf.data() + xf.size());
+                cmd_pub.unlockAndPublish();
+            }
+        }
 
         // Check that controller is not making the end effector leave allowed
         // region
@@ -269,11 +310,20 @@ int main(int argc, char** argv) {
             break;
         }
 
-        // Given current state, controller produces a desired jerk. We can
-        // start using that jerk by incorporating it into the command now
-        // TODO does this actually make sense?
-        VecXd v_cmd = xd.segment(r.q, r.v) + dt0 * xd.segment(r.q + r.v, r.v) +
-                      0.5 * dt0 * dt0 * u.head(r.u);
+        // State feedback
+        // This should only be used when an optimal feedback policy is not
+        // computed internally by the MPC
+        u_cmd = Kx * (xd - x).head(r.x) + u.head(r.u);
+        u.head(r.u) = u_cmd;
+
+        // Double integrate the commanded jerk to get commanded velocity
+        // TODO should these be based on current state estimate or idealized
+        // integrator model state?
+        v_cmd = v_cmd + dt * a_cmd + 0.5 * dt * dt * u_cmd;
+        a_cmd = a_cmd + dt * u_cmd;
+
+        // v_cmd = x.segment(r.q, r.v) + dt * x.segment(r.q + r.v, r.v) +
+        //         0.5 * dt * dt * u_cmd;
 
         // TODO probably should be a real-time publisher
         robot_ptr->publish_cmd_vel(v_cmd, /* bodyframe = */ false);

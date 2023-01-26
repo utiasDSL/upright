@@ -9,7 +9,7 @@ include:
     path: config/controller.yaml
   -
     package: upright_cmd
-    path: config/robots/thing.yaml
+    path: config/robots/ur10.yaml
   -
     package: upright_cmd
     path: config/obstacles/simple.yaml
@@ -19,7 +19,7 @@ logging:
   log_dir: /media/adam/Data/PhD/Data/upright/ral23/experiments/static_obstacles
 
 simulation:
-  duration: 5.0
+  duration: 10.0
   robot:
     urdf:
       args:
@@ -65,10 +65,10 @@ controller:
   weights:
     input:
       scale: 0.001
-      diag: [1rep9]
+      diag: [1rep6]
     state:
       scale: 0.01
-      diag: [0rep9, 10rep9, 1rep9]
+      diag: [0rep6, 10rep6, 1rep6]
     end_effector:
       scale: 1
       diag: [1, 1, 1, 0, 0, 0]

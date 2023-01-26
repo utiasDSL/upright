@@ -1,8 +1,3 @@
-#include <pybind11/eigen.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
-
 #include <hpipm_catkin/HpipmInterfaceSettings.h>
 #include <ocs2_core/Types.h>
 #include <ocs2_core/control/FeedforwardController.h>
@@ -11,7 +6,10 @@
 #include <ocs2_oc/rollout/RolloutSettings.h>
 #include <ocs2_python_interface/PybindMacros.h>
 #include <ocs2_sqp/MultipleShootingSettings.h>
-
+#include <pybind11/eigen.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
 #include <upright_control/balancing_constraint_wrapper.h>
 #include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/constraint/constraint_type.h>
@@ -54,7 +52,8 @@ PYBIND11_MODULE(bindings, m) {
     VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
     VECTOR_TYPE_BINDING(std::vector<DynamicObstacle>, "DynamicObstacleVector")
-    VECTOR_TYPE_BINDING(std::vector<DynamicObstacleMode>, "DynamicObstacleModeVector")
+    VECTOR_TYPE_BINDING(std::vector<DynamicObstacleMode>,
+                        "DynamicObstacleModeVector")
 
     pybind11::bind_map<std::map<std::string, ocs2::scalar_t>>(
         m, "MapStringScalar");
@@ -245,14 +244,16 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("rate", &TrackingSettings::rate)
         .def_readwrite("min_policy_update_time",
                        &TrackingSettings::min_policy_update_time)
+        .def_readwrite("kp", &TrackingSettings::kp)
+        .def_readwrite("kv", &TrackingSettings::kv)
+        .def_readwrite("ka", &TrackingSettings::ka)
         .def_readwrite("enforce_state_limits",
                        &TrackingSettings::enforce_state_limits)
         .def_readwrite("enforce_input_limits",
                        &TrackingSettings::enforce_input_limits)
         .def_readwrite("enforce_ee_position_limits",
                        &TrackingSettings::enforce_ee_position_limits)
-        .def_readwrite("use_projectile",
-                       &TrackingSettings::use_projectile)
+        .def_readwrite("use_projectile", &TrackingSettings::use_projectile)
         .def_readwrite("state_violation_margin",
                        &TrackingSettings::state_violation_margin)
         .def_readwrite("input_violation_margin",
@@ -260,15 +261,27 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("ee_position_violation_margin",
                        &TrackingSettings::ee_position_violation_margin);
 
+    pybind11::class_<EstimationSettings>(m, "EstimationSettings")
+        .def(pybind11::init<>())
+        .def_readwrite("robot_init_variance",
+                       &EstimationSettings::robot_init_variance)
+        .def_readwrite("robot_process_variance",
+                       &EstimationSettings::robot_process_variance)
+        .def_readwrite("robot_measurement_variance",
+                       &EstimationSettings::robot_measurement_variance);
+
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("gravity", &ControllerSettings::gravity)
         .def_readwrite("solver_method", &ControllerSettings::solver_method)
-        .def_readwrite("recompile_libraries", &ControllerSettings::recompile_libraries)
+        .def_readwrite("recompile_libraries",
+                       &ControllerSettings::recompile_libraries)
+        .def_readwrite("debug", &ControllerSettings::debug)
         .def_readwrite("mpc", &ControllerSettings::mpc)
         .def_readwrite("sqp", &ControllerSettings::sqp)
         .def_readwrite("rollout", &ControllerSettings::rollout)
         .def_readwrite("tracking", &ControllerSettings::tracking)
+        .def_readwrite("estimation", &ControllerSettings::estimation)
         .def_readwrite("obstacle_settings",
                        &ControllerSettings::obstacle_settings)
         .def_readwrite("balancing_settings",

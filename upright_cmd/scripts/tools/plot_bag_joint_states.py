@@ -41,6 +41,9 @@ def main():
     qs_real = np.hstack((qbs_aligned, qas))
     vs_real = np.hstack((vbs_aligned, vas))
 
+    # qs_real = qas
+    # vs_real = vas
+
     # align the estimates and input
     n = 9
     xms_aligned = np.array(ros_utils.interpolate_list(ts, tms, xms))

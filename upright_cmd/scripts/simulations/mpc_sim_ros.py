@@ -7,6 +7,8 @@ import rospy
 import numpy as np
 from pyb_utils.frame import debug_frame_world
 from std_msgs.msg import Empty
+from ocs2_msgs.msg import mpc_observation
+import matplotlib.pyplot as plt
 
 from upright_core.logging import DataLogger, DataPlotter
 import upright_sim as sim
@@ -21,6 +23,21 @@ from mobile_manipulation_central import (
 )
 
 import IPython
+
+
+class MPCObservationListener:
+    """Listens to and records published MPC observations"""
+
+    def __init__(self, topic_name):
+        self.mpc_obs_sub = rospy.Subscriber(topic_name, mpc_observation, self._obs_cb)
+        self.ts = []
+        self.xs = []
+        self.us = []
+
+    def _obs_cb(self, msg):
+        self.ts.append(msg.time)
+        self.xs.append(msg.state.value)
+        self.us.append(msg.input.value)
 
 
 def main():
@@ -97,6 +114,16 @@ def main():
         "reset_projectile_estimate", Empty, queue_size=1
     )
 
+    # listen to state estimates
+    mpc_obs_listener = MPCObservationListener("/mobile_manipulator_mpc_observation")
+
+    # listen to MPC planned optimal trajectory
+    mpc_plan_listener = MPCObservationListener("/mobile_manipulator_mpc_plan")
+
+    # listen to commanded velocity (and acceleration) actually sent to the
+    # robot
+    cmd_listener = MPCObservationListener("/mobile_manipulator_cmds")
+
     # wait until a command has been received
     # note that we use real time here since this sim directly controls sim time
     print("Waiting for a command to be received...")
@@ -134,9 +161,6 @@ def main():
         )
 
         if logger.ready(t):
-            # NOTE: we can try to approximate acceleration using finite
-            # differences, but it is extremely inaccurate
-            # a = (v - v_prev) / env.timestep
             x = np.concatenate((q, v, a, x_obs))
 
             # log sim stuff
@@ -180,7 +204,100 @@ def main():
         print(f"Saved video to {env.video_manager.path}")
 
     # visualize data
-    DataPlotter.from_logger(logger).plot_all(show=True)
+    DataPlotter.from_logger(logger).plot_all(show=False)
+
+    prop_cycle = plt.rcParams["axes.prop_cycle"]
+    colors = prop_cycle.by_key()["color"]
+
+    mpc_obs_ts = np.array(mpc_obs_listener.ts)
+    mpc_obs_xs = np.array(mpc_obs_listener.xs)
+    mpc_obs_us = np.array(mpc_obs_listener.us)
+
+    mpc_plan_ts = np.array(mpc_plan_listener.ts)
+    mpc_plan_xs = np.array(mpc_plan_listener.xs)
+    mpc_plan_us = np.array(mpc_plan_listener.us)
+
+    cmd_ts = np.array(cmd_listener.ts)
+    cmd_xs = np.array(cmd_listener.xs)
+
+    plt.figure()
+    for i in range(env.robot.nq):
+        plt.plot(mpc_plan_ts, mpc_plan_xs[:, i], label=f"qd_{i}", linestyle="--")
+    for i in range(env.robot.nq):
+        plt.plot(mpc_obs_ts, mpc_obs_xs[:, i], label=f"q_{i}", color=colors[i])
+    plt.xlabel("Time [s]")
+    plt.ylabel("Joint position")
+    plt.title("Planned vs. Estimated Joint Positions")
+    plt.legend()
+    plt.grid()
+
+    plt.figure()
+    for i in range(env.robot.nv):
+        plt.plot(
+            mpc_plan_ts,
+            mpc_plan_xs[:, env.robot.nq + i],
+            label=f"vd_{i}",
+            linestyle="--",
+        )
+    for i in range(env.robot.nv):
+        plt.plot(
+            mpc_obs_ts, mpc_obs_xs[:, env.robot.nq + i], label=f"v_{i}", color=colors[i]
+        )
+    for i in range(env.robot.nv):
+        plt.plot(
+            cmd_ts,
+            cmd_xs[:, env.robot.nq + i],
+            label=f"vc_{i}",
+            color=colors[i],
+            linestyle=":",
+        )
+    plt.xlabel("Time [s]")
+    plt.ylabel("Joint velocity")
+    plt.title("Planned vs. Estimated Joint Velocities")
+    plt.legend()
+    plt.grid()
+
+    plt.figure()
+    for i in range(env.robot.nv):
+        plt.plot(
+            mpc_plan_ts,
+            mpc_plan_xs[:, env.robot.nq + env.robot.nv + i],
+            label=f"ad_{i}",
+            linestyle="--",
+        )
+    for i in range(env.robot.nv):
+        plt.plot(
+            mpc_obs_ts,
+            mpc_obs_xs[:, env.robot.nq + env.robot.nv + i],
+            label=f"a_{i}",
+            color=colors[i],
+        )
+    for i in range(env.robot.nv):
+        plt.plot(
+            cmd_ts,
+            cmd_xs[:, env.robot.nq + env.robot.nv + i],
+            label=f"ac_{i}",
+            color=colors[i],
+            linestyle=":",
+        )
+    plt.xlabel("Time [s]")
+    plt.ylabel("Joint acceleration")
+    plt.title("Planned vs. Estimated Joint Acceleration")
+    plt.legend()
+    plt.grid()
+
+    plt.figure()
+    for i in range(env.robot.nu):
+        plt.plot(mpc_plan_ts, mpc_plan_us[:, i], label=f"ud_{i}", linestyle="--")
+    for i in range(env.robot.nu):
+        plt.plot(mpc_obs_ts, mpc_obs_us[:, i], label=f"u_{i}", color=colors[i])
+    plt.xlabel("Time [s]")
+    plt.ylabel("Joint jerk")
+    plt.title("Planned vs. Commanded Input Jerk")
+    plt.legend()
+    plt.grid()
+
+    plt.show()
 
 
 if __name__ == "__main__":

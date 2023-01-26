@@ -24,6 +24,11 @@ struct TrackingSettings {
 
     ocs2::scalar_t min_policy_update_time = 0.01;
 
+    // State feedback gains
+    ocs2::scalar_t kp = 0;
+    ocs2::scalar_t kv = 0;
+    ocs2::scalar_t ka = 0;
+
     bool enforce_state_limits = true;
     bool enforce_input_limits = false;
     bool enforce_ee_position_limits = false;
@@ -35,6 +40,12 @@ struct TrackingSettings {
     ocs2::scalar_t state_violation_margin = 0.1;
     ocs2::scalar_t input_violation_margin = 1.0;
     ocs2::scalar_t ee_position_violation_margin = 0.1;
+};
+
+struct EstimationSettings {
+    ocs2::scalar_t robot_init_variance = 0;
+    ocs2::scalar_t robot_process_variance = 1.0;
+    ocs2::scalar_t robot_measurement_variance = 1.0;
 };
 
 struct ControllerSettings {
@@ -51,11 +62,16 @@ struct ControllerSettings {
     // True to recompile the auto-diff libraries at the start of each run.
     bool recompile_libraries = true;
 
+    // True will print/publish additional debugging info. This should be turned
+    // off for higher performance.
+    bool debug = false;
+
     SolverMethod solver_method = SolverMethod::SQP;
     ocs2::mpc::Settings mpc;
     ocs2::multiple_shooting::Settings sqp;
     ocs2::rollout::Settings rollout;
     TrackingSettings tracking;
+    EstimationSettings estimation;
 
     // Weights
     MatXd input_weight;

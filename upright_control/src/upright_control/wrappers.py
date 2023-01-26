@@ -134,11 +134,20 @@ class ControllerSettings(bindings.ControllerSettings):
             config["robot"]["base_type"]
         )
 
+        # Estimation settings
+        self.estimation.robot_init_variance = config["estimation"]["robot_init_variance"]
+        self.estimation.robot_process_variance = config["estimation"]["robot_process_variance"]
+        self.estimation.robot_measurement_variance = config["estimation"]["robot_measurement_variance"]
+
         # Tracking settings
         self.tracking.rate = config["tracking"]["rate"]
         self.tracking.min_policy_update_time = config["tracking"][
             "min_policy_update_time"
         ]
+
+        self.tracking.kp = config["tracking"]["kp"]
+        self.tracking.kv = config["tracking"]["kv"]
+        self.tracking.ka = config["tracking"]["ka"]
 
         self.tracking.enforce_state_limits = config["tracking"]["enforce_state_limits"]
         self.tracking.enforce_input_limits = config["tracking"]["enforce_input_limits"]
@@ -163,6 +172,10 @@ class ControllerSettings(bindings.ControllerSettings):
         # whether we should recompile the auto-diff libraries even if the
         # library already exists
         self.recompile_libraries = config.get("recompile_libraries", True)
+
+        # debug mode prints/publishes extra information, but may reduce
+        # performance
+        self.debug = config["debug"]
 
         # robot dimensions
         self.dims.robot.q = config["robot"]["dims"]["q"]

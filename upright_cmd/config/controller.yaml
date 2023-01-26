@@ -3,11 +3,10 @@ include:
     package: upright_cmd
     path: config/arrangements.yaml
 
-# compute a new control policy every `control_period` seconds
 use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
 recompile_libraries: true
-
+debug: true
 solver_method: SQP  # only SQP is supported now
 
 # model predictive controller
@@ -24,10 +23,23 @@ rollout:
   max_num_steps_per_second: 100000
   check_numerical_stability: false
 
+estimation:
+  robot_init_variance: 0.1
+  robot_process_variance: 10
+  robot_measurement_variance: 0.001
+
 # low-level reference tracking
 tracking:
   rate: 125  # Hz
   min_policy_update_time: 0.01  # seconds
+
+  # state feedback gains
+  # for stability we want kv * ka > kp (third-order Routh-Hurwitz criterion)
+  # these should be set to zero if sqp.use_feedback_policy = true, since the
+  # controller computes its own optimal feedback policy in that case
+  kp: 0
+  kv: 0
+  ka: 0
 
   enforce_state_limits: true
   enforce_input_limits: false
@@ -46,7 +58,7 @@ sqp:
   init_sqp_iteration: 1
   delta_tol: 1e-3
   cost_tol: 1e-4
-  use_feedback_policy: false
+  use_feedback_policy: true
   project_state_input_equality_constraints: false
   print_solver_status: true
   print_solver_statistics: true

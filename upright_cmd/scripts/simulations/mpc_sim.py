@@ -6,6 +6,7 @@ import numpy as np
 import pybullet as pyb
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
+import matplotlib.pyplot as plt
 
 from upright_core.logging import DataLogger, DataPlotter
 import upright_sim as sim
@@ -17,6 +18,7 @@ import IPython
 
 
 def take_photos(sim_config, env, when):
+    """Save images at start or end of the simulation."""
     assert when == "start" or when == "end"
     if "photos" in sim_config:
         for photo in sim_config["photos"].get(when, []):
@@ -89,8 +91,6 @@ def main():
         for r_ew_w_d, Q_we_d in ref.poses():
             debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_d, line_width=3)
 
-    # ctrl_manager.warmstart()
-
     print("Ready to start.")
     IPython.embed()
 
@@ -99,11 +99,21 @@ def main():
     a_cmd = np.zeros_like(a)
     v_cmd = np.zeros_like(v)
 
+    T = model.settings.tracking
+    Kx = np.hstack(
+        (
+            T.kp * np.eye(dims.robot.q),
+            T.kv * np.eye(dims.robot.v),
+            T.ka * np.eye(dims.robot.v),
+        )
+    )
+
     # simulation loop
     while t <= env.duration:
         # get the true robot feedback
         # instead of a proper estimator (e.g. Kalman filter) we're being lazy
-        # and just open-loop integrating acceleration
+        # assuming the model tracks well enough that real acceleration is
+        # roughly a_cmd
         q, v = env.robot.joint_states(add_noise=False)
         x_obs = env.dynamic_obstacle_state()
         x = np.concatenate((q, v, a_cmd, x_obs))
@@ -130,14 +140,14 @@ def main():
             IPython.embed()
             break
 
-        qd, vd, ad = mapping.xu2qva(xd_robot)
+        u_cmd = Kx @ (xd - x)[: dims.robot.x] + u_robot
 
         # integrate the command
         # it appears to be desirable to open-loop integrate velocity like this
         # to avoid PyBullet not handling velocity commands accurately at very
         # small values
-        v_cmd = v_cmd + env.timestep * a_cmd + 0.5 * env.timestep**2 * u_robot
-        a_cmd = a_cmd + env.timestep * u_robot
+        v_cmd = v_cmd + env.timestep * a_cmd + 0.5 * env.timestep**2 * u_cmd
+        a_cmd = a_cmd + env.timestep * u_cmd
 
         # generated velocity is in the world frame
         env.robot.command_velocity(v_cmd, bodyframe=False)
@@ -149,8 +159,10 @@ def main():
             v_ew_w, ω_ew_w = env.robot.link_velocity()
             r_ow_ws, Q_wos = env.object_poses()
             logger.append("ts", t)
-            logger.append("us", u)
+            logger.append("us", u_cmd)
             logger.append("xs", x)
+            logger.append("xds", xd)
+            logger.append("uds", u)
             logger.append("r_ew_ws", r_ew_w)
             logger.append("Q_wes", Q_we)
             logger.append("v_ew_ws", v_ew_w)
@@ -221,7 +233,9 @@ def main():
                             "contact_forces", t, x, u
                         )
                     )
-                    logger.append("contact_force_constraints", contact_force_constraints)
+                    logger.append(
+                        "contact_force_constraints", contact_force_constraints
+                    )
 
                 logger.append("contact_forces", f)
                 logger.append(
@@ -248,7 +262,67 @@ def main():
         print(f"Saved video to {env.video_manager.path}")
 
     # visualize data
-    DataPlotter.from_logger(logger).plot_all(show=True)
+    DataPlotter.from_logger(logger).plot_all(show=False)
+
+    # plotting for desired trajectories
+    prop_cycle = plt.rcParams["axes.prop_cycle"]
+    colors = prop_cycle.by_key()["color"]
+
+    ts = np.array(logger.data["ts"])
+    xds = np.array(logger.data["xds"])
+    xs = np.array(logger.data["xs"])
+    uds = np.array(logger.data["uds"])
+    us = np.array(logger.data["us"])
+
+    plt.figure()
+    for i in range(env.robot.nq):
+        plt.plot(ts, xds[:, i], label=f"qd_{i}", linestyle="--")
+    for i in range(env.robot.nq):
+        plt.plot(ts, xs[:, i], label=f"q_{i}", color=colors[i])
+    plt.xlabel("Time [s]")
+    plt.ylabel("Joint position")
+    plt.title("Desired vs. Actual Joint Positions")
+    plt.legend()
+    plt.grid()
+
+    plt.figure()
+    for i in range(env.robot.nv):
+        plt.plot(ts, xds[:, env.robot.nq + i], label=f"vd_{i}", linestyle="--")
+    for i in range(env.robot.nv):
+        plt.plot(ts, xs[:, env.robot.nq + i], label=f"v_{i}", color=colors[i])
+    plt.xlabel("Time [s]")
+    plt.ylabel("Joint velocity")
+    plt.title("Desired vs. Actual Joint Velocities")
+    plt.legend()
+    plt.grid()
+
+    plt.figure()
+    for i in range(env.robot.nv):
+        plt.plot(
+            ts, xds[:, env.robot.nq + env.robot.nv + i], label=f"ad_{i}", linestyle="--"
+        )
+    for i in range(env.robot.nv):
+        plt.plot(
+            ts, xs[:, env.robot.nq + env.robot.nv + i], label=f"a_{i}", color=colors[i]
+        )
+    plt.xlabel("Time [s]")
+    plt.ylabel("Joint acceleration")
+    plt.title("Desired vs. Actual Joint Acceleration")
+    plt.legend()
+    plt.grid()
+
+    plt.figure()
+    for i in range(env.robot.nv):
+        plt.plot(ts, uds[:, i], label=f"ud_{i}", linestyle="--")
+    for i in range(env.robot.nv):
+        plt.plot(ts, us[:, i], label=f"u_{i}", color=colors[i])
+    plt.xlabel("Time [s]")
+    plt.ylabel("Joint jerk")
+    plt.title("Desired vs. Actual Joint Jerk Input")
+    plt.legend()
+    plt.grid()
+
+    plt.show()
 
 
 if __name__ == "__main__":
