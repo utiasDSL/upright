@@ -144,7 +144,6 @@ def main():
     # simulation loop
     while not rospy.is_shutdown() and t - t0 <= env.duration:
         # feedback is in the world frame
-        v_prev = v
         q, v = env.robot.joint_states(add_noise=True, bodyframe=False)
         ros_interface.publish_feedback(t, q, v)
 

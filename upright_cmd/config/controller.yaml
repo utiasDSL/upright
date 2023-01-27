@@ -11,7 +11,7 @@ solver_method: SQP  # only SQP is supported now
 
 # model predictive controller
 mpc:
-  time_horizon: 1.0
+  time_horizon: 2.0
   debug_print: true
   cold_start: false
 

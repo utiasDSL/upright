@@ -1,0 +1,38 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/freespace/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point1.yaml
+
+
+simulation:
+  arrangement: pink_bottle
+
+controller:
+  balancing:
+    enabled: true
+    frictionless: true
+    arrangement: pink_bottle_high_mu
+
+  objects:
+    pink_bottle:
+      com_offset: [0, 0, -0.1]
+
+  arrangements:
+    pink_bottle_high_mu:
+      objects:
+        -
+          name: bottle
+          type: pink_bottle
+          parent: ee
+          offset:
+            x: 0.035
+            y: -0.035
+      contacts:
+        -
+          first: ee
+          second: bottle
+          mu: 0.39
+          support_area_inset: 0.005

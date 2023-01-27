@@ -166,9 +166,8 @@ int main(int argc, char** argv) {
     MatXd A(r.x, r.x);
     MatXd B(r.x, r.v);
 
-    // Command integrators
+    // Commands
     VecXd v_cmd = VecXd::Zero(r.v);
-    VecXd a_cmd = VecXd::Zero(r.v);
     VecXd u_cmd = VecXd::Zero(r.u);
 
     // Manual state feedback gain
@@ -283,7 +282,6 @@ int main(int argc, char** argv) {
             if (cmd_pub.trylock()) {
                 VecX<float> xf = VecX<float>::Zero(r.x);
                 xf.segment(r.q, r.v) = v_cmd.cast<float>();
-                xf.tail(r.v) = a_cmd.cast<float>();
 
                 cmd_pub.msg_.time = t;
                 cmd_pub.msg_.state.value =
@@ -317,13 +315,8 @@ int main(int argc, char** argv) {
         u.head(r.u) = u_cmd;
 
         // Double integrate the commanded jerk to get commanded velocity
-        // TODO should these be based on current state estimate or idealized
-        // integrator model state?
-        v_cmd = v_cmd + dt * a_cmd + 0.5 * dt * dt * u_cmd;
-        a_cmd = a_cmd + dt * u_cmd;
-
-        // v_cmd = x.segment(r.q, r.v) + dt * x.segment(r.q + r.v, r.v) +
-        //         0.5 * dt * dt * u_cmd;
+        v_cmd = x.segment(r.q, r.v) + dt * x.segment(r.q + r.v, r.v) +
+                0.5 * dt * dt * u_cmd;
 
         // TODO probably should be a real-time publisher
         robot_ptr->publish_cmd_vel(v_cmd, /* bodyframe = */ false);

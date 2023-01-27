@@ -94,10 +94,8 @@ def main():
     print("Ready to start.")
     IPython.embed()
 
-    # velocity and acceleration commands are integrated from the jerk input
-    # trajectory
-    a_cmd = np.zeros_like(a)
     v_cmd = np.zeros_like(v)
+    a_est = np.zeros_like(a)
 
     T = model.settings.tracking
     Kx = np.hstack(
@@ -113,14 +111,14 @@ def main():
         # get the true robot feedback
         # instead of a proper estimator (e.g. Kalman filter) we're being lazy
         # assuming the model tracks well enough that real acceleration is
-        # roughly a_cmd
+        # roughly perfect
         q, v = env.robot.joint_states(add_noise=False)
         x_obs = env.dynamic_obstacle_state()
-        x = np.concatenate((q, v, a_cmd, x_obs))
+        x = np.concatenate((q, v, a_est, x_obs))
 
         # now get the noisy version for use in the controller
         q_noisy, v_noisy = env.robot.joint_states(add_noise=True)
-        x_noisy = np.concatenate((q_noisy, v_noisy, a_cmd, x_obs))
+        x_noisy = np.concatenate((q_noisy, v_noisy, a_est, x_obs))
 
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
@@ -131,12 +129,12 @@ def main():
             f = u[-dims.f() :]
         except RuntimeError as e:
             print(e)
-            print("exit the interpreter to proceed to plots")
+            print("Exit the interpreter to proceed to plots.")
             IPython.embed()
             break
 
         if np.isnan(u).any():
-            print("nan value in input!")
+            print("NaN value in input!")
             IPython.embed()
             break
 
@@ -146,8 +144,8 @@ def main():
         # it appears to be desirable to open-loop integrate velocity like this
         # to avoid PyBullet not handling velocity commands accurately at very
         # small values
-        v_cmd = v_cmd + env.timestep * a_cmd + 0.5 * env.timestep**2 * u_cmd
-        a_cmd = a_cmd + env.timestep * u_cmd
+        v_cmd = v_cmd + env.timestep * a_est + 0.5 * env.timestep**2 * u_cmd
+        a_est = a_est + env.timestep * u_cmd
 
         # generated velocity is in the world frame
         env.robot.command_velocity(v_cmd, bodyframe=False)

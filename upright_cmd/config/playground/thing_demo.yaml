@@ -1,3 +1,7 @@
+# As written, this demo just commands the robot to stay still, with no
+# balancing constraints active. This is useful for the first step in running
+# the controlleron real hardware: no need to do anything fancy before we even
+# know it will run at all!
 include:
   -
     key: simulation
