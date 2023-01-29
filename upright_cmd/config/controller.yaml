@@ -126,13 +126,6 @@ obstacles:
 operating_points:
   enabled: false
 
-# TODO deprecated and can be removed
-infofile:
-  package: "upright_control"
-  path: "config/mpc/task.info"
-
-# NOTE: for now we assume inertia is exact, but we should use parallel axis
-# theorem to account for com_offset
 objects:
   # EE is a special object
 

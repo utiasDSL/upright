@@ -252,8 +252,7 @@ class ControllerSettings(bindings.ControllerSettings):
             config["robot"]["urdf"]
         )
 
-        # task info file (Boost property tree format)
-        self.ocs2_config_path = core.parsing.parse_ros_path(config["infofile"])
+        # directory for compiled auto-diff libraries
         self.lib_folder = "/tmp/ocs2"
 
         # operating points
