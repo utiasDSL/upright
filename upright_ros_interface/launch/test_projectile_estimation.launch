@@ -14,5 +14,5 @@
   <node pkg="rosbag" type="record" name="recorder" output="screen" required="true" args="--all -o $(find upright_ros_interface)/estimation"/>
 
   <!-- Simulation -->
-  <node pkg="rosbag" type="play" name="player" required="true" output="screen" args="$(arg bagfile) --clock --topics /vicon/ThingProjectile/ThingProjectile" />
+  <node pkg="rosbag" type="play" name="player" required="true" output="screen" args="$(arg bagfile) --clock --topics /vicon/ThingVolleyBall/ThingVolleyBall" />
 </launch>

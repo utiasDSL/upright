@@ -1,0 +1,7 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/freespace/high_mu/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point3.yaml

@@ -106,12 +106,12 @@ def main():
     else:
         raise ValueError("Unsupported robot base type.")
     if use_projectile_interface:
-        projectile_ros_interface = SimulatedViconObjectInterface("ThingProjectile")
+        projectile_ros_interface = SimulatedViconObjectInterface("ThingVolleyBall")
     ros_interface.publish_time(t)
 
     # publisher for reset command to estimator
     reset_projectile_pub = rospy.Publisher(
-        "reset_projectile_estimate", Empty, queue_size=1
+        "/projectile/reset_estimate", Empty, queue_size=1
     )
 
     # listen to state estimates

@@ -90,7 +90,7 @@ def main():
     arm_cmd_index = 0
 
     projectile_msgs = [
-        msg for _, msg, _ in bag.read_messages("/vicon/ThingProjectile/ThingProjectile")
+        msg for _, msg, _ in bag.read_messages("/vicon/ThingVolleyBall/ThingVolleyBall")
     ]
     projectile_positions = np.array(
         [
@@ -113,7 +113,7 @@ def main():
     projectile_index = 0
     K_proj = 100
 
-    projectile_msgs_est = [msg for _, msg, _ in bag.read_messages("/ThingProjectile/joint_states")]
+    projectile_msgs_est = [msg for _, msg, _ in bag.read_messages("/projectile/joint_states")]
     projectile_ts_est = np.array([msg.header.stamp.to_sec() for msg in projectile_msgs_est])
     projectile_ts_est -= t0
     projectile_rs_est = np.array([msg.position for msg in projectile_msgs_est])

@@ -22,8 +22,6 @@ ROSBAG_TOPICS = [
         "--regex", "/ur10/(.*)",
         "--regex", "/vicon/(.*)",
         "--regex", "/projectile/(.*)",
-        "--regex", "/Projectile/(.*)",
-        "--regex", "/ThingProjectile/(.*)",
         "--regex", "/mobile_manipulator_(.*)"
 ]
 # fmt: on

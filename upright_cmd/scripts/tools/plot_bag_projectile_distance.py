@@ -18,7 +18,7 @@ import IPython
 
 
 # TODO we would prefer to measure offset to the actual collision sphere
-VICON_PROJECTILE_NAME = "ThingProjectile"
+VICON_PROJECTILE_NAME = "ThingVolleyBall"
 VICON_EE_NAME = "ThingWoodTray"
 
 
@@ -42,7 +42,7 @@ def main():
     )
 
     proj_est_msgs = [
-        msg for _, msg, _ in bag.read_messages("/ThingProjectile/joint_states")
+        msg for _, msg, _ in bag.read_messages("/projectile/joint_states")
     ]
     proj_est_ts = ros_utils.parse_time(proj_est_msgs, normalize_time=False)
     proj_pos_est = np.array([msg.position for msg in proj_est_msgs])

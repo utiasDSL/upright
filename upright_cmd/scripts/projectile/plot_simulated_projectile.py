@@ -15,11 +15,11 @@ def main():
 
     bag = rosbag.Bag(args.bagfile)
 
-    est_msgs = [msg for _, msg, _ in bag.read_messages("/ThingProjectile/joint_states")]
+    est_msgs = [msg for _, msg, _ in bag.read_messages("/projectile/joint_states")]
     est_positions = np.array([msg.position for msg in est_msgs])
     est_velocities = np.array([msg.velocity for msg in est_msgs])
 
-    gt_msgs = [msg for _, msg, _ in bag.read_messages("/ThingProjectile/true_joint_states")]
+    gt_msgs = [msg for _, msg, _ in bag.read_messages("/projectile/true_joint_states")]
     gt_positions = np.array([msg.position for msg in gt_msgs])
     gt_velocities = np.array([msg.velocity for msg in gt_msgs])
 

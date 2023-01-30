@@ -94,8 +94,12 @@ int main(int argc, char** argv) {
     // (this is why we set it up after the robot is initialized)
     signal(SIGINT, sigint_handler);
 
-    // Initialize interface to dynamic obstacle estimator
-    mm::ProjectileROSInterface projectile(nh, "ThingProjectile");
+    // Initialize interface to dynamic obstacle estimator if we are using
+    // dynamic obstacles
+    mm::ProjectileROSInterface projectile;
+    // if (settings.dims.o > 0) {  TODO after experiments
+        projectile.init(nh);
+    // }
     bool avoid_dynamic_obstacle = false;
 
     ros::Rate rate(settings.tracking.rate);

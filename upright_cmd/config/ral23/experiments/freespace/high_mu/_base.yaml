@@ -1,0 +1,113 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/freespace/_base.yaml
+
+
+simulation:
+  arrangement: blue_cups
+
+controller:
+  balancing:
+    enabled: true
+    frictionless: false
+    arrangement: blue_cups_high_mu
+
+  # constraint orientation so we are never statically unstable
+  inertial_alignment:
+    cost_enabled: false
+    constraint_enabled: true
+    use_angular_acceleration: false
+    align_with_fixed_vector: true
+    contact_plane_normal: [0, 0, 1]
+    alpha: 0.28  # same as μ for the arrangement
+
+  arrangements:
+    blue_cups_high_mu:
+      objects:
+        -
+          name: cup1
+          type: blue_cup
+          parent: ee
+          offset:
+            x: -0.1075
+            y: -0.0925
+        -
+          name: cup2
+          type: blue_cup
+          parent: ee
+          offset:
+            x: -0.0075
+            y: -0.0925
+        -
+          name: cup3
+          type: blue_cup
+          parent: ee
+          offset:
+            x: 0.0925
+            y: -0.0925
+        -
+          name: cup4
+          type: blue_cup
+          parent: ee
+          offset:
+            x: 0.1075
+        -
+          name: cup5
+          type: blue_cup
+          parent: ee
+          offset:
+            x: 0.0925
+            y: 0.0925
+        -
+          name: cup6
+          type: blue_cup
+          parent: ee
+          offset:
+            x: -0.0075
+            y: 0.0925
+        -
+          name: cup7
+          type: blue_cup
+          parent: ee
+          offset:
+            x: -0.1075
+            y: 0.0925
+      # 150% of μ = 0.42
+      # 125% of μ = 0.35
+      contacts:
+        -
+          first: ee
+          second: cup1
+          mu: 0.35
+          support_area_inset: 0.005
+        -
+          first: ee
+          second: cup2
+          mu: 0.35
+          support_area_inset: 0.005
+        -
+          first: ee
+          second: cup3
+          mu: 0.35
+          support_area_inset: 0.005
+        -
+          first: ee
+          second: cup4
+          mu: 0.35
+          support_area_inset: 0.005
+        -
+          first: ee
+          second: cup5
+          mu: 0.35
+          support_area_inset: 0.005
+        -
+          first: ee
+          second: cup6
+          mu: 0.35
+          support_area_inset: 0.005
+        -
+          first: ee
+          second: cup7
+          mu: 0.35
+          support_area_inset: 0.005

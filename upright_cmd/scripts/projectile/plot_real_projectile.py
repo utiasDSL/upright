@@ -27,11 +27,11 @@ def main():
 
     bag = rosbag.Bag(args.bagfile)
 
-    est_msgs = [msg for _, msg, _ in bag.read_messages("/ThingProjectile/joint_states")]
+    est_msgs = [msg for _, msg, _ in bag.read_messages("/projectile/joint_states")]
     est_positions = np.array([msg.position for msg in est_msgs])
     est_velocities = np.array([msg.velocity for msg in est_msgs])
 
-    vicon_msgs = [msg for _, msg, _ in bag.read_messages("/vicon/ThingProjectile/ThingProjectile")]
+    vicon_msgs = [msg for _, msg, _ in bag.read_messages("/vicon/ThingVolleyBall/ThingVolleyBall")]
     _, vicon_poses = parse_vicon_msgs(vicon_msgs)
     vicon_positions = vicon_poses[:, :3]
 

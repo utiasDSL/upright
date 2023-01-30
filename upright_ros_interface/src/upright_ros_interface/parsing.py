@@ -22,7 +22,7 @@ def parse_mpc_observation_msgs(msgs, normalize_time=True):
     return ts, np.array(xs), np.array(us)
 
 
-def parse_object_error(bag, tray_vicon_name, object_vicon_name, return_times=False):
+def parse_object_error(bag, tray_vicon_name, object_vicon_name, return_times=False, quiet=True):
     """Parse error of object over time.
 
     Error is the distance of the object from its initial position w.r.t. the tray.
@@ -66,8 +66,10 @@ def parse_object_error(bag, tray_vicon_name, object_vicon_name, return_times=Fal
 
     # compute distance w.r.t. the initial position
     r_ot_t_err = r_ot_ts - r_ot_ts[0, :]
-    print(f"Initial offset of object w.r.t. tray = {r_ot_ts[0, :]} (distance = {np.linalg.norm(r_ot_ts[0, :])})")
+    if not quiet:
+        print(f"Initial offset of object w.r.t. tray = {r_ot_ts[0, :]} (distance = {np.linalg.norm(r_ot_ts[0, :])})")
     distances = np.linalg.norm(r_ot_t_err, axis=1)
+
     if return_times:
         return distances, ts
     return distances
