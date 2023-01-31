@@ -22,6 +22,9 @@ def main():
     mpc_obs_msgs = [
         msg for _, msg, _ in bag.read_messages("/mobile_manipulator_mpc_observation")
     ]
+    mpc_plan_msgs = [
+        msg for _, msg, _ in bag.read_messages("/mobile_manipulator_mpc_plan")
+    ]
 
     tas, qas, vas = ros_utils.parse_ur10_joint_state_msgs(
         ur10_msgs, normalize_time=False
@@ -30,9 +33,24 @@ def main():
         ridgeback_msgs, normalize_time=False
     )
     tms, xms, ums = parse_mpc_observation_msgs(mpc_obs_msgs, normalize_time=False)
+    tps, xps, ups = parse_mpc_observation_msgs(mpc_plan_msgs, normalize_time=False)
 
     # use arm messages for timing
+    # TODO no need to include anything before the first policy message is
+    # received
     ts = tas
+
+    # only start just before the first observation is published
+    start_idx = np.argmax(ts >= tms[0]) - 1
+    assert start_idx >= 0
+
+    ts = ts[start_idx:]
+    qas = qas[start_idx:, :]
+    vas = vas[start_idx:, :]
+
+    # import IPython
+    # IPython.embed()
+    # return
 
     # align base messages with the arm messages
     qbs_aligned = ros_utils.interpolate_list(ts, tbs, qbs)
@@ -53,11 +71,20 @@ def main():
     as_obs = xms_aligned[:, 2*n:3*n]
     us_obs = ums_aligned[:, :n]
 
+    # align MPC optimal trajectory
+    xps_aligned = np.array(ros_utils.interpolate_list(ts, tps, xps))
+    qs_plan = xps_aligned[:, :n]
+    vs_plan = xps_aligned[:, n:2*n]
+    as_plan = xps_aligned[:, 2*n:3*n]
+
     ts -= ts[0]
+
+    prop_cycle = plt.rcParams["axes.prop_cycle"]
+    colors = prop_cycle.by_key()["color"]
 
     plt.figure()
     for i in range(n):
-        plt.plot(ts, qs_real[:, i], label=f"q_{i+1}")
+        plt.plot(ts, qs_real[:, i], label=f"$q_{i+1}$")
     plt.title("Real Joint Positions")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint position")
@@ -66,16 +93,18 @@ def main():
 
     plt.figure()
     for i in range(n):
-        plt.plot(ts, qs_obs[:, i], label=f"q_{i+1}")
+        plt.plot(ts, qs_obs[:, i], label=f"$\hat{{q}}_{i+1}$")
+    for i in range(n):
+        plt.plot(ts, qs_plan[:, i], label=f"$q^{{plan}}_{i+1}$", linestyle="--", color=colors[i])
     plt.title("Estimated Joint Positions")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint position")
-    plt.legend()
+    plt.legend(ncols=2)
     plt.grid()
 
     plt.figure()
     for i in range(n):
-        plt.plot(ts, qs_real[:, i] - qs_obs[:, i], label=f"q_{i+1}")
+        plt.plot(ts, qs_real[:, i] - qs_obs[:, i], label=f"$q_{i+1}$")
     plt.title("Joint Position Error")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint position")
@@ -84,7 +113,7 @@ def main():
 
     plt.figure()
     for i in range(n):
-        plt.plot(ts, vs_real[:, i], label=f"v_{i+1}")
+        plt.plot(ts, vs_real[:, i], label=f"$v_{i+1}$")
     plt.title("Real Joint Velocity")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint velocity")
@@ -93,16 +122,18 @@ def main():
 
     plt.figure()
     for i in range(n):
-        plt.plot(ts, vs_obs[:, i], label=f"v_{i+1}")
-    plt.title("Estimated Joint Velocity")
+        plt.plot(ts, vs_obs[:, i], label=f"$\hat{{v}}_{i+1}$")
+    for i in range(n):
+        plt.plot(ts, vs_plan[:, i], label=f"$v^{{plan}}_{i+1}$", linestyle="--", color=colors[i])
+    plt.title("Estimated and Planned Joint Velocity")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint velocity")
-    plt.legend()
+    plt.legend(ncol=2)
     plt.grid()
 
     plt.figure()
     for i in range(n):
-        plt.plot(ts, vs_real[:, i] - vs_obs[:, i], label=f"v_{i+1}")
+        plt.plot(ts, vs_real[:, i] - vs_obs[:, i], label=f"$v_{i+1}$")
     plt.title("Joint Velocity Error")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint velocity")
@@ -111,16 +142,18 @@ def main():
 
     plt.figure()
     for i in range(n):
-        plt.plot(ts, as_obs[:, i], label=f"a_{i+1}")
+        plt.plot(ts, as_obs[:, i], label=f"$\hat{{a}}_{i+1}$")
+    for i in range(n):
+        plt.plot(ts, as_plan[:, i], label=f"$a^{{plan}}_{i+1}$", linestyle="--", color=colors[i])
     plt.title("Estimated Joint Acceleration")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint acceleration")
-    plt.legend()
+    plt.legend(ncol=2)
     plt.grid()
 
     plt.figure()
     for i in range(n):
-        plt.plot(ts, us_obs[:, i], label=f"j_{i+1}")
+        plt.plot(ts, us_obs[:, i], label=f"$j_{i+1}$")
     plt.title("Joint (Jerk) Input")
     plt.xlabel("Time (s)")
     plt.ylabel("Joint jerk")
