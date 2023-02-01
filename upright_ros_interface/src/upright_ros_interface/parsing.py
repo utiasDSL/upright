@@ -22,7 +22,18 @@ def parse_mpc_observation_msgs(msgs, normalize_time=True):
     return ts, np.array(xs), np.array(us)
 
 
-def parse_object_error(bag, tray_vicon_name, object_vicon_name, return_times=False, quiet=True):
+def sort_list_by(ts, values):
+    idx = np.argsort(ts)
+    if not (idx == np.arange(len(ts))).all():
+        print("Time not monotonic!")
+        ts = ts[idx]
+        values = values[idx]
+    return ts, values
+
+
+def parse_object_error(
+    bag, tray_vicon_name, object_vicon_name, return_times=False, quiet=False
+):
     """Parse error of object over time.
 
     Error is the distance of the object from its initial position w.r.t. the tray.
@@ -40,9 +51,15 @@ def parse_object_error(bag, tray_vicon_name, object_vicon_name, return_times=Fal
     ts, tray_poses = ros_utils.parse_transform_stamped_msgs(
         tray_msgs, normalize_time=False
     )
+
+    # rarely a message may be received out of order
+    ts, tray_poses = sort_list_by(ts, tray_poses)
+
     ts_obj, obj_poses = ros_utils.parse_transform_stamped_msgs(
         obj_msgs, normalize_time=False
     )
+    ts_obj, obj_poses = sort_list_by(ts_obj, obj_poses)
+
     r_ow_ws = np.array(ros_utils.interpolate_list(ts, ts_obj, obj_poses[:, :3]))
     t0 = ts[0]
     ts -= t0
@@ -67,7 +84,9 @@ def parse_object_error(bag, tray_vicon_name, object_vicon_name, return_times=Fal
     # compute distance w.r.t. the initial position
     r_ot_t_err = r_ot_ts - r_ot_ts[0, :]
     if not quiet:
-        print(f"Initial offset of object w.r.t. tray = {r_ot_ts[0, :]} (distance = {np.linalg.norm(r_ot_ts[0, :])})")
+        print(
+            f"Initial offset of object w.r.t. tray = {r_ot_ts[0, :]} (distance = {np.linalg.norm(r_ot_ts[0, :])})"
+        )
     distances = np.linalg.norm(r_ot_t_err, axis=1)
 
     if return_times:

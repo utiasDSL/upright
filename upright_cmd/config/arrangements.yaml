@@ -232,13 +232,13 @@ arrangements:
         type: blue_cup
         parent: ee
         offset:
-          x: 0.1075
+          x: 0.0925
       -
         name: cup5
         type: blue_cup
         parent: ee
         offset:
-          x: 0.0925
+          x: 0.0875  # NOTE: moved back slightly to avoid hitting a marker
           y: 0.0925
       -
         name: cup6

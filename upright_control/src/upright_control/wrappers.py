@@ -284,11 +284,18 @@ class ControllerSettings(bindings.ControllerSettings):
         ctrl_objects, contacts = core.parsing.parse_control_objects(config)
         self.balancing_settings.objects = ctrl_objects
         self.balancing_settings.contacts = contacts
-        self.dims.c = len(contacts)
 
-        # dimension of each force variable: only one if we assume frictionless
-        # contacts; three otherwise
-        self.dims.nf = 1 if config["balancing"]["frictionless"] else 3
+        if self.balancing_settings.enabled:
+            self.dims.c = len(contacts)
+
+            # dimension of each force variable: only one if we assume frictionless
+            # contacts; three otherwise
+            self.dims.nf = 1 if config["balancing"]["frictionless"] else 3
+        else:
+            # if we aren't balancing then we don't want to augment the problem
+            # with extra variables
+            self.dims.c = 0
+            self.dims.nf = 0
 
         self.balancing_settings.constraints_enabled.normal = config["balancing"][
             "enable_normal_constraint"
