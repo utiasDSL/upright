@@ -283,6 +283,7 @@ class BulletDynamicObstacle:
         radius=0.1,
         controlled=False,
         collides=True,
+        color=(0, 0, 1, 1),
     ):
         self.start_time = None
         self._mode_idx = 0
@@ -296,7 +297,7 @@ class BulletDynamicObstacle:
         self.collides = collides
         self.K = 10 * np.eye(3)  # position gain
 
-        self.body = BulletBody.sphere(mass=1, mu=1, radius=radius)
+        self.body = BulletBody.sphere(mass=1, mu=1, radius=radius, color=color)
         self.body.r0 = np.array(positions[0])
 
     @classmethod
@@ -406,9 +407,8 @@ class EEObject:
         self.r0 = position
         self.side_lengths = side_lengths
         self.mu = 1.0
-        # C = math.quat_to_rot(orientation)
         self.box = polyhedron.ConvexPolyhedron.box(0.5 * self.side_lengths).transform(
-            translation=self.r0
+            translation=self.r0, rotation=orientation,
         )
 
     @property
@@ -420,11 +420,13 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
     arrangement_name = config["arrangement"]
     arrangement = config["arrangements"][arrangement_name]
 
+    C_we = core.math.quat_to_rot(Q_we)
+
     # make "fake" EE object
     ee_config = config["objects"]["ee"]
-    ee_position = r_ew_w + ee_config["position"]
+    ee_position = r_ew_w + C_we @ ee_config["position"]
     ee_side_lengths = np.array(ee_config["side_lengths"])
-    objects = {"ee": EEObject(ee_position, Q_we, ee_side_lengths)}
+    objects = {"ee": EEObject(ee_position, C_we, ee_side_lengths)}
 
     mus = parsing.parse_mu_dict(arrangement["contacts"], apply_margin=False)
 
@@ -436,9 +438,9 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
         obj_type = obj_instance_conf["type"]
         obj_type_conf = config["objects"][obj_type]
 
-        orientation = obj_instance_conf.get("orientation", np.array([0, 0, 0, 1]))
-        orientation = orientation / np.linalg.norm(orientation)
-        # orientation = math.quat_multiply(Q_we, orientation)
+        Q_eo = obj_instance_conf.get("orientation", np.array([0, 0, 0, 1]))
+        Q_eo = Q_eo / np.linalg.norm(Q_eo)
+        Q_wo = math.quat_multiply(Q_we, Q_eo)
 
         parent_name = obj_instance_conf["parent"]
         parent = objects[parent_name]
@@ -449,26 +451,32 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
         if fixture and parent_name != "ee":
             raise ValueError("Only objects with parent 'ee' can be fixtures.")
 
-        # PyBullet calculates coefficient of friction between two
-        # bodies by multiplying them. Thus, to achieve our actual
-        # desired friction at the support we need to divide the desired
-        # value by the parent value to get the simulated value.
+        # PyBullet calculates coefficient of friction between two bodies by
+        # multiplying them. Thus, to achieve our actual desired friction at the
+        # support we need to divide the desired value by the parent value to
+        # get the simulated value.
         if fixture:
             pyb_mu = objects["ee"].mu
         else:
             real_mu = mus[parent_name][obj_name]
             pyb_mu = real_mu / parent.mu
 
-        obj = BulletBody.from_config(obj_type_conf, mu=pyb_mu, orientation=orientation)
+        obj = BulletBody.from_config(obj_type_conf, mu=pyb_mu, orientation=Q_wo)
 
-        obj.r0 = parent.r0.copy()
-        z = np.array([0, 0, 1])
+        # parse offset from parent (in EE frame)
+        z = C_we @ np.array([0, 0, 1])
         d1 = parent.box.distance_from_centroid_to_boundary(z)
         d2 = obj.box.distance_from_centroid_to_boundary(-z)
-        obj.r0[2] += d1 + d2
 
+        r_op_e_z = d1 + d2
+        r_op_e_xy = np.zeros(2)
         if "offset" in obj_instance_conf:
-            obj.r0[:2] += parsing.parse_support_offset(obj_instance_conf["offset"])
+            r_op_e_xy = parsing.parse_support_offset(obj_instance_conf["offset"])
+
+        r_op_e = np.append(r_op_e_xy, r_op_e_z)
+
+        # convert offset to the world frame
+        obj.r0 = parent.r0 + C_we @ r_op_e
 
         obj.add_to_sim()
         objects[obj_name] = obj

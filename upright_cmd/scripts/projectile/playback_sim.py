@@ -11,6 +11,7 @@ import pybullet as pyb
 import matplotlib.pyplot as plt
 from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
+import mobile_manipulation_central as mm
 
 from upright_sim import simulation
 from upright_core.logging import DataLogger, DataPlotter
@@ -19,6 +20,12 @@ import upright_control as ctrl
 import upright_cmd as cmd
 
 import IPython
+
+
+# TODO fix inconsistent variable naming
+
+
+VICON_PROJECTILE_NAME = "ThingVolleyBall"
 
 
 def main():
@@ -41,7 +48,6 @@ def main():
 
     # settle sim to make sure everything is touching comfortably
     sim.settle(5.0)
-    # sim.launch_dynamic_obstacles()
 
     # initial time, state, input
     t = 0.0
@@ -79,7 +85,6 @@ def main():
     )
     t0 = base_cmd_ts[0]
     base_cmd_ts -= t0
-    base_cmd_index = 0
 
     arm_cmd_msgs = [msg for _, msg, _ in bag.read_messages("/ur10/cmd_vel")]
     arm_cmd_vels = np.array([msg.data for msg in arm_cmd_msgs])
@@ -87,11 +92,10 @@ def main():
         [t.to_sec() for _, _, t in bag.read_messages("/ur10/cmd_vel")]
     )
     arm_cmd_ts -= t0
-    arm_cmd_index = 0
 
-    projectile_msgs = [
-        msg for _, msg, _ in bag.read_messages("/vicon/ThingVolleyBall/ThingVolleyBall")
-    ]
+    # real projectile position data from Vicon
+    projectile_topic_name = mm.ros_utils.vicon_topic_name(VICON_PROJECTILE_NAME)
+    projectile_msgs = [msg for _, msg, _ in bag.read_messages(projectile_topic_name)]
     projectile_positions = np.array(
         [
             [
@@ -103,21 +107,40 @@ def main():
         ]
     )
     projectile_velocities = np.zeros_like(projectile_positions)
-
     projectile_ts = np.array([msg.header.stamp.to_sec() for msg in projectile_msgs])
     projectile_ts -= t0
+
+    # build model of the projectile
     projectile = simulation.BulletDynamicObstacle(
-        [0], [projectile_positions[0, :]], [projectile_velocities[0, :]], [np.zeros(3)],
+        [0],
+        [projectile_positions[0, :]],
+        [projectile_velocities[0, :]],
+        [np.zeros(3)],
+        collides=True,
     )
     projectile.start(0)
-    projectile_index = 0
-    K_proj = 100
 
-    projectile_msgs_est = [msg for _, msg, _ in bag.read_messages("/projectile/joint_states")]
-    projectile_ts_est = np.array([msg.header.stamp.to_sec() for msg in projectile_msgs_est])
+    # estimated projectile state
+    projectile_msgs_est = [
+        msg for _, msg, _ in bag.read_messages("/projectile/joint_states")
+    ]
+    projectile_ts_est = np.array(
+        [msg.header.stamp.to_sec() for msg in projectile_msgs_est]
+    )
     projectile_ts_est -= t0
     projectile_rs_est = np.array([msg.position for msg in projectile_msgs_est])
     projectile_vs_est = np.array([msg.velocity for msg in projectile_msgs_est])
+
+    # build model of estimated projectile
+    estimated_projectile = simulation.BulletDynamicObstacle(
+        [0],
+        [projectile_rs_est[0, :]],
+        [projectile_vs_est[0, :]],
+        [np.zeros(3)],
+        color=(0, 1, 0, 1),
+        collides=False,
+    )
+    estimated_projectile.start(0)
 
     # reference pose trajectory
     model.update(x)
@@ -131,42 +154,48 @@ def main():
     t = 0
     duration = arm_cmd_ts[-1]
 
+    # align everything to sim time
+    N = int(duration / sim.timestep)
+    ts = np.arange(N) * sim.timestep
+    base_cmd_vels_aligned = np.array(
+        mm.ros_utils.interpolate_list(ts, base_cmd_ts, base_cmd_vels)
+    )
+    arm_cmd_vels_aligned = np.array(
+        mm.ros_utils.interpolate_list(ts, arm_cmd_ts, arm_cmd_vels)
+    )
+    cmd_vels = np.hstack((base_cmd_vels_aligned, arm_cmd_vels_aligned))
+
+    ball_positions_aligned = np.array(
+        mm.ros_utils.interpolate_list(ts, projectile_ts, projectile_positions)
+    )
+    ball_positions_est_aligned = np.array(
+        mm.ros_utils.interpolate_list(ts, projectile_ts_est, projectile_rs_est)
+    )
+
     # simulation loop
-    while not rospy.is_shutdown() and t <= duration:
-        # feedback is in the world frame
-        q, v = sim.robot.joint_states(add_noise=True, bodyframe=False)
+    for i in range(N):
+        t = ts[i]
 
-        # commands are always in the body frame (to match the real robot)
-        while (
-            base_cmd_index + 1 < base_cmd_ts.shape[0]
-            and base_cmd_ts[base_cmd_index + 1] <= t
-        ):
-            base_cmd_index += 1
-        while (
-            arm_cmd_index + 1 < arm_cmd_ts.shape[0]
-            and arm_cmd_ts[arm_cmd_index + 1] <= t
-        ):
-            arm_cmd_index += 1
-        while (
-            projectile_index + 1 < projectile_ts.shape[0]
-            and projectile_ts[projectile_index + 1] <= t
-        ):
-            projectile_index += 1
-        cmd_vel = np.concatenate(
-            (base_cmd_vels[base_cmd_index, :], arm_cmd_vels[arm_cmd_index, :])
-        )
-        cmd_vel_world = sim.robot.command_velocity(cmd_vel, bodyframe=True)
+        # command robot
+        cmd_vel_world = sim.robot.command_velocity(cmd_vels[i, :], bodyframe=True)
 
+        # set real ball position
         pyb.resetBasePositionAndOrientation(
             projectile.body.uid,
-            list(projectile_positions[projectile_index, :]),
+            list(ball_positions_aligned[i, :]),
             [0, 0, 0, 1],
         )
 
-        # for recording the obstacle position
-        x_obs[:3] = projectile_positions[projectile_index, :]
+        # set estimated ball position
+        pyb.resetBasePositionAndOrientation(
+            estimated_projectile.body.uid,
+            list(ball_positions_est_aligned[i, :]),
+            [0, 0, 0, 1],
+        )
 
         if logger.ready(t):
+            x_obs[:3] = ball_positions_aligned[i, :]
+            q, v = sim.robot.joint_states(add_noise=True, bodyframe=False)
             x = np.concatenate((q, v, a, x_obs))
 
             # log sim stuff
@@ -198,7 +227,7 @@ def main():
             logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
 
-        t = sim.step(t, step_robot=False)[0]
+        sim.step(t, step_robot=False)
         time.sleep(sim.timestep)
 
     try:
@@ -230,6 +259,7 @@ def main():
     plt.grid()
 
     plt.show()
+
 
 if __name__ == "__main__":
     main()

@@ -3,7 +3,6 @@ include:
     package: upright_cmd
     path: config/ral23/experiments/freespace/_base.yaml
 
-
 simulation:
   arrangement: blue_cups
 
@@ -79,35 +78,35 @@ controller:
         -
           first: ee
           second: cup1
-          mu: 0.35
+          mu: 0.42
           support_area_inset: 0.005
         -
           first: ee
           second: cup2
-          mu: 0.35
+          mu: 0.42
           support_area_inset: 0.005
         -
           first: ee
           second: cup3
-          mu: 0.35
+          mu: 0.42
           support_area_inset: 0.005
         -
           first: ee
           second: cup4
-          mu: 0.35
+          mu: 0.42
           support_area_inset: 0.005
         -
           first: ee
           second: cup5
-          mu: 0.35
+          mu: 0.42
           support_area_inset: 0.005
         -
           first: ee
           second: cup6
-          mu: 0.35
+          mu: 0.42
           support_area_inset: 0.005
         -
           first: ee
           second: cup7
-          mu: 0.35
+          mu: 0.42
           support_area_inset: 0.005

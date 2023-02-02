@@ -8,7 +8,8 @@ controller:
         # position is relative to the origin of the world frame. In simulation,
         # position and velocity are (typically) (re-)set by the simulator for
         # maximum accuracy.
-        radius: 0.1
+        # radius: 0.1
+        radius: 0.2
         modes:
           -
             time: 0
@@ -17,8 +18,12 @@ controller:
             acceleration: [0, 0, -9.81]
 
     collision_pairs:
-      # wrist and shoulder
+      # wrist, forearm, and shoulder
       - ["wrist1_collision_link_0", "shoulder_collision_link_0"]
+      - ["wrist3_collision_link_0", "shoulder_collision_link_0"]
+      - ["forearm_collision_sphere_link2_0", "shoulder_collision_link_0"]
+
+      - ["forearm_collision_sphere_link2_0", "balanced_object_collision_link_0"]
 
       # wrist and ground
       - ["wrist3_collision_link_0", "ground"]
@@ -36,7 +41,7 @@ simulation:
         # just be allowed to evolve subject to gravity
         # Note that acceleration is still required either way
         controlled: false
-        radius: 0.1
+        radius: 0.2
         relative: true
         modes:
           -

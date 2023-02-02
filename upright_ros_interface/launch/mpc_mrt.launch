@@ -8,9 +8,7 @@
   <param name="/use_sim_time" value="$(arg use_sim_time)" type="bool"/>
 
   <!-- MPC -->
-  <include file="$(find upright_ros_interface)/launch/mpc.launch" >
-    <arg name="config" value="$(arg config)"/>
-  </include>
+  <node pkg="upright_ros_interface" type="mpc_node" name="mpc_node" output="screen" required="True" args="$(arg config)" />
 
   <!-- MRT -->
   <node pkg="upright_ros_interface" type="mrt_node" name="mrt_node" output="screen" required="True" args="$(arg config)" />

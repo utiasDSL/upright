@@ -13,6 +13,7 @@ simulation:
 controller:
   balancing:
     enabled: false
+    arrangement: blue_cups
 
   inertial_alignment:
     constraint_enabled: true
