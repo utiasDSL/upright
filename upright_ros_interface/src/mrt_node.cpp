@@ -89,11 +89,11 @@ Mat2d rot2d(double angle) {
 
 Vec3d compute_goal_from_projectile(const VecXd& x, const Vec3d& r_ew_w,
                                    double distance) {
-    VecXd q = x.head(9);  // TODO hard code
+    // VecXd q = x.head(9);  // TODO hard code
     VecXd x_obs = x.tail(9);
-
     Vec3d r_obs = x_obs.head(3);
     Vec3d v_obs = x_obs.segment(3, 3);
+
     // Vec3d r_int;
     // bool success;
     // std::tie(success, r_int) =
@@ -102,15 +102,12 @@ Vec3d compute_goal_from_projectile(const VecXd& x, const Vec3d& r_ew_w,
     //     std::cout << "FAILED TO SOLVE PROJECTILE HEIGHT!" << std::endl;
     // }
 
+    // std::cout << "q = " << q.transpose() << std::endl;
     std::cout << "x_obs = " << x_obs.transpose() << std::endl;
     std::cout << "r_ew_w = " << r_ew_w.transpose() << std::endl;
     // std::cout << "r_int = " << r_int.transpose() << std::endl;
 
     // Normal of the plane of flight of the ball
-    // We make it so that it points away from the predicted intersection
-    // location
-    // TODO r_int is not needed: we can find direction directly from n_obs,
-    // r_obs, and r_ew_w
     Vec3d n_obs = v_obs.cross(Vec3d::UnitZ()).normalized();
     Vec3d delta = r_ew_w - r_obs;
     if (n_obs.dot(delta) < 0) {
@@ -121,24 +118,26 @@ Vec3d compute_goal_from_projectile(const VecXd& x, const Vec3d& r_ew_w,
 
     // Find angle of ball normal w.r.t. the EE direction
     // TODO bit of a hack
-    double yaw = q(2);
-    Vec2d n_ee(cos(yaw), sin(yaw));
-    double angle = angle_between(n_obs.head(2), n_ee);
-
-    std::cout << "angle = " << angle << std::endl;
+    // double yaw = q(2);
+    // Vec2d n_ee(cos(yaw), sin(yaw));
+    // double angle = angle_between(n_obs.head(2), n_ee);
+    //
+    // std::cout << "yaw = " << yaw << std::endl;
+    // std::cout << "n_ee = " << n_ee << std::endl;
+    // std::cout << "angle = " << angle << std::endl;
 
     // Limit the angle to pre-specified bounds w.r.t. the EE. These are roughly
     // chosen as fairly "free" directions in which the robot can move quickly.
-    if (angle > 0) {
-        angle = std::min(std::max(angle, 0 * M_PI), 0.875 * M_PI);
-    } else {
-        angle = -std::min(std::max(-angle, 0 * M_PI), 0.875 * M_PI);
-    }
+    // if (angle > 0) {
+    //     angle = std::min(std::max(angle, 0 * M_PI), 0.875 * M_PI);
+    // } else {
+    //     angle = -std::min(std::max(-angle, 0 * M_PI), 0.875 * M_PI);
+    // }
 
     // if ball is going to land in front of EE, go up
     // if ball is going to land behind EE, go down
-    double dz_goal = 0;
-    // if (v_obs.head(2).dot(delta) >= 0) {
+    // double dz_goal = 0;
+    // if (v_obs.head(2).dot(r_ew_w - r_int) >= 0) {
     //     // ball is in front of EE: go up
     //     dz_goal = 0.25;
     // } else {
@@ -147,31 +146,14 @@ Vec3d compute_goal_from_projectile(const VecXd& x, const Vec3d& r_ew_w,
     // }
 
     // for now, just always move the EE
-    Vec2d n_goal = rot2d(angle) * n_ee;
-    Vec3d n_goal3d;
-    n_goal3d << distance * n_goal, dz_goal;
-    Vec3d goal = r_ew_w + n_goal3d;
+    // Vec2d n_goal = rot2d(angle) * n_ee;
+    // Vec3d relative_goal;
+    // relative_goal << distance * rot2d(angle) * n_ee, dz_goal;
+    // relative_goal << distance * n_obs.head(2), dz_goal;
+    // std::cout << "n_goal3d = " << n_goal3d << std::endl;
+    // Vec3d goal = r_ew_w + relative_goal;
+    Vec3d goal = r_ew_w + distance * n_obs;
     return goal;
-
-    // std::cout << "n_goal = " << n_goal.transpose() << std::endl;
-    //
-    // Vec2d delta2d = -delta.head(2);
-    // Vec2d delta2d_perp = delta2d - delta2d.dot(n_goal) * n_goal;
-    // double w = delta2d_perp.norm();
-    // if (w >= d) {
-    //
-    // }
-    // double d = sqrt(distance * distance - w * w);
-    // Vec2d goal2d = r_int.head(2) - delta2d_perp + d * n_goal;
-    //
-    // std::cout << "d = " << d << std::endl;
-    // std::cout << "delta2d = " << delta2d.transpose() << std::endl;
-    // std::cout << "delta2d_perp = " << delta2d_perp.transpose() << std::endl;
-    // std::cout << "goal2d = " << goal2d.transpose() << std::endl;
-    //
-    // Vec3d goal;
-    // goal << goal2d, r_ew_w(2);
-    // return goal;
 }
 
 int main(int argc, char** argv) {
@@ -332,6 +314,7 @@ int main(int argc, char** argv) {
     ocs2::scalar_t last_t = t;
     const ocs2::scalar_t t0 = t;
 
+    // TODO move these up
     std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd> kinematics_ptr(
         interface.get_end_effector_kinematics().clone());
 
