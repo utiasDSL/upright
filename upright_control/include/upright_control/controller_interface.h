@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_oc/synchronized_module/ReferenceManagerInterface.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
+#include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <ocs2_robotic_tools/common/RobotInterface.h>
 #include <ocs2_self_collision/PinocchioGeometryInterface.h>
@@ -71,11 +72,14 @@ class ControllerInterface final : public ocs2::RobotInterface {
 
     std::unique_ptr<ocs2::MPC_BASE> get_mpc();
 
-
     const ocs2::RolloutBase& get_rollout() const { return *rollout_ptr_; }
 
     const ocs2::PinocchioInterface& get_pinocchio_interface() const {
         return *pinocchio_interface_ptr;
+    }
+
+    ocs2::PinocchioEndEffectorKinematicsCppAd& get_end_effector_kinematics() const {
+        return *end_effector_kinematics_ptr_;
     }
 
    private:
@@ -142,6 +146,7 @@ class ControllerInterface final : public ocs2::RobotInterface {
     std::unique_ptr<ocs2::Initializer> initializer_ptr_;
     std::shared_ptr<ocs2::ReferenceManager> reference_manager_ptr_;
     std::unique_ptr<ocs2::PinocchioInterface> pinocchio_interface_ptr;
+    std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd> end_effector_kinematics_ptr_;
 
     VecXd initial_state_;
 };

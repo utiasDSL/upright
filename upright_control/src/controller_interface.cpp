@@ -276,6 +276,9 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         settings_.dims.x(), settings_.dims.u(), "end_effector_kinematics",
         settings_.lib_folder, recompile_libraries, false);
 
+    // Store for possible use by other callers.
+    end_effector_kinematics_ptr_.reset(end_effector_kinematics.clone());
+
     // End effector pose cost
     std::unique_ptr<ocs2::StateCost> end_effector_cost(new EndEffectorCost(
         settings_.end_effector_weight, end_effector_kinematics));

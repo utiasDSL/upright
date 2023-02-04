@@ -3,6 +3,7 @@
 #include <mobile_manipulation_central/robot_interfaces.h>
 #include <ocs2_mpc/SystemObservation.h>
 #include <ocs2_msgs/mpc_observation.h>
+#include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_ros_interfaces/mrt/MRT_ROS_Interface.h>
 #include <pybind11/embed.h>
 #include <realtime_tools/realtime_publisher.h>
@@ -19,7 +20,14 @@
 
 using namespace upright;
 
+enum class ProjectileState {
+    Preflight,
+    Flight,
+    Postflight,
+};
+
 const double PROJECTILE_ACTIVATION_HEIGHT = 1.0;  // meters
+const double PROJECTILE_DEACTIVATION_HEIGHT = 0.2;
 
 // Robot is a global variable so we can send it a brake command in the SIGINT
 // handler
@@ -33,13 +41,137 @@ void sigint_handler(int sig) {
     ros::shutdown();
 }
 
-// Double integration using semi-implicit Euler method
-std::tuple<VecXd, VecXd> double_integrate(const VecXd& v, const VecXd& a,
-                                          const VecXd& u,
-                                          ocs2::scalar_t timestep) {
-    VecXd a_new = a + timestep * u;
-    VecXd v_new = v + timestep * a_new;
-    return std::tuple<VecXd, VecXd>(v_new, a_new);
+// Solve for (x, y) and time t when projectile reaches a given height (in the
+// future).
+std::tuple<bool, Vec3d> solve_projectile_height(const Vec3d& r0,
+                                                const Vec3d& v0, double h,
+                                                double g) {
+    bool success = false;
+    double z0 = r0(2);
+    double vz = v0(2);
+
+    // solve for intersection time
+    // check if discriminant is negative (which means no real solutions)
+    double t = 0;
+    double disc = vz * vz - 2 * (z0 - h) * g;
+    if (disc >= 0) {
+        success = true;
+        double s = sqrt(disc);
+        double t1 = (-vz - s) / g;
+        double t2 = (-vz + s) / g;
+        t = std::max(t1, t2);
+    }
+
+    // solve for intersection point
+    Vec3d r = r0 + t * v0 + 0.5 * t * t * Vec3d(0, 0, g);
+
+    return std::tuple<bool, Vec3d>(success, r);
+}
+
+Vec2d perp2d(const Vec2d& a) { return Vec2d(-a(1), a(0)); }
+
+double angle_between(const Vec2d& a, const Vec2d& b) {
+    double angle = acos(a.dot(b));
+    Vec2d a_perp = perp2d(a);
+    if (b.dot(a_perp) > 0) {
+        angle = -angle;
+    }
+    return angle;
+}
+
+Mat2d rot2d(double angle) {
+    double c = cos(angle);
+    double s = sin(angle);
+    Mat2d C;
+    C << c, -s, s, c;
+    return C;
+}
+
+Vec3d compute_goal_from_projectile(const VecXd& x, const Vec3d& r_ew_w,
+                                   double distance) {
+    VecXd q = x.head(9);  // TODO hard code
+    VecXd x_obs = x.tail(9);
+
+    Vec3d r_obs = x_obs.head(3);
+    Vec3d v_obs = x_obs.segment(3, 3);
+    // Vec3d r_int;
+    // bool success;
+    // std::tie(success, r_int) =
+    //     solve_projectile_height(r_obs, v_obs, r_ew_w(2), -9.81);
+    // if (!success) {
+    //     std::cout << "FAILED TO SOLVE PROJECTILE HEIGHT!" << std::endl;
+    // }
+
+    std::cout << "x_obs = " << x_obs.transpose() << std::endl;
+    std::cout << "r_ew_w = " << r_ew_w.transpose() << std::endl;
+    // std::cout << "r_int = " << r_int.transpose() << std::endl;
+
+    // Normal of the plane of flight of the ball
+    // We make it so that it points away from the predicted intersection
+    // location
+    // TODO r_int is not needed: we can find direction directly from n_obs,
+    // r_obs, and r_ew_w
+    Vec3d n_obs = v_obs.cross(Vec3d::UnitZ()).normalized();
+    Vec3d delta = r_ew_w - r_obs;
+    if (n_obs.dot(delta) < 0) {
+        n_obs *= -1;
+    }
+
+    std::cout << "n_obs = " << n_obs.transpose() << std::endl;
+
+    // Find angle of ball normal w.r.t. the EE direction
+    // TODO bit of a hack
+    double yaw = q(2);
+    Vec2d n_ee(cos(yaw), sin(yaw));
+    double angle = angle_between(n_obs.head(2), n_ee);
+
+    std::cout << "angle = " << angle << std::endl;
+
+    // Limit the angle to pre-specified bounds w.r.t. the EE. These are roughly
+    // chosen as fairly "free" directions in which the robot can move quickly.
+    if (angle > 0) {
+        angle = std::min(std::max(angle, 0 * M_PI), 0.875 * M_PI);
+    } else {
+        angle = -std::min(std::max(-angle, 0 * M_PI), 0.875 * M_PI);
+    }
+
+    // if ball is going to land in front of EE, go up
+    // if ball is going to land behind EE, go down
+    double dz_goal = 0;
+    // if (v_obs.head(2).dot(delta) >= 0) {
+    //     // ball is in front of EE: go up
+    //     dz_goal = 0.25;
+    // } else {
+    //     // ball is behind EE: go down
+    //     dz_goal = -0.25;
+    // }
+
+    // for now, just always move the EE
+    Vec2d n_goal = rot2d(angle) * n_ee;
+    Vec3d n_goal3d;
+    n_goal3d << distance * n_goal, dz_goal;
+    Vec3d goal = r_ew_w + n_goal3d;
+    return goal;
+
+    // std::cout << "n_goal = " << n_goal.transpose() << std::endl;
+    //
+    // Vec2d delta2d = -delta.head(2);
+    // Vec2d delta2d_perp = delta2d - delta2d.dot(n_goal) * n_goal;
+    // double w = delta2d_perp.norm();
+    // if (w >= d) {
+    //
+    // }
+    // double d = sqrt(distance * distance - w * w);
+    // Vec2d goal2d = r_int.head(2) - delta2d_perp + d * n_goal;
+    //
+    // std::cout << "d = " << d << std::endl;
+    // std::cout << "delta2d = " << delta2d.transpose() << std::endl;
+    // std::cout << "delta2d_perp = " << delta2d_perp.transpose() << std::endl;
+    // std::cout << "goal2d = " << goal2d.transpose() << std::endl;
+    //
+    // Vec3d goal;
+    // goal << goal2d, r_ew_w(2);
+    // return goal;
 }
 
 int main(int argc, char** argv) {
@@ -98,9 +230,10 @@ int main(int argc, char** argv) {
     // dynamic obstacles
     mm::ProjectileROSInterface projectile;
     // if (settings.dims.o > 0) {  TODO after experiments
-        projectile.init(nh);
+    projectile.init(nh);
     // }
-    bool avoid_dynamic_obstacle = false;
+    // bool avoid_dynamic_obstacle = false;
+    ProjectileState projectile_state = ProjectileState::Preflight;
 
     ros::Rate rate(settings.tracking.rate);
 
@@ -199,6 +332,12 @@ int main(int argc, char** argv) {
     ocs2::scalar_t last_t = t;
     const ocs2::scalar_t t0 = t;
 
+    std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd> kinematics_ptr(
+        interface.get_end_effector_kinematics().clone());
+
+    // Initial EE position
+    const Vec3d r_ew_w0 = kinematics_ptr->getPosition(x0).front();
+
     // Now that we're all set up and have an initial policy, we can get started
     // moving the robot.
     while (ros::ok()) {
@@ -234,12 +373,78 @@ int main(int argc, char** argv) {
         // Dynamic obstacles
         if (using_projectile && projectile.ready()) {
             Vec3d q_obs = projectile.q();
-            if (q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
-                avoid_dynamic_obstacle = true;
-                std::cout << "  q_obs = " << q_obs.transpose() << std::endl;
-            } else {
-                std::cout << "~ q_obs = " << q_obs.transpose() << std::endl;
+
+            if (projectile_state == ProjectileState::Preflight &&
+                q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
+                // Ball is detected: avoid the ball
+                Vec3d v_obs = projectile.v();
+                Vec3d a_obs = obstacle->modes[0].acceleration;
+                x.tail(9) << q_obs, v_obs, a_obs;
+
+                Vec3d r_ew_w = kinematics_ptr->getPosition(x).front();
+                Vec3d goal = compute_goal_from_projectile(x, r_ew_w, 1);
+                ocs2::vector_array_t new_xs = target.stateTrajectory;
+                new_xs[0].head(3) = goal;
+                ocs2::TargetTrajectories new_target(
+                    target.timeTrajectory, new_xs, target.inputTrajectory);
+
+                std::cout << "x = " << x.transpose() << std::endl;
+                std::cout << "P = " << new_xs[0].transpose() << std::endl;
+
+                // mrt.resetMpcNode(new_target);
+                mrt.resetTarget(new_target);
+
+                projectile_state = ProjectileState::Flight;
+            } else if (projectile_state == ProjectileState::Flight &&
+                       q_obs(2) < PROJECTILE_DEACTIVATION_HEIGHT) {
+                // Ball has passed: go back to the origin
+                ocs2::vector_array_t new_xs = target.stateTrajectory;
+                new_xs[0].head(3) = r_ew_w0;
+                ocs2::TargetTrajectories new_target(
+                    target.timeTrajectory, new_xs, target.inputTrajectory);
+                mrt.resetTarget(new_target);
+
+                projectile_state = ProjectileState::Postflight;
             }
+
+            // Always update state once we're past preflight
+            if (projectile_state != ProjectileState::Preflight) {
+                Vec3d v_obs = projectile.v();
+                Vec3d a_obs = obstacle->modes[0].acceleration;
+                x.tail(9) << q_obs, v_obs, a_obs;
+            }
+
+            //
+            // Vec3d q_obs = projectile.q();
+            // if (q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
+            //     if (projectile_state == ProjectileState::Preflight) {
+            //         // activated for the first time: plan a new trajectory to
+            //         // avoid the ball
+            //         Vec3d v_obs = projectile.v();
+            //         Vec3d a_obs = obstacle->modes[0].acceleration;
+            //         x.tail(9) << q_obs, v_obs, a_obs;
+            //
+            //         Vec3d r_ew_w = kinematics_ptr->getPosition(x).front();
+            //         Vec3d goal = compute_goal_from_projectile(x, r_ew_w, 1);
+            //         ocs2::vector_array_t new_xs = target.stateTrajectory;
+            //         new_xs[0].head(3) = goal;
+            //         ocs2::TargetTrajectories new_target(
+            //             target.timeTrajectory, new_xs,
+            //             target.inputTrajectory);
+            //
+            //         std::cout << "x = " << x.transpose() << std::endl;
+            //         std::cout << "P = " << new_xs[0].transpose() <<
+            //         std::endl;
+            //
+            //         // mrt.resetMpcNode(new_target);
+            //         mrt.resetTarget(new_target);
+            //     }
+            //     projectile_state = ProjectileState::Flight;
+            //     // avoid_dynamic_obstacle = true;
+            //     std::cout << "  q_obs = " << q_obs.transpose() << std::endl;
+            // } else {
+            //     std::cout << "~ q_obs = " << q_obs.transpose() << std::endl;
+            // }
 
             // TODO we could have the MPC reset if the projectile was inside
             // the "awareness zone" but then leaves, such that the robot is
@@ -247,11 +452,11 @@ int main(int argc, char** argv) {
 
             // TODO should this eventually stop? like when the obstacle goes
             // below a certain threshold?
-            if (avoid_dynamic_obstacle) {
-                Vec3d v_obs = projectile.v();
-                Vec3d a_obs = obstacle->modes[0].acceleration;
-                x.tail(9) << q_obs, v_obs, a_obs;
-            }
+            // if (projectile_state == projectile_state::Flight) {
+            //     Vec3d v_obs = projectile.v();
+            //     Vec3d a_obs = obstacle->modes[0].acceleration;
+            //     x.tail(9) << q_obs, v_obs, a_obs;
+            // }
         } else if (using_stationary) {
             if (t - t0 <= obstacle->modes[1].time) {
                 x.tail(9) = obstacle->modes[0].state();

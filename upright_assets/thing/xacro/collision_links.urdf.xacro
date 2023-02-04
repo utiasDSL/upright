@@ -52,6 +52,18 @@
     <child link="shoulder_collision_link"/>
   </joint>
 
+  <xacro:collision_link name="upper_arm_collision_link1">
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <geometry>
+      <sphere radius="0.15"/>
+    </geometry>
+  </xacro:collision_link>
+  <joint name="upper_arm_collision_joint1" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 0.2"/>
+    <parent link="ur10_arm_upper_arm_link"/>
+    <child link="upper_arm_collision_link1"/>
+  </joint>
+
   <!-- Collision sphere for the elbow -->
   <!-- <xacro:collision_link name="elbow_collision_link"> -->
   <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->

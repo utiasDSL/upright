@@ -21,6 +21,7 @@ logging:
 simulation:
   duration: 10.0
   arrangement: pink_bottle
+  # arrangement: blue_cups
 
   dynamic_obstacles:
     enabled: true
@@ -40,6 +41,7 @@ controller:
     frictionless: true
     use_force_constraints: true
     arrangement: pink_bottle
+    # arrangement: blue_cups
     constraint_type: hard
     enable_normal_constraint: true
     enable_friction_constraint: true
@@ -64,7 +66,7 @@ controller:
       diag: [0rep9, 10rep9, 1rep9]
     end_effector:
       scale: 1
-      diag: [1, 1, 1, 0, 0, 0]
+      diag: [10, 10, 10, 0, 0, 0]  # NOTE
 
   obstacles:
     enabled: true
@@ -73,7 +75,7 @@ controller:
 
   end_effector_box_constraint:
     enabled: false
-    xyz_lower: [-1., -1., -0.5]
+    xyz_lower: [-1., -1., -1.]
     xyz_upper: [1., 1., 1]
 
   waypoints:
