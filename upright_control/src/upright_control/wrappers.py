@@ -34,11 +34,13 @@ class TargetTrajectories(bindings.TargetTrajectories):
             r_ew_w_d = r_ew_w + waypoint["position"]
             Q_we_d = core.math.quat_multiply(Q_we, waypoint["orientation"])
 
-            p = r_ew_w - [10, 0, 0]
-            n = r_ew_w - p
-            n = n / np.linalg.norm(n)
+            # p = r_ew_w - [10, 0, 0]
+            s = 0
+            n = np.array([1, 0, 0])
+            # n = n / np.linalg.norm(n)
 
-            x = np.concatenate((r_ew_w_d, Q_we_d, p, n))
+            # x = np.concatenate((r_ew_w_d, Q_we_d, p, n))
+            x = np.concatenate((r_ew_w_d, Q_we_d, [s], n))
 
             ts.append(t)
             us.append(np.copy(u))
