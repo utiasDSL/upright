@@ -87,25 +87,34 @@ Mat2d rot2d(double angle) {
     return C;
 }
 
-Vec3d compute_goal_from_projectile(const VecXd& x, const Vec3d& r_ew_w,
-                                   double distance) {
-    // VecXd q = x.head(9);  // TODO hard code
+VecXd compute_projectile_plane(const VecXd& x, const Vec3d& r_ew_w) {
     VecXd x_obs = x.tail(9);
     Vec3d r_obs = x_obs.head(3);
     Vec3d v_obs = x_obs.segment(3, 3);
 
-    // Vec3d r_int;
-    // bool success;
-    // std::tie(success, r_int) =
-    //     solve_projectile_height(r_obs, v_obs, r_ew_w(2), -9.81);
-    // if (!success) {
-    //     std::cout << "FAILED TO SOLVE PROJECTILE HEIGHT!" << std::endl;
-    // }
-
-    // std::cout << "q = " << q.transpose() << std::endl;
     std::cout << "x_obs = " << x_obs.transpose() << std::endl;
     std::cout << "r_ew_w = " << r_ew_w.transpose() << std::endl;
-    // std::cout << "r_int = " << r_int.transpose() << std::endl;
+
+    // Normal of the plane of flight of the ball
+    Vec3d n_obs = v_obs.cross(Vec3d::UnitZ()).normalized();
+    Vec3d delta = r_ew_w - r_obs;
+    if (n_obs.dot(delta) < 0) {
+        n_obs *= -1;
+    }
+
+    VecXd plane(6);
+    plane << r_obs, n_obs;
+    return plane;
+}
+
+Vec3d compute_goal_from_projectile(const VecXd& x, const Vec3d& r_ew_w,
+                                   double distance) {
+    VecXd x_obs = x.tail(9);
+    Vec3d r_obs = x_obs.head(3);
+    Vec3d v_obs = x_obs.segment(3, 3);
+
+    std::cout << "x_obs = " << x_obs.transpose() << std::endl;
+    std::cout << "r_ew_w = " << r_ew_w.transpose() << std::endl;
 
     // Normal of the plane of flight of the ball
     Vec3d n_obs = v_obs.cross(Vec3d::UnitZ()).normalized();
@@ -116,42 +125,6 @@ Vec3d compute_goal_from_projectile(const VecXd& x, const Vec3d& r_ew_w,
 
     std::cout << "n_obs = " << n_obs.transpose() << std::endl;
 
-    // Find angle of ball normal w.r.t. the EE direction
-    // TODO bit of a hack
-    // double yaw = q(2);
-    // Vec2d n_ee(cos(yaw), sin(yaw));
-    // double angle = angle_between(n_obs.head(2), n_ee);
-    //
-    // std::cout << "yaw = " << yaw << std::endl;
-    // std::cout << "n_ee = " << n_ee << std::endl;
-    // std::cout << "angle = " << angle << std::endl;
-
-    // Limit the angle to pre-specified bounds w.r.t. the EE. These are roughly
-    // chosen as fairly "free" directions in which the robot can move quickly.
-    // if (angle > 0) {
-    //     angle = std::min(std::max(angle, 0 * M_PI), 0.875 * M_PI);
-    // } else {
-    //     angle = -std::min(std::max(-angle, 0 * M_PI), 0.875 * M_PI);
-    // }
-
-    // if ball is going to land in front of EE, go up
-    // if ball is going to land behind EE, go down
-    // double dz_goal = 0;
-    // if (v_obs.head(2).dot(r_ew_w - r_int) >= 0) {
-    //     // ball is in front of EE: go up
-    //     dz_goal = 0.25;
-    // } else {
-    //     // ball is behind EE: go down
-    //     dz_goal = -0.25;
-    // }
-
-    // for now, just always move the EE
-    // Vec2d n_goal = rot2d(angle) * n_ee;
-    // Vec3d relative_goal;
-    // relative_goal << distance * rot2d(angle) * n_ee, dz_goal;
-    // relative_goal << distance * n_obs.head(2), dz_goal;
-    // std::cout << "n_goal3d = " << n_goal3d << std::endl;
-    // Vec3d goal = r_ew_w + relative_goal;
     Vec3d goal = r_ew_w + distance * n_obs;
     return goal;
 }
@@ -320,6 +293,7 @@ int main(int argc, char** argv) {
 
     // Initial EE position
     const Vec3d r_ew_w0 = kinematics_ptr->getPosition(x0).front();
+    const VecXd xd0 = target.stateTrajectory[0];
 
     // Now that we're all set up and have an initial policy, we can get started
     // moving the robot.
@@ -365,9 +339,16 @@ int main(int argc, char** argv) {
                 x.tail(9) << q_obs, v_obs, a_obs;
 
                 Vec3d r_ew_w = kinematics_ptr->getPosition(x).front();
-                Vec3d goal = compute_goal_from_projectile(x, r_ew_w, 1);
+
+                // Vec3d goal = compute_goal_from_projectile(x, r_ew_w, 1);
+                // ocs2::vector_array_t new_xs = target.stateTrajectory;
+                // new_xs[0].head(3) = goal;
                 ocs2::vector_array_t new_xs = target.stateTrajectory;
-                new_xs[0].head(3) = goal;
+                VecXd plane = compute_projectile_plane(x, r_ew_w);
+                new_xs[0].tail(6) = plane;
+
+                std::cout << "plane = " << plane << std::endl;
+
                 ocs2::TargetTrajectories new_target(
                     target.timeTrajectory, new_xs, target.inputTrajectory);
 
@@ -382,10 +363,11 @@ int main(int argc, char** argv) {
                        q_obs(2) < PROJECTILE_DEACTIVATION_HEIGHT) {
                 // Ball has passed: go back to the origin
                 ocs2::vector_array_t new_xs = target.stateTrajectory;
-                new_xs[0].head(3) = r_ew_w0;
+                // new_xs[0].head(3) = r_ew_w0;
+                new_xs[0] = xd0;
                 ocs2::TargetTrajectories new_target(
                     target.timeTrajectory, new_xs, target.inputTrajectory);
-                mrt.resetTarget(new_target);
+                // mrt.resetTarget(new_target);
 
                 projectile_state = ProjectileState::Postflight;
             }

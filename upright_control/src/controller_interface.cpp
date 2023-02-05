@@ -57,6 +57,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <upright_control/constraint/end_effector_box_constraint.h>
 #include <upright_control/constraint/joint_state_input_limits.h>
 #include <upright_control/constraint/obstacle_constraint.h>
+#include <upright_control/constraint/projectile_plane_constraint.h>
 #include <upright_control/constraint/state_to_state_input_constraint.h>
 #include <upright_control/cost/end_effector_cost.h>
 #include <upright_control/cost/quadratic_joint_state_input_cost.h>
@@ -307,6 +308,15 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     } else {
         std::cout << "End effector box constraint is disabled." << std::endl;
     }
+
+    // Experimental: projectile plane constraint
+    std::unique_ptr<ocs2::StateConstraint> projectile_plane_constraint(
+        new ProjectilePlaneConstraint(end_effector_kinematics,
+                                      *reference_manager_ptr_));
+    problem_.inequalityConstraintPtr->add(
+        "projectile_plane_constraint",
+        std::unique_ptr<ocs2::StateInputConstraint>(
+            new StateToStateInputConstraint(*projectile_plane_constraint)));
 
     // Inertial alignment
     if (settings_.inertial_alignment_settings.cost_enabled) {
