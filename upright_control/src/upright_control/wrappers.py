@@ -36,11 +36,11 @@ class TargetTrajectories(bindings.TargetTrajectories):
 
             # p = r_ew_w - [10, 0, 0]
             s = 0
-            n = np.array([1, 0, 0])
+            # n = np.array([1, 0, 0])
             # n = n / np.linalg.norm(n)
 
             # x = np.concatenate((r_ew_w_d, Q_we_d, p, n))
-            x = np.concatenate((r_ew_w_d, Q_we_d, [s], n))
+            x = np.concatenate((r_ew_w_d, Q_we_d, [s]))
 
             ts.append(t)
             us.append(np.copy(u))
@@ -129,12 +129,24 @@ class ControllerSettings(bindings.ControllerSettings):
         self.sqp.hpipm.warm_start = config["sqp"]["hpipm"]["warm_start"]
         self.sqp.hpipm.iter_max = config["sqp"]["hpipm"]["iter_max"]
         self.sqp.hpipm.slacks.enabled = config["sqp"]["hpipm"]["slacks"]["enabled"]
-        self.sqp.hpipm.slacks.upper_L2_penalty = config["sqp"]["hpipm"]["slacks"].get("upper_L2_penalty", 100)
-        self.sqp.hpipm.slacks.lower_L2_penalty = config["sqp"]["hpipm"]["slacks"].get("lower_L2_penalty", 100)
-        self.sqp.hpipm.slacks.upper_L1_penalty = config["sqp"]["hpipm"]["slacks"].get("upper_L1_penalty", 0)
-        self.sqp.hpipm.slacks.lower_L1_penalty = config["sqp"]["hpipm"]["slacks"].get("lower_L1_penalty", 0)
-        self.sqp.hpipm.slacks.upper_low_bound = config["sqp"]["hpipm"]["slacks"].get("upper_low_bound", 0)
-        self.sqp.hpipm.slacks.lower_low_bound = config["sqp"]["hpipm"]["slacks"].get("lower_low_bound", 0)
+        self.sqp.hpipm.slacks.upper_L2_penalty = config["sqp"]["hpipm"]["slacks"].get(
+            "upper_L2_penalty", 100
+        )
+        self.sqp.hpipm.slacks.lower_L2_penalty = config["sqp"]["hpipm"]["slacks"].get(
+            "lower_L2_penalty", 100
+        )
+        self.sqp.hpipm.slacks.upper_L1_penalty = config["sqp"]["hpipm"]["slacks"].get(
+            "upper_L1_penalty", 0
+        )
+        self.sqp.hpipm.slacks.lower_L1_penalty = config["sqp"]["hpipm"]["slacks"].get(
+            "lower_L1_penalty", 0
+        )
+        self.sqp.hpipm.slacks.upper_low_bound = config["sqp"]["hpipm"]["slacks"].get(
+            "upper_low_bound", 0
+        )
+        self.sqp.hpipm.slacks.lower_low_bound = config["sqp"]["hpipm"]["slacks"].get(
+            "lower_low_bound", 0
+        )
 
         self.end_effector_link_name = config["robot"]["tool_link_name"]
         self.robot_base_type = bindings.robot_base_type_from_string(
@@ -142,9 +154,15 @@ class ControllerSettings(bindings.ControllerSettings):
         )
 
         # Estimation settings
-        self.estimation.robot_init_variance = config["estimation"]["robot_init_variance"]
-        self.estimation.robot_process_variance = config["estimation"]["robot_process_variance"]
-        self.estimation.robot_measurement_variance = config["estimation"]["robot_measurement_variance"]
+        self.estimation.robot_init_variance = config["estimation"][
+            "robot_init_variance"
+        ]
+        self.estimation.robot_process_variance = config["estimation"][
+            "robot_process_variance"
+        ]
+        self.estimation.robot_measurement_variance = config["estimation"][
+            "robot_measurement_variance"
+        ]
 
         # Tracking settings
         self.tracking.rate = config["tracking"]["rate"]
@@ -239,6 +257,13 @@ class ControllerSettings(bindings.ControllerSettings):
         )
         assert self.xyz_lower.shape == (3,)
         assert self.xyz_upper.shape == (3,)
+
+        # projectile path constraint
+        self.projectile_path_constraint_enabled = config["projectile_path_constraint"][
+            "enabled"
+        ]
+        self.projectile_path_distance = config["projectile_path_constraint"]["distance"]
+        assert self.projectile_path_distance >= 0
 
         # some joints in the URDF may be locked to constant values, for example
         # to only use part of the robot for an experiment

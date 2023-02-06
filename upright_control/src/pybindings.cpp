@@ -311,6 +311,10 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::end_effector_box_constraint_enabled)
         .def_readwrite("xyz_lower", &ControllerSettings::xyz_lower)
         .def_readwrite("xyz_upper", &ControllerSettings::xyz_upper)
+        .def_readwrite("projectile_path_constraint_enabled",
+                       &ControllerSettings::projectile_path_constraint_enabled)
+        .def_readwrite("projectile_path_distance",
+                       &ControllerSettings::projectile_path_distance)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
         .def_readwrite("lib_folder", &ControllerSettings::lib_folder)
         .def_readwrite("robot_base_type", &ControllerSettings::robot_base_type)

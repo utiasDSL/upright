@@ -12,10 +12,12 @@ class ProjectilePlaneConstraint final : public ocs2::StateConstraint {
    public:
     ProjectilePlaneConstraint(
         const ocs2::EndEffectorKinematics<ocs2::scalar_t>& kinematics,
-        const ocs2::ReferenceManager& reference_manager)
+        const ocs2::ReferenceManager& reference_manager,
+        ocs2::scalar_t distance)
         : ocs2::StateConstraint(ocs2::ConstraintOrder::Linear),
           kinematics_ptr_(kinematics.clone()),
-          reference_manager_ptr_(&reference_manager) {
+          reference_manager_ptr_(&reference_manager),
+          distance_(distance) {
         if (kinematics.getIds().size() != 1) {
             throw std::runtime_error(
                 "[ProjectilePlaneConstraint] kinematics has wrong "
@@ -26,8 +28,8 @@ class ProjectilePlaneConstraint final : public ocs2::StateConstraint {
     ~ProjectilePlaneConstraint() override = default;
 
     ProjectilePlaneConstraint* clone() const override {
-        return new ProjectilePlaneConstraint(*kinematics_ptr_,
-                                             *reference_manager_ptr_);
+        return new ProjectilePlaneConstraint(
+            *kinematics_ptr_, *reference_manager_ptr_, distance_);
     }
 
     size_t getNumConstraints(ocs2::scalar_t time) const override { return 1; }
@@ -36,7 +38,6 @@ class ProjectilePlaneConstraint final : public ocs2::StateConstraint {
                    const ocs2::PreComputation&) const override {
         const auto& target = reference_manager_ptr_->getTargetTrajectories();
         VecXd xd = target.stateTrajectory[0];
-        // TODO could be update this with state information over time?
         // VecXd p = xd.segment(7, 3);
 
         ocs2::scalar_t s = xd(7);
@@ -78,7 +79,8 @@ class ProjectilePlaneConstraint final : public ocs2::StateConstraint {
 
         const auto position_approx =
             kinematics_ptr_->getPositionLinearApproximation(state).front();
-        approximation.dfdx << s * n.transpose() * (position_approx.dfdx - dr_obs_dx);
+        approximation.dfdx << s * n.transpose() *
+                                  (position_approx.dfdx - dr_obs_dx);
 
         return approximation;
     }
@@ -86,6 +88,7 @@ class ProjectilePlaneConstraint final : public ocs2::StateConstraint {
    private:
     ProjectilePlaneConstraint(const ProjectilePlaneConstraint& other) = default;
 
+    ocs2::scalar_t distance_;
     std::unique_ptr<ocs2::EndEffectorKinematics<ocs2::scalar_t>>
         kinematics_ptr_;
     const ocs2::ReferenceManager* reference_manager_ptr_;

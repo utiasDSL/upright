@@ -66,7 +66,7 @@ controller:
       diag: [0rep9, 10rep9, 1rep9]
     end_effector:
       scale: 1
-      diag: [1, 1, 1, 0, 0, 0]  # NOTE
+      diag: [1, 1, 1, 0, 0, 0]
 
   obstacles:
     enabled: true
@@ -77,6 +77,10 @@ controller:
     enabled: false
     xyz_lower: [-1., -1., -1.]
     xyz_upper: [1., 1., 1]
+
+  projectile_path_constraint:
+    enabled: true
+    distance: 0.5
 
   waypoints:
     -

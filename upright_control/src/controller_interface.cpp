@@ -57,6 +57,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <upright_control/constraint/end_effector_box_constraint.h>
 #include <upright_control/constraint/joint_state_input_limits.h>
 #include <upright_control/constraint/obstacle_constraint.h>
+#include <upright_control/constraint/projectile_path_constraint.h>
 #include <upright_control/constraint/projectile_plane_constraint.h>
 #include <upright_control/constraint/state_to_state_input_constraint.h>
 #include <upright_control/cost/end_effector_cost.h>
@@ -309,14 +310,28 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         std::cout << "End effector box constraint is disabled." << std::endl;
     }
 
-    // Experimental: projectile plane constraint
-    std::unique_ptr<ocs2::StateConstraint> projectile_plane_constraint(
-        new ProjectilePlaneConstraint(end_effector_kinematics,
-                                      *reference_manager_ptr_));
-    problem_.inequalityConstraintPtr->add(
-        "projectile_plane_constraint",
-        std::unique_ptr<ocs2::StateInputConstraint>(
-            new StateToStateInputConstraint(*projectile_plane_constraint)));
+    // Experimental: projectile avoidance constraint
+    if (settings_.projectile_path_constraint_enabled) {
+        // TODO: hardcoded link name
+        ocs2::PinocchioEndEffectorKinematicsCppAd
+            end_effector_collision_kinematics(
+                *pinocchio_interface_ptr, mapping,
+                {"balanced_object_collision_link"}, settings_.dims.x(),
+                settings_.dims.u(), "end_effector_collision_kinematics",
+                settings_.lib_folder, recompile_libraries, false);
+
+        std::unique_ptr<ocs2::StateConstraint> projectile_constraint(
+            new ProjectilePathConstraint(end_effector_collision_kinematics,
+                                         *reference_manager_ptr_,
+                                         settings_.projectile_path_distance));
+        // new ProjectilePlaneConstraint(end_effector_collision_kinematics,
+        //                              *reference_manager_ptr_,
+        //                              settings_.projectile_path_distance));
+        problem_.inequalityConstraintPtr->add(
+            "projectile_constraint",
+            std::unique_ptr<ocs2::StateInputConstraint>(
+                new StateToStateInputConstraint(*projectile_constraint)));
+    }
 
     // Inertial alignment
     if (settings_.inertial_alignment_settings.cost_enabled) {

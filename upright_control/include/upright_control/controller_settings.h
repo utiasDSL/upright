@@ -95,6 +95,10 @@ struct ControllerSettings {
     VecXd xyz_lower;
     VecXd xyz_upper;
 
+    // Constraint to avoid the path of the projectile
+    bool projectile_path_constraint_enabled = false;
+    ocs2::scalar_t projectile_path_distance = 0.0;
+
     // We can linearize around a set of operating points instead of just using
     // a stationary trajectory.
     bool use_operating_points = false;
