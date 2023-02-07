@@ -316,14 +316,15 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         ocs2::PinocchioEndEffectorKinematicsCppAd
             end_effector_collision_kinematics(
                 *pinocchio_interface_ptr, mapping,
-                {"balanced_object_collision_link"}, settings_.dims.x(),
+                settings_.projectile_path_collision_links, settings_.dims.x(),
                 settings_.dims.u(), "end_effector_collision_kinematics",
                 settings_.lib_folder, recompile_libraries, false);
 
         std::unique_ptr<ocs2::StateConstraint> projectile_constraint(
             new ProjectilePathConstraint(end_effector_collision_kinematics,
                                          *reference_manager_ptr_,
-                                         settings_.projectile_path_distance));
+                                         settings_.projectile_path_distances,
+                                         settings_.projectile_path_scale));
         // new ProjectilePlaneConstraint(end_effector_collision_kinematics,
         //                              *reference_manager_ptr_,
         //                              settings_.projectile_path_distance));

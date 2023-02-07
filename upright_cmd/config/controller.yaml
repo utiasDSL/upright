@@ -6,7 +6,7 @@ include:
 # TODO move this top option under simulation
 use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
-recompile_libraries: false
+recompile_libraries: true
 debug: true
 solver_method: SQP  # only SQP is supported now
 
@@ -102,7 +102,8 @@ end_effector_box_constraint:
 
 projectile_path_constraint:
   enabled: false
-  distance: 0
+  distances: [0]
+  scale: 1
 
 # desired waypoints are set relative to the initial EE pose
 # each waypoint consists of:

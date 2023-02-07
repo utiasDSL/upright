@@ -262,8 +262,15 @@ class ControllerSettings(bindings.ControllerSettings):
         self.projectile_path_constraint_enabled = config["projectile_path_constraint"][
             "enabled"
         ]
-        self.projectile_path_distance = config["projectile_path_constraint"]["distance"]
-        assert self.projectile_path_distance >= 0
+        self.projectile_path_distances = np.array(
+            config["projectile_path_constraint"]["distances"]
+        )
+        self.projectile_path_scale = config["projectile_path_constraint"]["scale"]
+        self.projectile_path_collision_links = config["projectile_path_constraint"][
+            "collision_links"
+        ]
+        assert (self.projectile_path_distances >= 0).all()
+        assert self.projectile_path_scale >= 0
 
         # some joints in the URDF may be locked to constant values, for example
         # to only use part of the robot for an experiment

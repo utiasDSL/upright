@@ -48,7 +48,7 @@ simulation:
         modes:
           -
             time: 0
-            position: [0.03, -2.0, 0]  # relative to EE if relative=true
+            position: [0.0, -2.0, 0.3]  # relative to EE if relative=true
             velocity: [0, 2.67, 3.68]
             acceleration: [0, 0, -9.81]
           -

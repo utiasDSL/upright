@@ -47,27 +47,31 @@ class ProjectilePathConstraint final : public ocs2::StateConstraint {
    public:
     ProjectilePathConstraint(
         const ocs2::EndEffectorKinematics<ocs2::scalar_t>& kinematics,
-        const ocs2::ReferenceManager& reference_manager,
-        ocs2::scalar_t distance)
+        const ocs2::ReferenceManager& reference_manager, const VecXd& distances,
+        ocs2::scalar_t scale)
         : ocs2::StateConstraint(ocs2::ConstraintOrder::Linear),
           kinematics_ptr_(kinematics.clone()),
           reference_manager_ptr_(&reference_manager),
-          distance_(distance) {
-        if (kinematics.getIds().size() != 1) {
+          distances_(distances),
+          scale_(scale) {
+        if (kinematics.getIds().size() != distances.size()) {
+            std::cout << "num ids = " << kinematics.getIds().size() << std::endl;
+            std::cout << "num dists = " << distances.size() << std::endl;
             throw std::runtime_error(
-                "[ProjectilePathConstraint] kinematics has wrong "
-                "number of end effector IDs.");
+                "Number of distances and EEs must be equal!");
         }
     }
 
     ~ProjectilePathConstraint() override = default;
 
     ProjectilePathConstraint* clone() const override {
-        return new ProjectilePathConstraint(*kinematics_ptr_,
-                                            *reference_manager_ptr_, distance_);
+        return new ProjectilePathConstraint(
+            *kinematics_ptr_, *reference_manager_ptr_, distances_, scale_);
     }
 
-    size_t getNumConstraints(ocs2::scalar_t time) const override { return 1; }
+    size_t getNumConstraints(ocs2::scalar_t time) const override {
+        return kinematics_ptr_->getIds().size();
+    }
 
     VecXd getValue(ocs2::scalar_t time, const VecXd& state,
                    const ocs2::PreComputation&) const override {
@@ -75,24 +79,28 @@ class ProjectilePathConstraint final : public ocs2::StateConstraint {
         VecXd xd = target.stateTrajectory[0];
         ocs2::scalar_t s = xd(7);
 
-        Vec3d r_ew_w = kinematics_ptr_->getPosition(state).front();
         VecXd x_obs = state.tail(9);
         Vec3d r_obs = x_obs.head(3);
         Vec3d v_obs = x_obs.segment(3, 3);
         Vec3d a_obs = x_obs.tail(3);
 
-        ocs2::scalar_t dt = 0.0;
-        if (s > 0.5) {
-            dt = projectile_closest_time(r_ew_w, r_obs, v_obs, a_obs, 0.0);
-            dt = std::max(0.0, dt);
-        }
-        Vec3d r_closest = r_obs + dt * v_obs + 0.5 * dt * dt * a_obs;
+        const size_t nc = getNumConstraints(time);
+        VecXd constraint(nc);
+        for (int i = 0; i < nc; ++i) {
+            Vec3d r_ew_w = kinematics_ptr_->getPosition(state)[i];
 
-        Vec3d delta = r_ew_w - r_closest;
-        Vec3d n = delta.normalized();
-        ocs2::scalar_t w = 0.25 / distance_;
-        VecXd constraint(1);
-        constraint(0) = w * s * (n.dot(delta) - distance_);
+            ocs2::scalar_t dt = 0.0;
+            if (s > 0.5) {
+                dt = projectile_closest_time(r_ew_w, r_obs, v_obs, a_obs, 0.0);
+                dt = std::max(0.0, dt);
+            }
+            Vec3d r_closest = r_obs + dt * v_obs + 0.5 * dt * dt * a_obs;
+
+            Vec3d delta = r_ew_w - r_closest;
+            Vec3d normal = delta.normalized();
+            ocs2::scalar_t w = scale_ / distances_(i);
+            constraint(i) = w * s * (normal.dot(delta) - distances_(i));
+        }
         return constraint;
     }
 
@@ -103,51 +111,53 @@ class ProjectilePathConstraint final : public ocs2::StateConstraint {
         VecXd xd = target.stateTrajectory[0];
         ocs2::scalar_t s = xd(7);
 
-        const auto position_approx =
-            kinematics_ptr_->getPositionLinearApproximation(state).front();
-        Vec3d r_ew_w = position_approx.f;
-
         VecXd x_obs = state.tail(9);
         Vec3d r_obs = x_obs.head(3);
         Vec3d v_obs = x_obs.segment(3, 3);
         Vec3d a_obs = x_obs.tail(3);
 
-        ocs2::scalar_t dt = 0.0;
-        if (s > 0.5) {
-            dt = projectile_closest_time(r_ew_w, r_obs, v_obs, a_obs, 0.0);
-            dt = std::max(0.0, dt);  // don't care about the past
-        }
-        MatXd A_obs(3, 9);
-        A_obs << Mat3d::Identity(), dt * Mat3d::Identity(),
-            0.5 * dt * dt * Mat3d::Identity();
-
-        // closest point on the obstacle's predicted future path
-        Vec3d r_closest = A_obs * x_obs;
-
-        Vec3d delta = r_ew_w - r_closest;
-        Vec3d n =
-            delta.normalized();  // TODO: 0 when in contact---bad Jacobian?
-
-        // scale constraint for solver stability
-        ocs2::scalar_t w = 0.25 / distance_;
-
+        const size_t nc = getNumConstraints(time);
         auto approximation =
-            ocs2::VectorFunctionLinearApproximation(1, state.rows(), 0);
-        approximation.setZero(1, state.rows(), 0);
+            ocs2::VectorFunctionLinearApproximation(nc, state.rows(), 0);
+        approximation.setZero(nc, state.rows(), 0);
 
-        approximation.f(0) = w * s * (n.dot(delta) - distance_);
+        for (int i = 0; i < nc; ++i) {
+            const auto position_approx =
+                kinematics_ptr_->getPositionLinearApproximation(state)[i];
+            Vec3d r_ew_w = position_approx.f;
 
-        MatXd dobs_dx = MatXd::Zero(3, state.size());
-        dobs_dx.rightCols(9) = A_obs;
-        approximation.dfdx << w * s * n.transpose() *
-                                  (position_approx.dfdx - dobs_dx);
+            ocs2::scalar_t dt = 0.0;
+            if (s > 0.5) {
+                dt = projectile_closest_time(r_ew_w, r_obs, v_obs, a_obs, 0.0);
+                dt = std::max(0.0, dt);  // don't care about the past
+            }
+            MatXd A_obs(3, 9);
+            A_obs << Mat3d::Identity(), dt * Mat3d::Identity(),
+                0.5 * dt * dt * Mat3d::Identity();
+
+            // closest point on the obstacle's predicted future path
+            Vec3d r_closest = A_obs * x_obs;
+
+            Vec3d delta = r_ew_w - r_closest;
+            Vec3d normal =
+                delta.normalized();  // TODO: 0 when in contact---bad Jacobian?
+
+            ocs2::scalar_t w = scale_ / distances_(i);
+            approximation.f(i) = w * s * (normal.dot(delta) - distances_(i));
+
+            MatXd dobs_dx = MatXd::Zero(3, state.size());
+            dobs_dx.rightCols(9) = A_obs;
+            approximation.dfdx.row(i) << w * s * normal.transpose() *
+                                             (position_approx.dfdx - dobs_dx);
+        }
         return approximation;
     }
 
    private:
     ProjectilePathConstraint(const ProjectilePathConstraint& other) = default;
 
-    ocs2::scalar_t distance_;
+    ocs2::scalar_t scale_;
+    VecXd distances_;
     std::unique_ptr<ocs2::EndEffectorKinematics<ocs2::scalar_t>>
         kinematics_ptr_;
     const ocs2::ReferenceManager* reference_manager_ptr_;

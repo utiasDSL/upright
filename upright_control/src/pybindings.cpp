@@ -313,8 +313,12 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("xyz_upper", &ControllerSettings::xyz_upper)
         .def_readwrite("projectile_path_constraint_enabled",
                        &ControllerSettings::projectile_path_constraint_enabled)
-        .def_readwrite("projectile_path_distance",
-                       &ControllerSettings::projectile_path_distance)
+        .def_readwrite("projectile_path_distances",
+                       &ControllerSettings::projectile_path_distances)
+        .def_readwrite("projectile_path_scale",
+                       &ControllerSettings::projectile_path_scale)
+        .def_readwrite("projectile_path_collision_links",
+                       &ControllerSettings::projectile_path_collision_links)
         .def_readwrite("robot_urdf_path", &ControllerSettings::robot_urdf_path)
         .def_readwrite("lib_folder", &ControllerSettings::lib_folder)
         .def_readwrite("robot_base_type", &ControllerSettings::robot_base_type)
