@@ -267,11 +267,7 @@ int main(int argc, char** argv) {
     Kx << settings.tracking.kp * I, settings.tracking.kv * I,
         settings.tracking.ka * I;
 
-    // EE kinematics
-    // std::unique_ptr<ocs2::PinocchioEndEffectorKinematicsCppAd> kinematics_ptr(
-    //     interface.get_end_effector_kinematics().clone());
-    // const Vec3d r_ew_w0 = kinematics_ptr->getPosition(x0).front();
-    const VecXd xd0 = target.stateTrajectory[0];
+    const VecXd original_target_state = target.stateTrajectory[0];
 
     // Let MPC generate the initial plan
     observation.time = ros::Time::now().toSec();
@@ -332,40 +328,21 @@ int main(int argc, char** argv) {
             if (projectile_state == ProjectileState::Preflight &&
                 q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
                 // Ball is detected: avoid the ball
-                //
-                // Vec3d v_obs = projectile.v();
-                // Vec3d a_obs = obstacle->modes[0].acceleration;
-                // x.tail(9) << q_obs, v_obs, a_obs;
-
-                // Vec3d r_ew_w = kinematics_ptr->getPosition(x).front();
-
-                // Vec3d goal = compute_goal_from_projectile(x, r_ew_w, 1);
-                // ocs2::vector_array_t new_xs = target.stateTrajectory;
-                // new_xs[0].head(3) = goal;
-                ocs2::vector_array_t new_xs = target.stateTrajectory;
-                // VecXd plane = compute_projectile_plane(x, r_ew_w);
-
-                // Vec3d normal = plane.tail(3);
-                new_xs[0].tail(1) << 1.0;
-                //
-                // std::cout << "plane = " << plane << std::endl;
-
-                ocs2::TargetTrajectories new_target(
-                    target.timeTrajectory, new_xs, target.inputTrajectory);
-
-                // std::cout << "x = " << x.transpose() << std::endl;
-                // std::cout << "P = " << new_xs[0].transpose() << std::endl;
-
+                ocs2::vector_array_t new_target_states = target.stateTrajectory;
+                new_target_states[0].tail(1) << 1.0;
+                ocs2::TargetTrajectories new_target(target.timeTrajectory,
+                                                    new_target_states,
+                                                    target.inputTrajectory);
                 mrt.resetTarget(new_target);
 
                 projectile_state = ProjectileState::Flight;
             } else if (projectile_state == ProjectileState::Flight &&
                        q_obs(2) < PROJECTILE_DEACTIVATION_HEIGHT) {
                 // Ball has passed: go back to the original trajectory
-                ocs2::vector_array_t new_xs = target.stateTrajectory;
-                new_xs[0] = xd0;
+                ocs2::vector_array_t new_target_states = target.stateTrajectory;
+                new_target_states[0] = original_target_state;
                 ocs2::TargetTrajectories new_target(
-                    target.timeTrajectory, new_xs, target.inputTrajectory);
+                    target.timeTrajectory, new_target_states, target.inputTrajectory);
                 mrt.resetTarget(new_target);
 
                 projectile_state = ProjectileState::Postflight;
@@ -378,50 +355,10 @@ int main(int argc, char** argv) {
                 x.tail(9) << q_obs, v_obs, a_obs;
             }
 
-            //
-            // Vec3d q_obs = projectile.q();
-            // if (q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
-            //     if (projectile_state == ProjectileState::Preflight) {
-            //         // activated for the first time: plan a new trajectory to
-            //         // avoid the ball
-            //         Vec3d v_obs = projectile.v();
-            //         Vec3d a_obs = obstacle->modes[0].acceleration;
-            //         x.tail(9) << q_obs, v_obs, a_obs;
-            //
-            //         Vec3d r_ew_w = kinematics_ptr->getPosition(x).front();
-            //         Vec3d goal = compute_goal_from_projectile(x, r_ew_w, 1);
-            //         ocs2::vector_array_t new_xs = target.stateTrajectory;
-            //         new_xs[0].head(3) = goal;
-            //         ocs2::TargetTrajectories new_target(
-            //             target.timeTrajectory, new_xs,
-            //             target.inputTrajectory);
-            //
-            //         std::cout << "x = " << x.transpose() << std::endl;
-            //         std::cout << "P = " << new_xs[0].transpose() <<
-            //         std::endl;
-            //
-            //         // mrt.resetMpcNode(new_target);
-            //         mrt.resetTarget(new_target);
-            //     }
-            //     projectile_state = ProjectileState::Flight;
-            //     // avoid_dynamic_obstacle = true;
-            //     std::cout << "  q_obs = " << q_obs.transpose() << std::endl;
-            // } else {
-            //     std::cout << "~ q_obs = " << q_obs.transpose() << std::endl;
-            // }
-
             // TODO we could have the MPC reset if the projectile was inside
             // the "awareness zone" but then leaves, such that the robot is
             // ready for the next throw
-
-            // TODO should this eventually stop? like when the obstacle goes
-            // below a certain threshold?
-            // if (projectile_state == projectile_state::Flight) {
-            //     Vec3d v_obs = projectile.v();
-            //     Vec3d a_obs = obstacle->modes[0].acceleration;
-            //     x.tail(9) << q_obs, v_obs, a_obs;
-            // }
-        } else if (using_stationary) {
+        } else if (using_stationary && obstacle->modes.size() > 1) {
             if (t - t0 <= obstacle->modes[1].time) {
                 x.tail(9) = obstacle->modes[0].state();
             } else {

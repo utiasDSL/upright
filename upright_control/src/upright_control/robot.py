@@ -186,6 +186,7 @@ class UprightRobotGeometry:
 
     def add_collision_pairs(self, pairs):
         """Add collision pairs to the model."""
+        self.pairs = pairs  # nice to keep for reference
         for pair in pairs:
             id1 = self.collision_model.getGeometryId(pair[0])
             id2 = self.collision_model.getGeometryId(pair[1])
