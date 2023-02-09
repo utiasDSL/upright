@@ -231,7 +231,7 @@ int main(int argc, char** argv) {
         obstacle = &settings.obstacle_settings.dynamic_obstacles[0];
         const size_t num_modes = obstacle->modes.size();
         if ((using_projectile && num_modes != 1) ||
-            (using_stationary && num_modes != 2)) {
+            (using_stationary && num_modes > 2)) {
             throw std::runtime_error(
                 "Dynamic obstacle has wrong number of modes.");
         }
@@ -341,8 +341,9 @@ int main(int argc, char** argv) {
                 // Ball has passed: go back to the original trajectory
                 ocs2::vector_array_t new_target_states = target.stateTrajectory;
                 new_target_states[0] = original_target_state;
-                ocs2::TargetTrajectories new_target(
-                    target.timeTrajectory, new_target_states, target.inputTrajectory);
+                ocs2::TargetTrajectories new_target(target.timeTrajectory,
+                                                    new_target_states,
+                                                    target.inputTrajectory);
                 mrt.resetTarget(new_target);
 
                 projectile_state = ProjectileState::Postflight;

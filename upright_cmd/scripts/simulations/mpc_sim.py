@@ -28,39 +28,6 @@ def take_photos(sim_config, env, when):
             print(f"Saved photo to {img_name}.png")
 
 
-def solve_projectile_height(r0, v0, h, g):
-    """Solve for (x, y) and time t when projectile reaches a given height (in
-    the future)."""
-    z0 = r0[2]
-    vz = v0[2]
-
-    # solve for intersection time
-    t = (-vz - np.sqrt(vz**2 - 2 * (z0 - h) * g)) / g
-
-    # solve for intersection point
-    r = r0 + t * v0 + 0.5 * t**2 * np.array([0, 0, g])
-
-    return t, r
-
-
-def perp2d(a):
-    return np.array([-a[1], a[0]])
-
-
-def angle_between(a, b):
-    θ = np.arccos(a @ b)
-    c = perp2d(a)
-    if b @ c > 0:
-        θ = -θ
-    return θ
-
-
-def rot2d(θ):
-    c = np.cos(θ)
-    s = np.sin(θ)
-    return np.array([[c, -s], [s, c]])
-
-
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
@@ -135,57 +102,6 @@ def main():
             T.ka * np.eye(dims.robot.v),
         )
     )
-
-    # 1. solve for (x, y)
-    r_ew_w, Q_we = env.robot.link_pose()
-    r_obs, v_obs = x_obs[:3], x_obs[3:6]
-    t_int, r_int = solve_projectile_height(r_obs, v_obs, h=r_ew_w[2], g=-9.81)
-
-    # normal vector of the plane
-    n_obs = np.cross(v_obs, [0, 0, 1])
-    n_obs = n_obs / np.linalg.norm(n_obs)
-
-    Δ = r_ew_w - r_int
-    Δ = Δ / np.linalg.norm(Δ)
-
-    if n_obs @ Δ < 0:
-        n_obs *= -1
-
-    # TODO bit of a hack
-    yaw = q[2]
-    n_ee = np.array([np.cos(yaw), np.sin(yaw), 0])
-    θ = angle_between(n_obs[:2], n_ee[:2])
-
-    if θ > 0:
-        θ = min(max(θ, 0.5 * np.pi), 0.75 * np.pi)
-    else:
-        θ = -min(max(-θ, 0.5 * np.pi), 0.75 * np.pi)
-
-    n_goal = core.math.rotz(θ) @ n_ee
-
-    # now we want to move in direction n_obs as fast as possible, subject to
-    # feasibility convenience of the robot. In principle there are a couple
-    # ways to do this:
-    # 1. waypoint that moves some arbitrary distance in this direction (not fast enough!)
-    # 2. obstacle that forces us to move out of this region
-    # 3. cost that encourages moving in a particular direction
-
-    L = 1
-    δ = r_int - r_ew_w
-    δ_perp = δ - (δ @ n_goal) * n_goal
-    w = np.linalg.norm(δ_perp)
-    d = np.sqrt(L**2 - w**2)
-    goal = r_int - δ_perp + d * n_goal
-
-    pyb.addUserDebugPoints([goal], [(1, 0, 0)], pointSize=20)
-
-    # fixed x_obs
-    # x_obs = np.concatenate((r_int, np.zeros(6)))
-
-    # ref = ctrl.wrappers.TargetTrajectories(
-    #     [0], [np.concatenate((goal, Q_we))], [np.zeros(dims.robot.u)]
-    # )
-    # ctrl_manager.update(ref)
 
     print("Ready to start.")
     IPython.embed()

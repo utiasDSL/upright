@@ -1,0 +1,40 @@
+# nominal experiment includes the obstacle (and thus any influence it has on
+# the trajectory) but it doesn't move
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/sudden_obstacle/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point2.yaml
+
+simulation:
+  dynamic_obstacles:
+    obstacles:
+      -
+        # True if the object's trajectory should be tracked, false if it should
+        # just be allowed to evolve subject to gravity
+        # Note that acceleration is still required either way
+        controlled: true
+        collides: false
+        radius: 0.25
+        relative: false
+        modes:
+          -
+            time: 0
+            position: [1.5, 1, 0.25]
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, 0]
+
+controller:
+  obstacles:
+    dynamic:
+      -
+        name: chair1
+        radius: 0.25
+        modes:
+          -
+            time: 0
+            position: [1.5, 1, 0.25]
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, 0]

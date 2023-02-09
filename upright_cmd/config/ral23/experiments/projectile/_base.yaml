@@ -80,14 +80,18 @@ controller:
 
   projectile_path_constraint:
     enabled: true
-    distances: [0.35, 0.2, 0.2, 0.2, 0.2]
+    # distances: [0.35, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
+    distances: [0.35]
     scale: 0.2
     collision_links:
       - "balanced_object_collision_link"
-      - "wrist1_collision_link"
-      - "wrist3_collision_link"
-      - "forearm_collision_sphere_link1"
-      - "forearm_collision_sphere_link2"
+      # - "wrist1_collision_link"
+      # - "wrist3_collision_link"
+      # - "forearm_collision_sphere_link1"
+      # - "forearm_collision_sphere_link2"
+      # - "elbow_collision_link"
+      # - "upper_arm_collision_link2"
+      # - "upper_arm_collision_link3"
 
   waypoints:
     -
