@@ -1,4 +1,4 @@
-# Upright: Nonprehensile Object Transportation (with a Position-Controlled Mobile Manipulator)
+# Upright: Nonprehensile Object Transportation (with a Mobile Manipulator)
 
 Simulation and experiment code for a mobile manipulator balancing objects on its
 end effector. Simulator is Pybullet.
