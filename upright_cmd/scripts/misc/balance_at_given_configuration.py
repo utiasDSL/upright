@@ -8,7 +8,8 @@ import time
 import upright_core as core
 import upright_control as ctrl
 
-from cyipopt import minimize_ipopt
+import scipy.linalg
+from scipy.optimize import minimize
 
 import IPython
 
@@ -20,43 +21,44 @@ def main():
     config_path = sys.argv[1]
     config = core.parsing.load_config(config_path)["controller"]
     model = ctrl.manager.ControllerModel.from_config(config)
-    mapping = ctrl.trajectory.StateInputMapping(model.robot.dims)
+    dims = model.settings.dims
 
     balancing_constraint_wrapper = ctrl.bindings.BalancingConstraintWrapper(
         model.settings
     )
 
     # nominal state to stay near
-    # TODO maybe take from config?
     q_nom = np.array([0.5, -0.25, 0, 0.25, 0.5, -0.583]) * np.pi
-    v_nom = np.zeros(model.robot.dims.v)
-    a_nom = np.zeros(model.robot.dims.v)
+    v_nom = np.zeros(dims.robot.v)
+    a_nom = np.zeros(dims.robot.v)
     x_nom = np.concatenate((q_nom, v_nom, a_nom))
-    u_nom = np.zeros(model.robot.dims.u)
+    u_nom = np.zeros(dims.robot.u)
 
-    W = np.diag(np.concatenate((np.ones(6), 0.1 * np.ones(6), 0.01 * np.ones(6))))
+    Wq = np.eye(dims.robot.q)
+    Wv = 0.1 * np.eye(dims.robot.v)
+    Wa = 0.01 * np.eye(dims.robot.v)
 
     def objective(va):
-        x = np.concatenate((q_nom, va))
-        Δx = x_nom - x
-        return 0.5 * Δx @ W @ Δx
+        Δv = v_nom - va[:dims.robot.v]
+        Δa = a_nom - va[dims.robot.v:]
+        return 0.5 * (Δv @ Wv @ Δv + Δa @ Wa @ Δa)
 
     def objective_jac(va):
-        x = np.concatenate((q_nom, va))
-        Δx = x_nom - x
-        return W @ Δx
+        Δv = v_nom - va[:dims.robot.v]
+        Δa = a_nom - va[dims.robot.v:]
+        return np.concatenate((Wv @ Δv, Wa @ Δa))
 
-    def objective_hess(x):
-        return W
-
-    def eq_constraint(x):
-        # keep joint position fixed
-        return x[:6] - x_nom[:6]
-
-    def eq_constraint_jac(x):
-        Z = np.zeros((model.robot.dims.q, model.robot.dims.q))
-        return np.hstack((np.eye(6), Z, Z))
-
+    # def objective_hess(x):
+    #     return W
+    #
+    # def eq_constraint(x):
+    #     # keep joint position fixed
+    #     return x[:6] - x_nom[:6]
+    #
+    # def eq_constraint_jac(x):
+    #     Z = np.zeros((model.robot.dims.q, model.robot.dims.q))
+    #     return np.hstack((np.eye(6), Z, Z))
+    #
     def constraint(va):
         x = np.concatenate((q_nom, va))
         approx = balancing_constraint_wrapper.getLinearApproximation(0, x, u_nom)
@@ -66,19 +68,20 @@ def main():
         x = np.concatenate((q_nom, va))
         approx = balancing_constraint_wrapper.getLinearApproximation(0, x, u_nom)
         # don't include derivative w.r.t. q
-        return approx.dfdx[:, 6:]
+        return approx.dfdx[:, dims.robot.q:]
 
     # optimize v, a leaving q fixed at the nominal configuration s.t. balancing
     # constraints, where we want v, a to be as close to zero as possible
-    # TODO we can also have a constraint that tries to keep the inverted
-    # orientation?
     cons = [
         {"type": "ineq", "fun": constraint, "jac": constraint_jac},
-        # {"type": "eq", "fun": eq_constraint, "jac": eq_constraint_jac},
     ]
     t1 = time.time()
-    res = minimize_ipopt(
-        objective, jac=objective_jac, x0=np.concatenate((v_nom, a_nom)), constraints=cons, options={"disp": 5}
+    res = minimize(
+        objective,
+        x0=np.concatenate((v_nom, a_nom)),
+        jac=objective_jac,
+        constraints=cons,
+        method="slsqp",
     )
     dt = time.time() - t1
 

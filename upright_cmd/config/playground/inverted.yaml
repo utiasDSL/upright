@@ -24,18 +24,4 @@ controller:
     arrangement: pink_bottle
     constraint_type: hard
     enabled: true
-    use_force_constraints: false
-    enable_normal_constraint: true
-    enable_friction_constraint: true
-    enable_zmp_constraint: true
-
-  waypoints:
-    -
-      time: 0
-      position: [-0.25, 0.5, 0.25]
-      orientation: [0, 0, 0, 1]
-
-  operating_points:
-    enabled: false
-    package: upright_sim
-    path: trajectories/unconstrained_trajectory.npz
+    use_force_constraints: true
