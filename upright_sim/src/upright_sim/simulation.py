@@ -311,6 +311,7 @@ class BulletDynamicObstacle:
 
         controlled = config["controlled"]
         collides = config.get("collides", True)
+        color = config.get("color", (0, 0, 1, 1))
 
         times = []
         positions = []
@@ -330,6 +331,7 @@ class BulletDynamicObstacle:
             radius=config["radius"],
             controlled=controlled,
             collides=collides,
+            color=color,
         )
 
     def _initial_mode_values(self):
@@ -408,7 +410,8 @@ class EEObject:
         self.side_lengths = side_lengths
         self.mu = 1.0
         self.box = polyhedron.ConvexPolyhedron.box(0.5 * self.side_lengths).transform(
-            translation=self.r0, rotation=orientation,
+            translation=self.r0,
+            rotation=orientation,
         )
 
     @property

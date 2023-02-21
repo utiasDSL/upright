@@ -1,0 +1,79 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/sudden_obstacle/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point2.yaml
+
+simulation:
+  show_contact_points: false
+  show_debug_frames: false
+  extra_gui: true
+
+  cameras:
+    camera1:
+      target: [0.88, 0.47, 1.05]
+      distance: 1.2
+      roll: 0
+      pitch: -38.2
+      yaw: 5.2
+    camera2:
+      target: [0.72, 0.29, -0.27]
+      distance: 3.6
+      roll: 0
+      pitch: -27.0
+      yaw: 181.6
+
+  video:
+    save_frames: true
+    dir: /media/adam/Data/PhD/Data/upright/ral23/videos/simulation
+    timestep: 0.040
+    views:
+      -
+        camera: camera1
+        name: view1
+      -
+        camera: camera2
+        name: view2
+
+  dynamic_obstacles:
+    obstacles:
+      -
+        # True if the object's trajectory should be tracked, false if it should
+        # just be allowed to evolve subject to gravity
+        # Note that acceleration is still required either way
+        controlled: true
+        collides: False
+        radius: 0.25
+        relative: false
+        color: [0, 1, 0, 1]
+        modes:
+          -
+            time: 0
+            position: [1.5, 1, 0.25]
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, 0]
+          -
+            time: 1
+            position: [1.25, 1.5, 0.25]
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, 0]
+
+controller:
+  obstacles:
+    dynamic:
+      -
+        name: chair1
+        radius: 0.25
+        modes:
+          -
+            time: 0
+            position: [1.5, 1, 0.25]  # out of the way
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, 0]
+          -
+            time: 1
+            position: [1.25, 1.5, 0.25]
+            velocity: [0, 0, 0]
+            acceleration: [0, 0, 0]

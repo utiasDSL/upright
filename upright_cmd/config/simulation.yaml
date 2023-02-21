@@ -33,6 +33,7 @@ cameras:
     yaw: 147.6
 
 # Define videos to be captured during the simulation
+# This needs to be enabled by the command line argument --video
 video:
   save_frames: true
   dir: "/media/adam/Data/PhD/Videos/upright/"
