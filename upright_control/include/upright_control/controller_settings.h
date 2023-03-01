@@ -110,6 +110,9 @@ struct ControllerSettings {
     ocs2::vector_array_t operating_states;
     ocs2::vector_array_t operating_inputs;
 
+    // Desired (joint) state
+    VecXd xd;
+
     // URDFs
     std::string robot_urdf_path;
 

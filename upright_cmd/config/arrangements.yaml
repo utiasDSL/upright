@@ -297,3 +297,15 @@ arrangements:
         mu: 0.28
         mu_margin: 0.028
         support_area_inset: 0.005
+
+  flat_box:
+    objects:
+      -
+        name: box
+        type: flat_box
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.5

@@ -34,12 +34,7 @@ class TargetTrajectories(bindings.TargetTrajectories):
             r_ew_w_d = r_ew_w + waypoint["position"]
             Q_we_d = core.math.quat_multiply(Q_we, waypoint["orientation"])
 
-            # p = r_ew_w - [10, 0, 0]
             s = 0
-            # n = np.array([1, 0, 0])
-            # n = n / np.linalg.norm(n)
-
-            # x = np.concatenate((r_ew_w_d, Q_we_d, p, n))
             x = np.concatenate((r_ew_w_d, Q_we_d, [s]))
 
             ts.append(t)
@@ -426,6 +421,9 @@ class ControllerSettings(bindings.ControllerSettings):
         else:
             self.initial_state = x0
         assert self.initial_state.shape == (self.dims.x(),)
+
+        # desired joint state
+        self.xd = config.get("desired_state", np.zeros_like(self.initial_state))
 
     @classmethod
     def from_config_file(cls, config_path):

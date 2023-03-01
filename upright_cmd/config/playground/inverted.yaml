@@ -9,7 +9,7 @@ include:
     path: config/controller.yaml
   -
     package: upright_cmd
-    path: config/robots/ur10.yaml
+    path: config/robots/thing.yaml
 
 logging:
   timestep: 0.010
@@ -17,11 +17,61 @@ logging:
 
 simulation:
   duration: 10.0
-  arrangement: pink_bottle
+  arrangement: flat_box
+
+  robot:
+    home: [-1, 1, 0, 1pi, 0.25pi, -0.5pi, 0.25pi, 0.5pi, 0.417pi]  # standard
 
 controller:
   balancing:
-    arrangement: pink_bottle
+    arrangement: flat_box
     constraint_type: hard
     enabled: true
     use_force_constraints: true
+
+  mpc:
+    time_horizon: 2.0
+
+  sqp:
+    dt: 0.1
+    sqp_iteration: 2
+
+  robot:
+    x0: [-1, 1, 0, 1pi, 0.25pi, -0.5pi, 0.25pi, 0.5pi, 0.417pi, 0rep9, 0rep9]
+
+  weights:
+    input:
+      scale: 0.001
+      diag: [0rep9]
+    state:
+      scale: 0.01
+      diag: [0rep9, 10rep9, 0rep9]
+    end_effector:
+      scale: 1
+      diag: [0, 0, 0, 10, 10, 10]
+
+  waypoints:
+    -
+      time: 0
+      position: [0, 0, 0]
+      orientation: [0, 0, 0, 1]
+    -
+      time: 1
+      position: [1.5, -1.5, 0]
+      # orientation: [0, 0, -0.7071, 0.7071]
+      # orientation: [0.5, -0.5, -0.5, 0.5]
+      orientation: [0, -0.7071, 0, 0.7071]
+    -
+      time: 2
+      position: [0, -3., 0]
+      orientation: [0, -1, 0, 0]
+      # orientation: [0, -0.7071, -0.7071, 0]
+    # -
+    #   time: 8
+    #   position: [2, -3., 0]
+    #   orientation: [0, 0, 0, 1]
+
+  # TODO
+  # desired_state: [1.571, -0.785, 0, 0.785, 1.571, -1.832,
+  # 0., 0., 0., 0., 0., 0.,
+  # 0.181, 12.216, -0.281, -11.936, 0.128, -0.04 ]

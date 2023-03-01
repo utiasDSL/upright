@@ -336,6 +336,7 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::operating_inputs)
         .def_readwrite("inertial_alignment_settings",
                        &ControllerSettings::inertial_alignment_settings)
+        .def_readwrite("xd", &ControllerSettings::xd)
         .def("solver_method_from_string",
              &ControllerSettings::solver_method_from_string)
         .def("solver_method_to_string",

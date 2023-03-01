@@ -13,6 +13,14 @@ simulation:
   show_debug_frames: false
   extra_gui: true
 
+  # we don't want to include the collision spheres in the video
+  robot:
+    urdf:
+      includes:
+        - "$(find upright_assets)/thing/xacro/cartesian_base_joints.urdf.xacro"
+        - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
+
   cameras:
     camera1:
       target: [0.88, 0.47, 1.05]
@@ -26,18 +34,27 @@ simulation:
       roll: 0
       pitch: -27.0
       yaw: 181.6
+    camera3:
+      target: [1.33, 1.73, 0.53]
+      distance: 2.2
+      roll: 0
+      pitch: -7.0
+      yaw: 91.2
 
   video:
     save_frames: true
     dir: /media/adam/Data/PhD/Data/upright/ral23/videos/simulation
     timestep: 0.040
     views:
+      # -
+      #   camera: camera1
+      #   name: view1
+      # -
+      #   camera: camera2
+      #   name: view2
       -
-        camera: camera1
-        name: view1
-      -
-        camera: camera2
-        name: view2
+        camera: camera3
+        name: view3
 
   dynamic_obstacles:
     obstacles:

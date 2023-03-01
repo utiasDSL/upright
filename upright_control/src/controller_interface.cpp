@@ -475,7 +475,7 @@ ControllerInterface::get_quadratic_state_input_cost() {
     std::cout << "R: " << input_weight << std::endl;
 
     return std::unique_ptr<ocs2::StateInputCost>(
-        new QuadraticJointStateInputCost(state_weight, input_weight));
+        new QuadraticJointStateInputCost(state_weight, input_weight, settings_.xd));
 }
 
 std::unique_ptr<ocs2::StateInputConstraint>

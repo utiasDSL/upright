@@ -292,3 +292,10 @@ objects:
     com_offset: [0, 0, 0]
     mass: 0.2
 
+  flat_box:
+    shape:
+      type: cuboid
+      side_lengths: [0.02, 0.02, 0.01]
+    com_offset: [0, 0, 0]
+    mass: 0.1
+
