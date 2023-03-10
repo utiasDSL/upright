@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize
+import cdd
 
 import upright_core as core
 
@@ -22,6 +23,7 @@ def lift(x):
 
 
 def skew6(V):
+    """6D cross product matrix"""
     v, ω = V[:3], V[3:]
     Sv = core.math.skew3(v)
     Sω = core.math.skew3(ω)
@@ -29,6 +31,7 @@ def skew6(V):
 
 
 def vec(J):
+    """Vectorize the inertia matrix"""
     return np.array([J[0, 0], J[0, 1], J[0, 2], J[1, 1], J[1, 2], J[2, 2]])
 
 
@@ -43,14 +46,25 @@ class ContactPoint:
         self.W = np.vstack((np.eye(3), core.math.skew3(position)))
 
         # matrix to enforce friction cone constraint F @ f >= 0 ==> inside FC
+        # (this is the negative of the face form)
         # fmt: off
+        P = np.vstack((self.normal, self.span))
         self.F = np.array([
             [1,  0,  0],
             [μ, -1, -1],
             [μ,  1, -1],
             [μ, -1,  1],
             [μ,  1,  1],
-        ]) @ np.vstack((self.normal, self.span))
+        ]) @ P
+        # fmt: on
+
+        # span (generator) form matrix FC = {Sz | z >= 0}
+        # fmt: off
+        self.S = P @ np.array([
+            [1,  1, 1,  1],
+            [μ, -μ, 0,  0],
+            [0,  0, μ, -μ]
+        ])
         # fmt: on
 
 
@@ -69,7 +83,19 @@ class BalancedObject:
 
         self.origin = np.array([self.x0, 0, self.h + self.h0])
         S = core.math.skew3(self.origin)
+
+        # mass matrix
         self.M = np.block([[m * np.eye(3), -m * S], [m * S, self.J]])
+
+        # polytopic constraints on the inertial parameters
+        # Pθ >= p
+        Jvec = vec(self.J)
+        θ = np.concatenate(([m], m * self.origin, Jvec))
+        Δθ = np.concatenate(([0.1, 0.5 * δ, 0.5 * δ, 0.5 * h], 0.1 * Jvec))
+        θ_min = θ - Δθ
+        θ_max = θ + Δθ
+        self.P = np.vstack((np.eye(θ.shape[0]), -np.eye(θ.shape[0])))
+        self.p = np.concatenate((θ_min, -θ_max))
 
     def contacts(self):
         # contacts are in the body frame w.r.t. to the origin
@@ -108,21 +134,57 @@ def body_contact_wrench(forces, contacts):
 
 
 def friction_cone_constraints(forces, contacts):
+    """Constraints are non-negative if all contact forces are inside their friction cones."""
     return np.concatenate([c.F @ f for c, f in zip(contacts, forces)])
-    # nc = len(contacts)
-    # constraints = np.zeros(3 * nc)
-    # for i in range(nc):
-    #     fi = np.array([fs_xz[2 * i], 0, fs_xz[2 * i + 1]])
-    #     fi_n = contacts[i].normal @ fi
-    #     fi_t = contacts[i].tangent @ fi
-    #     μi = contacts[i].μ
-    #     constraints[i * 3 : (i + 1) * 3] = np.array(
-    #         [fi_n, μi * fi_n - fi_t, μi * fi_n + fi_t]
-    #     )
-    # return constraints
+
+
+def Vmat(S):
+    return cdd.Matrix(np.hstack((np.zeros((S.shape[0], 1)), S)))
+
+def unHmat(Hmat):
+    H = np.array([Hmat[i] for i in range(Hmat.row_size)])
+    b = H[:, 0]
+    A = -H[:, 1:]
+    return A, b
+
+
+def span_to_face_form(S):
+    # span form
+    # we have generators as columns but cdd wants it as rows, hence the transpose
+    Smat = cdd.Matrix(np.hstack((np.zeros((S.shape[1], 1)), S.T)))
+    Smat.rep_type = cdd.RepType.GENERATOR
+
+    # polyhedron
+    poly = cdd.Polyhedron(Smat)
+
+    # face form: Ax <= b
+    Fmat = poly.get_inequalities()
+    F = np.array([Fmat[i] for i in range(Fmat.row_size)])
+    b = F[:, 0]
+    A = -F[:, 1:]
+    return A, b
+
+
+def cwc(contacts):
+    """Build the (face form of the) contact wrench cone from contact points of an object."""
+    # combine span form of each contact wrench cone to get the overall CWC in
+    # span form
+    S = np.hstack([c.W @ c.S for c in contacts])
+
+    # convert to face form
+    A, b = span_to_face_form(S)
+    assert np.allclose(b, 0)
+
+    # Fw >= 0 ==> there exist feasible contact forces to support wrench w
+    return A
 
 
 def body_regressor(V, A):
+    """Compute regressor matrix Y given body frame velocity V and acceleration A.
+
+    The regressor maps the inertial parameters to the body inertial wrench: w = Yθ.
+    """
+    # TODO will need to deal with gravity somewhere
     v, ω = V[:3], V[3:]
     a, α = A[:3], A[3:]
 
@@ -135,13 +197,14 @@ def body_regressor(V, A):
 
     # fmt: off
     return np.block([
-        [(v + Sω @ v)[:, None], Sα + Sω @ Sω, np.zeros((3, 6))],
+        [(a + Sω @ v)[:, None], Sα + Sω @ Sω, np.zeros((3, 6))],
         [np.zeros((3, 1)), -Sa - skew(Sω @ v), Lα + Sω @ Lω]
     ])
     # fmt: on
 
 
 def optimize_acceleration(C, V, ad, obj, a_bound=10, α_bound=10):
+    """Optimize acceleration to best matched desired subject to balancing constraints."""
     # first six decision variables are the acceleration; the remaining ones are
     # contact forces
     nc = 4  # number of contact points
@@ -197,18 +260,61 @@ def optimize_acceleration(C, V, ad, obj, a_bound=10, α_bound=10):
     return A
 
 
+def optimize_acceleration_face_form(C, V, ad, obj, a_bound=10, α_bound=10):
+    """Optimize acceleration to best matched desired subject to balancing constraints."""
+    # decision variables are the acceleration
+    nv = 6
+    x0 = np.zeros(nv)
+
+    # initial guess
+    x0[:3] = ad
+
+    # acceleration bounds
+    bounds = [(None, None) for _ in range(nv)]
+    for i in range(3):
+        bounds[i] = (-a_bound, a_bound)
+        bounds[i + 3] = (-α_bound, α_bound)
+
+    contacts = obj.contacts()
+    F = cwc(contacts)
+
+    def cost(x):
+        # try to match desired (linear) acceleration as much as possible
+        a = x[:3]
+        e = ad - a
+        return 0.5 * e @ e + 0.005 * x[3:6] @ x[3:6]
+
+    def ineq_con(x):
+        A = x
+        giw = body_gravito_inertial_wrench(C, V, A, obj)
+        return F @ giw
+
+    res = minimize(
+        cost,
+        x0=x0,
+        method="slsqp",
+        constraints=[
+            {"type": "ineq", "fun": ineq_con},
+        ],
+        bounds=bounds,
+    )
+    A = res.x
+    return A
+
+
 def main():
     np.set_printoptions(precision=5, suppress=True)
 
     C = np.eye(3)  # C_bw
     V = np.array([0, 0, 0, 0, 0, 0])
-    ad_world = np.array([1, 0, 0])  # TODO we could construct a control law here
+    ad_world = np.array([5, 0, 0])  # TODO we could construct a control law here
     ad_body = C @ ad_world
 
     # A = np.array([0, 0, 1, 0, 0, 0])
     # Y = body_regressor(V, A)
     obj = BalancedObject(m=1, h=0.1, δ=0.05, μ=0.2, h0=0, x0=0)
-    A = optimize_acceleration(C, V, ad_body, obj)
+    A1 = optimize_acceleration(C, V, ad_body, obj)
+    A2 = optimize_acceleration_face_form(C, V, ad_body, obj)
     IPython.embed()
 
 
