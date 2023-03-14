@@ -147,7 +147,7 @@ def body_regressor(C, V, A):
     a, α = A[:3], A[3:]
 
     # account for gravity
-    a = a - C @ G
+    # a = a - C @ G
 
     Sω = core.math.skew3(ω)
     Sv = core.math.skew3(v)
@@ -168,18 +168,26 @@ def body_regressor_components(C, V):
     """Compute components {Yi} of the regressor matrix Y such that
     Y = sum(Yi * Ai forall i)
     """
+    # velocity + gravity component
+    Ag = np.concatenate((C @ G, np.zeros(3)))
+    Y0 = body_regressor(C, V, -Ag)
+
+    # acceleration component
     Ys = []
+    V = np.zeros(6)
     for i in range(6):
         A = np.zeros(6)
         A[i] = 1
         Ys.append(body_regressor(C, V, A))
-    return np.array(Ys)
+    return Y0, Ys
 
 
 def body_regressor_by_vector_matrix(C, V, z):
-    """Compute a matrix D such that D @ A == Y.T @ z for some vector z."""
-    Ys = body_regressor_components(C, V)
-    return np.hstack([Y.T @ z for Y in Ys])
+    """Compute a matrix D such that d0 + D @ A == Y.T @ z for some vector z."""
+    Y0, Ys = body_regressor_components(C, V)
+    d0 = Y0.T @ z
+    D = np.vstack([Y.T @ z for Y in Ys]).T
+    return d0, D
 
 
 def span_to_face_form(S):
@@ -316,12 +324,11 @@ def optimize_acceleration_robust(C, V, ad, obj, a_bound=10, α_bound=10):
     contacts = obj.contacts()
     F = cwc(contacts)
 
-    # first 6 decision variables are the acceleration, then duals λ
-    # corresponding to the CWC constraints, and finally duals z on the
-    # parameter constraints
-    nλ = F.shape[0]
-    nz = obj.P.shape[0]
-    nv = 6 + nλ + nz
+    # first 6 decision variables are the acceleration, then a ton of duals
+    # {λ_i}
+    nf = F.shape[0]
+    nλ = obj.p.shape[0]
+    nv = 6 + nf * nλ
     x0 = np.zeros(nv)
 
     # initial guess
@@ -337,30 +344,77 @@ def optimize_acceleration_robust(C, V, ad, obj, a_bound=10, α_bound=10):
     def cost(x):
         # try to match desired (linear) acceleration as much as possible
         a = x[:3]
+        α = x[3:6]
         e = ad - a
-        return 0.5 * e @ e + 0.005 * x[3:6] @ x[3:6]
+        return 0.5 * e @ e + 0.005 * α @ α
+
+    def jac(x):
+        a = x[:3]
+        α = x[3:6]
+        e = ad - a
+
+        J = np.zeros(nv)
+        J[:3] = -e
+        J[3:6] = 0.01 * α
+        return J
 
     def eq_con(x):
-        A, λ, z = x[:6], x[6 : 6 + nλ], x[-nz:]
-        Y = body_regressor(C, V, A)
-        return np.append(-Y.T @ F.T @ λ + obj.P.T @ z, np.sum(λ) - 1)
+        A, λs = x[:6], x[6:].reshape((nf, nλ))
+        n = obj.P.shape[1]
+        N = obj.P.shape[1] * nf
+        constraints = np.zeros(N)
+        for i in range(nf):
+            λ = λs[i, :]
+            d0, D = body_regressor_by_vector_matrix(C, V, F[i, :])
+            constraints[i*n:(i+1)*n] = d0 + D @ A + obj.P.T @ λ
+        return constraints
+
+    def eq_con_jac(x):
+        A, λs = x[:6], x[6:].reshape((nf, nλ))
+        n = obj.P.shape[1]
+        N = obj.P.shape[1] * nf
+        J = np.zeros((N, nv))
+        for i in range(nf):
+            λ = λs[i, :]
+
+            # TODO we could precompute this: it doesn't change with x (we can
+            # actually precompute the whole Jacobian, which would in fact allow
+            # easier computation of the constraints themselves)
+            d0, D = body_regressor_by_vector_matrix(C, V, F[i, :])
+
+            # Jacobian w.r.t. A
+            J[i*n:(i+1)*n, :6] = D
+
+            # Jacobian w.r.t. λi
+            J[i*n:(i+1)*n, 6+i*nλ:6+(i+1)*nλ] = obj.P.T
+        return J
 
     def ineq_con(x):
-        z = x[-nz:]
-        return np.array([-z @ obj.p])
+        λs = x[6:].reshape((nf, nλ))
+        return np.array([-obj.p @ λ for λ in λs])
+
+    def ineq_con_jac(x):
+        λs = x[6:].reshape((nf, nλ))
+        J = np.zeros((nf, nv))
+        for i in range(nf):
+            J[i, 6+i*nλ:6+(i+1)*nλ] = -obj.p
+        return J
 
     res = minimize(
         cost,
         x0=x0,
+        jac=jac,
         method="slsqp",
         constraints=[
-            {"type": "eq", "fun": eq_con},
-            {"type": "ineq", "fun": ineq_con},
+            {"type": "eq", "fun": eq_con, "jac": eq_con_jac},
+            {"type": "ineq", "fun": ineq_con, "jac": ineq_con_jac},
         ],
         bounds=bounds,
     )
     A = res.x[:6]
+    Y = body_regressor(C, V, A)
     giw = body_gravito_inertial_wrench(C, V, A, obj)
+    # test: F @ giw <= 0, F @ Y @ θ <= 0  # NOTE both are violated!
     IPython.embed()
     return A
 
@@ -416,16 +470,25 @@ def main():
     obj = BalancedObject(m=1, h=0.1, δ=0.05, μ=0.2, h0=0, x0=0)
 
     # test the body regressor
-    # A = np.array([1, 2, 3, 4, 5, 6])
-    # Y = body_regressor(V, A)
+    Ag = np.concatenate((C @ G, np.zeros(3)))  # body frame gravity
+    A = np.array([1, 2, 3, 4, 5, 6])
+    Y = body_regressor(C, V, A - Ag)
+    Y0, Ys = body_regressor_components(C, V)
+    Y_other = Y0.copy()
+    for i in range(6):
+        Y_other += Ys[i] * A[i]
+
+    z = np.arange(6)
+    one = Y.T @ z
+    d0, D = body_regressor_by_vector_matrix(C, V, z)
+    two = d0 + D @ A
+
     # giw = body_gravito_inertial_wrench(C, V, A, obj)
     # IPython.embed()
     # return
 
-    A = np.array([6, 0, 0, 0, 0, 0])
-    inner_optimization(C, V, A, obj)
-
-    # A1 = optimize_acceleration(C, V, ad_body, obj)
+    A1 = optimize_acceleration(C, V, ad_body, obj)
+    Ar = optimize_acceleration_robust(C, V, ad_body, obj)
     # A2 = optimize_acceleration_face_form(C, V, ad_body, obj)
     # Ar = optimize_acceleration_robust(C, V, ad_body, obj)
     # IPython.embed()
