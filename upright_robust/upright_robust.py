@@ -90,11 +90,11 @@ class BalancedObject:
         # polytopic constraints on the inertial parameters
         # Pθ >= p
         Jvec = vec(self.J)
-        θ = np.concatenate(([m], m * self.origin, Jvec))
+        self.θ = np.concatenate(([m], m * self.origin, Jvec))
         Δθ = np.concatenate(([0.1, 0.5 * δ, 0.5 * δ, 0.5 * h], 0.1 * Jvec))
-        θ_min = θ - Δθ
-        θ_max = θ + Δθ
-        self.P = np.vstack((np.eye(θ.shape[0]), -np.eye(θ.shape[0])))
+        θ_min = self.θ - Δθ
+        θ_max = self.θ + Δθ
+        self.P = np.vstack((np.eye(self.θ.shape[0]), -np.eye(self.θ.shape[0])))
         self.p = np.concatenate((θ_min, -θ_max))
 
     def contacts(self):
@@ -138,14 +138,48 @@ def friction_cone_constraints(forces, contacts):
     return np.concatenate([c.F @ f for c, f in zip(contacts, forces)])
 
 
-def Vmat(S):
-    return cdd.Matrix(np.hstack((np.zeros((S.shape[0], 1)), S)))
+def body_regressor(C, V, A):
+    """Compute regressor matrix Y given body frame velocity V and acceleration A.
 
-def unHmat(Hmat):
-    H = np.array([Hmat[i] for i in range(Hmat.row_size)])
-    b = H[:, 0]
-    A = -H[:, 1:]
-    return A, b
+    The regressor maps the inertial parameters to the body inertial wrench: w = Yθ.
+    """
+    v, ω = V[:3], V[3:]
+    a, α = A[:3], A[3:]
+
+    # account for gravity
+    a = a - C @ G
+
+    Sω = core.math.skew3(ω)
+    Sv = core.math.skew3(v)
+    Sa = core.math.skew3(a)
+    Sα = core.math.skew3(α)
+    Lω = lift(ω)
+    Lα = lift(α)
+
+    # fmt: off
+    return np.block([
+        [(a + Sω @ v)[:, None], Sα + Sω @ Sω, np.zeros((3, 6))],
+        [np.zeros((3, 1)), -Sa - core.math.skew3(Sω @ v), Lα + Sω @ Lω]
+    ])
+    # fmt: on
+
+
+def body_regressor_components(C, V):
+    """Compute components {Yi} of the regressor matrix Y such that
+    Y = sum(Yi * Ai forall i)
+    """
+    Ys = []
+    for i in range(6):
+        A = np.zeros(6)
+        A[i] = 1
+        Ys.append(body_regressor(C, V, A))
+    return np.array(Ys)
+
+
+def body_regressor_by_vector_matrix(C, V, z):
+    """Compute a matrix D such that D @ A == Y.T @ z for some vector z."""
+    Ys = body_regressor_components(C, V)
+    return np.hstack([Y.T @ z for Y in Ys])
 
 
 def span_to_face_form(S):
@@ -177,30 +211,6 @@ def cwc(contacts):
 
     # Fw >= 0 ==> there exist feasible contact forces to support wrench w
     return A
-
-
-def body_regressor(V, A):
-    """Compute regressor matrix Y given body frame velocity V and acceleration A.
-
-    The regressor maps the inertial parameters to the body inertial wrench: w = Yθ.
-    """
-    # TODO will need to deal with gravity somewhere
-    v, ω = V[:3], V[3:]
-    a, α = A[:3], A[3:]
-
-    Sω = core.math.skew3(ω)
-    Sv = core.math.skew3(v)
-    Sa = core.math.skew3(a)
-    Sα = core.math.skew3(α)
-    Lω = lift(ω)
-    Lα = lift(α)
-
-    # fmt: off
-    return np.block([
-        [(a + Sω @ v)[:, None], Sα + Sω @ Sω, np.zeros((3, 6))],
-        [np.zeros((3, 1)), -Sa - skew(Sω @ v), Lα + Sω @ Lω]
-    ])
-    # fmt: on
 
 
 def optimize_acceleration(C, V, ad, obj, a_bound=10, α_bound=10):
@@ -239,7 +249,6 @@ def optimize_acceleration(C, V, ad, obj, a_bound=10, α_bound=10):
         # equations) for each object
         giw = body_gravito_inertial_wrench(C, V, A, obj)
         cw = body_contact_wrench(forces, contacts)
-        # IPython.embed()
         return giw - cw
 
     def ineq_con(x):
@@ -302,6 +311,100 @@ def optimize_acceleration_face_form(C, V, ad, obj, a_bound=10, α_bound=10):
     return A
 
 
+def optimize_acceleration_robust(C, V, ad, obj, a_bound=10, α_bound=10):
+    """Optimize acceleration to best matched desired subject to balancing constraints."""
+    contacts = obj.contacts()
+    F = cwc(contacts)
+
+    # first 6 decision variables are the acceleration, then duals λ
+    # corresponding to the CWC constraints, and finally duals z on the
+    # parameter constraints
+    nλ = F.shape[0]
+    nz = obj.P.shape[0]
+    nv = 6 + nλ + nz
+    x0 = np.zeros(nv)
+
+    # initial guess
+    x0[:3] = ad
+
+    # bounds
+    # all duals must be non-negative
+    bounds = [(0, None) for _ in range(nv)]
+    for i in range(3):
+        bounds[i] = (-a_bound, a_bound)
+        bounds[i + 3] = (-α_bound, α_bound)
+
+    def cost(x):
+        # try to match desired (linear) acceleration as much as possible
+        a = x[:3]
+        e = ad - a
+        return 0.5 * e @ e + 0.005 * x[3:6] @ x[3:6]
+
+    def eq_con(x):
+        A, λ, z = x[:6], x[6 : 6 + nλ], x[-nz:]
+        Y = body_regressor(C, V, A)
+        return np.append(-Y.T @ F.T @ λ + obj.P.T @ z, np.sum(λ) - 1)
+
+    def ineq_con(x):
+        z = x[-nz:]
+        return np.array([-z @ obj.p])
+
+    res = minimize(
+        cost,
+        x0=x0,
+        method="slsqp",
+        constraints=[
+            {"type": "eq", "fun": eq_con},
+            {"type": "ineq", "fun": ineq_con},
+        ],
+        bounds=bounds,
+    )
+    A = res.x[:6]
+    giw = body_gravito_inertial_wrench(C, V, A, obj)
+    IPython.embed()
+    return A
+
+
+# def inner_optimization(C, V, A, obj):
+#     contacts = obj.contacts()
+#     F = cwc(contacts)
+#
+#     # first opt var is y, the rest are the inertial parameters θ
+#     nv = 11
+#     x0 = np.zeros(nv)
+#
+#     # bounds
+#     bounds = [(None, None) for _ in range(nv)]
+#
+#     def cost(x):
+#         # max y
+#         return x[0]
+#
+#     def ineq_con(x):
+#         y, θ = x[0], x[1:]
+#         Y = body_regressor(C, V, A)
+#         return np.concatenate((obj.P @ θ - obj.p, -F @ Y @ θ + y * np.ones(F.shape[0])))
+#
+#     res = minimize(
+#         cost,
+#         x0=x0,
+#         method="slsqp",
+#         constraints=[
+#             {"type": "ineq", "fun": ineq_con},
+#         ],
+#         bounds=bounds,
+#     )
+#     y, θ = res.x[0], res.x[1:]
+#     print(f"y = {y}")
+#     print(f"θ = {θ}")
+#
+#     # the GIW is not feasible, which means y should be able go negative
+#     giw = body_gravito_inertial_wrench(C, V, A, obj)
+#
+#     IPython.embed()
+#     return y, θ
+
+
 def main():
     np.set_printoptions(precision=5, suppress=True)
 
@@ -310,12 +413,22 @@ def main():
     ad_world = np.array([5, 0, 0])  # TODO we could construct a control law here
     ad_body = C @ ad_world
 
-    # A = np.array([0, 0, 1, 0, 0, 0])
-    # Y = body_regressor(V, A)
     obj = BalancedObject(m=1, h=0.1, δ=0.05, μ=0.2, h0=0, x0=0)
-    A1 = optimize_acceleration(C, V, ad_body, obj)
-    A2 = optimize_acceleration_face_form(C, V, ad_body, obj)
-    IPython.embed()
+
+    # test the body regressor
+    # A = np.array([1, 2, 3, 4, 5, 6])
+    # Y = body_regressor(V, A)
+    # giw = body_gravito_inertial_wrench(C, V, A, obj)
+    # IPython.embed()
+    # return
+
+    A = np.array([6, 0, 0, 0, 0, 0])
+    inner_optimization(C, V, A, obj)
+
+    # A1 = optimize_acceleration(C, V, ad_body, obj)
+    # A2 = optimize_acceleration_face_form(C, V, ad_body, obj)
+    # Ar = optimize_acceleration_robust(C, V, ad_body, obj)
+    # IPython.embed()
 
 
 if __name__ == "__main__":
