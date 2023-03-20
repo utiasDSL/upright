@@ -4,7 +4,7 @@ import cdd
 import upright_core as core
 
 
-def lift(x):
+def lift3(x):
     """Lift a 3-vector x such that A @ x = lift(x) @ vech(A) for symmetric A."""
     # fmt: off
     return np.array([
@@ -21,6 +21,37 @@ def skew6(V):
     Sv = core.math.skew3(v)
     Sω = core.math.skew3(ω)
     return np.block([[Sω, np.zeros((3, 3))], [Sv, Sω]])
+
+
+def skew6_matrices():
+    """Compute list of matrices S such that skew6(V) = Σ S[i] * V[i]"""
+    S = []
+    for i in range(6):
+        E = np.zeros(6)
+        E[i] = 1
+        S.append(skew6(E))
+    return S
+
+
+def lift6(x):
+    """Lift a 6-vector V such that A @ V = lift(V) @ vech(A) for symmetric A."""
+    a = x[:3]
+    b = x[3:]
+    # fmt: off
+    return np.block([
+        [a[:, None], core.math.skew3(b), np.zeros((3, 6))],
+        [np.zeros((3, 1)), -core.math.skew3(a), lift3(b)]])
+    # fmt: on
+
+
+def lift6_matrices():
+    """Compute list of matrices L such that lift6(V) = Σ L[i] * V[i]"""
+    L = []
+    for i in range(6):
+        E = np.zeros(6)
+        E[i] = 1
+        L.append(lift6(E))
+    return L
 
 
 def vech(J):
@@ -131,7 +162,7 @@ def friction_cone_constraints(forces, contacts):
     return np.concatenate([c.F @ f for c, f in zip(contacts, forces)])
 
 
-def body_regressor(C, V, A):
+def body_regressor(V, A):
     """Compute regressor matrix Y given body frame velocity V and acceleration A.
 
     The regressor maps the inertial parameters to the body inertial wrench: w = Yθ.
@@ -146,8 +177,8 @@ def body_regressor(C, V, A):
     Sv = core.math.skew3(v)
     Sa = core.math.skew3(a)
     Sα = core.math.skew3(α)
-    Lω = lift(ω)
-    Lα = lift(α)
+    Lω = lift3(ω)
+    Lα = lift3(α)
 
     # fmt: off
     return np.block([
@@ -157,21 +188,27 @@ def body_regressor(C, V, A):
     # fmt: on
 
 
+def body_regressor_acceleration_matrices():
+    # TODO I think these are just the lift6_matrices
+    Ys = []
+    V = np.zeros(6)
+    for i in range(6):
+        A = np.zeros(6)
+        A[i] = 1
+        Ys.append(body_regressor(V, A))
+    return Ys
+
+
 def body_regressor_components(C, V):
     """Compute components {Yi} of the regressor matrix Y such that
     Y = sum(Yi * Ai forall i)
     """
     # velocity + gravity component
     Ag = np.concatenate((C @ G, np.zeros(3)))
-    Y0 = body_regressor(C, V, -Ag)
+    Y0 = body_regressor(V, -Ag)
 
     # acceleration component
-    Ys = []
-    V = np.zeros(6)
-    for i in range(6):
-        A = np.zeros(6)
-        A[i] = 1
-        Ys.append(body_regressor(C, V, A))
+    Ys = body_regressor_acceleration_matrices()
     return Y0, Ys
 
 
@@ -217,3 +254,26 @@ def cwc(contacts):
 
     # Fw >= 0 ==> there exist feasible contact forces to support wrench w
     return A
+
+
+
+def body_regressor_by_vector_acceleration_matrix(x):
+    """Compute a matrix D such that x.T @ Y(0, A) == A.T @ D for some vector x."""
+    Ls = lift6_matrices()
+    return np.array([x.T @ L for L in Ls])
+
+
+def body_regressor_by_vector_velocity_matrix(x):
+    """Compute a matrix D such that x.T @ Y(V, 0) == z.T @ D for some vector x,
+    where z = vec(V @ V.T)."""
+    S = skew6_matrices()
+    L = lift6_matrices()
+    As = []
+
+    for i in range(6):
+        for j in range(6):
+            As.append(S[i] @ L[j])
+
+    # matrix with rows of f.T * A[i]
+    # this is the linear representation required for the optimization problem
+    return np.array([x.T @ A for A in As])

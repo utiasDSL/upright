@@ -405,9 +405,12 @@ def main():
     # d0, D = body_regressor_by_vector_matrix(C, V, z)
     # two = d0 + D @ A
 
-    rob.cwc(obj.contacts())
+    L = rob.lift6_matrices()
     IPython.embed()
-    return
+
+    # rob.cwc(obj.contacts())
+    # IPython.embed()
+    # return
 
     # A_body = np.array([3, 0, 0, 0, 0, 0])
     # A1 = optimize_acceleration(C, V, ad_body, obj)
