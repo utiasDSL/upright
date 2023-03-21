@@ -26,23 +26,24 @@ def schur(X, x):
 def solve_problem(obj, f):
     D = rob.body_regressor_by_vector_acceleration_matrix(f)
     Dg = D[:3, :]
-    # Z = rob.body_regressor_by_vector_velocity_matrix(f)
+    Z = rob.body_regressor_by_vector_velocity_matrix(f)
 
     nv = 6
     ng = 3
-    # nz = Z.shape[0]
+    nz = Z.shape[0]
     nθ = 10
 
-    ny = nv + ng + nθ
+    ny = nv + ng + nθ + nz
 
     # Sz = np.hstack((np.zeros((nz, nv + ng)), np.eye(nz), np.zeros((nz, nθ))))
 
     # y = (A, G, z, θ)
     # fmt: off
     Q = np.block([
-        [np.zeros((nv, nv + ng)), D],
-        [np.zeros((ng, nv + ng)), Dg],
-        [D.T, Dg.T, np.zeros((nθ, nθ))]])
+        [np.zeros((nv, nv + ng + nz)), D],
+        [np.zeros((ng, nv + ng +  nz)), Dg],
+        [np.zeros((nz, nv + ng +  nz)), Z],
+        [D.T, Dg.T, Z.T, np.zeros((nθ, nθ))]])
     # fmt: on
 
     # gravity constraints
@@ -51,64 +52,71 @@ def solve_problem(obj, f):
 
     # velocity and acceleration constraints
     A_min = -np.ones(nv)
-    A_max = np.ones(nv)
-    # V_min = -np.ones(nv)
-    # V_max = np.ones(nv)
+    A_max = 0.5 * np.ones(nv)
+    V_min = -np.ones(nv)
+    V_max = np.ones(nv)
 
     A = cp.Variable(nv)
     G = cp.Variable(ng)
-    # z = cp.Variable(nz)
+    z = cp.Variable(nz)
     θ = cp.Variable(nθ)
 
-    y = cp.hstack((A, G, θ))
+    y = cp.hstack((A, G, z, θ))
     X = cp.Variable((ny, ny), PSD=True)
 
-    # V = cp.Variable(6)
-    # Λ = cp.Variable((6, 6), PSD=True)
-    x_max = np.concatenate((A_max, [0, 0, -9.81], obj.θ_max))
-    x_min = np.concatenate((A_min, [0, 0, -9.81], obj.θ_min))
+    Λ = cp.Variable((6, 6), PSD=True)
 
-    Xg = X[nv:nv+3,nv:nv+3]
+    Xa = X[:nv, :nv]  # acceleration block
+    Xg = X[nv:nv+3,nv:nv+3]  # gravity block
+    Xz = X[nv+ng:nv+ng+nz, nv+ng:nv+ng+nz]  # z block
+    Xθ = X[-nθ:, -nθ:]  # θ block
 
+    # notice that we don't need to include V in the optimization problem at all
     objective = cp.Maximize(0.5 * cp.trace(Q @ X))
     constraints = [
-        # Sz @ y == cp.vec(Λ),
-        schur(X, y) >> 0,
-        # X << np.outer(x_max, x_max),
-        # X << x_max @ x_max * np.eye(X.shape[0]),
-        # cp.trace(X) <= A_max @ A_max + g**2 + obj.θ_max @ obj.θ_max,  # NOTE w/o this the problem is unbounded
-        # cp.diag(X) <= x_max**2,
-        # cp.diag(X) >= x_min**2,
-        # schur(Λ, V) >> 0,
-        # Λ == np.zeros((6, 6)),
-        # z == np.zeros(36),
+        z == cp.vec(Λ),
 
-        cp.diag(X[:nv, :nv]) <= A_max**2,
-        cp.diag(X[-nθ:, -nθ:]) <= obj.θ_max**2,
+        # we constrain z completely through Λ
+        Λ <= np.outer(V_max, V_max),
+
+        # constraints on X
+        schur(X, y) >> 0,
+        cp.diag(Xa) <= A_max**2,
+        cp.diag(Xθ) <= obj.θ_max**2,
         cp.trace(Xg) == g**2,
         Xg[2, 2] >= (g * np.cos(max_tilt_angle))**2,
 
+        # consistency between Xz and Λ
+        Xz << cp.kron(np.outer(V_max, V_max), Λ),
+
+        # constraints on y
         cp.norm(G) <= g,
         z_normal @ G <= -g * np.cos(max_tilt_angle),
-        # G == np.array([0, 0, -9.81]),
-        # y >= x_min,
-        # y <= x_max,
-
-        # V >= V_min,
-        # V <= V_max,
         A >= A_min,
         A <= A_max,
         θ >= obj.θ_min,
         θ <= obj.θ_max,
-        # obj.P @ θ >= obj.p,
-        # X << 101 * np.eye(X.shape[0]),
-        # Λ >> 0,
     ]
+
+    # off-diagonal blocks of z @ z.T are symmetric, which helps tighten the
+    # relaxation
+    # for i in range(0, 5):
+    #     for j in range(i + 1, 5):
+    #         Xz_ij = Xz[i*6:(i+1)*6, j*6:(j+1)*6]
+    #         constraints.append(Xz_ij == Xz_ij.T)
+    #         constraints.append(Xz_ij <= V_max[i]*V_max[j]*Λ)
+    #
+    # for i in range(6):
+    #     Xz_ii = Xz[i*6:(i+1)*6, i*6:(i+1)*6]
+    #     constraints.append(Xz_ii <= V_max[i]**2 * Λ)
+
     problem = cp.Problem(objective, constraints)
     # value = problem.solve(solver=cp.SCS, verbose=True, max_iters=int(1e6))
-    problem.solve(solver=cp.MOSEK)
+    problem.solve(solver=cp.MOSEK, verbose=True)
     print(problem.status)
     print(problem.value)
+
+    # TODO this is an undervalue of the true objective that contains V directly: f @ Y(C, V, A) @ θ
     print(0.5 * y.value @ Q @ y.value)
 
     IPython.embed()
