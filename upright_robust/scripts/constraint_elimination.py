@@ -55,6 +55,7 @@ def solve_problem(obj, f):
     A_max = 0.5 * np.ones(nv)
     V_min = -np.ones(nv)
     V_max = np.ones(nv)
+    Λ_max = np.outer(V_max, V_max)
 
     A = cp.Variable(nv)
     G = cp.Variable(ng)
@@ -77,7 +78,7 @@ def solve_problem(obj, f):
         z == cp.vec(Λ),
 
         # we constrain z completely through Λ
-        Λ <= np.outer(V_max, V_max),
+        Λ <= Λ_max,
 
         # constraints on X
         schur(X, y) >> 0,
@@ -87,7 +88,9 @@ def solve_problem(obj, f):
         Xg[2, 2] >= (g * np.cos(max_tilt_angle))**2,
 
         # consistency between Xz and Λ
-        Xz << cp.kron(np.outer(V_max, V_max), Λ),
+        Xz << cp.kron(Λ_max, Λ),
+
+        # TODO we can also include physical realizability on J
 
         # constraints on y
         cp.norm(G) <= g,
@@ -97,18 +100,6 @@ def solve_problem(obj, f):
         θ >= obj.θ_min,
         θ <= obj.θ_max,
     ]
-
-    # off-diagonal blocks of z @ z.T are symmetric, which helps tighten the
-    # relaxation
-    # for i in range(0, 5):
-    #     for j in range(i + 1, 5):
-    #         Xz_ij = Xz[i*6:(i+1)*6, j*6:(j+1)*6]
-    #         constraints.append(Xz_ij == Xz_ij.T)
-    #         constraints.append(Xz_ij <= V_max[i]*V_max[j]*Λ)
-    #
-    # for i in range(6):
-    #     Xz_ii = Xz[i*6:(i+1)*6, i*6:(i+1)*6]
-    #     constraints.append(Xz_ii <= V_max[i]**2 * Λ)
 
     problem = cp.Problem(objective, constraints)
     # value = problem.solve(solver=cp.SCS, verbose=True, max_iters=int(1e6))
