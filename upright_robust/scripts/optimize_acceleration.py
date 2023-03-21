@@ -405,8 +405,8 @@ def main():
     # d0, D = body_regressor_by_vector_matrix(C, V, z)
     # two = d0 + D @ A
 
-    L = rob.lift6_matrices()
-    IPython.embed()
+    # L = rob.lift6_matrices()
+    # IPython.embed()
 
     # rob.cwc(obj.contacts())
     # IPython.embed()
@@ -415,9 +415,9 @@ def main():
     # A_body = np.array([3, 0, 0, 0, 0, 0])
     # A1 = optimize_acceleration(C, V, ad_body, obj)
     # ys, ds, λs = inner_optimization(C, V, A1, obj)
-    # Ar1 = optimize_acceleration_robust_osqp(C, V, ad_body, obj)
+    Ar1 = optimize_acceleration_robust(C, V, ad_body, obj)
     # Ar2 = optimize_acceleration_sequential(C, V, ad_body, obj)
-    # print(Ar2)
+    print(Ar1)
 
 
 if __name__ == "__main__":

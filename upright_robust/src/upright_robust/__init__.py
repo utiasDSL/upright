@@ -116,10 +116,10 @@ class BalancedObject:
         Jvec = vech(self.J)
         self.θ = np.concatenate(([m], m * self.origin, Jvec))
         Δθ = np.concatenate(([0.1, 0.01 * δ, 0.01 * δ, 0.01 * h], 0 * Jvec))
-        θ_min = self.θ - Δθ
-        θ_max = self.θ + Δθ
+        self.θ_min = self.θ - Δθ
+        self.θ_max = self.θ + Δθ
         self.P = np.vstack((np.eye(self.θ.shape[0]), -np.eye(self.θ.shape[0])))
-        self.p = np.concatenate((θ_min, -θ_max))
+        self.p = np.concatenate((self.θ_min, -self.θ_max))
 
     def contacts(self):
         # contacts are in the body frame w.r.t. to the origin
@@ -204,6 +204,7 @@ def body_regressor_components(C, V):
     Y = sum(Yi * Ai forall i)
     """
     # velocity + gravity component
+    G = np.array([0, 0, -9.81])
     Ag = np.concatenate((C @ G, np.zeros(3)))
     Y0 = body_regressor(V, -Ag)
 
