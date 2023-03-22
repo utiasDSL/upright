@@ -54,18 +54,13 @@ def lift6_matrices():
     return Ls
 
 
-def selector_vector(i, j, r, c):
-    e = sym.zeros(r * c, 1)
-    e[i * r + j] = 1
-    return e
-
-
 v = sym.Matrix(sym.symbols("vx,vy,vz"))
 ω = sym.Matrix(sym.symbols("ωx,ωy,ωz"))
 V = sym.Matrix.vstack(v, ω)
 
 VVT = V * V.T
 z = VVT.vec()
+zh = VVT.vech()
 
 Yv = VLV(V)
 yv = Yv.vec()
@@ -73,6 +68,7 @@ yv = Yv.vec()
 Ss = skew6_matrices()
 Ls = lift6_matrices()
 Y_test = sym.zeros(6, 10)
+Y_test2 = sym.zeros(6, 10)
 
 As = []
 
@@ -82,8 +78,19 @@ for i in range(6):
         # Y_test += Ss[i] * Ls[j] * VVT[i, j]
         # Y_test += Ss[i] * Ls[j] * selector_vector(i, j, 6, 6).dot(z)
 
+Ahs = []
+for i in range(6):
+    for j in range(i, 6):
+        A = Ss[i] * Ls[j]
+        if i != j:
+            A += Ss[j] * Ls[i]
+        Ahs.append(A)
+
 for i in range(36):
     Y_test += As[i] * z[i]
+
+for i in range(len(zh)):
+    Y_test2 += Ahs[i] * zh[i]
 
 # test vector
 f = sym.Matrix([1, 2, 3, 4, 5, 6])
@@ -91,7 +98,9 @@ f = sym.Matrix([1, 2, 3, 4, 5, 6])
 # matrix with rows of f.T * A[i]
 # this is the linear representation required for the optimization problem
 D = sym.Matrix([f.transpose() * A for A in As])
+Dh = sym.Matrix([f.transpose() * A for A in Ahs])
 
 assert f.transpose() * Yv == z.transpose() * D
+assert f.transpose() * Yv == zh.transpose() * Dh
 
 IPython.embed()

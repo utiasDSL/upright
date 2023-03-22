@@ -257,7 +257,6 @@ def cwc(contacts):
     return A
 
 
-
 def body_regressor_by_vector_acceleration_matrix(x):
     """Compute a matrix D such that x.T @ Y(0, A) == A.T @ D for some vector x."""
     Ls = lift6_matrices()
@@ -274,6 +273,25 @@ def body_regressor_by_vector_velocity_matrix(x):
     for i in range(6):
         for j in range(6):
             As.append(S[i] @ L[j])
+
+    # matrix with rows of f.T * A[i]
+    # this is the linear representation required for the optimization problem
+    return np.array([x.T @ A for A in As])
+
+
+def body_regressor_by_vector_velocity_matrix_half(x):
+    """Compute a matrix D such that x.T @ Y(V, 0) == z.T @ D for some vector x,
+    where z = vec(V @ V.T)."""
+    S = skew6_matrices()
+    L = lift6_matrices()
+    As = []
+
+    for i in range(6):
+        for j in range(i, 6):
+            A = S[i] @ L[j]
+            if i != j:
+                A += S[j] @ L[i]
+            As.append(A)
 
     # matrix with rows of f.T * A[i]
     # this is the linear representation required for the optimization problem
