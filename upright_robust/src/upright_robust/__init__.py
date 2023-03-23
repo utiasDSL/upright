@@ -293,6 +293,8 @@ def body_regressor_by_vector_velocity_matrix_half(x):
                 A += S[j] @ L[i]
             As.append(A)
 
+    idx = [4, 5, 8, 10, 12, 13, 15, 16, 17, 18, 19, 20]
+
     # matrix with rows of f.T * A[i]
     # this is the linear representation required for the optimization problem
-    return np.array([x.T @ A for A in As])
+    return np.array([x.T @ As[i] for i in idx])

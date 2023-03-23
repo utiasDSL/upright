@@ -92,6 +92,12 @@ for i in range(36):
 for i in range(len(zh)):
     Y_test2 += Ahs[i] * zh[i]
 
+nz_indices = []
+for i in range(len(zh)):
+    if Ahs[i] != sym.zeros(6, 10):
+        nz_indices.append(i)
+    print(f"Ahs[{i}] == 0 = {Ahs[i] == sym.zeros(6, 10)}")
+
 # test vector
 f = sym.Matrix([1, 2, 3, 4, 5, 6])
 

@@ -23,10 +23,28 @@ def schur(X, x):
     return cp.bmat([[X, y], [y.T, [[1]]]])
 
 
+def vech(X):
+    return cp.hstack((X[i, i:] for i in range(X.shape[0]))).T
+
+def vech_np(X):
+    return np.hstack((X[i, i:] for i in range(X.shape[0]))).T
+
+
+def extract_z(Λ):
+    z = vech(Λ)
+    idx = [4, 5, 8, 10, 12, 13, 15, 16, 17, 18, 19, 20]
+    return z[idx]
+
+def extract_z_np(Λ):
+    z = vech_np(Λ)
+    idx = [4, 5, 8, 10, 12, 13, 15, 16, 17, 18, 19, 20]
+    return z[idx]
+
+
 def solve_global_relaxed(obj, f):
     D = rob.body_regressor_by_vector_acceleration_matrix(f)
     Dg = D[:3, :]
-    Z = rob.body_regressor_by_vector_velocity_matrix(f)
+    Z = rob.body_regressor_by_vector_velocity_matrix_half(f)
 
     nv = 6
     ng = 3
@@ -53,8 +71,8 @@ def solve_global_relaxed(obj, f):
     # velocity and acceleration constraints
     A_min = -np.ones(nv)
     A_max = np.ones(nv)
-    V_min = -np.zeros(nv)
-    V_max = np.zeros(nv)
+    V_min = -np.ones(nv)
+    V_max = np.ones(nv)
     Λ_max = np.outer(V_max, V_max)
 
     A = cp.Variable(nv)
@@ -72,10 +90,14 @@ def solve_global_relaxed(obj, f):
     Xz = X[nv + ng : nv + ng + nz, nv + ng : nv + ng + nz]  # z block
     Xθ = X[-nθ:, -nθ:]  # θ block
 
+    # TODO to deal with this we need 
+
     # notice that we don't need to include V in the optimization problem at all
     objective = cp.Maximize(0.5 * cp.trace(Q @ X))
     constraints = [
-        z == cp.vec(Λ),
+        # z == cp.vec(Λ),  # TODO need a half-vec here
+        # z == vech(Λ),
+        z == extract_z(Λ),
         # we constrain z completely through Λ
         Λ <= Λ_max,
         # constraints on X
@@ -89,7 +111,9 @@ def solve_global_relaxed(obj, f):
         # consistency between Xz and Λ
         # Xz << cp.kron(Λ_max, Λ),
 
-        Xz <= cp.kron(Λ_max, Λ),
+        # Xz <= cp.kron(Λ_max, Λ),
+        # Xz <= vech_np(Λ_max) @ vech(Λ).T,
+        Xz <= extract_z_np(Λ_max) @ extract_z(Λ).T,
 
         # TODO we can also include physical realizability on J
         # constraints on y
@@ -103,25 +127,25 @@ def solve_global_relaxed(obj, f):
 
     # off-diagonal blocks of z @ z.T are symmetric, which helps tighten the
     # relaxation
-    for i in range(0, 5):
-        for j in range(i + 1, 5):
-            Xz_ij = Xz[i * 6 : (i + 1) * 6, j * 6 : (j + 1) * 6]
-            constraints.append(Xz_ij == Xz_ij.T)
-            constraints.append(Xz_ij << V_max[i] * V_max[j] * Λ)
-            constraints.append(Xz_ij >> V_max[i] * V_min[j] * Λ)
-
-    for i in range(6):
-        Xz_ii = Xz[i * 6 : (i + 1) * 6, i * 6 : (i + 1) * 6]
-        constraints.append(Xz_ii << V_max[i] ** 2 * Λ)
+    # for i in range(0, 5):
+    #     for j in range(i + 1, 5):
+    #         Xz_ij = Xz[i * 6 : (i + 1) * 6, j * 6 : (j + 1) * 6]
+    #         constraints.append(Xz_ij == Xz_ij.T)
+    #         constraints.append(Xz_ij << V_max[i] * V_max[j] * Λ)
+    #         constraints.append(Xz_ij >> V_max[i] * V_min[j] * Λ)
+    #
+    # for i in range(6):
+    #     Xz_ii = Xz[i * 6 : (i + 1) * 6, i * 6 : (i + 1) * 6]
+    #     constraints.append(Xz_ii << V_max[i] ** 2 * Λ)
 
     problem = cp.Problem(objective, constraints)
     problem.solve(solver=cp.MOSEK, verbose=True)
     # problem.solve(solver=cp.MOSEK)
-    print(problem.status)
+    # print(problem.status)
     print(problem.value)
 
     # TODO this is an undervalue of the true objective that contains V directly: f @ Y(C, V, A) @ θ
-    print(0.5 * y.value @ Q @ y.value)
+    # print(0.5 * y.value @ Q @ y.value)
 
     # extract the relevant value of V
     e, v = np.linalg.eig(Λ.value)
@@ -132,7 +156,9 @@ def solve_global_relaxed(obj, f):
         V = np.zeros(6)
     Ag = np.concatenate((G.value, np.zeros(3)))
     Y = rob.body_regressor(V, A.value + Ag)
-    print(f @ Y @ θ.value)
+    # print(f @ Y @ θ.value)
+
+    IPython.embed()
 
 
 def solve_local(obj, f):
@@ -140,7 +166,7 @@ def solve_local(obj, f):
     # A, g, V, θ
     A0 = np.zeros(6)
     G0 = np.array([0, 0, -9.81])
-    V0 = np.zeros(6)
+    V0 = np.ones(6)
     θ0 = obj.θ
     x0 = np.concatenate((A0, G0, V0, θ0))
 
@@ -151,8 +177,8 @@ def solve_local(obj, f):
     # velocity and acceleration constraints
     A_min = -np.ones(6)
     A_max = np.ones(6)
-    V_min = -np.zeros(6)
-    V_max = np.zeros(6)
+    V_min = -np.ones(6)
+    V_max = np.ones(6)
 
     def cost(x):
         A, G, V, θ = x[:6], x[6:9], x[9:15], x[-10:]
