@@ -27,7 +27,8 @@ def vech(X):
     return cp.hstack((X[i, i:] for i in range(X.shape[0]))).T
 
 def vech_np(X):
-    return np.hstack((X[i, i:] for i in range(X.shape[0]))).T
+    arrs = [X[i, i:] for i in range(X.shape[0])]
+    return np.concatenate(arrs)
 
 
 def extract_z(Λ):
@@ -79,27 +80,30 @@ def solve_global_relaxed(obj, f):
     G = cp.Variable(ng)
     z = cp.Variable(nz)
     θ = cp.Variable(nθ)
+    # V = cp.Variable(nv)
 
     y = cp.hstack((A, G, z, θ))
     X = cp.Variable((ny, ny), PSD=True)
 
     Λ = cp.Variable((6, 6), PSD=True)
 
+    # Xv = X[:nv, :nv]  # acceleration block
     Xa = X[:nv, :nv]  # acceleration block
-    Xg = X[nv : nv + 3, nv : nv + 3]  # gravity block
+    Xg = X[nv : nv + ng, nv : nv + ng]  # gravity block
     Xz = X[nv + ng : nv + ng + nz, nv + ng : nv + ng + nz]  # z block
     Xθ = X[-nθ:, -nθ:]  # θ block
-
-    # TODO to deal with this we need 
 
     # notice that we don't need to include V in the optimization problem at all
     objective = cp.Maximize(0.5 * cp.trace(Q @ X))
     constraints = [
-        # z == cp.vec(Λ),  # TODO need a half-vec here
+        # z == cp.vec(Λ),
         # z == vech(Λ),
         z == extract_z(Λ),
+
         # we constrain z completely through Λ
         Λ <= Λ_max,
+        # schur(Λ, V) >> 0,
+        # cp.diag(Λ) <= np.diag(Λ_max),
         # constraints on X
         schur(X, y) >> 0,
         cp.diag(Xa) <= np.maximum(A_max**2, A_min**2),
@@ -114,6 +118,7 @@ def solve_global_relaxed(obj, f):
         # Xz <= cp.kron(Λ_max, Λ),
         # Xz <= vech_np(Λ_max) @ vech(Λ).T,
         Xz <= extract_z_np(Λ_max) @ extract_z(Λ).T,
+        # Xv == Λ,
 
         # TODO we can also include physical realizability on J
         # constraints on y
@@ -123,6 +128,8 @@ def solve_global_relaxed(obj, f):
         A <= A_max,
         θ >= obj.θ_min,
         θ <= obj.θ_max,
+        # V >= V_min,
+        # V <= V_max,
     ]
 
     # off-diagonal blocks of z @ z.T are symmetric, which helps tighten the
@@ -139,26 +146,26 @@ def solve_global_relaxed(obj, f):
     #     constraints.append(Xz_ii << V_max[i] ** 2 * Λ)
 
     problem = cp.Problem(objective, constraints)
-    problem.solve(solver=cp.MOSEK, verbose=True)
-    # problem.solve(solver=cp.MOSEK)
-    # print(problem.status)
+    # problem.solve(solver=cp.MOSEK, verbose=True)
+    problem.solve(solver=cp.MOSEK)
+    print(problem.status)
     print(problem.value)
 
     # TODO this is an undervalue of the true objective that contains V directly: f @ Y(C, V, A) @ θ
     # print(0.5 * y.value @ Q @ y.value)
 
     # extract the relevant value of V
-    e, v = np.linalg.eig(Λ.value)
-    if np.abs(e[0]) > 1e-8:
-        V = np.sqrt(e[0]) * v[:, 0]
-        V = V / np.max(np.abs(V)) * V_max[0]
-    else:
-        V = np.zeros(6)
-    Ag = np.concatenate((G.value, np.zeros(3)))
-    Y = rob.body_regressor(V, A.value + Ag)
+    # e, v = np.linalg.eig(Λ.value)
+    # if np.abs(e[0]) > 1e-8:
+    #     V = np.sqrt(e[0]) * v[:, 0]
+    #     V = V / np.max(np.abs(V)) * V_max[0]
+    # else:
+    #     V = np.zeros(6)
+    # Ag = np.concatenate((G.value, np.zeros(3)))
+    # Y = rob.body_regressor(V, A.value + Ag)
     # print(f @ Y @ θ.value)
 
-    IPython.embed()
+    # IPython.embed()
 
 
 def solve_local(obj, f):
@@ -223,13 +230,21 @@ def main():
     obj = rob.BalancedObject(m=1, h=0.1, δ=0.05, μ=0.5, h0=0, x0=0)
     F = -rob.cwc(obj.contacts())
 
-    solve_global_relaxed(obj, F[1, :])
-    solve_local(obj, F[1, :])
-    return
+    # for i in range(F.shape[0]):
+    #     Z = rob.body_regressor_by_vector_velocity_matrix_half(F[i, :])
+    #     print(np.sum(Z, axis=1))
+    # return
+
+    # solve_local(obj, F[13, :])
+    # solve_global_relaxed(obj, F[13, :])
+    # return
 
     for i in range(F.shape[0]):
-        solve_global_relaxed(obj, F[i, :])
-        return
+        print(i)
+        f = F[i, :]
+        f = f / np.max(np.abs(f))
+        solve_global_relaxed(obj, f)
+        solve_local(obj, f)
 
 
 if __name__ == "__main__":
