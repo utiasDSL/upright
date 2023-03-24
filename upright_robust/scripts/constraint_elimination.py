@@ -42,9 +42,27 @@ def extract_z_np(Λ):
     return z[idx]
 
 
-def solve_global_relaxed(obj, f):
+def compute_Q_matrix(f):
     D = rob.body_regressor_by_vector_acceleration_matrix(f)
-    Dg = D[:3, :]
+    Dg = -D[:3, :]
+    Z = rob.body_regressor_by_vector_velocity_matrix_half(f)
+
+    nv = 6
+    ng = 3
+    nθ = 10
+    nz = Z.shape[0]
+
+    Q = np.block([
+        [np.zeros((nv, nv + ng + nz)), D],
+        [np.zeros((ng, nv + ng +  nz)), Dg],
+        [np.zeros((nz, nv + ng +  nz)), Z],
+        [D.T, Dg.T, Z.T, np.zeros((nθ, nθ))]])
+    return Q
+
+
+def solve_global_relaxed(obj, F, idx, other_constr_idx):
+    f = F[idx, :]
+    Q = compute_Q_matrix(f)
     Z = rob.body_regressor_by_vector_velocity_matrix_half(f)
 
     nv = 6
@@ -54,17 +72,6 @@ def solve_global_relaxed(obj, f):
 
     ny = nv + ng + nθ + nz
 
-    # Sz = np.hstack((np.zeros((nz, nv + ng)), np.eye(nz), np.zeros((nz, nθ))))
-
-    # y = (A, G, z, θ)
-    # fmt: off
-    Q = np.block([
-        [np.zeros((nv, nv + ng + nz)), D],
-        [np.zeros((ng, nv + ng +  nz)), Dg],
-        [np.zeros((nz, nv + ng +  nz)), Z],
-        [D.T, Dg.T, Z.T, np.zeros((nθ, nθ))]])
-    # fmt: on
-
     # gravity constraints
     z_normal = np.array([0, 0, 1])
     max_tilt_angle = np.deg2rad(30)
@@ -72,8 +79,8 @@ def solve_global_relaxed(obj, f):
     # velocity and acceleration constraints
     A_min = -np.ones(nv)
     A_max = np.ones(nv)
-    V_min = -np.ones(nv)
-    V_max = np.ones(nv)
+    V_max = 0.5 * np.array([1, 1, 1, 1, 1, 1])
+    V_min = -V_max
     Λ_max = np.outer(V_max, V_max)
 
     A = cp.Variable(nv)
@@ -101,36 +108,56 @@ def solve_global_relaxed(obj, f):
         z == extract_z(Λ),
 
         # we constrain z completely through Λ
-        Λ <= Λ_max,
+        # Λ <= Λ_max,
+        cp.trace(Λ[:3, :3]) <= 0.5**2,
+        cp.trace(Λ[3:, 3:]) <= 0.5**2,
+
         # schur(Λ, V) >> 0,
         # cp.diag(Λ) <= np.diag(Λ_max),
         # constraints on X
         schur(X, y) >> 0,
-        cp.diag(Xa) <= np.maximum(A_max**2, A_min**2),
+        cp.trace(Xa[:3, :3]) <= 1,
+        cp.trace(Xa[3:, 3:]) <= 1,
+        # cp.diag(Xa) <= np.maximum(A_max**2, A_min**2),
         cp.diag(Xθ) <= np.maximum(obj.θ_max**2, obj.θ_min**2),
         # Xa <= np.maximum(np.outer(A_max,A_max), np.outer(A_min, A_min)),
         # Xθ <= np.maximum(np.outer(obj.θ_max, obj.θ_max), np.outer(obj.θ_min, obj.θ_min)),
         cp.trace(Xg) == g**2,
         Xg[2, 2] >= (g * np.cos(max_tilt_angle)) ** 2,
         # consistency between Xz and Λ
-        # Xz << cp.kron(Λ_max, Λ),
-
         # Xz <= cp.kron(Λ_max, Λ),
         # Xz <= vech_np(Λ_max) @ vech(Λ).T,
-        Xz <= extract_z_np(Λ_max) @ extract_z(Λ).T,
+        # Xz <= extract_z_np(Λ_max) @ extract_z(Λ).T,
         # Xv == Λ,
+        # cp.trace(Xz) <= 2 * cp.trace(Λ),
+
+        # TODO can we make this tighter by depending directly on Λ?
+        # note that this is still conservative regardless because we are not
+        # reasoning directly about the norm inequalities we have
+
+        cp.diag(Xz) <= extract_z_np(Λ_max)**2,
+        # cp.trace(Xz) <= np.linalg.norm(extract_z_np(Λ_max))**2,
+        # cp.trace(Xz) <= np.linalg.norm(extract_z_np(Λ_max)) * cp.norm1(extract_z(Λ)),
+        # cp.trace(Xz) <= extract_z_np(Λ_max) @ extract_z(Λ),
 
         # TODO we can also include physical realizability on J
         # constraints on y
         cp.norm(G) <= g,
         z_normal @ G <= -g * np.cos(max_tilt_angle),
-        A >= A_min,
-        A <= A_max,
+        # A >= A_min,
+        # A <= A_max,
+        cp.norm(A[:3]) <= 1,
+        cp.norm(A[3:]) <= 1,
         θ >= obj.θ_min,
         θ <= obj.θ_max,
         # V >= V_min,
         # V <= V_max,
     ]
+
+    for i in other_constr_idx:
+        fi = F[i, :]
+        Qi = compute_Q_matrix(fi)
+        constraints.append(0.5 * cp.trace(Qi @ X) <= 0)
 
     # off-diagonal blocks of z @ z.T are symmetric, which helps tighten the
     # relaxation
@@ -147,9 +174,13 @@ def solve_global_relaxed(obj, f):
 
     problem = cp.Problem(objective, constraints)
     # problem.solve(solver=cp.MOSEK, verbose=True)
-    problem.solve(solver=cp.MOSEK)
+    try:
+        problem.solve(solver=cp.MOSEK)
+    except cp.error.SolverError:
+        print("failed to solve relaxed problem")
     print(problem.status)
     print(problem.value)
+    # print(np.linalg.eigvals(X.value))
 
     # TODO this is an undervalue of the true objective that contains V directly: f @ Y(C, V, A) @ θ
     # print(0.5 * y.value @ Q @ y.value)
@@ -168,12 +199,13 @@ def solve_global_relaxed(obj, f):
     # IPython.embed()
 
 
-def solve_local(obj, f):
+# def solve_local(obj, f):
+def solve_local(obj, F, idx, other_constr_idx):
 
     # A, g, V, θ
     A0 = np.zeros(6)
     G0 = np.array([0, 0, -9.81])
-    V0 = np.ones(6)
+    V0 = np.zeros(6)
     θ0 = obj.θ
     x0 = np.concatenate((A0, G0, V0, θ0))
 
@@ -187,27 +219,41 @@ def solve_local(obj, f):
     V_min = -np.ones(6)
     V_max = np.ones(6)
 
+    f = F[idx, :]
+
     def cost(x):
         A, G, V, θ = x[:6], x[6:9], x[9:15], x[-10:]
         Ag = np.concatenate((G, np.zeros(3)))
-        Y = rob.body_regressor(V, A + Ag)
+        Y = rob.body_regressor(V, A - Ag)
         return -f @ Y @ θ
 
     def eq_cons(x):
         G = x[6:9]
         return np.linalg.norm(G) - g
 
+    def compute_extra_inequalities(x):
+        A, G, V, θ = x[:6], x[6:9], x[9:15], x[-10:]
+        Ag = np.concatenate((G, np.zeros(3)))
+        Y = rob.body_regressor(V, A - Ag)
+        other_cons = []
+        for i in other_constr_idx:
+            other_cons.append(-F[i, :] @ Y @ θ)
+        return other_cons
+
     def ineq_cons(x):
         A, G, V, θ = x[:6], x[6:9], x[9:15], x[-10:]
         return np.concatenate(
             (
-                A_max - A,
-                A - A_min,
-                V_max - V,
-                V - V_min,
+                # A_max - A,
+                # A - A_min,
+                # V_max - V,
+                # V - V_min,
+                [1 - np.linalg.norm(A[:3]), 1 - np.linalg.norm(A[3:])],
+                [0.5 - np.linalg.norm(V[:3]), 0.5 - np.linalg.norm(V[3:])],
                 obj.θ_max - θ,
                 θ - obj.θ_min,
                 [-g * np.cos(max_tilt_angle) - G[2]],
+                compute_extra_inequalities(x),
             )
         )
 
@@ -219,9 +265,17 @@ def solve_local(obj, f):
             {"type": "ineq", "fun": ineq_cons},
             {"type": "eq", "fun": eq_cons},
         ],
+        # tol=1e-3,
+        # options={"maxiter": 1000},
     )
     A, G, V, θ = res.x[:6], res.x[6:9], res.x[9:15], res.x[-10:]
-    print(-cost(res.x))
+    value = -cost(res.x)
+    print(f"local solved = {res.success}")
+    print(f"local obj = {value}")
+    if value <= 0:
+        print("^^^^ NEGATIVE")
+    if not res.success:
+        IPython.embed()
 
 
 def main():
@@ -230,21 +284,22 @@ def main():
     obj = rob.BalancedObject(m=1, h=0.1, δ=0.05, μ=0.5, h0=0, x0=0)
     F = -rob.cwc(obj.contacts())
 
-    # for i in range(F.shape[0]):
-    #     Z = rob.body_regressor_by_vector_velocity_matrix_half(F[i, :])
-    #     print(np.sum(Z, axis=1))
-    # return
+    F = F / np.max(np.abs(F))
 
     # solve_local(obj, F[13, :])
     # solve_global_relaxed(obj, F[13, :])
     # return
 
+    # solve_global_relaxed(obj, F, 2, [0, 1])
+    # return
+
     for i in range(F.shape[0]):
         print(i)
-        f = F[i, :]
-        f = f / np.max(np.abs(f))
-        solve_global_relaxed(obj, f)
-        solve_local(obj, f)
+        solve_global_relaxed(obj, F, i, list(range(i)))
+        solve_local(obj, F, i, list(range(i)))
+
+        # solve_global_relaxed(obj, F, i, [])
+        # solve_local(obj, F, i, [])
 
 
 if __name__ == "__main__":
