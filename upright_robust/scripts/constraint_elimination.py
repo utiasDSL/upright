@@ -45,7 +45,8 @@ def extract_z_np(Λ):
 def compute_Q_matrix(f):
     D = rob.body_regressor_by_vector_acceleration_matrix(f)
     Dg = -D[:3, :]
-    Z = rob.body_regressor_by_vector_velocity_matrix_half(f)
+    # Z = rob.body_regressor_by_vector_velocity_matrix_half(f)
+    Z = rob.body_regressor_by_vector_velocity_matrix(f)
 
     nv = 6
     ng = 3
@@ -63,7 +64,8 @@ def compute_Q_matrix(f):
 def solve_global_relaxed(obj, F, idx, other_constr_idx):
     f = F[idx, :]
     Q = compute_Q_matrix(f)
-    Z = rob.body_regressor_by_vector_velocity_matrix_half(f)
+    # Z = rob.body_regressor_by_vector_velocity_matrix_half(f)
+    Z = rob.body_regressor_by_vector_velocity_matrix(f)
 
     nv = 6
     ng = 3
@@ -83,11 +85,14 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
     V_min = -V_max
     Λ_max = np.outer(V_max, V_max)
 
+    v_max = 0.5
+    ω_max = 0.5
+
     A = cp.Variable(nv)
     G = cp.Variable(ng)
     z = cp.Variable(nz)
     θ = cp.Variable(nθ)
-    # V = cp.Variable(nv)
+    V = cp.Variable(nv)
 
     y = cp.hstack((A, G, z, θ))
     X = cp.Variable((ny, ny), PSD=True)
@@ -103,21 +108,21 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
     # notice that we don't need to include V in the optimization problem at all
     objective = cp.Maximize(0.5 * cp.trace(Q @ X))
     constraints = [
-        # z == cp.vec(Λ),
+        z == cp.vec(Λ),
         # z == vech(Λ),
-        z == extract_z(Λ),
+        # z == extract_z(Λ),
 
         # we constrain z completely through Λ
         # Λ <= Λ_max,
-        cp.trace(Λ[:3, :3]) <= 0.5**2,
-        cp.trace(Λ[3:, 3:]) <= 0.5**2,
+        cp.trace(Λ[:3, :3]) == v_max**2,  # NOTE this constraint is tight
+        cp.trace(Λ[3:, 3:]) <= ω_max**2,
 
-        # schur(Λ, V) >> 0,
+        schur(Λ, V) >> 0,
         # cp.diag(Λ) <= np.diag(Λ_max),
         # constraints on X
         schur(X, y) >> 0,
-        cp.trace(Xa[:3, :3]) <= 1,
-        cp.trace(Xa[3:, 3:]) <= 1,
+        cp.trace(Xa[:3, :3]) == 1,
+        cp.trace(Xa[3:, 3:]) == 1,
         # cp.diag(Xa) <= np.maximum(A_max**2, A_min**2),
         cp.diag(Xθ) <= np.maximum(obj.θ_max**2, obj.θ_min**2),
         # Xa <= np.maximum(np.outer(A_max,A_max), np.outer(A_min, A_min)),
@@ -129,13 +134,16 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
         # Xz <= vech_np(Λ_max) @ vech(Λ).T,
         # Xz <= extract_z_np(Λ_max) @ extract_z(Λ).T,
         # Xv == Λ,
-        # cp.trace(Xz) <= 2 * cp.trace(Λ),
+        cp.trace(Xz) == (v_max**2 + ω_max**2) * cp.trace(Λ),
+
+        # X[nv + ng : nv + ng + nz, :] == 0,
+        # X[:, nv + ng : nv + ng + nz] == 0,
 
         # TODO can we make this tighter by depending directly on Λ?
         # note that this is still conservative regardless because we are not
         # reasoning directly about the norm inequalities we have
 
-        cp.diag(Xz) <= extract_z_np(Λ_max)**2,
+        # cp.diag(Xz) <= extract_z_np(Λ_max)**2,
         # cp.trace(Xz) <= np.linalg.norm(extract_z_np(Λ_max))**2,
         # cp.trace(Xz) <= np.linalg.norm(extract_z_np(Λ_max)) * cp.norm1(extract_z(Λ)),
         # cp.trace(Xz) <= extract_z_np(Λ_max) @ extract_z(Λ),
@@ -150,6 +158,8 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
         cp.norm(A[3:]) <= 1,
         θ >= obj.θ_min,
         θ <= obj.θ_max,
+        cp.norm(V[:3]) <= v_max,
+        cp.norm(V[3:]) <= ω_max,
         # V >= V_min,
         # V <= V_max,
     ]
@@ -161,16 +171,19 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
 
     # off-diagonal blocks of z @ z.T are symmetric, which helps tighten the
     # relaxation
-    # for i in range(0, 5):
-    #     for j in range(i + 1, 5):
-    #         Xz_ij = Xz[i * 6 : (i + 1) * 6, j * 6 : (j + 1) * 6]
-    #         constraints.append(Xz_ij == Xz_ij.T)
-    #         constraints.append(Xz_ij << V_max[i] * V_max[j] * Λ)
-    #         constraints.append(Xz_ij >> V_max[i] * V_min[j] * Λ)
-    #
-    # for i in range(6):
-    #     Xz_ii = Xz[i * 6 : (i + 1) * 6, i * 6 : (i + 1) * 6]
-    #     constraints.append(Xz_ii << V_max[i] ** 2 * Λ)
+    for i in range(0, 5):
+        for j in range(i + 1, 5):
+            Xz_ij = Xz[i * 6 : (i + 1) * 6, j * 6 : (j + 1) * 6]
+
+            constraints.append(Xz_ij == Xz_ij.T)
+            constraints.append(cp.trace(Xz_ij[:3, :3]) == Λ[i, j] * v_max**2)
+            constraints.append(cp.trace(Xz_ij[3:, 3:]) == Λ[i, j] * ω_max**2)
+            # constraints.append(Xz_ij >> V_max[i] * V_min[j] * Λ)
+
+    for i in range(6):
+        Xz_ii = Xz[i * 6 : (i + 1) * 6, i * 6 : (i + 1) * 6]
+        constraints.append(cp.trace(Xz_ii[:3, :3]) == Λ[i, i] * v_max**2)
+        constraints.append(cp.trace(Xz_ii[3:, 3:]) == Λ[i, i] * ω_max**2)
 
     problem = cp.Problem(objective, constraints)
     # problem.solve(solver=cp.MOSEK, verbose=True)
@@ -179,24 +192,10 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
     except cp.error.SolverError:
         print("failed to solve relaxed problem")
     print(problem.status)
-    print(problem.value)
     # print(np.linalg.eigvals(X.value))
 
-    # TODO this is an undervalue of the true objective that contains V directly: f @ Y(C, V, A) @ θ
-    # print(0.5 * y.value @ Q @ y.value)
-
-    # extract the relevant value of V
-    # e, v = np.linalg.eig(Λ.value)
-    # if np.abs(e[0]) > 1e-8:
-    #     V = np.sqrt(e[0]) * v[:, 0]
-    #     V = V / np.max(np.abs(V)) * V_max[0]
-    # else:
-    #     V = np.zeros(6)
-    # Ag = np.concatenate((G.value, np.zeros(3)))
-    # Y = rob.body_regressor(V, A.value + Ag)
-    # print(f @ Y @ θ.value)
-
-    # IPython.embed()
+    IPython.embed()
+    return problem.value
 
 
 # def solve_local(obj, f):
@@ -205,7 +204,8 @@ def solve_local(obj, F, idx, other_constr_idx):
     # A, g, V, θ
     A0 = np.zeros(6)
     G0 = np.array([0, 0, -9.81])
-    V0 = np.zeros(6)
+    # V0 = np.array([0.5, 0, 0, 0.5, 0, 0])
+    V0 = np.array([0, 0.5, 0, 0, 0.5, 0])
     θ0 = obj.θ
     x0 = np.concatenate((A0, G0, V0, θ0))
 
@@ -218,6 +218,9 @@ def solve_local(obj, F, idx, other_constr_idx):
     A_max = np.ones(6)
     V_min = -np.ones(6)
     V_max = np.ones(6)
+
+    v_max = 0
+    ω_max = 0
 
     f = F[idx, :]
 
@@ -249,7 +252,7 @@ def solve_local(obj, F, idx, other_constr_idx):
                 # V_max - V,
                 # V - V_min,
                 [1 - np.linalg.norm(A[:3]), 1 - np.linalg.norm(A[3:])],
-                [0.5 - np.linalg.norm(V[:3]), 0.5 - np.linalg.norm(V[3:])],
+                [v_max - np.linalg.norm(V[:3]), ω_max - np.linalg.norm(V[3:])],
                 obj.θ_max - θ,
                 θ - obj.θ_min,
                 [-g * np.cos(max_tilt_angle) - G[2]],
@@ -272,10 +275,13 @@ def solve_local(obj, F, idx, other_constr_idx):
     value = -cost(res.x)
     print(f"local solved = {res.success}")
     print(f"local obj = {value}")
+    print(f"||v|| = {np.linalg.norm(V[:3])}, ||ω|| = {np.linalg.norm(V[3:])}")
     if value <= 0:
         print("^^^^ NEGATIVE")
     if not res.success:
         IPython.embed()
+    # IPython.embed()
+    return value
 
 
 def main():
@@ -295,11 +301,13 @@ def main():
 
     for i in range(F.shape[0]):
         print(i)
-        solve_global_relaxed(obj, F, i, list(range(i)))
-        solve_local(obj, F, i, list(range(i)))
+        # solve_global_relaxed(obj, F, i, list(range(i)))
+        # solve_local(obj, F, i, list(range(i)))
 
-        # solve_global_relaxed(obj, F, i, [])
-        # solve_local(obj, F, i, [])
+        relaxed = solve_global_relaxed(obj, F, i, [])
+        local = solve_local(obj, F, i, [])
+        print(f"gap = {relaxed - local}")
+        return
 
 
 if __name__ == "__main__":

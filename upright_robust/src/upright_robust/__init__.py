@@ -84,11 +84,16 @@ class ContactPoint:
 
         # span (generator) form matrix FC = {Sz | z >= 0}
         # fmt: off
-        self.S = P @ np.array([
-            [1,  1, 1,  1],
-            [μ, -μ, 0,  0],
-            [0,  0, μ, -μ]
-        ])
+        # self.S = P @ np.array([
+        #     [1,  1, 1,  1],
+        #     [μ, -μ, 0,  0],
+        #     [0,  0, μ, -μ]
+        # ])
+        self.S = np.vstack([
+            self.normal + μ * self.span[0, :],
+            self.normal + μ * self.span[1, :],
+            self.normal - μ * self.span[0, :],
+            self.normal - μ * self.span[1, :]]).T
         # fmt: on
 
 
@@ -144,6 +149,7 @@ def body_gravito_inertial_wrench(C, V, A, obj):
     The supplied velocity twist V and acceleration A must also be in the body
     frame.
     """
+    G = np.array([0, 0, -9.81])  # TODO
     Ag = np.concatenate((C @ G, np.zeros(3)))
     return obj.M @ (A - Ag) + skew6(V) @ obj.M @ V
 
@@ -225,7 +231,9 @@ def span_to_face_form(S):
     """Convert the span form of a polyhedral cone to face form.
 
     Span form is { Sz | z  >= 0 }
-    Face form is { x  | Fx >= 0 }
+    Face form is { x  | Ax <= b }
+
+    Return (A, b) of the face form.
     """
     # span form
     # we have generators as columns but cdd wants it as rows, hence the transpose
@@ -235,7 +243,7 @@ def span_to_face_form(S):
     # polyhedron
     poly = cdd.Polyhedron(Smat)
 
-    # face form: Ax <= b
+    # general face form is Ax <= b, which cdd stores as one matrix [b -A]
     Fmat = poly.get_inequalities()
     F = np.array([Fmat[i] for i in range(Fmat.row_size)])
     b = F[:, 0]
@@ -253,7 +261,7 @@ def cwc(contacts):
     A, b = span_to_face_form(S)
     assert np.allclose(b, 0)
 
-    # Fw >= 0 ==> there exist feasible contact forces to support wrench w
+    # Aw <= 0 implies there exist feasible contact forces to support wrench w
     return A
 
 
