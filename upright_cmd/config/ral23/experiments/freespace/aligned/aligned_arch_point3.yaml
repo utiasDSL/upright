@@ -1,0 +1,19 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/freespace/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point3.yaml
+
+
+simulation:
+  arrangement: box_arch
+
+controller:
+  balancing:
+    enabled: false
+    arrangement: box_arch
+
+  inertial_alignment:
+    constraint_enabled: true

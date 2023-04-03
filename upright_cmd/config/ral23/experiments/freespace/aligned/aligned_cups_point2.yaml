@@ -1,0 +1,19 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/freespace/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point2.yaml
+
+
+simulation:
+  arrangement: blue_cups
+
+controller:
+  balancing:
+    enabled: false
+    arrangement: blue_cups
+
+  inertial_alignment:
+    constraint_enabled: true

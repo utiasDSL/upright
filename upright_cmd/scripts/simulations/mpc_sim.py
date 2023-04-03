@@ -4,7 +4,6 @@ import datetime
 
 import numpy as np
 import pybullet as pyb
-from pyb_utils.ghost import GhostSphere
 from pyb_utils.frame import debug_frame_world
 import matplotlib.pyplot as plt
 

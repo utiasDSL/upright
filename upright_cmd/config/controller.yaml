@@ -74,9 +74,8 @@ balancing:
   arrangement: nothing
   constraint_type: hard
   enabled: false
-  use_force_constraints: false
+  use_force_constraints: true
   frictionless: true
-  use_bounded_constraints: true
   enable_normal_constraint: true
   enable_friction_constraint: true
   enable_zmp_constraint: true
@@ -89,11 +88,12 @@ balancing:
 inertial_alignment:
   cost_enabled: false
   constraint_enabled: false
+  # take angular acceleration into account (only has an affect if com has non-zero height)
   use_angular_acceleration: false
-  use_constraint: true
+  align_with_fixed_vector: false  # set to true to align with the contact_plane_normal
   cost_weight: 1
   contact_plane_normal: [0, 0, 1]
-  com: [0, 0, 0]
+  com: [0, 0, 0]  # set CoM offset
 
 end_effector_box_constraint:
   enabled: false
@@ -188,6 +188,7 @@ objects:
       type: cylinder
       radius: 0.035
       height: 0.255
+      # height: 0.75
 
   wood_block:
     mass: 0.18

@@ -1,0 +1,19 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/freespace/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point1.yaml
+
+
+simulation:
+  arrangement: pink_bottle
+
+controller:
+  balancing:
+    enabled: false
+    arrangement: pink_bottle
+
+  inertial_alignment:
+    constraint_enabled: true

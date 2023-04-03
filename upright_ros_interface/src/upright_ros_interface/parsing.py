@@ -87,6 +87,7 @@ def parse_object_error(
         print(
             f"Initial offset of object w.r.t. tray = {r_ot_ts[0, :]} (distance = {np.linalg.norm(r_ot_ts[0, :])})"
         )
+        # print(f"Initial object orientation (world) = {obj_poses[0, 3:]}")
     distances = np.linalg.norm(r_ot_t_err, axis=1)
 
     if return_times:

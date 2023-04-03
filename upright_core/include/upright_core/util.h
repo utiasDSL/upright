@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Eigen>
+#include <iostream>
 
 #include "upright_core/types.h"
 
