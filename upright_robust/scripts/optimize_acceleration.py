@@ -452,7 +452,7 @@ def main():
     ad_world = np.array([3, 0, 0])  # TODO we could construct a control law here
     ad_body = C @ ad_world
 
-    obj = rob.BalancedObject(m=1, h=0.1, δ=0.05, μ=0.2, h0=0, x0=0)
+    obj = rob.BalancedObject(m=1, h=0.05, δ=0.05, μ=0.2, h0=0, x0=0)
 
     # test the body regressor
     Ag = np.concatenate((C @ G, np.zeros(3)))  # body frame gravity
@@ -472,10 +472,10 @@ def main():
     # IPython.embed()
 
     # contacts = obj.contacts()
-    # F = rob.cwc(obj.contacts())
+    F = rob.cwc(obj.contacts())
     # giw = rob.body_gravito_inertial_wrench(C, V, np.zeros(6), obj)
-    # IPython.embed()
-    # return
+    IPython.embed()
+    return
 
     # A_body = np.array([3, 0, 0, 0, 0, 0])
     # A1 = optimize_acceleration(C, V, ad_body, obj)

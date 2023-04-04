@@ -1,0 +1,16 @@
+include:
+  -
+    package: upright_cmd
+    path: config/simulation.yaml
+  -
+    package: upright_robust
+    path: config/arrangements.yaml
+
+duration: 10.0
+
+objects:
+  cube:
+    shape: cuboid
+    mass: 0.2
+    side_lengths: [0.1, 0.1, 0.1]
+    color: [1, 0, 0, 1]

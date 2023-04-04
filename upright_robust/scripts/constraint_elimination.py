@@ -1,3 +1,8 @@
+"""Constraint elimination code.
+
+The goal is to prove that certain constraints will never be active over a set
+of parameter values and object states (orientation, velocity, acceleration).
+"""
 import numpy as np
 import cvxpy as cp
 import time
@@ -8,9 +13,8 @@ import upright_robust as rob
 import IPython
 
 
-# gravity
+# gravity constant
 g = 9.81
-# G = np.array([0, 0, -g])
 
 
 def outer(x):
@@ -26,6 +30,7 @@ def schur(X, x):
 def vech(X):
     return cp.hstack((X[i, i:] for i in range(X.shape[0]))).T
 
+
 def vech_np(X):
     arrs = [X[i, i:] for i in range(X.shape[0])]
     return np.concatenate(arrs)
@@ -35,6 +40,7 @@ def extract_z(Λ):
     z = vech(Λ)
     idx = [4, 5, 8, 10, 12, 13, 15, 16, 17, 18, 19, 20]
     return z[idx]
+
 
 def extract_z_np(Λ):
     z = vech_np(Λ)
@@ -199,6 +205,7 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
 
 
 def solve_global_relaxed_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
+    """Global convex problem based on the face form of the dual constraint formulation."""
     f = F[idx, :]
 
     Z = rob.body_regressor_by_vector_velocity_matrix(f)
@@ -347,7 +354,9 @@ def solve_local(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
     # IPython.embed()
     return value
 
+
 def solve_local_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
+    """Local solution of the face form of the dual problem."""
 
     # A, g, V, θ
     A0 = np.zeros(6)

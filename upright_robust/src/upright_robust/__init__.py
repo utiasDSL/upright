@@ -84,11 +84,6 @@ class ContactPoint:
 
         # span (generator) form matrix FC = {Sz | z >= 0}
         # fmt: off
-        # self.S = P @ np.array([
-        #     [1,  1, 1,  1],
-        #     [μ, -μ, 0,  0],
-        #     [0,  0, μ, -μ]
-        # ])
         self.S = np.vstack([
             self.normal + μ * self.span[0, :],
             self.normal + μ * self.span[1, :],

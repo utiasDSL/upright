@@ -1,0 +1,43 @@
+arrangements:
+  nothing:
+    objects: []
+
+  stacked_cubes:
+    objects:
+      -
+        name: cube1
+        type: stack_cube
+        parent: ee
+      -
+        name: cube2
+        type: stack_cube
+        parent: cube1
+      -
+        name: cube3
+        type: stack_cube
+        parent: cube2
+    contacts:
+      -
+        first: ee
+        second: cube1
+        mu: 0.2
+      -
+        first: cube1
+        second: cube2
+        mu: 0.2
+      -
+        first: cube2
+        second: cube3
+        mu: 0.2
+
+  single_cube:
+    objects:
+      -
+        name: cube1
+        type: stack_cube
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: cube1
+        mu: 0.2

@@ -1,0 +1,18 @@
+include:
+  -
+    package: upright_cmd
+    path: config/controller.yaml
+  -
+    package: upright_robust
+    path: config/arrangements.yaml
+
+balancing:
+  use_force_constraints: true
+
+objects:
+  stack_cube:
+    mass: 0.2
+    com_offset: [0, 0, 0]
+    shape:
+        type: cuboid
+        side_lengths: [0.1, 0.1, 0.1]
