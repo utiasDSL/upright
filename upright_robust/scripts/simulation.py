@@ -12,6 +12,7 @@ from scipy import sparse
 from qpsolvers import solve_qp
 
 from upright_core.logging import DataLogger, DataPlotter
+import mobile_manipulation_central as mm
 import upright_sim as sim
 import upright_core as core
 import upright_control as ctrl
@@ -127,43 +128,49 @@ def object_velocity_terms(obj, V):
     return skew6(V) @ M @ V
 
 
-def solve_nominal_qp(name_index, objects, contacts, C, V, ad):
+def solve_nominal_qp(name_index, objects, contacts, C_we, V, ad, δ, J):
     # number of optimization variables
-    nv = 6 + 3 * len(contacts)
+    nv = 9 + 6 + 3 * len(contacts)
 
     # initial guess
     x0 = np.zeros(nv)
-    x0[:3] = ad
+    x0[9:12] = C_we.T @ ad
 
-    Ag = np.concatenate((C @ G, np.zeros(3)))  # body-frame gravity
+    Ag = np.concatenate((C_we.T @ G, np.zeros(3)))  # body-frame gravity
     W = compute_contact_force_to_wrench_map(name_index, contacts)
     M = np.vstack([object_mass_matrix(obj) for obj in objects.values()])
     h = np.concatenate([object_velocity_terms(obj, V) for obj in objects.values()])
 
     # compute the equality constraints A_eq @ x == b
-    A_eq = np.hstack((M, W))
+    A_eq = np.hstack((np.zeros((M.shape[0], 9)), M, W))
     b_eq = M @ Ag - h
+
+    A_eq_track = np.hstack((-J, C_we, np.zeros((3, 3 + W.shape[1]))))
+    A_eq = np.vstack((A_eq_track, A_eq))
+    b_eq = np.concatenate((δ, b_eq))
 
     # compute the inequality constraints A_ineq @ x <= 0
     F = block_diag(*[c.F for c in contacts])
-    A_ineq = np.hstack((np.zeros((F.shape[0], 6)), F))
+    A_ineq = np.hstack((np.zeros((F.shape[0], 9 + 6)), F))
 
     # compute the cost: 0.5 * x @ P @ x + q @ x
     P = np.zeros((nv, nv))
-    P[:3, :3] = np.eye(3)
-    P[3:6, 3:6] = 0.01 * np.eye(3)
+    P[9:12, 9:12] = np.eye(3)
+    P[12:15, 12:15] = 0.01 * np.eye(3)
     q = np.zeros(nv)
-    q[:3] = -ad
+    q[9:12] = -C_we.T @ ad
 
     # acceleration bounds
     a_bound = 5
     α_bound = 1
     lb = -np.inf * np.ones(nv)
     ub = np.inf * np.ones(nv)
-    lb[:3] = -a_bound
-    lb[3:6] = -α_bound
-    ub[:3] = a_bound
-    ub[3:6] = α_bound
+    lb[:9] = -5
+    ub[:9] = 5
+    lb[9:12] = -a_bound
+    lb[12:15] = -α_bound
+    ub[9:12] = a_bound
+    ub[12:15] = α_bound
 
     t0 = time.time()
     x = solve_qp(
@@ -184,9 +191,10 @@ def solve_nominal_qp(name_index, objects, contacts, C, V, ad):
     )
     t1 = time.time()
     print(f"solve took {t1 - t0} seconds")
-    A = x[:6]
+    a = x[:9]
+    A = x[9:15]
     print(f"soln = {A}")
-    return A
+    return a
 
 
 def solve_nominal_qp_face_form(objects, F, C, V, ad):
@@ -257,6 +265,7 @@ def main():
 
     # parse the contact points
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
+    robot = model.robot
     contacts = model.settings.balancing_settings.contacts
     objects = model.settings.balancing_settings.objects
     names = list(objects.keys())
@@ -266,11 +275,74 @@ def main():
     F = compute_cwc_face_form(name_index, robust_contacts)
     C = np.eye(3)
     V = np.zeros(6)
-    ad = np.array([3, 0, 0])
-    solve_nominal_qp(name_index, objects, robust_contacts, C, V, ad)
-    solve_nominal_qp_face_form(objects, F, C, V, ad)
+    # ad = np.array([3, 0, 0])
+    # solve_nominal_qp(name_index, objects, robust_contacts, C, V, ad)
+    # solve_nominal_qp_face_form(objects, F, C, V, ad)
 
-    # IPython.embed()
+    timestamp = datetime.datetime.now()
+    env = sim.simulation.UprightSimulation(
+        config=sim_config,
+        timestamp=timestamp,
+        video_name=cli_args.video,
+        extra_gui=sim_config.get("extra_gui", False),
+    )
+    env.settle(5.0)
+
+    t = 0.0
+    q, v = env.robot.joint_states()
+    a = np.zeros(env.robot.nv)
+
+    v_cmd = np.zeros(env.robot.nv)
+
+    robot.forward(q, v)
+    r_ew_w_0, Q_we_0 = robot.link_pose()
+    r_ew_w_d = r_ew_w_0 + [0, 2, 0]
+
+    # desired trajectory
+    trajectory = mm.PointToPointTrajectory.quintic(r_ew_w_0, r_ew_w_d, max_vel=1, max_acc=5)
+
+    # tracking controller gains
+    kp = 10
+    kv = 1
+
+    # rd = r0 + [0, 2, 0]
+    # vd = np.zeros(3)
+    # ad = np.zeros(3)
+
+    # goal position
+    debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
+
+    # simulation loop
+    while t <= env.duration:
+        # current joint state
+        q, v = env.robot.joint_states(add_noise=False)
+
+        # current EE state
+        robot.forward(q, v)
+        r_ew_w, Q_we = robot.link_pose()
+        C_we = core.math.quat_to_rot(Q_we)
+        v_ew_w, ω_ew_w = robot.link_velocity()
+        V_ew_w = np.concatenate((v_ew_w, ω_ew_w))
+
+        J = robot.jacobian(q)[:3, :]
+        dJdt = robot.jacobian_time_derivative(q, v)
+        δ = dJdt[:3, :] @ v
+
+        # desired EE state
+        rd, vd, ad = trajectory.sample(t)
+
+        # commanded EE linear acceleration
+        a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad
+
+        # compute command
+        a_cmd = solve_nominal_qp(name_index, objects, robust_contacts, C_we, V_ew_w, a_ew_w_cmd, δ, J)
+        v_cmd = v_cmd + env.timestep * a_cmd
+
+        env.robot.command_velocity(v_cmd, bodyframe=False)
+
+        t = env.step(t, step_robot=False)[0]
+
+    IPython.embed()
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ include:
 duration: 10.0
 
 objects:
-  cube:
+  stack_cube:
     shape: cuboid
     mass: 0.2
     side_lengths: [0.1, 0.1, 0.1]
