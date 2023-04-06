@@ -121,142 +121,21 @@ def object_velocity_terms(obj, V):
     return rob.skew6(V) @ M @ V
 
 
-def solve_nominal_qp(name_index, objects, contacts, C_we, V, ad, δ, J):
-    # number of optimization variables
-    nv = 9 + 6 + 3 * len(contacts)
-
-    # initial guess
-    x0 = np.zeros(nv)
-    x0[9:12] = C_we.T @ ad
-
-    Ag = np.concatenate((C_we.T @ G, np.zeros(3)))  # body-frame gravity
-    W = compute_contact_force_to_wrench_map(name_index, contacts)
-    M = np.vstack([object_mass_matrix(obj) for obj in objects.values()])
-    h = np.concatenate([object_velocity_terms(obj, V) for obj in objects.values()])
-
-    # compute the equality constraints A_eq @ x == b
-    A_eq = np.hstack((np.zeros((M.shape[0], 9)), M, W))
-    b_eq = M @ Ag - h
-
-    A_eq_track = np.hstack((-J, C_we, np.zeros((3, 3 + W.shape[1]))))
-    A_eq = np.vstack((A_eq_track, A_eq))
-    b_eq = np.concatenate((δ, b_eq))
-
-    # compute the inequality constraints A_ineq @ x <= 0
-    F = block_diag(*[c.F for c in contacts])
-    A_ineq = np.hstack((np.zeros((F.shape[0], 9 + 6)), F))
-
-    # compute the cost: 0.5 * x @ P @ x + q @ x
-    P = np.zeros((nv, nv))
-    P[9:12, 9:12] = np.eye(3)
-    P[12:15, 12:15] = 0.01 * np.eye(3)
-    q = np.zeros(nv)
-    q[9:12] = -C_we.T @ ad
-
-    # acceleration bounds
-    a_bound = 5
-    α_bound = 1
-    lb = -np.inf * np.ones(nv)
-    ub = np.inf * np.ones(nv)
-    lb[:9] = -5
-    ub[:9] = 5
-    lb[9:12] = -a_bound
-    lb[12:15] = -α_bound
-    ub[9:12] = a_bound
-    ub[12:15] = α_bound
-
-    t0 = time.time()
-    x = solve_qp(
-        P=sparse.csc_matrix(P),
-        q=q,
-        G=sparse.csc_matrix(A_ineq),
-        h=np.zeros(A_ineq.shape[0]),
-        A=sparse.csc_matrix(A_eq),
-        b=b_eq,
-        lb=lb,
-        ub=ub,
-        initvals=x0,
-        eps_abs=1e-6,
-        eps_rel=1e-6,
-        max_iter=10000,
-        solver="osqp",
-        # polish=True,
-    )
-    t1 = time.time()
-    print(f"solve took {t1 - t0} seconds")
-    a = x[:9]
-    A = x[9:15]
-    print(f"soln = {A}")
-    return a
-
-
-def solve_nominal_qp_face_form(objects, F, C, V, ad):
-    # number of optimization variables
-    nv = 6
-
-    # initial guess
-    x0 = np.zeros(nv)
-    x0[:3] = ad
-
-    Ag = np.concatenate((C @ G, np.zeros(3)))  # body-frame gravity
-    M = np.vstack([object_mass_matrix(obj) for obj in objects.values()])
-    h = np.concatenate([object_velocity_terms(obj, V) for obj in objects.values()])
-
-    # compute the inequality constraints A_ineq @ x <= 0
-    A_ineq = F @ M
-    b_ineq = F @ (M @ Ag - h)
-
-    # compute the cost: 0.5 * x @ P @ x + q @ x
-    P = np.zeros((nv, nv))
-    P[:3, :3] = np.eye(3)
-    P[3:6, 3:6] = 0.01 * np.eye(3)
-    q = np.zeros(nv)
-    q[:3] = -ad
-
-    # acceleration bounds
-    a_bound = 5
-    α_bound = 1
-    lb = -np.inf * np.ones(nv)
-    ub = np.inf * np.ones(nv)
-    lb[:3] = -a_bound
-    lb[3:6] = -α_bound
-    ub[:3] = a_bound
-    ub[3:6] = α_bound
-
-    t0 = time.time()
-    x = solve_qp(
-        P=sparse.csc_matrix(P),
-        q=q,
-        G=sparse.csc_matrix(A_ineq),
-        h=b_ineq,
-        lb=lb,
-        ub=ub,
-        initvals=x0,
-        eps_abs=1e-6,
-        eps_rel=1e-6,
-        max_iter=10000,
-        solver="osqp",
-        # polish=True,
-    )
-    t1 = time.time()
-    print(f"solve took {t1 - t0} seconds")
-    A = x[:6]
-    print(f"soln = {A}")
-    return A
-
-
 class ReactiveBalancingController:
     def __init__(
         self,
         model,
+        dt,
         a_cart_weight=1,
         α_cart_weight=0.01,
-        a_joint_weight=0.1,
+        a_joint_weight=0.0,
+        v_joint_weight=0.1,
         a_cart_max=5,
         α_cart_max=1,
         a_joint_max=5,
     ):
         self.robot = model.robot
+        self.dt = dt
         self.objects = model.settings.balancing_settings.objects
         self.contacts = [
             RobustContactPoint(c) for c in model.settings.balancing_settings.contacts
@@ -267,8 +146,9 @@ class ReactiveBalancingController:
         self.object_name_index = compute_object_name_index(names)
 
         # shared optimization weight
+        self.v_joint_weight = v_joint_weight
         self.P = block_diag(
-            a_joint_weight * np.eye(9),
+            (a_joint_weight + dt**2 * v_joint_weight) * np.eye(9),
             a_cart_weight * np.eye(3),
             α_cart_weight * np.eye(3),
         )
@@ -299,12 +179,12 @@ class ReactiveBalancingController:
         C_we = core.math.quat_to_rot(self.robot.link_pose()[1])
         V_ew_w = np.concatenate(self.robot.link_velocity())
 
-        return self._solve_qp(C_we, V_ew_w, ad, δ, J)
+        return self._solve_qp(C_we, V_ew_w, ad, δ, J, v)
 
 
 class NominalReactiveBalancingController(ReactiveBalancingController):
-    def __init__(self, model):
-        super().__init__(model)
+    def __init__(self, model, dt):
+        super().__init__(model, dt)
 
         nc = 3 * len(self.contacts)
 
@@ -324,7 +204,7 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
         self.A_ineq = np.hstack((np.zeros((F.shape[0], 9 + 6)), F))
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
-    def _solve_qp(self, C_we, V, ad, δ, J):
+    def _solve_qp(self, C_we, V, ad, δ, J, v):
         # number of optimization variables
         nv = 9 + 6 + 3 * len(self.contacts)
 
@@ -350,6 +230,7 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = np.zeros(nv)
+        q[:9] = self.v_joint_weight * self.dt * v
         q[9:12] = -C_we.T @ ad
 
         x = solve_qp(
@@ -373,8 +254,8 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
 
 
 class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
-    def __init__(self, model):
-        super().__init__(model)
+    def __init__(self, model, dt):
+        super().__init__(model, dt)
 
         self.P_sparse = sparse.csc_matrix(self.P)
         self.F = compute_cwc_face_form(self.object_name_index, self.contacts)
@@ -382,7 +263,7 @@ class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
         self.A_ineq = np.hstack((np.zeros((self.F.shape[0], 9)), self.F @ self.M))
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
-    def _solve_qp(self, C_we, V, ad, δ, J):
+    def _solve_qp(self, C_we, V, ad, δ, J, v):
         nv = 15
 
         # initial guess
@@ -403,6 +284,7 @@ class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = np.zeros(nv)
+        q[:9] = self.v_joint_weight * self.dt * v
         q[9:12] = -C_we.T @ ad
 
         x = solve_qp(
@@ -436,15 +318,6 @@ def main():
     ctrl_config = config["controller"]
     log_config = config["logging"]
 
-    # controller
-    model = ctrl.manager.ControllerModel.from_config(ctrl_config)
-    robot = model.robot
-    controller = NominalReactiveBalancingController(model)
-
-    # tracking controller gains
-    kp = 10
-    kv = 1
-
     timestamp = datetime.datetime.now()
     env = sim.simulation.UprightSimulation(
         config=sim_config,
@@ -453,6 +326,15 @@ def main():
         extra_gui=sim_config.get("extra_gui", False),
     )
     env.settle(5.0)
+
+    # controller
+    model = ctrl.manager.ControllerModel.from_config(ctrl_config)
+    robot = model.robot
+    controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
+
+    # tracking controller gains
+    kp = 10
+    kv = 1
 
     t = 0.0
     q, v = env.robot.joint_states()
@@ -487,7 +369,7 @@ def main():
         v_ew_w, ω_ew_w = robot.link_velocity()
 
         # desired EE state
-        # rd, vd, ad = trajectory.sample(t)
+        rd, vd, ad = trajectory.sample(t)
 
         # commanded EE linear acceleration
         a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad
