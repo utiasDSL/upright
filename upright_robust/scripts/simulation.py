@@ -251,7 +251,7 @@ class ReactiveBalancingController:
         model,
         a_cart_weight=1,
         α_cart_weight=0.01,
-        a_joint_weight=0.01,
+        a_joint_weight=0.1,
         a_cart_max=5,
         α_cart_max=1,
         a_joint_max=5,
@@ -265,11 +265,6 @@ class ReactiveBalancingController:
         # canonical map of object names to indices
         names = list(self.objects.keys())
         self.object_name_index = compute_object_name_index(names)
-
-        # optimization parameters
-        self.a_cart_weight = a_cart_weight  # linear acc cartesian weight
-        self.α_cart_weight = α_cart_weight  # angular acc cartesian weight
-        self.a_joint_weight = a_joint_weight  # joint acc weight
 
         # shared optimization weight
         self.P = block_diag(
@@ -285,8 +280,26 @@ class ReactiveBalancingController:
         self.ub[12:] = α_cart_max
         self.lb = -self.ub
 
+        self.W = compute_contact_force_to_wrench_map(
+            self.object_name_index, self.contacts
+        )
+        self.M = np.vstack([object_mass_matrix(obj) for obj in self.objects.values()])
+
     def update(self, q, v):
         self.robot.update(q, v)
+
+    def solve(self, q, v, ad):
+        """Solve for an updated joint acceleration command given current robot
+        state (q, v) and desired EE acceleration ad."""
+        self.robot.forward(q, v)  # TODO could be removed for speed
+        J = self.robot.jacobian(q)[:3, :]
+        dJdt = self.robot.jacobian_time_derivative(q, v)
+        δ = dJdt[:3, :] @ v
+
+        C_we = core.math.quat_to_rot(self.robot.link_pose()[1])
+        V_ew_w = np.concatenate(self.robot.link_velocity())
+
+        return self._solve_qp(C_we, V_ew_w, ad, δ, J)
 
 
 class NominalReactiveBalancingController(ReactiveBalancingController):
@@ -304,8 +317,6 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
         self.ub = np.concatenate((self.ub, np.inf * np.ones(nc)))
 
         # pre-compute part of equality constraints
-        self.W = compute_contact_force_to_wrench_map(self.object_name_index, self.contacts)
-        self.M = np.vstack([object_mass_matrix(obj) for obj in self.objects.values()])
         self.A_eq_bal = np.hstack((np.zeros((self.M.shape[0], 9)), self.M, self.W))
 
         # inequality constraints
@@ -341,7 +352,6 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
         q = np.zeros(nv)
         q[9:12] = -C_we.T @ ad
 
-        t0 = time.time()
         x = solve_qp(
             P=self.P_sparse,
             q=q,
@@ -358,31 +368,61 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
             solver="osqp",
             # polish=True,
         )
-        t1 = time.time()
-        print(f"solve took {t1 - t0} seconds")
         a = x[:9]
-        A = x[9:15]
-        print(f"soln = {A}")
         return a
-
-    def solve(self, q, v, ad):
-        """Solve for an updated joint acceleration command given current robot
-        state (q, v) and desired EE acceleration ad."""
-        self.robot.forward(q, v)  # TODO could be removed for speed
-        J = self.robot.jacobian(q)[:3, :]
-        dJdt = self.robot.jacobian_time_derivative(q, v)
-        δ = dJdt[:3, :] @ v
-
-        C_we = core.math.quat_to_rot(self.robot.link_pose()[1])
-        V_ew_w = np.concatenate(self.robot.link_velocity())
-
-        return self._solve_qp(C_we, V_ew_w, ad, δ, J)
 
 
 class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
     def __init__(self, model):
         super().__init__(model)
-        pass
+
+        self.P_sparse = sparse.csc_matrix(self.P)
+        self.F = compute_cwc_face_form(self.object_name_index, self.contacts)
+
+        self.A_ineq = np.hstack((np.zeros((self.F.shape[0], 9)), self.F @ self.M))
+        self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
+
+    def _solve_qp(self, C_we, V, ad, δ, J):
+        nv = 15
+
+        # initial guess
+        x0 = np.zeros(nv)
+        x0[9:12] = ad
+
+        Ag = np.concatenate((C_we.T @ G, np.zeros(3)))  # body-frame gravity
+        h = np.concatenate(
+            [object_velocity_terms(obj, V) for obj in self.objects.values()]
+        )
+
+        # map joint acceleration to EE acceleration
+        A_eq = np.hstack((-J, C_we, np.zeros((3, 3))))
+        b_eq = δ
+
+        # compute the inequality constraints A_ineq @ x <= b_ineq
+        b_ineq = self.F @ (self.M @ Ag - h)
+
+        # compute the cost: 0.5 * x @ P @ x + q @ x
+        q = np.zeros(nv)
+        q[9:12] = -C_we.T @ ad
+
+        x = solve_qp(
+            P=self.P_sparse,
+            q=q,
+            G=self.A_ineq_sparse,
+            h=b_ineq,
+            A=sparse.csc_matrix(A_eq),
+            b=b_eq,
+            lb=self.lb,
+            ub=self.ub,
+            initvals=x0,
+            eps_abs=1e-6,
+            eps_rel=1e-6,
+            max_iter=10000,
+            solver="osqp",
+            # polish=True,
+        )
+        a = x[:9]
+        return a
 
 
 def main():
@@ -404,13 +444,6 @@ def main():
     # tracking controller gains
     kp = 10
     kv = 1
-
-    # F = compute_cwc_face_form(name_index, robust_contacts)
-    # C = np.eye(3)
-    # V = np.zeros(6)
-    # ad = np.array([3, 0, 0])
-    # solve_nominal_qp(name_index, objects, robust_contacts, C, V, ad)
-    # solve_nominal_qp_face_form(objects, F, C, V, ad)
 
     timestamp = datetime.datetime.now()
     env = sim.simulation.UprightSimulation(
@@ -436,7 +469,7 @@ def main():
         r_ew_w_0, r_ew_w_d, max_vel=1, max_acc=5
     )
 
-    # rd = r0 + [0, 2, 0]
+    # rd = r_ew_w_d
     # vd = np.zeros(3)
     # ad = np.zeros(3)
 
@@ -454,13 +487,17 @@ def main():
         v_ew_w, ω_ew_w = robot.link_velocity()
 
         # desired EE state
-        rd, vd, ad = trajectory.sample(t)
+        # rd, vd, ad = trajectory.sample(t)
 
         # commanded EE linear acceleration
         a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad
 
         # compute command
+        t0 = time.time()
         u = controller.solve(q, v, a_ew_w_cmd)
+        t1 = time.time()
+        print(f"solve took {1000 * (t1 - t0)} ms")
+        print(f"u = {u}")
         v_cmd = v_cmd + env.timestep * u
 
         env.robot.command_velocity(v_cmd, bodyframe=False)
