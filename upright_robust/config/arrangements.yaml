@@ -6,7 +6,7 @@ arrangements:
     objects:
       -
         name: cube1
-        type: stack_cube
+        type: stack_cube_light
         parent: ee
       -
         name: cube2
@@ -14,21 +14,21 @@ arrangements:
         parent: cube1
       -
         name: cube3
-        type: stack_cube
+        type: stack_cube_heavy
         parent: cube2
     contacts:
       -
         first: ee
         second: cube1
-        mu: 0.2
+        mu: 0.5
       -
         first: cube1
         second: cube2
-        mu: 0.2
+        mu: 0.5
       -
         first: cube2
         second: cube3
-        mu: 0.2
+        mu: 0.5
 
   single_cube:
     objects:

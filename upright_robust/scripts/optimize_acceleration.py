@@ -199,13 +199,12 @@ def optimize_acceleration_robust(C, V, ad, obj, a_bound=10, α_bound=10):
     return A
 
 def optimize_acceleration_robust_face(C, V, ad, obj, a_bound=10, α_bound=10):
-    """Optimize acceleration to best matched desired subject to balancing constraints."""
+    """Face form of the robust optimization problem, which removes all of the
+       extra dual variables."""
     contacts = obj.contacts()
     F = rob.cwc(contacts)
     Ag = np.concatenate((C @ G, np.zeros(3)))
 
-    # first 6 decision variables are the acceleration, then a ton of duals
-    # {λ_i}
     nf = F.shape[0]
     nv = 6
     x0 = np.zeros(nv)

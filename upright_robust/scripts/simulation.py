@@ -65,6 +65,24 @@ class RobustContactPoint:
         # fmt: on
 
 
+class UncertainObject:
+    def __init__(self, obj, θ_min=None, θ_max=None):
+        self.object = obj
+        self.body = obj.body
+
+        m = self.body.mass
+        h = m * self.body.com
+        Jvec = rob.vech(self.body.inertia)
+
+        # polytopic parameter uncertainty
+        self.θ = np.concatenate(([m], h, Jvec))
+        # Δθ = np.concatenate(([0.1, 0.01 * δ, 0.01 * δ, 0.01 * h], 0 * Jvec))
+        self.θ_min = θ_min if θ_min is not None else self.θ
+        self.θ_max = θ_max if θ_max is not None else self.θ
+        self.P = np.vstack((np.eye(self.θ.shape[0]), -np.eye(self.θ.shape[0])))
+        self.p = np.concatenate((self.θ_min, -self.θ_max))
+
+
 def compute_object_name_index(names):
     return {name: idx for idx, name in enumerate(names)}
 
@@ -126,6 +144,8 @@ class ReactiveBalancingController:
         self,
         model,
         dt,
+        θ_min=None,
+        θ_max=None,
         a_cart_weight=1,
         α_cart_weight=0.01,
         a_joint_weight=0.0,
@@ -136,7 +156,7 @@ class ReactiveBalancingController:
     ):
         self.robot = model.robot
         self.dt = dt
-        self.objects = model.settings.balancing_settings.objects
+        self.objects = {k: UncertainObject(v) for k, v in model.settings.balancing_settings.objects.items()}
         self.contacts = [
             RobustContactPoint(c) for c in model.settings.balancing_settings.contacts
         ]
@@ -306,6 +326,13 @@ class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
         a = x[:9]
         return a
 
+class RobustReactiveBalancingController(ReactiveBalancingController):
+    def __init__(self, model, dt):
+        super().__init__(model, dt)
+
+    def _solve_qp(self, C_we, V, ad, δ, J, v):
+        pass
+
 
 def main():
     np.set_printoptions(precision=3, suppress=True)
@@ -333,7 +360,7 @@ def main():
     controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
 
     # tracking controller gains
-    kp = 10
+    kp = 2
     kv = 1
 
     t = 0.0
@@ -348,12 +375,12 @@ def main():
 
     # desired trajectory
     trajectory = mm.PointToPointTrajectory.quintic(
-        r_ew_w_0, r_ew_w_d, max_vel=1, max_acc=5
+        r_ew_w_0, r_ew_w_d, max_vel=2, max_acc=5
     )
 
-    # rd = r_ew_w_d
-    # vd = np.zeros(3)
-    # ad = np.zeros(3)
+    rd = r_ew_w_d
+    vd = np.zeros(3)
+    ad = np.zeros(3)
 
     # goal position
     debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
@@ -369,7 +396,8 @@ def main():
         v_ew_w, ω_ew_w = robot.link_velocity()
 
         # desired EE state
-        rd, vd, ad = trajectory.sample(t)
+        # rd, vd, ad = trajectory.sample(t)
+        # print(vd)
 
         # commanded EE linear acceleration
         a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad

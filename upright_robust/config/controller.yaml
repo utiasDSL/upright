@@ -10,9 +10,24 @@ balancing:
   use_force_constraints: true
 
 objects:
+  # these are all the same from the controller's perspective
   stack_cube:
     mass: 0.2
     com_offset: [0, 0, 0]
     shape:
         type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
+        side_lengths: [0.1, 0.1, 0.2]
+
+  stack_cube_heavy:
+    mass: 0.2
+    com_offset: [0, 0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.2]
+
+  stack_cube_light:
+    mass: 0.2
+    com_offset: [0, 0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.2]

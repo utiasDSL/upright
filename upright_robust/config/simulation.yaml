@@ -12,5 +12,17 @@ objects:
   stack_cube:
     shape: cuboid
     mass: 0.2
-    side_lengths: [0.1, 0.1, 0.1]
+    side_lengths: [0.1, 0.1, 0.2]
+    color: [1, 0, 0, 1]
+
+  stack_cube_heavy:
+    shape: cuboid
+    mass: 1
+    side_lengths: [0.1, 0.1, 0.2]
+    color: [1, 0, 0, 1]
+
+  stack_cube_light:
+    shape: cuboid
+    mass: 0.1
+    side_lengths: [0.1, 0.1, 0.2]
     color: [1, 0, 0, 1]
