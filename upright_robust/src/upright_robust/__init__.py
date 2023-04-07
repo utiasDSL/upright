@@ -204,6 +204,7 @@ def body_regressor_components(C, V):
     """Compute components {Yi} of the regressor matrix Y such that
     Y = sum(Yi * Ai forall i)
     """
+    # TODO I would like to get gravity out of all these functions
     # velocity + gravity component
     G = np.array([0, 0, -9.81])
     Ag = np.concatenate((C @ G, np.zeros(3)))

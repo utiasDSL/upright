@@ -156,7 +156,10 @@ class ReactiveBalancingController:
     ):
         self.robot = model.robot
         self.dt = dt
-        self.objects = {k: UncertainObject(v) for k, v in model.settings.balancing_settings.objects.items()}
+        self.objects = {
+            k: UncertainObject(v)
+            for k, v in model.settings.balancing_settings.objects.items()
+        }
         self.contacts = [
             RobustContactPoint(c) for c in model.settings.balancing_settings.contacts
         ]
@@ -184,6 +187,9 @@ class ReactiveBalancingController:
             self.object_name_index, self.contacts
         )
         self.M = np.vstack([object_mass_matrix(obj) for obj in self.objects.values()])
+
+        # face form of the CWC
+        self.F = compute_cwc_face_form(self.object_name_index, self.contacts)
 
     def update(self, q, v):
         self.robot.update(q, v)
@@ -326,12 +332,84 @@ class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
         a = x[:9]
         return a
 
+
 class RobustReactiveBalancingController(ReactiveBalancingController):
     def __init__(self, model, dt):
         super().__init__(model, dt)
 
+        # TODO name collision
+        self.P_sparse = sparse.csc_matrix(self.P)
+
+        # polytopic uncertainty Pθ + p >= 0
+        self.P = block_diag(*[obj.P for obj in self.objects.values()])
+        self.p = np.concatenate([obj.p for obj in self.objects.values()])
+
+        # fmt: off
+        self.P_tilde = np.block([
+            [self.P, self.p[:, None]],
+            [np.zeros((1, self.P.shape[1])), np.array([[-1]])]])
+        # fmt: on
+        self.R = rob.span_to_face_form(self.P_tilde.T)[0]
+
     def _solve_qp(self, C_we, V, ad, δ, J, v):
-        pass
+        nv = 15
+        no = len(self.objects)
+        nf = self.F.shape[0]
+
+        # initial guess
+        x0 = np.zeros(nv)
+        x0[9:12] = ad
+
+        # map joint acceleration to EE acceleration
+        A_eq = np.hstack((-J, C_we, np.zeros((3, 3))))
+        b_eq = δ
+
+        n_ineq = self.R.shape[0]  # dimension of one set of inequality constraints
+        N_ineq = n_ineq * nf  # dim of all inequality constraints
+
+        A_ineq = np.zeros((N_ineq, nv))
+        b_ineq = np.zeros(N_ineq)
+        for i in range(nf):
+            ds = []
+            Ds = []
+            for j in range(no):
+                d, D = rob.body_regressor_by_vector_matrix(
+                    C_we.T, V, self.F[i, 6 * j : 6 * (j + 1)]
+                )
+                ds.append(d)
+                Ds.append(D)
+
+            ds.append([0])
+            Ds.append(np.zeros((1, D.shape[1])))
+
+            d_tilde = np.concatenate(ds)
+            D_tilde = np.vstack(Ds)
+
+            b_ineq[i * n_ineq : (i + 1) * n_ineq] = self.R @ d_tilde
+            A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:] = self.R @ D_tilde
+
+        # compute the cost: 0.5 * x @ P @ x + q @ x
+        q = np.zeros(nv)
+        q[:9] = self.v_joint_weight * self.dt * v
+        q[9:12] = -C_we.T @ ad
+
+        x = solve_qp(
+            P=self.P_sparse,
+            q=q,
+            G=sparse.csc_matrix(A_ineq),
+            h=b_ineq,
+            A=sparse.csc_matrix(A_eq),
+            b=b_eq,
+            lb=self.lb,
+            ub=self.ub,
+            initvals=x0,
+            eps_abs=1e-6,
+            eps_rel=1e-6,
+            max_iter=10000,
+            solver="osqp",
+        )
+        a = x[:9]
+        return a
 
 
 def main():
@@ -357,7 +435,8 @@ def main():
     # controller
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
     robot = model.robot
-    controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
+    # controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
+    controller = RobustReactiveBalancingController(model, env.timestep)
 
     # tracking controller gains
     kp = 2
