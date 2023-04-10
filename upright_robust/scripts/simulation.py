@@ -2,6 +2,8 @@
 """Closed-loop upright reactive simulation using Pybullet."""
 import datetime
 import time
+import signal
+import sys
 
 import numpy as np
 import pybullet as pyb
@@ -20,10 +22,6 @@ import upright_cmd as cmd
 import upright_robust as rob
 
 import IPython
-
-
-g = 9.81
-G = np.array([0, 0, -g])
 
 
 class RobustContactPoint:
@@ -65,6 +63,18 @@ class RobustContactPoint:
         # fmt: on
 
 
+def parameter_bounds(θ, θ_min, θ_max):
+    θ_min_actual = θ
+    θ_max_actual = θ
+
+    n = θ.shape[0]
+    if θ_min is not None:
+        θ_min_actual = np.array([θ[i] if θ_min[i] is None else θ_min[i] for i in range(n)])
+    if θ_max is not None:
+        θ_max_actual = np.array([θ[i] if θ_max[i] is None else θ_max[i] for i in range(n)])
+    return θ_min_actual, θ_max_actual
+
+
 class UncertainObject:
     def __init__(self, obj, θ_min=None, θ_max=None):
         self.object = obj
@@ -77,8 +87,9 @@ class UncertainObject:
         # polytopic parameter uncertainty
         self.θ = np.concatenate(([m], h, Jvec))
         # Δθ = np.concatenate(([0.1, 0.01 * δ, 0.01 * δ, 0.01 * h], 0 * Jvec))
-        self.θ_min = θ_min if θ_min is not None else self.θ
-        self.θ_max = θ_max if θ_max is not None else self.θ
+        # self.θ_min = θ_min if θ_min is not None else self.θ
+        # self.θ_max = θ_max if θ_max is not None else self.θ
+        self.θ_min, self.θ_max = parameter_bounds(self.θ, θ_min, θ_max)
         self.P = np.vstack((np.eye(self.θ.shape[0]), -np.eye(self.θ.shape[0])))
         self.p = np.concatenate((self.θ_min, -self.θ_max))
 
@@ -147,8 +158,8 @@ class ReactiveBalancingController:
         θ_min=None,
         θ_max=None,
         a_cart_weight=1,
-        α_cart_weight=0.01,
-        a_joint_weight=1e-6,
+        α_cart_weight=1,
+        a_joint_weight=0,
         v_joint_weight=0.1,
         a_cart_max=5,
         α_cart_max=1,
@@ -159,7 +170,7 @@ class ReactiveBalancingController:
         self.robot = model.robot
         self.dt = dt
         self.objects = {
-            k: UncertainObject(v)
+            k: UncertainObject(v, θ_min, θ_max)
             for k, v in model.settings.balancing_settings.objects.items()
         }
         self.contacts = [
@@ -196,18 +207,78 @@ class ReactiveBalancingController:
     def update(self, q, v):
         self.robot.update(q, v)
 
+    def _solve_qp(self, P, q, G=None, h=None, A=None, b=None, lb=None, ub=None, x0=None):
+        x = solve_qp(
+            P=P,
+            q=q,
+            G=G,
+            h=h,
+            A=A,
+            b=b,
+            lb=lb,
+            ub=ub,
+            initvals=x0,
+            eps_abs=1e-6,
+            eps_rel=1e-6,
+            max_iter=10000,
+            solver=self.solver,
+        )
+        a = x[:9]
+        A = x[9:15]
+        return a, A
+
     def solve(self, q, v, ad):
         """Solve for an updated joint acceleration command given current robot
         state (q, v) and desired EE acceleration ad."""
         self.robot.forward(q, v)  # TODO could be removed for speed
-        J = self.robot.jacobian(q)[:3, :]
+        J = self.robot.jacobian(q)
         dJdt = self.robot.jacobian_time_derivative(q, v)
-        δ = dJdt[:3, :] @ v
+        δ = dJdt @ v
 
         C_we = core.math.quat_to_rot(self.robot.link_pose()[1])
         V_ew_w = np.concatenate(self.robot.link_velocity())
 
-        return self._solve_qp(C_we, V_ew_w, ad, δ, J, v)
+        # v needs to be rotated into the body frame
+        v_body = v.copy()
+        v_body[:3] = C_we.T @ v[:3]
+
+        return self._setup_and_solve_qp(C_we, V_ew_w, ad, δ, J, v_body)
+
+
+class NominalReactiveController(ReactiveBalancingController):
+    def __init__(self, model, dt):
+        super().__init__(model, dt)
+
+        # cost
+        self.P_sparse = sparse.csc_matrix(self.P)
+
+    def _setup_and_solve_qp(self, C_we, V, ad, δ, J, v):
+        nv = 15
+
+        # initial guess
+        x0 = np.zeros(nv)
+        x0[9:12] = C_we.T @ ad
+
+        G = rob.body_gravity6(C_we.T)
+
+        # map joint acceleration to EE acceleration
+        A_eq = np.hstack((-J, block_diag(C_we, C_we)))
+        b_eq = δ
+
+        # compute the cost: 0.5 * x @ P @ x + q @ x
+        q = np.zeros(nv)
+        q[:9] = self.v_joint_weight * self.dt * v
+        q[9:12] = -C_we.T @ ad
+
+        return self._solve_qp(
+            P=self.P_sparse,
+            q=q,
+            A=sparse.csc_matrix(A_eq),
+            b=b_eq,
+            lb=self.lb,
+            ub=self.ub,
+            x0=x0,
+        )
 
 
 class NominalReactiveBalancingController(ReactiveBalancingController):
@@ -232,25 +303,25 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
         self.A_ineq = np.hstack((np.zeros((F.shape[0], 9 + 6)), F))
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
-    def _solve_qp(self, C_we, V, ad, δ, J, v):
+    def _setup_and_solve_qp(self, C_we, V, ad, δ, J, v):
         # number of optimization variables
-        nv = 9 + 6 + 3 * len(self.contacts)
+        nv = 15 + 3 * len(self.contacts)
 
         # initial guess
         x0 = np.zeros(nv)
         x0[9:12] = C_we.T @ ad
 
-        Ag = np.concatenate((C_we.T @ G, np.zeros(3)))  # body-frame gravity
+        G = rob.body_gravity6(C_we.T)
 
         # compute the equality constraints A_eq @ x == b
         # N-E equations for object balancing
         h = np.concatenate(
             [object_velocity_terms(obj, V) for obj in self.objects.values()]
         )
-        b_eq_bal = self.M @ Ag - h
+        b_eq_bal = self.M @ G - h
 
         # map joint acceleration to EE acceleration
-        A_eq_track = np.hstack((-J, C_we, np.zeros((3, 3 + self.W.shape[1]))))
+        A_eq_track = np.hstack((-J, block_diag(C_we, C_we), np.zeros((6, self.W.shape[1]))))
         b_eq_track = δ
 
         A_eq = np.vstack((A_eq_track, self.A_eq_bal))
@@ -261,7 +332,7 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
         q[:9] = self.v_joint_weight * self.dt * v
         q[9:12] = -C_we.T @ ad
 
-        x = solve_qp(
+        return self._solve_qp(
             P=self.P_sparse,
             q=q,
             G=self.A_ineq_sparse,
@@ -270,15 +341,8 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
             b=b_eq,
             lb=self.lb,
             ub=self.ub,
-            initvals=x0,
-            eps_abs=1e-6,
-            eps_rel=1e-6,
-            max_iter=10000,
-            solver=self.solver,
+            x0=x0,
         )
-        a = x[:9]
-        A = x[9:15]
-        return a, A
 
 
 class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
@@ -290,31 +354,31 @@ class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
         self.A_ineq = np.hstack((np.zeros((self.F.shape[0], 9)), self.F @ self.M))
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
-    def _solve_qp(self, C_we, V, ad, δ, J, v):
+    def _setup_and_solve_qp(self, C_we, V, ad, δ, J, v):
         nv = 15
 
         # initial guess
         x0 = np.zeros(nv)
-        x0[9:12] = ad
+        x0[9:12] = C_we.T @ ad
 
-        Ag = np.concatenate((C_we.T @ G, np.zeros(3)))  # body-frame gravity
+        G = rob.body_gravity6(C_we.T)
         h = np.concatenate(
             [object_velocity_terms(obj, V) for obj in self.objects.values()]
         )
 
         # map joint acceleration to EE acceleration
-        A_eq = np.hstack((-J, C_we, np.zeros((3, 3))))
+        A_eq = np.hstack((-J, block_diag(C_we, C_we)))
         b_eq = δ
 
         # compute the inequality constraints A_ineq @ x <= b_ineq
-        b_ineq = self.F @ (self.M @ Ag - h)
+        b_ineq = self.F @ (self.M @ G - h)
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = np.zeros(nv)
         q[:9] = self.v_joint_weight * self.dt * v
         q[9:12] = -C_we.T @ ad
 
-        x = solve_qp(
+        return self._solve_qp(
             P=self.P_sparse,
             q=q,
             G=self.A_ineq_sparse,
@@ -323,15 +387,8 @@ class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
             b=b_eq,
             lb=self.lb,
             ub=self.ub,
-            initvals=x0,
-            eps_abs=1e-6,
-            eps_rel=1e-6,
-            max_iter=10000,
-            solver=self.solver,
+            x0=x0,
         )
-        a = x[:9]
-        A = x[9:15]
-        return a, A
 
 
 class RobustReactiveBalancingController(ReactiveBalancingController):
@@ -363,33 +420,33 @@ class RobustReactiveBalancingController(ReactiveBalancingController):
             self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:] = -self.R @ D_tilde
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
-    def _solve_qp(self, C_we, V, ad, δ, J, v):
+    def _setup_and_solve_qp(self, C_we, V, ad, δ, J, v):
         nv = 15
         no = len(self.objects)
         nf = self.F.shape[0]
 
         # initial guess
         x0 = np.zeros(nv)
-        x0[9:12] = ad
+        x0[9:12] = C_we.T @ ad
 
         # map joint acceleration to EE acceleration
-        A_eq = np.hstack((-J, C_we, np.zeros((3, 3))))
+        A_eq = np.hstack((-J, block_diag(C_we, C_we)))
         b_eq = δ
 
         # build robust constraints
-        t0 = time.time()
+        # t0 = time.time()
         G = rob.body_gravity6(C_we.T)
         B = rob.body_regressor_VG_by_vector_tilde_vectorized(V, G, self.F)
         b_ineq = (self.R @ B).T.flatten()
-        t1 = time.time()
-        print(f"build time = {1000 * (t1 - t0)} ms")
+        # t1 = time.time()
+        # print(f"build time = {1000 * (t1 - t0)} ms")
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = np.zeros(nv)
         q[:9] = self.v_joint_weight * self.dt * v
         q[9:12] = -C_we.T @ ad
 
-        x = solve_qp(
+        return self._solve_qp(
             P=self.P_sparse,
             q=q,
             G=self.A_ineq_sparse,
@@ -398,19 +455,18 @@ class RobustReactiveBalancingController(ReactiveBalancingController):
             b=b_eq,
             lb=self.lb,
             ub=self.ub,
-            initvals=x0,
-            eps_abs=1e-6,
-            eps_rel=1e-6,
-            max_iter=10000,
-            solver=self.solver,
+            x0=x0,
         )
-        a = x[:9]
-        A = x[9:15]
-        return a, A
+
+
+def sigint_handler(sig, frame):
+    print("Ctrl-C pressed: exiting.")
+    sys.exit(0)
 
 
 def main():
     np.set_printoptions(precision=6, suppress=True)
+    signal.signal(signal.SIGINT, sigint_handler)
 
     cli_args = cmd.cli.sim_arg_parser().parse_args()
 
@@ -432,8 +488,16 @@ def main():
     # controller
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
     robot = model.robot
-    nominal_controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
-    robust_controller = RobustReactiveBalancingController(model, env.timestep)
+
+    θ_min = [None] * 10
+    θ_max = [None] * 10
+    θ_min[0] = 0.1
+    θ_max[0] = 1.0
+
+    nominal_controller = NominalReactiveBalancingController(model, env.timestep)
+    # nominal_controller = NominalReactiveController(model, env.timestep)
+    robust_controller = RobustReactiveBalancingController(model, env.timestep, θ_min=θ_min, θ_max=θ_max, solver="proxqp")
+    # robust_controller = RobustReactiveBalancingController(model, env.timestep)
 
     # tracking controller gains
     kp = 2
@@ -442,6 +506,11 @@ def main():
     t = 0.0
     q, v = env.robot.joint_states()
     a = np.zeros(env.robot.nv)
+
+    # J = robot.jacobian(q)
+    # dJdt = robot.jacobian_time_derivative(q, v)
+    # IPython.embed()
+    # return
 
     v_cmd = np.zeros(env.robot.nv)
 
@@ -454,12 +523,18 @@ def main():
         r_ew_w_0, r_ew_w_d, max_vel=2, max_acc=5
     )
 
-    rd = r_ew_w_d
-    vd = np.zeros(3)
-    ad = np.zeros(3)
+    # rd = r_ew_w_d
+    # # vd = np.zeros(3)
+    # vd = np.array([0, 1, 0])
+    # # ad = np.zeros(3)
+    # ad = np.array([0, 5, 0])
 
     # goal position
     debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
+
+    # TODO there seems to be some problem with long trajectories: the robot
+    # does not get in some convenient steady-state for maintaining a particular
+    # velocity
 
     # simulation loop
     while t <= env.duration:
@@ -472,7 +547,7 @@ def main():
         v_ew_w, ω_ew_w = robot.link_velocity()
 
         # desired EE state
-        # rd, vd, ad = trajectory.sample(t)
+        rd, vd, ad = trajectory.sample(t)
         # print(vd)
 
         # commanded EE linear acceleration
@@ -483,14 +558,16 @@ def main():
         u_n, A_n = nominal_controller.solve(q, v, a_ew_w_cmd)
         u_r, A_r = robust_controller.solve(q, v, a_ew_w_cmd)
         t1 = time.time()
-        # print(f"solve took {1000 * (t1 - t0)} ms")
+        print(f"solve took {1000 * (t1 - t0)} ms")
+        print(f"ad = {ad}")
         print(f"A_n = {A_n}")
-        print(f"A_r = {A_r}")
-
+        # print(f"A_r = {A_r}")
         print(f"u_n = {u_n}, norm = {np.linalg.norm(u_n)}")
-        print(f"u_r = {u_r}, norm = {np.linalg.norm(u_r)}")
-        IPython.embed()
-        v_cmd = v_cmd + env.timestep * u_n
+        # print(f"u_r = {u_r}, norm = {np.linalg.norm(u_r)}")
+        # IPython.embed()
+        v_cmd = v + env.timestep * u_n
+        # if np.linalg.norm(A_n[3:]) > 1:
+        #     IPython.embed()
 
         env.robot.command_velocity(v_cmd, bodyframe=False)
 
