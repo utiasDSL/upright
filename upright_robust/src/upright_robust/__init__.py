@@ -46,6 +46,7 @@ def lift6(x):
 
 def lift6_matrices():
     """Compute list of matrices L such that lift6(V) = Σ L[i] * V[i]"""
+    # TODO make a global constant?
     L = []
     for i in range(6):
         E = np.zeros(6)
@@ -172,9 +173,6 @@ def body_regressor(V, A):
     v, ω = V[:3], V[3:]
     a, α = A[:3], A[3:]
 
-    # account for gravity
-    # a = a - C @ G
-
     Sω = core.math.skew3(ω)
     Sv = core.math.skew3(v)
     Sa = core.math.skew3(a)
@@ -190,60 +188,65 @@ def body_regressor(V, A):
     # fmt: on
 
 
-def body_regressor_acceleration_matrices():
-    # TODO I think these are just the lift6_matrices
-    Ys = []
-    V = np.zeros(6)
-    for i in range(6):
-        A = np.zeros(6)
-        A[i] = 1
-        Ys.append(body_regressor(V, A))
-    return Ys
+def body_regressor_A_by_vector(f):
+    """Compute a matrix D such that d + D @ A == Y.T @ f for some vector f.
 
-
-def body_regressor_components(C, V):
-    """Compute components {Yi} of the regressor matrix Y such that
-    Y = sum(Yi * Ai forall i)
+    A: body acceleration twist
+    Y: body regressor
     """
-    # TODO I would like to get gravity out of all these functions
-    # velocity + gravity component
-    G = np.array([0, 0, -9.81])
-    Ag = np.concatenate((C @ G, np.zeros(3)))
-    Y0 = body_regressor(V, -Ag)
-
-    # acceleration component
-    Ys = body_regressor_acceleration_matrices()
-    return Y0, Ys
-
-
-def body_regressor_by_vector_matrix(C, V, z):
-    """Compute a matrix D such that d0 + D @ A == Y.T @ z for some vector z."""
-    Y0, Ys = body_regressor_components(C, V)
-    d0 = Y0.T @ z
-    D = np.vstack([Y.T @ z for Y in Ys]).T
-    return d0, D
-
-
-def body_regressor_by_vector_matrix_vectorized(C, V, z):
-    """Compute a matrix D such that d0 + D @ A == block_diag(Y.T, ..., Y.T) @ z for some vector z."""
-    # TODO we want to make a fast version of this function
-    n = z.shape[0] // 6
+    n = f.shape[0] // 6
     I = np.eye(n)
-
-    Y0, Ys = body_regressor_components(C, V)
-    d0 = np.kron(I, Y0).T @ z
-    D = np.vstack([np.kron(I, Y).T @ z for Y in Ys]).T
-    return d0, D
+    return np.vstack([np.kron(I, Y).T @ f for Y in lift6_matrices()]).T
 
 
-def body_regressor_VG_by_vector_matrix_vectorized(C, V, F):
-    n = F.shape[1] // 6
+def body_regressor_VG_by_vector(V, G, f):
+    """Compute a vector d such that d + D @ A == Y.T @ f for some vector f.
+
+    V: body velocity test
+    A: body acceleration twist
+    G: body gravity twist
+    Y: body regressor
+
+    The vector d contains velocity and gravity components.
+    """
+    n = f.shape[0] // 6
     I = np.eye(n)
-    Y0, _ = body_regressor_components(C, V)
+    Y0 = body_regressor(V, -G)
+    return np.kron(I, Y0).T @ f
+
+
+def body_regressor_VG_by_vector_vectorized(V, G, F):
+    """A vectorized version of the above function, computed for each row f of F.
+
+    V: body velocity test
+    G: body gravity twist
+    F: arbitrary matrix with n * 6 columns
+
+    Returns a matrix M with each column corresponding to the vector d from the
+    above function for each row of F.
+    """
+    n = F.shape[1] // 6  # number of wrenches
+    I = np.eye(n)
+    Y0 = body_regressor(V, -G)
     M = np.kron(I, Y0).T @ F.T
-    M = np.vstack((M, np.zeros((1, M.shape[1]))))
     return M
-    # return M.T.flatten()
+
+
+def body_regressor_VG_by_vector_tilde_vectorized(V, G, F):
+    """Same as the above function but the "tilde" means that each vector d ends
+    with an extra zero (for the robust formulation)."""
+    M = body_regressor_VG_by_vector_vectorized(V, G, F)
+    return np.vstack((M, np.zeros((1, M.shape[1]))))
+
+
+def body_gravity3(C_ew, g=9.81):
+    """Compute body acceleration vector."""
+    return C_ew @ [0, 0, -g]
+
+
+def body_gravity6(C_ew, g=9.81):
+    """Compute body acceleration twist."""
+    return np.concatenate((body_gravity3(C_ew, g), np.zeros(3)))
 
 
 def span_to_face_form(S):

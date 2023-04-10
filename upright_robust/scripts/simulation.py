@@ -277,7 +277,8 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
             solver=self.solver,
         )
         a = x[:9]
-        return a
+        A = x[9:15]
+        return a, A
 
 
 class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
@@ -329,8 +330,8 @@ class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
             solver=self.solver,
         )
         a = x[:9]
-        # print(f"A_n = {x[9:]}")
-        return a
+        A = x[9:15]
+        return a, A
 
 
 class RobustReactiveBalancingController(ReactiveBalancingController):
@@ -351,16 +352,13 @@ class RobustReactiveBalancingController(ReactiveBalancingController):
         self.R = rob.span_to_face_form(self.P_tilde.T)[0]
 
         # pre-compute inequality matrix
-        # TODO this could be nicer
         nv = 15
         nf = self.F.shape[0]
         n_ineq = self.R.shape[0]
         N_ineq = n_ineq * nf
         self.A_ineq = np.zeros((N_ineq, nv))
-        C = np.zeros((3, 3))
-        V = np.zeros(6)
         for i in range(nf):
-            _, D = rob.body_regressor_by_vector_matrix_vectorized(C, V, self.F[i, :])
+            D = rob.body_regressor_A_by_vector(self.F[i, :])
             D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
             self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:] = -self.R @ D_tilde
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
@@ -378,48 +376,13 @@ class RobustReactiveBalancingController(ReactiveBalancingController):
         A_eq = np.hstack((-J, C_we, np.zeros((3, 3))))
         b_eq = δ
 
-        n_ineq = self.R.shape[0]  # dimension of one set of inequality constraints
-        N_ineq = n_ineq * nf  # dim of all inequality constraints
-
-        # TODO this is definitely broken at the moment---with no uncertainty it
-        # should give the same results as the original problem
+        # build robust constraints
         t0 = time.time()
-
-        # A_ineq_slow = np.zeros((N_ineq, nv))
-        # b_ineq_slow = np.zeros(N_ineq)
-        #
-        # for i in range(nf):
-        #     ds = []
-        #     Ds = []
-        #     for j in range(no):
-        #         d, D = rob.body_regressor_by_vector_matrix(
-        #             C_we.T, V, self.F[i, 6 * j : 6 * (j + 1)]
-        #         )
-        #         ds.append(d)
-        #         Ds.append(D)
-        #
-        #
-        #     ds.append([0])
-        #
-        #     # TODO this can be pre-computed!
-        #     Ds.append(np.zeros((1, D.shape[1])))
-        #
-        #     d_tilde = np.concatenate(ds)
-        #     D_tilde = np.vstack(Ds)
-        #
-        #     # d, D = rob.body_regressor_by_vector_matrix_vectorized(C_we.T, V, self.F[i, :])
-        #     # d_tilde = np.append(d, 0)
-        #     # D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
-        #
-        #     b_ineq_slow[i * n_ineq : (i + 1) * n_ineq] = self.R @ d_tilde
-        #     A_ineq_slow[i * n_ineq : (i + 1) * n_ineq, 9:] = self.R @ D_tilde
-        B = rob.body_regressor_VG_by_vector_matrix_vectorized(C_we.T, V, self.F)
+        G = rob.body_gravity6(C_we.T)
+        B = rob.body_regressor_VG_by_vector_tilde_vectorized(V, G, self.F)
         b_ineq = (self.R @ B).T.flatten()
         t1 = time.time()
-
         print(f"build time = {1000 * (t1 - t0)} ms")
-        # IPython.embed()
-        # return
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = np.zeros(nv)
@@ -442,8 +405,8 @@ class RobustReactiveBalancingController(ReactiveBalancingController):
             solver=self.solver,
         )
         a = x[:9]
-        # print(f"A_r = {x[9:]}")
-        return a
+        A = x[9:15]
+        return a, A
 
 
 def main():
@@ -517,13 +480,16 @@ def main():
 
         # compute command
         t0 = time.time()
-        u_n = nominal_controller.solve(q, v, a_ew_w_cmd)
-        u_r = robust_controller.solve(q, v, a_ew_w_cmd)
+        u_n, A_n = nominal_controller.solve(q, v, a_ew_w_cmd)
+        u_r, A_r = robust_controller.solve(q, v, a_ew_w_cmd)
         t1 = time.time()
         # print(f"solve took {1000 * (t1 - t0)} ms")
-        # print(f"u_n = {u_n}, norm = {np.linalg.norm(u_n)}")
-        # print(f"u_r = {u_r}, norm = {np.linalg.norm(u_r)}")
-        # IPython.embed()
+        print(f"A_n = {A_n}")
+        print(f"A_r = {A_r}")
+
+        print(f"u_n = {u_n}, norm = {np.linalg.norm(u_n)}")
+        print(f"u_r = {u_r}, norm = {np.linalg.norm(u_r)}")
+        IPython.embed()
         v_cmd = v_cmd + env.timestep * u_n
 
         env.robot.command_velocity(v_cmd, bodyframe=False)

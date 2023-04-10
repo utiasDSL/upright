@@ -13,7 +13,7 @@ import IPython
 
 # gravity
 g = 9.81
-G = np.array([0, 0, -g])
+# G = np.array([0, 0, -g])
 
 
 def optimize_acceleration(C, V, ad, obj, a_bound=5, α_bound=1):
@@ -119,7 +119,7 @@ def optimize_acceleration_robust(C, V, ad, obj, a_bound=10, α_bound=10):
     """Optimize acceleration to best matched desired subject to balancing constraints."""
     contacts = obj.contacts()
     F = rob.cwc(contacts)
-    Ag = np.concatenate((C @ G, np.zeros(3)))
+    G = rob.body_gravity6(C)
 
     # first 6 decision variables are the acceleration, then a ton of duals
     # {λ_i}
@@ -145,8 +145,10 @@ def optimize_acceleration_robust(C, V, ad, obj, a_bound=10, α_bound=10):
     J_eq = np.zeros((N_eq, nv))
     d_eq = np.zeros(N_eq)
     for i in range(nf):
-        d0, D = rob.body_regressor_by_vector_matrix(C, V, F[i, :])
-        d_eq[i * n_eq : (i + 1) * n_eq] = d0
+        d = rob.body_regressor_VG_by_vector(V, G, F[i, :])
+        D = rob.body_regressor_A_by_vector(F[i, :])
+
+        d_eq[i * n_eq : (i + 1) * n_eq] = d
 
         # Jacobian w.r.t. A
         J_eq[i * n_eq : (i + 1) * n_eq, :6] = D
@@ -203,7 +205,7 @@ def optimize_acceleration_robust_face(C, V, ad, obj, a_bound=10, α_bound=10):
        extra dual variables."""
     contacts = obj.contacts()
     F = rob.cwc(contacts)
-    Ag = np.concatenate((C @ G, np.zeros(3)))
+    G = rob.body_gravity6(C)
 
     nf = F.shape[0]
     nv = 6
@@ -228,7 +230,9 @@ def optimize_acceleration_robust_face(C, V, ad, obj, a_bound=10, α_bound=10):
     J_ineq = np.zeros((N_ineq, nv))
     d_ineq = np.zeros(N_ineq)
     for i in range(nf):
-        d, D = rob.body_regressor_by_vector_matrix(C, V, F[i, :])
+        d = rob.body_regressor_VG_by_vector(V, G, F[i, :])
+        D = rob.body_regressor_A_by_vector(F[i, :])
+
         d_tilde = np.append(d, 0)
         D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
         d_ineq[i * n_ineq : (i + 1) * n_ineq] = R @ d_tilde
@@ -457,7 +461,7 @@ def main():
     obj = rob.BalancedObject(m=1, h=0.05, δ=0.05, μ=0.2, h0=0, x0=0)
 
     # test the body regressor
-    Ag = np.concatenate((C @ G, np.zeros(3)))  # body frame gravity
+    # Ag = np.concatenate((C @ G, np.zeros(3)))  # body frame gravity
     # A = np.array([1, 2, 3, 4, 5, 6])
     # Y = body_regressor(C, V, A - Ag)
     # Y0, Ys = body_regressor_components(C, V)
