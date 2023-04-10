@@ -148,12 +148,14 @@ class ReactiveBalancingController:
         θ_max=None,
         a_cart_weight=1,
         α_cart_weight=0.01,
-        a_joint_weight=0.0,
+        a_joint_weight=1e-6,
         v_joint_weight=0.1,
         a_cart_max=5,
         α_cart_max=1,
         a_joint_max=5,
+        solver="proxqp",
     ):
+        self.solver = solver
         self.robot = model.robot
         self.dt = dt
         self.objects = {
@@ -272,8 +274,7 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
             eps_abs=1e-6,
             eps_rel=1e-6,
             max_iter=10000,
-            solver="osqp",
-            # polish=True,
+            solver=self.solver,
         )
         a = x[:9]
         return a
@@ -284,7 +285,6 @@ class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
         super().__init__(model, dt)
 
         self.P_sparse = sparse.csc_matrix(self.P)
-        self.F = compute_cwc_face_form(self.object_name_index, self.contacts)
 
         self.A_ineq = np.hstack((np.zeros((self.F.shape[0], 9)), self.F @ self.M))
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
@@ -326,30 +326,44 @@ class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
             eps_abs=1e-6,
             eps_rel=1e-6,
             max_iter=10000,
-            solver="osqp",
-            # polish=True,
+            solver=self.solver,
         )
         a = x[:9]
+        # print(f"A_n = {x[9:]}")
         return a
 
 
 class RobustReactiveBalancingController(ReactiveBalancingController):
-    def __init__(self, model, dt):
-        super().__init__(model, dt)
+    def __init__(self, model, dt, **kwargs):
+        super().__init__(model, dt, **kwargs)
 
-        # TODO name collision
         self.P_sparse = sparse.csc_matrix(self.P)
 
         # polytopic uncertainty Pθ + p >= 0
-        self.P = block_diag(*[obj.P for obj in self.objects.values()])
-        self.p = np.concatenate([obj.p for obj in self.objects.values()])
+        P = block_diag(*[obj.P for obj in self.objects.values()])
+        p = np.concatenate([obj.p for obj in self.objects.values()])
 
         # fmt: off
         self.P_tilde = np.block([
-            [self.P, self.p[:, None]],
-            [np.zeros((1, self.P.shape[1])), np.array([[-1]])]])
+            [P, p[:, None]],
+            [np.zeros((1, P.shape[1])), np.array([[-1]])]])
         # fmt: on
         self.R = rob.span_to_face_form(self.P_tilde.T)[0]
+
+        # pre-compute inequality matrix
+        # TODO this could be nicer
+        nv = 15
+        nf = self.F.shape[0]
+        n_ineq = self.R.shape[0]
+        N_ineq = n_ineq * nf
+        self.A_ineq = np.zeros((N_ineq, nv))
+        C = np.zeros((3, 3))
+        V = np.zeros(6)
+        for i in range(nf):
+            _, D = rob.body_regressor_by_vector_matrix_vectorized(C, V, self.F[i, :])
+            D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
+            self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:] = -self.R @ D_tilde
+        self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
     def _solve_qp(self, C_we, V, ad, δ, J, v):
         nv = 15
@@ -367,26 +381,45 @@ class RobustReactiveBalancingController(ReactiveBalancingController):
         n_ineq = self.R.shape[0]  # dimension of one set of inequality constraints
         N_ineq = n_ineq * nf  # dim of all inequality constraints
 
-        A_ineq = np.zeros((N_ineq, nv))
-        b_ineq = np.zeros(N_ineq)
-        for i in range(nf):
-            ds = []
-            Ds = []
-            for j in range(no):
-                d, D = rob.body_regressor_by_vector_matrix(
-                    C_we.T, V, self.F[i, 6 * j : 6 * (j + 1)]
-                )
-                ds.append(d)
-                Ds.append(D)
+        # TODO this is definitely broken at the moment---with no uncertainty it
+        # should give the same results as the original problem
+        t0 = time.time()
 
-            ds.append([0])
-            Ds.append(np.zeros((1, D.shape[1])))
+        # A_ineq_slow = np.zeros((N_ineq, nv))
+        # b_ineq_slow = np.zeros(N_ineq)
+        #
+        # for i in range(nf):
+        #     ds = []
+        #     Ds = []
+        #     for j in range(no):
+        #         d, D = rob.body_regressor_by_vector_matrix(
+        #             C_we.T, V, self.F[i, 6 * j : 6 * (j + 1)]
+        #         )
+        #         ds.append(d)
+        #         Ds.append(D)
+        #
+        #
+        #     ds.append([0])
+        #
+        #     # TODO this can be pre-computed!
+        #     Ds.append(np.zeros((1, D.shape[1])))
+        #
+        #     d_tilde = np.concatenate(ds)
+        #     D_tilde = np.vstack(Ds)
+        #
+        #     # d, D = rob.body_regressor_by_vector_matrix_vectorized(C_we.T, V, self.F[i, :])
+        #     # d_tilde = np.append(d, 0)
+        #     # D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
+        #
+        #     b_ineq_slow[i * n_ineq : (i + 1) * n_ineq] = self.R @ d_tilde
+        #     A_ineq_slow[i * n_ineq : (i + 1) * n_ineq, 9:] = self.R @ D_tilde
+        B = rob.body_regressor_VG_by_vector_matrix_vectorized(C_we.T, V, self.F)
+        b_ineq = (self.R @ B).T.flatten()
+        t1 = time.time()
 
-            d_tilde = np.concatenate(ds)
-            D_tilde = np.vstack(Ds)
-
-            b_ineq[i * n_ineq : (i + 1) * n_ineq] = self.R @ d_tilde
-            A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:] = self.R @ D_tilde
+        print(f"build time = {1000 * (t1 - t0)} ms")
+        # IPython.embed()
+        # return
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = np.zeros(nv)
@@ -396,7 +429,7 @@ class RobustReactiveBalancingController(ReactiveBalancingController):
         x = solve_qp(
             P=self.P_sparse,
             q=q,
-            G=sparse.csc_matrix(A_ineq),
+            G=self.A_ineq_sparse,
             h=b_ineq,
             A=sparse.csc_matrix(A_eq),
             b=b_eq,
@@ -406,14 +439,15 @@ class RobustReactiveBalancingController(ReactiveBalancingController):
             eps_abs=1e-6,
             eps_rel=1e-6,
             max_iter=10000,
-            solver="osqp",
+            solver=self.solver,
         )
         a = x[:9]
+        # print(f"A_r = {x[9:]}")
         return a
 
 
 def main():
-    np.set_printoptions(precision=3, suppress=True)
+    np.set_printoptions(precision=6, suppress=True)
 
     cli_args = cmd.cli.sim_arg_parser().parse_args()
 
@@ -435,8 +469,8 @@ def main():
     # controller
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
     robot = model.robot
-    # controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
-    controller = RobustReactiveBalancingController(model, env.timestep)
+    nominal_controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
+    robust_controller = RobustReactiveBalancingController(model, env.timestep)
 
     # tracking controller gains
     kp = 2
@@ -483,11 +517,14 @@ def main():
 
         # compute command
         t0 = time.time()
-        u = controller.solve(q, v, a_ew_w_cmd)
+        u_n = nominal_controller.solve(q, v, a_ew_w_cmd)
+        u_r = robust_controller.solve(q, v, a_ew_w_cmd)
         t1 = time.time()
-        print(f"solve took {1000 * (t1 - t0)} ms")
-        print(f"u = {u}")
-        v_cmd = v_cmd + env.timestep * u
+        # print(f"solve took {1000 * (t1 - t0)} ms")
+        # print(f"u_n = {u_n}, norm = {np.linalg.norm(u_n)}")
+        # print(f"u_r = {u_r}, norm = {np.linalg.norm(u_r)}")
+        # IPython.embed()
+        v_cmd = v_cmd + env.timestep * u_n
 
         env.robot.command_velocity(v_cmd, bodyframe=False)
 

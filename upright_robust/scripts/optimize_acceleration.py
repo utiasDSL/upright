@@ -186,10 +186,10 @@ def optimize_acceleration_robust(C, V, ad, obj, a_bound=10, α_bound=10):
         lb=lb,
         ub=ub,
         initvals=x0,
-        eps_abs=1e-6,
-        eps_rel=1e-6,
+        eps_abs=1e-7,
+        eps_rel=1e-7,
         max_iter=10000,
-        solver="osqp",
+        solver="proxqp",
         # polish=True,
     )
     t1 = time.time()
@@ -218,6 +218,9 @@ def optimize_acceleration_robust_face(C, V, ad, obj, a_bound=10, α_bound=10):
         [np.zeros((1, obj.P.shape[1])), np.array([[-1]])]])
     # fmt: on
     R = rob.span_to_face_form(P_tilde.T)[0]
+    R = R / np.max(np.abs(R))
+
+    # IPython.embed()
 
     # pre-compute Jacobians
     n_ineq = R.shape[0]  # dimension of one set of equality constraints
@@ -253,10 +256,10 @@ def optimize_acceleration_robust_face(C, V, ad, obj, a_bound=10, α_bound=10):
         lb=lb,
         ub=ub,
         initvals=x0,
-        eps_abs=1e-6,
-        eps_rel=1e-6,
+        eps_abs=1e-7,
+        eps_rel=1e-7,
         max_iter=10000,
-        solver="osqp",
+        solver="proxqp",
         # polish=True,
     )
     t1 = time.time()
@@ -471,10 +474,10 @@ def main():
     # IPython.embed()
 
     # contacts = obj.contacts()
-    F = rob.cwc(obj.contacts())
+    # F = rob.cwc(obj.contacts())
     # giw = rob.body_gravito_inertial_wrench(C, V, np.zeros(6), obj)
-    IPython.embed()
-    return
+    # IPython.embed()
+    # return
 
     # A_body = np.array([3, 0, 0, 0, 0, 0])
     # A1 = optimize_acceleration(C, V, ad_body, obj)

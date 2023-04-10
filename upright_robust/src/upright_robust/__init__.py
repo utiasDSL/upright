@@ -115,7 +115,8 @@ class BalancedObject:
         # Pθ >= p
         Jvec = vech(self.J)
         self.θ = np.concatenate(([m], m * self.origin, Jvec))
-        Δθ = np.concatenate(([0.1, 0.01 * δ, 0.01 * δ, 0.01 * h], 0 * Jvec))
+        # Δθ = np.concatenate(([0.1, 0.01 * δ, 0.01 * δ, 0.01 * h], 0 * Jvec))
+        Δθ = np.zeros_like(self.θ)
         self.θ_min = self.θ - Δθ
         self.θ_max = self.θ + Δθ
         self.P = np.vstack((np.eye(self.θ.shape[0]), -np.eye(self.θ.shape[0])))
@@ -221,6 +222,28 @@ def body_regressor_by_vector_matrix(C, V, z):
     d0 = Y0.T @ z
     D = np.vstack([Y.T @ z for Y in Ys]).T
     return d0, D
+
+
+def body_regressor_by_vector_matrix_vectorized(C, V, z):
+    """Compute a matrix D such that d0 + D @ A == block_diag(Y.T, ..., Y.T) @ z for some vector z."""
+    # TODO we want to make a fast version of this function
+    n = z.shape[0] // 6
+    I = np.eye(n)
+
+    Y0, Ys = body_regressor_components(C, V)
+    d0 = np.kron(I, Y0).T @ z
+    D = np.vstack([np.kron(I, Y).T @ z for Y in Ys]).T
+    return d0, D
+
+
+def body_regressor_VG_by_vector_matrix_vectorized(C, V, F):
+    n = F.shape[1] // 6
+    I = np.eye(n)
+    Y0, _ = body_regressor_components(C, V)
+    M = np.kron(I, Y0).T @ F.T
+    M = np.vstack((M, np.zeros((1, M.shape[1]))))
+    return M
+    # return M.T.flatten()
 
 
 def span_to_face_form(S):
