@@ -158,7 +158,7 @@ class ReactiveBalancingController:
         θ_min=None,
         θ_max=None,
         a_cart_weight=1,
-        α_cart_weight=10,
+        α_cart_weight=1,
         a_joint_weight=0,
         v_joint_weight=0.1,
         a_cart_max=5,
@@ -227,22 +227,17 @@ class ReactiveBalancingController:
         A = x[9:15]
         return a, A
 
-    def solve(self, q, v, ad, αd):
+    def solve(self, q, v, ad, αd, fixed_α=False):
         """Solve for an updated joint acceleration command given current robot
         state (q, v) and desired EE acceleration ad."""
-        self.robot.forward(q, v)  # TODO could be removed for speed
+        self.robot.forward(q, v)
         J = self.robot.jacobian(q)
-        dJdt = self.robot.jacobian_time_derivative(q, v)
-        δ = dJdt @ v
+        δ = np.concatenate(self.robot.link_classical_acceleration())
 
-        C_we = core.math.quat_to_rot(self.robot.link_pose()[1])
+        C_we = self.robot.link_pose(rotation_matrix=True)[1]
         V_ew_w = np.concatenate(self.robot.link_velocity())
 
-        # v needs to be rotated into the body frame
-        v_body = v.copy()
-        v_body[:3] = C_we.T @ v[:3]
-
-        return self._setup_and_solve_qp(C_we, V_ew_w, ad, αd, δ, J, v_body)
+        return self._setup_and_solve_qp(C_we, V_ew_w, ad, αd, δ, J, v, fixed_α=fixed_α)
 
 
 class NominalReactiveController(ReactiveBalancingController):
@@ -253,12 +248,13 @@ class NominalReactiveController(ReactiveBalancingController):
         # cost
         self.P_sparse = sparse.csc_matrix(self.P)
 
-    def _setup_and_solve_qp(self, C_we, V, ad, δ, J, v):
+    def _setup_and_solve_qp(self, C_we, V, ad, αd, δ, J, v, fixed_α=False):
         nv = 15
 
         # initial guess
         x0 = np.zeros(nv)
         x0[9:12] = C_we.T @ ad
+        x0[12:15] = C_we.T @ αd
 
         G = rob.body_gravity6(C_we.T)
 
@@ -270,6 +266,7 @@ class NominalReactiveController(ReactiveBalancingController):
         q = np.zeros(nv)
         q[:9] = self.v_joint_weight * self.dt * v
         q[9:12] = -C_we.T @ ad
+        q[12:15] = -C_we.T @ αd
 
         return self._solve_qp(
             P=self.P_sparse,
@@ -311,7 +308,7 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
         self.A_ineq = np.hstack((np.zeros((F.shape[0], 9 + 6)), F))
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
-    def _setup_and_solve_qp(self, C_we, V, ad, αd, δ, J, v):
+    def _setup_and_solve_qp(self, C_we, V, ad, αd, δ, J, v, fixed_α=False):
         # number of optimization variables
         nv = 15 + 3 * len(self.contacts)
 
@@ -332,6 +329,14 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
         # map joint acceleration to EE acceleration
         A_eq_track = np.hstack((-J, block_diag(C_we, C_we), np.zeros((6, self.W.shape[1]))))
         b_eq_track = δ
+
+        if fixed_α:
+            A_α_fixed = np.zeros((3, nv))
+            A_α_fixed[:, 12:15] = np.eye(3)
+            b_α_fixed = C_we.T @ αd
+
+            A_eq_track = np.vstack((A_eq_track, A_α_fixed))
+            b_eq_track = np.concatenate((b_eq_track, b_α_fixed))
 
         A_eq = np.vstack((A_eq_track, self.A_eq_bal))
         b_eq = np.concatenate((b_eq_track, b_eq_bal))
@@ -517,11 +522,6 @@ def main():
     q, v = env.robot.joint_states()
     a = np.zeros(env.robot.nv)
 
-    # J = robot.jacobian(q)
-    # dJdt = robot.jacobian_time_derivative(q, v)
-    # IPython.embed()
-    # return
-
     v_cmd = np.zeros(env.robot.nv)
 
     robot.forward(q, v)
@@ -542,10 +542,6 @@ def main():
     # goal position
     debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
 
-    # TODO there seems to be some problem with long trajectories: the robot
-    # does not get in some convenient steady-state for maintaining a particular
-    # velocity
-
     # simulation loop
     while t <= env.duration:
         # current joint state
@@ -553,43 +549,42 @@ def main():
 
         # current EE state
         robot.forward(q, v)
-        r_ew_w, Q_we = robot.link_pose()
-        C_we = core.math.quat_to_rot(Q_we)
+        r_ew_w, C_we = robot.link_pose(rotation_matrix=True)
         v_ew_w, ω_ew_w = robot.link_velocity()
 
         # desired EE state
         rd, vd, ad = trajectory.sample(t)
-        # print(vd)
 
         # commanded EE linear acceleration
         a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad
 
+        # commanded EE angular acceleration
+        # designed to align tray orientation with total acceleration
         normal_d = a_ew_w_cmd + [0, 0, 9.81]
         normal_d = normal_d / np.linalg.norm(normal_d)
         z = [0, 0, 1]
         normal = C_we @ z
         θ = np.arccos(normal_d @ normal)
         aa = θ * np.cross(normal, normal_d)
-        # print(aa)
-
         α_we_w_cmd = kp * aa + kv * (0 - ω_ew_w)
-        print(f"αd = {α_we_w_cmd}")
 
         # compute command
         t0 = time.time()
-        u_n, A_n = nominal_controller.solve(q, v, a_ew_w_cmd, α_we_w_cmd)
+        u_n, A_n = nominal_controller.solve(q, v, a_ew_w_cmd, α_we_w_cmd, fixed_α=False)
+
         # u_r, A_r = robust_controller.solve(q, v, a_ew_w_cmd)
         t1 = time.time()
         print(f"solve took {1000 * (t1 - t0)} ms")
-        print(f"ad = {ad}")
-        print(f"A_n = {A_n}")
+        # print(f"ad = {ad}")
+        print(f"A_n = {block_diag(C_we, C_we) @ A_n}")
         # print(f"A_r = {A_r}")
-        print(f"u_n = {u_n}, norm = {np.linalg.norm(u_n)}")
+        # print(f"u_n = {u_n}, norm = {np.linalg.norm(u_n)}")
         # print(f"u_r = {u_r}, norm = {np.linalg.norm(u_r)}")
-        # IPython.embed()
-        v_cmd = v + env.timestep * u_n
-        # if np.linalg.norm(A_n[3:]) > 1:
-        #     IPython.embed()
+
+        # NOTE: we want to use v_cmd rather than v here because PyBullet
+        # doesn't respond to small velocities well, and it screws up angular
+        # velocity tracking
+        v_cmd = v_cmd + env.timestep * u_n
 
         env.robot.command_velocity(v_cmd, bodyframe=False)
 
