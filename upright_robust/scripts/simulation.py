@@ -158,7 +158,7 @@ class ReactiveBalancingController:
         θ_min=None,
         θ_max=None,
         a_cart_weight=1,
-        α_cart_weight=1,
+        α_cart_weight=10,
         a_joint_weight=0,
         v_joint_weight=0.1,
         a_cart_max=5,
@@ -227,7 +227,7 @@ class ReactiveBalancingController:
         A = x[9:15]
         return a, A
 
-    def solve(self, q, v, ad):
+    def solve(self, q, v, ad, αd):
         """Solve for an updated joint acceleration command given current robot
         state (q, v) and desired EE acceleration ad."""
         self.robot.forward(q, v)  # TODO could be removed for speed
@@ -242,10 +242,11 @@ class ReactiveBalancingController:
         v_body = v.copy()
         v_body[:3] = C_we.T @ v[:3]
 
-        return self._setup_and_solve_qp(C_we, V_ew_w, ad, δ, J, v_body)
+        return self._setup_and_solve_qp(C_we, V_ew_w, ad, αd, δ, J, v_body)
 
 
 class NominalReactiveController(ReactiveBalancingController):
+    """Reactive controller with no balancing constraints."""
     def __init__(self, model, dt):
         super().__init__(model, dt)
 
@@ -287,8 +288,15 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
 
         nc = 3 * len(self.contacts)
 
+        # add weight on the tangential forces
+        ft_weight = 0
+        Pf = np.zeros((len(self.contacts), 3))
+        Pf[:, :2] = ft_weight
+        Pf = np.diag(Pf.flatten())
+
         # cost
-        self.P = block_diag(self.P, np.zeros((nc, nc)))
+        # self.P = block_diag(self.P, np.zeros((nc, nc)))
+        self.P = block_diag(self.P, Pf)
         self.P_sparse = sparse.csc_matrix(self.P)
 
         # optimization bounds
@@ -303,13 +311,14 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
         self.A_ineq = np.hstack((np.zeros((F.shape[0], 9 + 6)), F))
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
-    def _setup_and_solve_qp(self, C_we, V, ad, δ, J, v):
+    def _setup_and_solve_qp(self, C_we, V, ad, αd, δ, J, v):
         # number of optimization variables
         nv = 15 + 3 * len(self.contacts)
 
         # initial guess
         x0 = np.zeros(nv)
         x0[9:12] = C_we.T @ ad
+        x0[12:15] = C_we.T @ αd
 
         G = rob.body_gravity6(C_we.T)
 
@@ -331,6 +340,7 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
         q = np.zeros(nv)
         q[:9] = self.v_joint_weight * self.dt * v
         q[9:12] = -C_we.T @ ad
+        q[12:15] = -C_we.T @ αd
 
         return self._solve_qp(
             P=self.P_sparse,
@@ -494,8 +504,8 @@ def main():
     θ_min[0] = 0.1
     θ_max[0] = 1.0
 
-    nominal_controller = NominalReactiveBalancingController(model, env.timestep)
     # nominal_controller = NominalReactiveController(model, env.timestep)
+    nominal_controller = NominalReactiveBalancingController(model, env.timestep)
     robust_controller = RobustReactiveBalancingController(model, env.timestep, θ_min=θ_min, θ_max=θ_max, solver="proxqp")
     # robust_controller = RobustReactiveBalancingController(model, env.timestep)
 
@@ -544,6 +554,7 @@ def main():
         # current EE state
         robot.forward(q, v)
         r_ew_w, Q_we = robot.link_pose()
+        C_we = core.math.quat_to_rot(Q_we)
         v_ew_w, ω_ew_w = robot.link_velocity()
 
         # desired EE state
@@ -553,10 +564,21 @@ def main():
         # commanded EE linear acceleration
         a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad
 
+        normal_d = a_ew_w_cmd + [0, 0, 9.81]
+        normal_d = normal_d / np.linalg.norm(normal_d)
+        z = [0, 0, 1]
+        normal = C_we @ z
+        θ = np.arccos(normal_d @ normal)
+        aa = θ * np.cross(normal, normal_d)
+        # print(aa)
+
+        α_we_w_cmd = kp * aa + kv * (0 - ω_ew_w)
+        print(f"αd = {α_we_w_cmd}")
+
         # compute command
         t0 = time.time()
-        u_n, A_n = nominal_controller.solve(q, v, a_ew_w_cmd)
-        u_r, A_r = robust_controller.solve(q, v, a_ew_w_cmd)
+        u_n, A_n = nominal_controller.solve(q, v, a_ew_w_cmd, α_we_w_cmd)
+        # u_r, A_r = robust_controller.solve(q, v, a_ew_w_cmd)
         t1 = time.time()
         print(f"solve took {1000 * (t1 - t0)} ms")
         print(f"ad = {ad}")
