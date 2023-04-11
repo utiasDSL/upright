@@ -12,22 +12,29 @@ balancing:
 objects:
   # these are all the same from the controller's perspective
   stack_cube:
-    mass: 0.2
+    mass: 0.1
     com_offset: [0, 0, 0]
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.2]
 
   stack_cube_heavy:
-    mass: 0.2
+    mass: 0.1
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
       side_lengths: [0.1, 0.1, 0.2]
 
   stack_cube_light:
-    mass: 0.2
+    mass: 0.1
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
       side_lengths: [0.1, 0.1, 0.2]
+
+  tall_block:
+    mass: 0.5
+    com_offset: [0, 0, -0.2]
+    shape:
+        type: cuboid
+        side_lengths: [0.1, 0.1, 0.5]

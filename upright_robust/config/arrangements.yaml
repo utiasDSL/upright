@@ -41,3 +41,15 @@ arrangements:
         first: ee
         second: cube1
         mu: 0.2
+
+  tall:
+    objects:
+      -
+        name: block1
+        type: tall_block
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: block1
+        mu: 0.5
