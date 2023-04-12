@@ -34,7 +34,7 @@ objects:
 
   tall_block:
     mass: 0.5
-    com_offset: [0, 0, -0.2]
+    com_offset: [0, 0, 0]
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.5]
