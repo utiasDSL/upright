@@ -170,22 +170,7 @@ def body_regressor(V, A):
 
     The regressor maps the inertial parameters to the body inertial wrench: w = Yθ.
     """
-    v, ω = V[:3], V[3:]
-    a, α = A[:3], A[3:]
-
-    Sω = core.math.skew3(ω)
-    Sv = core.math.skew3(v)
-    Sa = core.math.skew3(a)
-    Sα = core.math.skew3(α)
-    Lω = lift3(ω)
-    Lα = lift3(α)
-
-    # fmt: off
-    return np.block([
-        [(a + Sω @ v)[:, None], Sα + Sω @ Sω, np.zeros((3, 6))],
-        [np.zeros((3, 1)), -Sa - core.math.skew3(Sω @ v), Lα + Sω @ Lω]
-    ])
-    # fmt: on
+    return lift6(A) + skew6(V) @ lift6(V)
 
 
 def body_regressor_A_by_vector(f):
@@ -218,7 +203,7 @@ def body_regressor_VG_by_vector(V, G, f):
 def body_regressor_VG_by_vector_vectorized(V, G, F):
     """A vectorized version of the above function, computed for each row f of F.
 
-    V: body velocity test
+    V: body velocity twist
     G: body gravity twist
     F: arbitrary matrix with n * 6 columns
 

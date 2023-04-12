@@ -494,8 +494,7 @@ def main():
     # nominal_controller = NominalReactiveController(model, env.timestep)
     nominal_controller = NominalReactiveBalancingController(model, env.timestep)
     # robust_controller = RobustReactiveBalancingController(model, env.timestep, θ_min=θ_min, θ_max=θ_max, solver="proxqp")
-    # robust_controller = RobustReactiveBalancingController(model, env.timestep)
-    robust_controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
+    robust_controller = RobustReactiveBalancingController(model, env.timestep)
 
     # tracking controller gains
     kp = 2

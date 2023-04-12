@@ -2,8 +2,29 @@
 body frame wrench for a rigid body."""
 import pytest
 import numpy as np
+import pinocchio
 
 import upright_robust as rob
+
+
+def test_regressor():
+    """Test body regressor implementation."""
+    np.random.seed(0)
+
+    V = np.random.random(6)
+    A = np.random.random(6)
+
+    Y = rob.body_regressor(V, A)
+
+    # compare to pinocchio's implementation
+    # pinocchio orders the inertia matrix parameters with I_xz and I_yy swapped
+    # compared to our implementation, so we have to manually correct that
+    Z = pinocchio.bodyRegressor(pinocchio.Motion(V), pinocchio.Motion(A))
+    Z_swapped = Z.copy()
+    Z_swapped[:, 6] = Z[:, 7]
+    Z_swapped[:, 7] = Z[:, 6]
+
+    assert np.allclose(Y, Z_swapped)
 
 
 def test_regressor_decomposition():
