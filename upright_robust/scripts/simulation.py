@@ -84,14 +84,21 @@ class UncertainObject:
         self.body = obj.body
 
         m = self.body.mass
-        h = m * np.zeros(3)
-        Jvec = rob.vech(self.body.inertia)
+        h = m * self.body.com
+        H = core.math.skew3(h)
+        J = obj.body.inertia - H @ core.math.skew3(self.body.com)
 
         # mass matrix w.r.t. to (nominal) CoM
-        self.M = block_diag(m * np.eye(3), obj.body.inertia)
+        # self.M = block_diag(m * np.eye(3), obj.body.inertia)
+        # fmt: off
+        self.M = np.block([
+            [m * np.eye(3), -H],
+            [H, J]
+        ])
+        # fmt: on
 
         # polytopic parameter uncertainty: Pθ + p >= 0
-        self.θ = np.concatenate(([m], h, Jvec))
+        self.θ = np.concatenate(([m], h, rob.vech(J)))
         self.θ_min, self.θ_max = parameter_bounds(self.θ, θ_min, θ_max)
         I = np.eye(self.θ.shape[0])
         self.P = np.vstack((I, -I))
@@ -245,6 +252,12 @@ class ReactiveBalancingController:
 
         C_we = self.robot.link_pose(rotation_matrix=True)[1]
         V_ew_e = np.concatenate(self.robot.link_velocity(frame="local"))
+
+        test_link_idx = self.robot.get_link_index("extra_link")
+        V_ew_e_test = np.concatenate(self.robot.link_velocity(link_idx=test_link_idx, frame="local"))
+        Δr = np.array([0, 0, 0.2])
+        ω = V_ew_e[3:]
+        print(f"ΔV = {V_ew_e + np.concatenate((np.cross(ω, Δr), np.zeros(3))) - V_ew_e_test}")
 
         # rotate command into the body frame
         A_ew_e_cmd = block_diag(C_we, C_we).T @ A_ew_w_cmd
@@ -505,6 +518,16 @@ def main():
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
     robot = model.robot
 
+    # TODO we need to modify the contact points based on the CoM
+    objects = model.settings.balancing_settings.objects
+    for c in model.settings.balancing_settings.contacts:
+        if c.object1_name != "ee":
+            o1 = objects[c.object1_name]
+            c.r_co_o1 = c.r_co_o1 + o1.body.com
+        o2 = objects[c.object2_name]
+        c.r_co_o2 = c.r_co_o2 + o2.body.com
+    # IPython.embed()
+
     # θ_min = [None] * 10
     # θ_max = [None] * 10
     # θ_min[0] = 0.1
@@ -522,12 +545,19 @@ def main():
     θ_max[3] = 0.5 * 0.02
     # θ_min[3] = 0 * 0.2
     # θ_max[3] = 0 * 0.2
+    θ_min[1] = -0.5 * 0.02
+    θ_max[1] = 0.5 * 0.02
+    θ_min[2] = -0.5 * 0.02
+    θ_max[2] = 0.5 * 0.02
+    θ_min[3] = -0.5 * 0.13
+    θ_max[3] = 0.5 * 0.17
 
     # nominal_controller = NominalReactiveController(model, env.timestep)
-    nominal_controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
+    nominal_controller = NominalReactiveBalancingController(model, env.timestep)
     robust_controller = RobustReactiveBalancingController(model, env.timestep,
             θ_min=θ_min, θ_max=θ_max, solver="proxqp", α_cart_weight=1)
     # robust_controller = RobustReactiveBalancingController(model, env.timestep)
+    # robust_controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
 
     # tracking controller gains
     kp = 2
@@ -593,7 +623,7 @@ def main():
 
         # compute command
         t0 = time.time()
-        u_n, A_n = nominal_controller.solve(q, v, A_ew_w_cmd)
+        u_n, A_n = nominal_controller.solve(q, v, A_ew_w_cmd, fixed_α=False)
 
         # TODO here we are running two stages: first find the best linear acc
         # without rotation, then try to rotate while maintaining that
