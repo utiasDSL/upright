@@ -6,30 +6,29 @@ include:
     package: upright_robust
     path: config/arrangements.yaml
 
-duration: 10.0
-
 objects:
   stack_cube:
     shape: cuboid
-    mass: 0.01
-    side_lengths: [0.1, 0.1, 0.2]
+    mass: 0.1
+    side_lengths: [0.1, 0.1, 0.1]
     color: [1, 0, 0, 1]
 
   stack_cube_heavy:
     shape: cuboid
-    mass: 1
-    side_lengths: [0.1, 0.1, 0.2]
+    mass: 0.1
+    side_lengths: [0.1, 0.1, 0.1]
     color: [1, 0, 0, 1]
 
   stack_cube_light:
     shape: cuboid
-    mass: 0.01
-    side_lengths: [0.1, 0.1, 0.2]
+    mass: 0.1
+    side_lengths: [0.1, 0.1, 0.1]
     color: [1, 0, 0, 1]
 
   tall_block:
     mass: 0.5
-    com_offset: [0, 0, 0]
+    com_offset: [0, -0.02, 0]
+    # com_offset: [0, 0, 0]
     shape: cuboid
-    side_lengths: [0.1, 0.1, 0.5]
+    side_lengths: [0.1, 0.1, 0.3]
     color: [1, 0, 0, 1]

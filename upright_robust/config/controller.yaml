@@ -16,25 +16,25 @@ objects:
     com_offset: [0, 0, 0]
     shape:
         type: cuboid
-        side_lengths: [0.1, 0.1, 0.2]
+        side_lengths: [0.1, 0.1, 0.1]
 
   stack_cube_heavy:
     mass: 0.1
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
-      side_lengths: [0.1, 0.1, 0.2]
+      side_lengths: [0.1, 0.1, 0.1]
 
   stack_cube_light:
     mass: 0.1
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
-      side_lengths: [0.1, 0.1, 0.2]
+      side_lengths: [0.1, 0.1, 0.1]
 
   tall_block:
     mass: 0.5
     com_offset: [0, 0, 0]
     shape:
         type: cuboid
-        side_lengths: [0.1, 0.1, 0.5]
+        side_lengths: [0.1, 0.1, 0.3]

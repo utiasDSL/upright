@@ -6,6 +6,7 @@ from qpsolvers import solve_qp
 import osqp
 import time
 
+import upright_core as core
 import upright_robust as rob
 
 import IPython
@@ -452,13 +453,16 @@ def inner_optimization(C, V, A, obj):
 
 def main():
     np.set_printoptions(precision=5, suppress=True)
+    np.random.seed(0)
 
     C = np.eye(3)  # C_bw
-    V = np.array([0, 0, 0, 0, 0, 0])
+    C = core.math.rotx(0.1)
+    # V = np.array([0, 0, 0, 0, 0, 0])
+    V = np.random.random(6)
     ad_world = np.array([3, 0, 0])  # TODO we could construct a control law here
     ad_body = C @ ad_world
 
-    obj = rob.BalancedObject(m=1, h=0.05, δ=0.05, μ=0.2, h0=0, x0=0)
+    obj = rob.BalancedObject(m=1, h=0.25, δ=0.05, μ=0.2, h0=0, x0=0)
 
     # test the body regressor
     # Ag = np.concatenate((C @ G, np.zeros(3)))  # body frame gravity

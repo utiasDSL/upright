@@ -15,6 +15,35 @@ logging:
   timestep: 0.010
   log_dir: /media/adam/Data/PhD/Data/upright/robust
 
+simulation:
+  duration: 10.0
+  extra_gui: false
+  robot:
+    urdf:
+      includes:
+        - "$(find upright_assets)/thing/xacro/cartesian_base_joints.urdf.xacro"
+        - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_sim.yaml"
+
+  cameras:
+    camera1:
+      target: [1.04, 2.26, 0.92]
+      distance: 1
+      roll: 0
+      pitch: -17.8
+      yaw: 91.2
+
+  video:
+    save_frames: true
+    dir: /media/adam/Data/PhD/Data/upright/robust/videos
+    timestep: 0.040
+    views:
+      -
+        camera: camera1
+        name: view1
+
 controller:
   balancing:
     enabled: false

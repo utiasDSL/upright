@@ -20,15 +20,18 @@ arrangements:
       -
         first: ee
         second: cube1
-        mu: 0.5
+        mu: 0.1
+        mu_margin: 0.01
       -
         first: cube1
         second: cube2
-        mu: 0.5
+        mu: 0.1
+        mu_margin: 0.01
       -
         first: cube2
         second: cube3
-        mu: 0.5
+        mu: 0.1
+        mu_margin: 0.01
 
   single_cube:
     objects:
@@ -53,4 +56,5 @@ arrangements:
         first: ee
         second: block1
         mu: 0.5
-        support_area_inset: 0.005
+        # support_area_inset: 0.005
+        support_area_inset: 0.00
