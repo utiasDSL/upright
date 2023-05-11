@@ -257,13 +257,20 @@ class ReactiveBalancingController:
         V_ew_e_test = np.concatenate(self.robot.link_velocity(link_idx=test_link_idx, frame="local"))
         Δr = np.array([0, 0, 0.2])
         ω = V_ew_e[3:]
-        print(f"ΔV = {V_ew_e + np.concatenate((np.cross(ω, Δr), np.zeros(3))) - V_ew_e_test}")
+
+        # print(f"ΔV = {V_ew_e + np.concatenate((np.cross(ω, Δr), np.zeros(3))) - V_ew_e_test}")
 
         # rotate command into the body frame
         A_ew_e_cmd = block_diag(C_we, C_we).T @ A_ew_w_cmd
 
         # body-frame gravity
         G_e = rob.body_gravity6(C_we.T)
+
+        W = core.math.skew3(ω)
+        X = np.block([[np.eye(3), -core.math.skew3(Δr)], [np.zeros((3, 3)), np.eye(3)]])
+        d = np.concatenate((W @ W @ Δr, np.zeros(3)))
+
+        # A_ew_w_cmd = np.linalg.solve(X, A_ew_e_cmd - d)
 
         return self._setup_and_solve_qp(G_e, V_ew_e, A_ew_e_cmd, δ, J, v, **kwargs)
 
@@ -555,13 +562,13 @@ def main():
     # nominal_controller = NominalReactiveController(model, env.timestep)
     nominal_controller = NominalReactiveBalancingController(model, env.timestep)
     robust_controller = RobustReactiveBalancingController(model, env.timestep,
-            θ_min=θ_min, θ_max=θ_max, solver="proxqp", α_cart_weight=1)
+            θ_min=θ_min, θ_max=θ_max, solver="proxqp", α_cart_weight=0.0)
     # robust_controller = RobustReactiveBalancingController(model, env.timestep)
     # robust_controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
 
     # tracking controller gains
-    kp = 2
-    kv = 1
+    kp = 1
+    kv = 2 * np.sqrt(kp)
 
     kθ = 2
     kω = 1
@@ -577,9 +584,13 @@ def main():
     r_ew_w_d = r_ew_w_0 + [0, 2, 0]
 
     # desired trajectory
+    Δr = np.array([0, 0, 0.2])
     trajectory = mm.PointToPointTrajectory.quintic(
-        r_ew_w_0, r_ew_w_d, max_vel=2, max_acc=5
+        r_ew_w_0, r_ew_w_d, max_vel=2, max_acc=4
     )
+    # trajectory = mm.PointToPointTrajectory.quintic(
+    #     r_ew_w_0 + Δr, r_ew_w_d + Δr, max_vel=2, max_acc=4
+    # )
 
     # rd = r_ew_w_d
     # # vd = np.zeros(3)
@@ -606,6 +617,7 @@ def main():
         rd, vd, ad = trajectory.sample(t)
 
         # commanded EE linear acceleration
+        # a_ew_w_cmd = kp * (rd - r_ew_w - C_we @ Δr) + kv * (vd - v_ew_w - np.cross(ω_ew_w, C_we @ Δr)) + ad
         a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad
 
         # commanded EE angular acceleration
@@ -617,13 +629,22 @@ def main():
         # θ = np.arccos(normal_d @ normal)
         aa = compute_desired_axis_angle(a_ew_w_cmd, C_we)
         α_ew_w_cmd = kθ * aa + kω * (0 - ω_ew_w)
-        # α_ew_w_cmd = np.zeros(3)
+        α_ew_w_cmd = np.zeros(3)
+
+        # W = core.math.skew3(ω_ew_w_cmd)
+        # X = np.block([[np.eye(3), -core.math.skew3(Δr)], [np.zeros((3, 3)), np.eye(3)]])
+        # d = np.concatenate((W @ W @ Δr, np.zeros(3)))
 
         A_ew_w_cmd = np.concatenate((a_ew_w_cmd, α_ew_w_cmd))
 
         # compute command
         t0 = time.time()
-        u_n, A_n = nominal_controller.solve(q, v, A_ew_w_cmd, fixed_α=False)
+        u_n, A_n = nominal_controller.solve(q, v, A_ew_w_cmd, fixed_α=True)
+
+        aa = compute_desired_axis_angle(A_n[:3], C_we)
+        α_ew_w_cmd = kθ * aa + kω * (0 - ω_ew_w)
+        A_ew_w_cmd = np.concatenate((A_n[:3], α_ew_w_cmd))
+        u_n, A_n = nominal_controller.solve(q, v, A_ew_w_cmd, fixed_α=True)
 
         # TODO here we are running two stages: first find the best linear acc
         # without rotation, then try to rotate while maintaining that
@@ -650,6 +671,7 @@ def main():
 
         # print(f"u_n = {u_n}, norm = {np.linalg.norm(u_n)}")
         # print(f"u_r = {u_r}, norm = {np.linalg.norm(u_r)}")
+        # print(f"Δv = {v - v_cmd}")
 
         # NOTE: we want to use v_cmd rather than v here because PyBullet
         # doesn't respond to small velocities well, and it screws up angular

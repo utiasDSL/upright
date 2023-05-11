@@ -20,15 +20,15 @@ arrangements:
       -
         first: ee
         second: cube1
-        mu: 0.5
+        mu: 0.1
       -
         first: cube1
         second: cube2
-        mu: 0.5
+        mu: 0.1
       -
         first: cube2
         second: cube3
-        mu: 0.5
+        mu: 0.1
 
   single_cube:
     objects:
@@ -40,7 +40,8 @@ arrangements:
       -
         first: ee
         second: cube1
-        mu: 0.2
+        mu: 0.1
+        mu_margin: 0.01
 
   tall:
     objects:
