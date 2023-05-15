@@ -27,8 +27,8 @@ objects:
 
   tall_block:
     mass: 0.5
-    com_offset: [0, -0.02, 0]
+    com_offset: [0, -0.03, 0]
     # com_offset: [0, 0, 0]
     shape: cuboid
-    side_lengths: [0.1, 0.1, 0.3]
+    side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]
