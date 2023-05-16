@@ -95,7 +95,6 @@ def main():
     θ_min[3] = -0.5 * 0.13
     θ_max[3] = 0.5 * 0.17
 
-    # nominal_controller = NominalReactiveController(model, env.timestep)
     nominal_controller = rob.NominalReactiveBalancingControllerTilting(model, env.timestep)
     robust_controller = rob.RobustReactiveBalancingController(
         model,
@@ -105,8 +104,6 @@ def main():
         solver="proxqp",
         α_cart_weight=0.0,
     )
-    # robust_controller = RobustReactiveBalancingController(model, env.timestep)
-    # robust_controller = NominalReactiveBalancingControllerFaceForm(model, env.timestep)
 
     # tracking controller gains
     kp = 1
@@ -140,8 +137,6 @@ def main():
     # goal position
     debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
 
-    # ay_max = 0
-
     # simulation loop
     while t <= env.duration:
         # current joint state
@@ -164,18 +159,9 @@ def main():
 
         # commanded EE angular acceleration
         # designed to align tray orientation with total acceleration
-        # normal_d = a_ew_w_cmd + [0, 0, 9.81]
-        # normal_d = normal_d / np.linalg.norm(normal_d)
-        # z = [0, 0, 1]
-        # normal = C_we @ z
-        # θ = np.arccos(normal_d @ normal)
-        aa = compute_desired_axis_angle(a_ew_w_cmd, C_we)
+        # aa = compute_desired_axis_angle(a_ew_w_cmd, C_we)
         # α_ew_w_cmd = kθ * aa + kω * (0 - ω_ew_w)
         α_ew_w_cmd = np.zeros(3)
-
-        # W = core.math.skew3(ω_ew_w_cmd)
-        # X = np.block([[np.eye(3), -core.math.skew3(Δr)], [np.zeros((3, 3)), np.eye(3)]])
-        # d = np.concatenate((W @ W @ Δr, np.zeros(3)))
 
         A_ew_w_cmd = np.concatenate((a_ew_w_cmd, α_ew_w_cmd))
 
@@ -209,9 +195,6 @@ def main():
         print(f"A_cmd = {A_ew_w_cmd}")
         print(f"A_n = {A_n_w}")
         # print(f"A_r = {A_r_w}")
-
-        # ay_max = max(ay_max, A_n_w[1])
-        # print(f"ay_max = {ay_max}")
 
         # print(f"u_n = {u_n}, norm = {np.linalg.norm(u_n)}")
         # print(f"u_r = {u_r}, norm = {np.linalg.norm(u_r)}")
