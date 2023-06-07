@@ -127,7 +127,7 @@ def xacro_include(path):
     """
 
 
-def parse_and_compile_urdf(d, max_runs=10, compare_existing=True):
+def parse_and_compile_urdf(d, max_runs=10, compare_existing=True, quiet=False):
     """Parse and compile a URDF from a xacro'd URDF file."""
 
     s = """
@@ -174,10 +174,12 @@ def parse_and_compile_urdf(d, max_runs=10, compare_existing=True):
         with open(output_path) as f:
             text_current = f.read()
         if text_current == text:
-            print("URDF files are the same - not writing.")
+            if not quiet:
+                print("URDF files are the same - not writing.")
             return output_path.as_posix()
         else:
-            print("URDF files are not the same - writing.")
+            if not quiet:
+                print("URDF files are not the same - writing.")
 
     with open(output_path, "w") as f:
         f.write(text)

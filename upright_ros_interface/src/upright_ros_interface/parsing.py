@@ -1,3 +1,6 @@
+import glob
+from pathlib import Path
+
 import numpy as np
 
 import upright_core as core
@@ -134,3 +137,41 @@ def parse_config_and_control_model(config_path):
     config = core.parsing.load_config(config_path)
     ctrl_config = config["controller"]
     return config, ctrl.manager.ControllerModel.from_config(ctrl_config)
+
+
+def parse_bag_dir(directory, config_name=None, bag_name=None):
+    """Parse bag and config path from a data directory.
+
+    Config and bag file names can be supplied if any ambiguity is expected.
+
+    Returns (config_path, bag_path), as strings."""
+    dir_path = Path(directory)
+
+    if config_name is not None:
+        config_path = dir_path / config_name
+    else:
+        config_files = glob.glob(dir_path.as_posix() + "/*.yaml")
+        if len(config_files) == 0:
+            raise FileNotFoundError(
+                "Error: could not find a config file in the specified directory."
+            )
+        if len(config_files) > 1:
+            raise FileNotFoundError(
+                "Error: multiple possible config files in the specified directory. Please specify the name using the `--config_name` option."
+            )
+        config_path = config_files[0]
+
+    if bag_name is not None:
+        bag_path = dir_path / bag_name
+    else:
+        bag_files = glob.glob(dir_path.as_posix() + "/*.bag")
+        if len(bag_files) == 0:
+            raise FileNotFoundError(
+                "Error: could not find a bag file in the specified directory."
+            )
+        if len(config_files) > 1:
+            raise FileNotFoundError(
+                "Error: multiple bag files in the specified directory. Please specify the name using the `--bag_name` option."
+            )
+        bag_path = bag_files[0]
+    return config_path, bag_path

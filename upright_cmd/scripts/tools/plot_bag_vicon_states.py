@@ -83,8 +83,9 @@ class FilterUpdater:
             delta=self.delta,
             axis=0,
         )
-        for i, line in enumerate(self.lines):
+        for i, line in enumerate(self.lines[:3]):
             line.set_ydata(y[:, i])
+        self.lines[-1].set_ydata(np.linalg.norm(y, axis=1))
         self.fig.canvas.draw_idle()
 
     def update_window_size(self, window_size):
@@ -150,9 +151,11 @@ def main():
     plt.plot(ts, velocities[:, 0], color=palette[0], alpha=0.2)
     plt.plot(ts, velocities[:, 1], color=palette[1], alpha=0.2)
     plt.plot(ts, velocities[:, 2], color=palette[2], alpha=0.2)
+    plt.plot(ts, np.linalg.norm(velocities, axis=1), color=palette[3], alpha=0.2)
     (l1,) = plt.plot(ts, smooth_velocities[:, 0], label="x", color=palette[0])
     (l2,) = plt.plot(ts, smooth_velocities[:, 1], label="y", color=palette[1])
     (l3,) = plt.plot(ts, smooth_velocities[:, 2], label="z", color=palette[2])
+    (l4,) = plt.plot(ts, np.linalg.norm(smooth_velocities, axis=1), label="norm", color=palette[3])
     plt.title("EE velocity")
     plt.xlabel("Time [s]")
     plt.ylabel("Velocity [m/s]")
@@ -160,16 +163,18 @@ def main():
     plt.grid()
 
     vel_updater = FilterUpdater(
-        vel_fig, [l1, l2, l3], positions, window_size, polyorder, delta=dt, deriv=1
+        vel_fig, [l1, l2, l3, l4], positions, window_size, polyorder, delta=dt, deriv=1
     )
 
     acc_fig = plt.figure()
     plt.plot(ts, accelerations[:, 0], color=palette[0], alpha=0.2)
     plt.plot(ts, accelerations[:, 1], color=palette[1], alpha=0.2)
     plt.plot(ts, accelerations[:, 2], color=palette[2], alpha=0.2)
+    plt.plot(ts, np.linalg.norm(accelerations, axis=1), color=palette[3], alpha=0.2)
     (l1,) = plt.plot(ts, smooth_accelerations[:, 0], label="x", color=palette[0])
     (l2,) = plt.plot(ts, smooth_accelerations[:, 1], label="y", color=palette[1])
     (l3,) = plt.plot(ts, smooth_accelerations[:, 2], label="z", color=palette[2])
+    (l4,) = plt.plot(ts, np.linalg.norm(smooth_accelerations, axis=1), label="norm", color=palette[3])
     plt.title("EE acceleration")
     plt.xlabel("Time [s]")
     plt.ylabel("Acceleration [m/s]")
@@ -177,7 +182,7 @@ def main():
     plt.grid()
 
     acc_updater = FilterUpdater(
-        acc_fig, [l1, l2, l3], positions, window_size, polyorder, delta=dt, deriv=2
+        acc_fig, [l1, l2, l3, l4], positions, window_size, polyorder, delta=dt, deriv=2
     )
 
     plt.show()

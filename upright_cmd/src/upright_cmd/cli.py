@@ -1,6 +1,6 @@
 import argparse
-import glob
-from pathlib import Path
+
+import upright_ros_interface as rosi
 
 
 def basic_arg_parser():
@@ -51,33 +51,6 @@ def add_bag_dir_arguments(parser):
 
 def parse_bag_dir_args(args):
     """Parse bag and config file paths from CLI args."""
-    dir_path = Path(args.directory)
-
-    if args.config_name is not None:
-        config_path = dir_path / args.config_name
-    else:
-        config_files = glob.glob(dir_path.as_posix() + "/*.yaml")
-        if len(config_files) == 0:
-            raise FileNotFoundError(
-                "Error: could not find a config file in the specified directory."
-            )
-        if len(config_files) > 1:
-            raise FileNotFoundError(
-                "Error: multiple possible config files in the specified directory. Please specify the name using the `--config_name` option."
-            )
-        config_path = config_files[0]
-
-    if args.bag_name is not None:
-        bag_path = dir_path / args.bag_name
-    else:
-        bag_files = glob.glob(dir_path.as_posix() + "/*.bag")
-        if len(bag_files) == 0:
-            raise FileNotFoundError(
-                "Error: could not find a bag file in the specified directory."
-            )
-        if len(config_files) > 1:
-            print(
-                "Error: multiple bag files in the specified directory. Please specify the name using the `--bag_name` option."
-            )
-        bag_path = bag_files[0]
-    return config_path, bag_path
+    return rosi.parsing.parse_bag_dir(
+        directory=args.directory, config_name=args.config_name, bag_name=args.bag_name
+    )
