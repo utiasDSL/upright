@@ -3,6 +3,8 @@
 Code for solving the waiter's problem with model predictive control on a mobile
 manipulator. Accompanies [this paper](https://arxiv.org/abs/2305.17484).
 
+![A robot butler.](img/butler.jpg)
+
 The code is designed to run on ROS Noetic. There is Docker image available in
 the `docker/` directory if you are not running Ubuntu 20.04 with Noetic
 natively. For experiments on real hardware, it is highly recommended to use a
