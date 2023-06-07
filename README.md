@@ -1,7 +1,7 @@
-# Upright: Nonprehensile Object Transportation (with a Mobile Manipulator)
+# Upright
 
-Simulation and experiment code for a mobile manipulator balancing objects on its
-end effector. Simulator is Pybullet.
+Code for solving the waiter's problem with model predictive control on a mobile
+manipulator. 
 
 The code is designed to run on ROS Noetic. There is Docker image available in
 the `docker/` directory if you are not running Ubuntu 20.04 with Noetic
@@ -123,3 +123,7 @@ You may wish to record the results in a bag file using the
 
 Some packages contain tests. Python tests use [pytest](https://pytest.org/).
 Run `pytest .` inside a package's `tests` directory to run the Python tests.
+
+## License
+
+MIT (see the LICENSE file).
