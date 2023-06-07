@@ -1,7 +1,7 @@
 # Upright
 
 Code for solving the waiter's problem with model predictive control on a mobile
-manipulator. 
+manipulator. Accompanies [this paper](https://arxiv.org/abs/2305.17484).
 
 The code is designed to run on ROS Noetic. There is Docker image available in
 the `docker/` directory if you are not running Ubuntu 20.04 with Noetic
@@ -9,8 +9,6 @@ natively. For experiments on real hardware, it is highly recommended to use a
 real-time system like Linux with the PREEMPT_RT patch.
 
 ## Contents
-* `docker/`: Dockerfile and utility scripts to install and run things under ROS
-  Noetic on Ubuntu 20.04.
 * `upright_assets`: URDF and mesh files.
 * `upright_core`: Core API for computing motion constraints required to
   balance objects.
@@ -123,6 +121,21 @@ You may wish to record the results in a bag file using the
 
 Some packages contain tests. Python tests use [pytest](https://pytest.org/).
 Run `pytest .` inside a package's `tests` directory to run the Python tests.
+
+## Citation
+
+If you find this work useful, feel free to cite the accompanying
+[paper](https://arxiv.org/abs/2305.17484):
+```
+@misc{heins2023upright,
+      title={Keep it Upright: Model Predictive Control for Nonprehensile Object Transportation with Obstacle Avoidance on a Mobile Manipulator}, 
+      author={Adam Heins and Angela P. Schoellig},
+      year={2023},
+      eprint={2305.17484},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO}
+}
+```
 
 ## License
 
