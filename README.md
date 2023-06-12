@@ -9,9 +9,11 @@ The code in this repository accompanies [this
 paper](https://arxiv.org/abs/2305.17484). A full video can be found
 [here](http://tiny.cc/keep-it-upright). Some examples include reacting to
 sudden changes in the environment:
+
 ![Sudden obstacle avoidance](https://static.adamheins.com/upright/sudden.gif)
 
-and avoiding dynamic obstacles like thrown balls while keeping objects balanced:
+and avoiding dynamic obstacles like thrown balls:
+
 ![Dynamic obstacle avoidance](https://static.adamheins.com/upright/dodge.gif)
 
 ## Contents
