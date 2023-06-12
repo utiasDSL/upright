@@ -1,14 +1,18 @@
 # Upright
 
 Code for solving the waiter's problem with model predictive control on a mobile
-manipulator. Accompanies [this paper](https://arxiv.org/abs/2305.17484).
+manipulator. The waiter's problem refers to moving while keeping objects
+balanced on a tray-like end effector (like a waiter in a restaurant), which is
+an example of *nonprehensile* manipulation.
 
-![A robot butler.](img/butler.jpg)
+The code in this repository accompanies [this
+paper](https://arxiv.org/abs/2305.17484). A full video can be found
+[here](http://tiny.cc/keep-it-upright). Some examples include reacting to
+sudden changes in the environment:
+![Sudden obstacle avoidance](https://static.adamheins.com/upright/sudden.gif)
 
-The code is designed to run on ROS Noetic. There is Docker image available in
-the `docker/` directory if you are not running Ubuntu 20.04 with Noetic
-natively. For experiments on real hardware, it is highly recommended to use a
-real-time system like Linux with the PREEMPT_RT patch.
+and avoiding dynamic obstacles like thrown balls while keeping objects balanced:
+![Dynamic obstacle avoidance](https://static.adamheins.com/upright/dodge.gif)
 
 ## Contents
 * `upright_assets`: URDF and mesh files.
@@ -23,6 +27,10 @@ real-time system like Linux with the PREEMPT_RT patch.
 * `upright_sim`: (PyBullet) simulation environments for balancing objects.
 
 ## Setup and Installation
+
+The code is designed to run on ROS Noetic under Ubuntu 20.04. For experiments
+on real hardware, it is highly recommended to use a real-time system like Linux
+with the PREEMPT_RT patch.
 
 Install eigenpy (a Pinocchio dependency) from apt:
 ```
