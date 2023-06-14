@@ -117,18 +117,15 @@ class ReactiveBalancingController:
         Δr = np.array([0, 0, 0.2])
         ω = V_ew_e[3:]
 
-        # print(f"ΔV = {V_ew_e + np.concatenate((np.cross(ω, Δr), np.zeros(3))) - V_ew_e_test}")
-
         # rotate command into the body frame
         A_ew_e_cmd = block_diag(C_we, C_we).T @ A_ew_w_cmd
 
         # body-frame gravity
         G_e = utils.body_gravity6(C_we.T)
 
-        W = core.math.skew3(ω)
-        X = np.block([[np.eye(3), -core.math.skew3(Δr)], [np.zeros((3, 3)), np.eye(3)]])
-        d = np.concatenate((W @ W @ Δr, np.zeros(3)))
-
+        # W = core.math.skew3(ω)
+        # X = np.block([[np.eye(3), -core.math.skew3(Δr)], [np.zeros((3, 3)), np.eye(3)]])
+        # d = np.concatenate((W @ W @ Δr, np.zeros(3)))
         # A_ew_w_cmd = np.linalg.solve(X, A_ew_e_cmd - d)
 
         return self._setup_and_solve_qp(G_e, V_ew_e, A_ew_e_cmd, δ, J, v, **kwargs)
@@ -236,8 +233,137 @@ class NominalReactiveBalancingController(ReactiveBalancingController):
         )
 
 
-class NominalReactiveBalancingControllerTilting(ReactiveBalancingController):
-    """Reactive balancing controller that explicitly computes contact forces."""
+class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController):
+    """Reactive balancing controller that tilts so that the tray is normal to total acceleration.
+
+    Neglects the rotational dynamics of the tray in the tilting computation.
+    Optionally also enforces the overall balancing constraints on the objects
+    (these do account for rotational dynamics).
+    """
+
+    def __init__(
+        self,
+        model,
+        dt,
+        kθ=1,
+        kω=1,
+        a_cart_max=5,
+        α_cart_max=1,
+        a_joint_max=5,
+        use_balance_cons=True,
+        **kwargs
+    ):
+        super().__init__(model, dt, **kwargs)
+
+        self.use_balance_cons = use_balance_cons
+
+        # number of contact force variables
+        self.nc = 3 * len(self.contacts)
+
+        # optimization variables are (u, ae, αe, αd, ξ), where ξ are the
+        # contact forces
+
+        # number of optimization variables
+        self.nv = 9 + 6 + 3 + self.nc
+
+        # add weight on the tangential forces
+        ft_weight = 0
+        Pf = np.zeros((len(self.contacts), 3))
+        Pf[:, :2] = ft_weight
+        Pf = np.diag(Pf.flatten())
+
+        # angular control gains
+        self.kθ = kθ
+        self.kω = kω
+
+        # cost
+        I3 = np.eye(3)
+        dωdt_weight = np.block([[I3, -I3], [-I3, I3]])
+        P_cart = block_diag(I3, dωdt_weight)
+        self.P = block_diag(self.P_joint, P_cart, Pf)
+        self.P_sparse = sparse.csc_matrix(self.P)
+
+        # bounds
+        self.ub = np.concatenate(
+            (
+                a_joint_max * np.ones(9),
+                a_cart_max * np.ones(3),
+                α_cart_max * np.ones(6),
+                np.inf * np.ones(self.nc),
+            )
+        )
+        self.lb = -self.ub
+
+        # pre-compute part of equality constraints
+        nM = self.M.shape[0]
+        self.A_eq_bal = np.hstack(
+            (np.zeros((nM, 9)), self.M, np.zeros((nM, 3)), self.W)
+        )
+
+        # inequality constraints
+        if use_balance_cons:
+            F = block_diag(*[c.F for c in self.contacts])
+            self.A_ineq = np.hstack((np.zeros((F.shape[0], self.nv - self.nc)), F))
+            self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
+            self.b_ineq = np.zeros(self.A_ineq.shape[0])
+        else:
+            self.A_ineq_sparse = None
+            self.b_ineq = None
+
+    def _setup_and_solve_qp(self, G_e, V_ew_e, A_ew_e_cmd, δ, J, v):
+        x0 = self._initial_guess(self.nv, A_ew_e_cmd)
+
+        # map joint acceleration to EE acceleration
+        A_eq_track = np.hstack((-J, np.eye(6), np.zeros((6, 3 + self.nc))))
+        b_eq_track = δ
+
+        # equality constraints for new consistency stuff
+        I3 = np.eye(3)
+        z = np.array([0, 0, 1])
+        A_eq_tilt = np.hstack(
+            (
+                np.zeros((3, 9)),
+                -self.kθ * core.math.skew3(z),
+                np.zeros((3, 3)),
+                np.eye(3),
+                np.zeros((3, self.nc)),
+            )
+        )
+        g = G_e[:3]
+        ω_ew_e = V_ew_e[3:]
+        b_eq_tilt = -self.kω * ω_ew_e - self.kθ * np.cross(z, g)
+
+        if self.use_balance_cons:
+            # compute the equality constraints A_eq @ x == b
+            # N-E equations for object balancing
+            h = np.concatenate([obj.bias(V_ew_e) for obj in self.objects.values()])
+            b_eq_bal = self.M @ G_e - h
+            A_eq = np.vstack((A_eq_track, self.A_eq_bal, A_eq_tilt))
+            b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt))
+        else:
+            A_eq = np.vstack((A_eq_track, A_eq_tilt))
+            b_eq = np.concatenate((b_eq_track, b_eq_tilt))
+
+        # compute the cost: 0.5 * x @ P @ x + q @ x
+        q0 = self._compute_q(self.nv, v, A_ew_e_cmd)
+        q = np.zeros(self.nv)
+        q[:12] = q0[:12]
+
+        return self._solve_qp(
+            P=self.P_sparse,
+            q=q,
+            G=self.A_ineq_sparse,
+            h=self.b_ineq,
+            A=sparse.csc_matrix(A_eq),
+            b=b_eq,
+            lb=self.lb,
+            ub=self.ub,
+            x0=x0,
+        )
+
+
+class NominalReactiveBalancingControllerFullTilting(ReactiveBalancingController):
+    """Reactive balancing controller that tilts to account for all balanced objects."""
 
     def __init__(
         self, model, dt, kθ=1, kω=1, a_cart_max=5, α_cart_max=1, a_joint_max=5, **kwargs
@@ -249,6 +375,9 @@ class NominalReactiveBalancingControllerTilting(ReactiveBalancingController):
 
         # number of contact force variables
         self.nc = 3 * len(self.contacts)
+
+        # optimization variables are (u, ae, αe, {αd}_{i=1}^no, {ao}_{i=1}^no,
+        # ξ), where ξ are the contact forces
 
         # number of optimization variables
         self.nv = 9 + 6 + 6 * self.no + self.nc
@@ -262,9 +391,6 @@ class NominalReactiveBalancingControllerTilting(ReactiveBalancingController):
         # angular control gains
         self.kθ = kθ
         self.kω = kω
-
-        # optimization variables are (u, ae, αe, {αd}_{i=1}^no, {ao}_{i=1}^no,
-        # ξ), where ξ are the contact forces
 
         # cost
         I3 = np.eye(3)
@@ -299,10 +425,9 @@ class NominalReactiveBalancingControllerTilting(ReactiveBalancingController):
         F = block_diag(*[c.F for c in self.contacts])
         self.A_ineq = np.hstack((np.zeros((F.shape[0], self.nv - self.nc)), F))
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
+        self.b_ineq = np.zeros(self.A_ineq.shape[0])
 
-    def _setup_and_solve_qp(self, G_e, V_ew_e, A_ew_e_cmd, δ, J, v, fixed_α=None):
-        assert fixed_α is None
-
+    def _setup_and_solve_qp(self, G_e, V_ew_e, A_ew_e_cmd, δ, J, v):
         x0 = self._initial_guess(self.nv, A_ew_e_cmd)
 
         # compute the equality constraints A_eq @ x == b
@@ -355,7 +480,7 @@ class NominalReactiveBalancingControllerTilting(ReactiveBalancingController):
             P=self.P_sparse,
             q=q,
             G=self.A_ineq_sparse,
-            h=np.zeros(self.A_ineq.shape[0]),
+            h=self.b_ineq,
             A=sparse.csc_matrix(A_eq),
             b=b_eq,
             lb=self.lb,

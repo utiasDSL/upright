@@ -95,22 +95,23 @@ def main():
     θ_min[3] = -0.5 * 0.13
     θ_max[3] = 0.5 * 0.17
 
-    nominal_controller = rob.NominalReactiveBalancingControllerTilting(model, env.timestep)
-    robust_controller = rob.RobustReactiveBalancingController(
-        model,
-        env.timestep,
-        θ_min=θ_min,
-        θ_max=θ_max,
-        solver="proxqp",
-        α_cart_weight=0.0,
+    # nominal_controller = rob.NominalReactiveBalancingControllerFullTilting(model, env.timestep)
+    nominal_controller = rob.NominalReactiveBalancingControllerTrayTilting(
+        model, env.timestep, use_balance_cons=False
     )
+
+    # robust_controller = rob.RobustReactiveBalancingController(
+    #     model,
+    #     env.timestep,
+    #     θ_min=θ_min,
+    #     θ_max=θ_max,
+    #     solver="proxqp",
+    #     α_cart_weight=0.0,
+    # )
 
     # tracking controller gains
     kp = 1
     kv = 1
-
-    kθ = 2
-    kω = 1
 
     t = 0.0
     q, v = env.robot.joint_states()
@@ -123,7 +124,6 @@ def main():
     r_ew_w_d = r_ew_w_0 + [0, 2, 0]
 
     # desired trajectory
-    Δr = np.array([0, 0, 0.2])
     trajectory = mm.PointToPointTrajectory.quintic(
         r_ew_w_0, r_ew_w_d, max_vel=2, max_acc=4
     )
@@ -148,21 +148,15 @@ def main():
         v_ew_w, ω_ew_w = robot.link_velocity()
 
         # desired EE state
-        rd, vd, ad = trajectory.sample(t)
+        # rd, vd, ad = trajectory.sample(t)
 
-        # rd = r_ew_w_d
-        # vd = np.zeros(3)
-        # ad = np.zeros(3)
+        rd = r_ew_w_d
+        vd = np.zeros(3)
+        ad = np.zeros(3)
 
-        # commanded EE linear acceleration
+        # commanded EE acceleration
         a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad
-
-        # commanded EE angular acceleration
-        # designed to align tray orientation with total acceleration
-        # aa = compute_desired_axis_angle(a_ew_w_cmd, C_we)
-        # α_ew_w_cmd = kθ * aa + kω * (0 - ω_ew_w)
         α_ew_w_cmd = np.zeros(3)
-
         A_ew_w_cmd = np.concatenate((a_ew_w_cmd, α_ew_w_cmd))
 
         # compute command
@@ -171,20 +165,7 @@ def main():
         # TODO want to just track a_ew_w_cmd
         u_n, A_n = nominal_controller.solve(q, v, A_ew_w_cmd)
 
-        # aa = compute_desired_axis_angle(A_n[:3], C_we)
-        # α_ew_w_cmd = kθ * aa + kω * (0 - ω_ew_w)
-        # A_ew_w_cmd = np.concatenate((A_n[:3], α_ew_w_cmd))
-        # u_n, A_n = nominal_controller.solve(q, v, A_ew_w_cmd, fixed_α=True)
-
-        # TODO here we are running two stages: first find the best linear acc
-        # without rotation, then try to rotate while maintaining that
-        # acceleration
-        # A_ew_w_cmd_0 = np.concatenate((a_ew_w_cmd, np.zeros(3)))
-        # u_r_0, A_r_0 = robust_controller.solve(q, v, A_ew_w_cmd_0, fixed_α=True)
-        # aa = compute_desired_axis_angle(A_r_0[:3], C_we)
-        # α_ew_w_cmd = kθ * aa + kω * (0 - ω_ew_w)
-        # A_ew_w_cmd = np.concatenate((A_r_0[:3], α_ew_w_cmd))
-        # u_r, A_r = robust_controller.solve(q, v, A_ew_w_cmd, fixed_α=False)
+        # u_r, A_r = robust_controller.solve(q, v, A_ew_w_cmd)
 
         t1 = time.time()
 
