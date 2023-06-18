@@ -2,7 +2,7 @@
 base_to_arm_transform:
   rpy: [0, 0, 0]
   xyz: [0, 0, 0]
-ee_to_tray_transform:
+gripped_object_transform:
   rpy:
   - 0
   - -1.57079633

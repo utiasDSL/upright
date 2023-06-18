@@ -7,7 +7,7 @@ base_to_arm_transform:
   - 0.0038440413773059845
   - -0.014463288709521294
   - 0.011061681434512138
-ee_to_tray_transform:
+gripped_object_transform:
   rpy:
   - 2.7803311347961426
   - -1.5421779155731201

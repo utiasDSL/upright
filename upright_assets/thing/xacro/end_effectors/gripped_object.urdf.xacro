@@ -2,7 +2,7 @@
 <robot name="end_effector_gripped_object" xmlns:xacro="http://wiki.ros.org/xacro">
 
   <joint name="gripped_object_joint" type="fixed">
-    <xacro:transformed_origin name="ee_to_tray_transform" />
+    <xacro:transformed_origin name="gripped_object_transform" />
     <parent link="gripper"/>
     <child link="gripped_object"/>
   </joint>
@@ -33,4 +33,22 @@
       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
     </inertial>
   </link>
+
+  <!-- The visual_balance link/joint is visual-only and just provides a visual reference for an object that stays in place w.r.t. the tray. -->
+  <!-- For debugging purposes only! -->
+  <joint name="visual_balance_joint" type="fixed">
+    <parent link="gripped_object"/>
+    <child link="visual_balance_link"/>
+    <origin rpy="0 0 0" xyz="0 0 0.2"/>
+  </joint>
+
+  <link name="visual_balance_link">
+    <visual>
+      <geometry>
+        <box size="0.1 0.1 0.1" />
+      </geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
 </robot>
