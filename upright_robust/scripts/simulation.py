@@ -26,13 +26,56 @@ def sigint_handler(sig, frame):
     sys.exit(0)
 
 
-def compute_desired_axis_angle(a, C_we):
-    normal_d = a + [0, 0, 9.81]
-    normal_d = normal_d / np.linalg.norm(normal_d)
-    z = [0, 0, 1]
-    normal = C_we @ z
-    θ = np.arccos(normal_d @ normal)
-    return θ * np.cross(normal, normal_d)
+def get_parameter_bounds():
+    # θ_min = [None] * 10
+    # θ_max = [None] * 10
+    # θ_min[0] = 0.1
+    # θ_max[0] = 1.0
+
+    # TODO these are wrong; need to implement proper box constraints for the CoM
+    θ_min = [None] * 10
+    θ_max = [None] * 10
+
+    θ_min[1] = -0.5 * 0.02
+    θ_max[1] = 0.5 * 0.02
+    θ_min[2] = -0.5 * 0.02
+    θ_max[2] = 0.5 * 0.02
+    θ_min[3] = -0.5 * 0.02
+    θ_max[3] = 0.5 * 0.02
+    # θ_min[3] = 0 * 0.2
+    # θ_max[3] = 0 * 0.2
+    θ_min[1] = -0.5 * 0.02
+    θ_max[1] = 0.5 * 0.02
+    θ_min[2] = -0.5 * 0.02
+    θ_max[2] = 0.5 * 0.02
+    θ_min[3] = -0.5 * 0.13
+    θ_max[3] = 0.5 * 0.17
+
+
+def parse_controller_from_config(ctrl_config, model, timestep):
+    use_balancing_constraints = ctrl_config["balancing"]["enabled"]
+    tilting_type = ctrl_config["reactive"]["tilting"]
+    use_robust_constraints = ctrl_config["reactive"]["robust"]
+
+    if use_robust_constraints:
+        raise NotImplementedError()
+        # robust_controller = rob.RobustReactiveBalancingController(
+        #     model,
+        #     env.timestep,
+        #     θ_min=θ_min,
+        #     θ_max=θ_max,
+        #     solver="proxqp",
+        #     α_cart_weight=0.0,
+        # )
+
+    if tilting_type == "full":
+        return rob.NominalReactiveBalancingControllerFullTilting(model, timestep)
+    elif tilting_type == "tray":
+        return rob.NominalReactiveBalancingControllerTrayTilting(
+            model, timestep, use_balance_cons=use_balancing_constraints
+        )
+    else:
+        raise ValueError(f"Unknown tilting type {tilting_type}")
 
 
 def main():
@@ -61,6 +104,7 @@ def main():
     robot = model.robot
 
     # TODO we need to modify the contact points based on the CoM
+
     # make EE origin the reference point for all objects
     objects = model.settings.balancing_settings.objects
     for c in model.settings.balancing_settings.contacts:
@@ -69,49 +113,12 @@ def main():
             c.r_co_o1 = c.r_co_o1 + o1.body.com
         o2 = objects[c.object2_name]
         c.r_co_o2 = c.r_co_o2 + o2.body.com
-    # IPython.embed()
 
-    # θ_min = [None] * 10
-    # θ_max = [None] * 10
-    # θ_min[0] = 0.1
-    # θ_max[0] = 1.0
-
-    # TODO these are wrong
-    θ_min = [None] * 10
-    θ_max = [None] * 10
-
-    θ_min[1] = -0.5 * 0.02
-    θ_max[1] = 0.5 * 0.02
-    θ_min[2] = -0.5 * 0.02
-    θ_max[2] = 0.5 * 0.02
-    θ_min[3] = -0.5 * 0.02
-    θ_max[3] = 0.5 * 0.02
-    # θ_min[3] = 0 * 0.2
-    # θ_max[3] = 0 * 0.2
-    θ_min[1] = -0.5 * 0.02
-    θ_max[1] = 0.5 * 0.02
-    θ_min[2] = -0.5 * 0.02
-    θ_max[2] = 0.5 * 0.02
-    θ_min[3] = -0.5 * 0.13
-    θ_max[3] = 0.5 * 0.17
-
-    # nominal_controller = rob.NominalReactiveBalancingControllerFullTilting(model, env.timestep)
-    nominal_controller = rob.NominalReactiveBalancingControllerTrayTilting(
-        model, env.timestep, use_balance_cons=False
-    )
-
-    # robust_controller = rob.RobustReactiveBalancingController(
-    #     model,
-    #     env.timestep,
-    #     θ_min=θ_min,
-    #     θ_max=θ_max,
-    #     solver="proxqp",
-    #     α_cart_weight=0.0,
-    # )
+    controller = parse_controller_from_config(ctrl_config, model, env.timestep)
 
     # tracking controller gains
     kp = 1
-    kv = 1
+    kv = 2 * np.sqrt(kp)
 
     t = 0.0
     q, v = env.robot.joint_states()
@@ -121,18 +128,14 @@ def main():
 
     robot.forward(q, v)
     r_ew_w_0, Q_we_0 = robot.link_pose()
+
+    # TODO parse from config
     r_ew_w_d = r_ew_w_0 + [0, 2, 0]
 
     # desired trajectory
     trajectory = mm.PointToPointTrajectory.quintic(
         r_ew_w_0, r_ew_w_d, max_vel=2, max_acc=4
     )
-
-    # rd = r_ew_w_d
-    # # vd = np.zeros(3)
-    # vd = np.array([0, 2, 0])
-    # ad = np.zeros(3)
-    # ad = np.array([0, 5, 0])
 
     # goal position
     debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
@@ -160,34 +163,22 @@ def main():
         A_ew_w_cmd = np.concatenate((a_ew_w_cmd, α_ew_w_cmd))
 
         # compute command
-        t0 = time.time()
-
         # TODO want to just track a_ew_w_cmd
-        u_n, A_n = nominal_controller.solve(q, v, A_ew_w_cmd)
-
-        # u_r, A_r = robust_controller.solve(q, v, A_ew_w_cmd)
-
+        t0 = time.time()
+        u, A_e = controller.solve(q, v, A_ew_w_cmd)
         t1 = time.time()
 
-        A_n_w = block_diag(C_we, C_we) @ A_n
-        # A_r_w = block_diag(C_we, C_we) @ A_r
+        A_w = block_diag(C_we, C_we) @ A_e
 
         print(f"solve took {1000 * (t1 - t0)} ms")
         print(f"A_cmd = {A_ew_w_cmd}")
-        print(f"A_n = {A_n_w}")
-        # print(f"A_r = {A_r_w}")
-
-        # print(f"u_n = {u_n}, norm = {np.linalg.norm(u_n)}")
-        # print(f"u_r = {u_r}, norm = {np.linalg.norm(u_r)}")
-        # print(f"Δv = {v - v_cmd}")
+        print(f"A_w = {A_w}")
 
         # NOTE: we want to use v_cmd rather than v here because PyBullet
         # doesn't respond to small velocities well, and it screws up angular
         # velocity tracking
-        v_cmd = v_cmd + env.timestep * u_n
-
+        v_cmd = v_cmd + env.timestep * u
         env.robot.command_velocity(v_cmd, bodyframe=False)
-
         t = env.step(t, step_robot=False)[0]
 
     IPython.embed()

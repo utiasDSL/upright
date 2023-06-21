@@ -313,3 +313,12 @@ def body_regressor_by_vector_velocity_matrix_half(x):
     # matrix with rows of f.T * A[i]
     # this is the linear representation required for the optimization problem
     return np.array([x.T @ As[i] for i in idx])
+
+
+def compute_desired_axis_angle(a, C_we):
+    normal_d = a + [0, 0, 9.81]
+    normal_d = normal_d / np.linalg.norm(normal_d)
+    z = [0, 0, 1]
+    normal = C_we @ z
+    θ = np.arccos(normal_d @ normal)
+    return θ * np.cross(normal, normal_d)

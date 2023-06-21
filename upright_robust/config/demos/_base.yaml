@@ -46,8 +46,7 @@ simulation:
 
 controller:
   balancing:
-    enabled: false
-    use_force_constraints: true
+    enabled: true
 
   waypoints:
     -

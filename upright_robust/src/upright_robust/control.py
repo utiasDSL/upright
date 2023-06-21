@@ -110,23 +110,11 @@ class ReactiveBalancingController:
         C_we = self.robot.link_pose(rotation_matrix=True)[1]
         V_ew_e = np.concatenate(self.robot.link_velocity(frame="local"))
 
-        test_link_idx = self.robot.get_link_index("extra_link")
-        V_ew_e_test = np.concatenate(
-            self.robot.link_velocity(link_idx=test_link_idx, frame="local")
-        )
-        Δr = np.array([0, 0, 0.2])
-        ω = V_ew_e[3:]
-
         # rotate command into the body frame
         A_ew_e_cmd = block_diag(C_we, C_we).T @ A_ew_w_cmd
 
         # body-frame gravity
         G_e = utils.body_gravity6(C_we.T)
-
-        # W = core.math.skew3(ω)
-        # X = np.block([[np.eye(3), -core.math.skew3(Δr)], [np.zeros((3, 3)), np.eye(3)]])
-        # d = np.concatenate((W @ W @ Δr, np.zeros(3)))
-        # A_ew_w_cmd = np.linalg.solve(X, A_ew_e_cmd - d)
 
         return self._setup_and_solve_qp(G_e, V_ew_e, A_ew_e_cmd, δ, J, v, **kwargs)
 
@@ -366,9 +354,10 @@ class NominalReactiveBalancingControllerFullTilting(ReactiveBalancingController)
     """Reactive balancing controller that tilts to account for all balanced objects."""
 
     def __init__(
-        self, model, dt, kθ=1, kω=1, a_cart_max=5, α_cart_max=1, a_joint_max=5, **kwargs
+        self, model, dt, kθ=10, kω=0, a_cart_max=5, α_cart_max=1, a_joint_max=5, **kwargs
     ):
         super().__init__(model, dt, **kwargs)
+        # kω = 2 * np.sqrt(kθ)
 
         self.no = len(self.objects)
         self.coms = np.array([o.body.com for o in self.objects.values()])
@@ -457,16 +446,17 @@ class NominalReactiveBalancingControllerFullTilting(ReactiveBalancingController)
             [np.cross(ω_ew_e, np.cross(ω_ew_e, c)) for c in self.coms]
         )
 
+        scale = np.linalg.norm(A_ew_e_cmd[:3] - G_e[:3])
         A_eq_tilt2 = np.hstack(
             (
                 np.zeros((3 * self.no, 9 + 6)),
                 np.eye(3 * self.no),
-                np.kron(np.eye(self.no), -self.kθ * core.math.skew3(z)),
+                np.kron(np.eye(self.no), -self.kθ * core.math.skew3(z) / scale),
                 np.zeros((3 * self.no, self.nc)),
             )
         )
         g = G_e[:3]
-        b_eq_tilt2 = np.tile(-self.kω * ω_ew_e - self.kθ * np.cross(z, g), self.no)
+        b_eq_tilt2 = np.tile(-self.kω * ω_ew_e - self.kθ * np.cross(z, g) / scale, self.no)
 
         A_eq = np.vstack((A_eq_track, self.A_eq_bal, A_eq_tilt1, A_eq_tilt2))
         b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2))

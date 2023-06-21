@@ -6,8 +6,13 @@ include:
     package: upright_robust
     path: config/arrangements.yaml
 
+# NOTE: experimental new config
+reactive:
+  tilting: full  # tray | full
+  robust: false
+
 balancing:
-  use_force_constraints: true
+  enabled: true
 
 objects:
   # these are all the same from the controller's perspective

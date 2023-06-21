@@ -65,13 +65,14 @@ class UncertainObject:
         self.object = obj
         self.body = obj.body
 
+        # inertial quantities are taken w.r.t./about the EE origin (i.e.,
+        # self.body.com is the vector from the EE origin to the CoM of this
+        # object)
         m = self.body.mass
         h = m * self.body.com
         H = core.math.skew3(h)
         J = obj.body.inertia - H @ core.math.skew3(self.body.com)
 
-        # mass matrix w.r.t. to (nominal) CoM
-        # self.M = block_diag(m * np.eye(3), obj.body.inertia)
         # fmt: off
         self.M = np.block([
             [m * np.eye(3), -H],
