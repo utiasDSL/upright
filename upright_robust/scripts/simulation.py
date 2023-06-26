@@ -68,18 +68,19 @@ def parse_controller_from_config(ctrl_config, model, timestep):
         #     α_cart_weight=0.0,
         # )
 
+    # rotational tracking gains
+    kθ = 1
+    kω = 2 * np.sqrt(kθ)
+    use_dvdt_scaling = False
+
     if tilting_type == "full":
-        # rotational tracking gains
-        kθ = 10
-        kω = 2 * np.sqrt(kθ)
-        use_dvdt_scaling = True
 
         return rob.NominalReactiveBalancingControllerFullTilting(
             model, timestep, kθ=kθ, kω=kω, use_dvdt_scaling=use_dvdt_scaling
         )
     elif tilting_type == "tray":
         return rob.NominalReactiveBalancingControllerTrayTilting(
-            model, timestep, use_balancing_constraints=use_balancing_constraints
+            model, timestep, kθ=kθ, kω=kω, use_balancing_constraints=use_balancing_constraints
         )
     elif tilting_type == "flat":
         return rob.NominalReactiveBalancingControllerFlat(
