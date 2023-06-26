@@ -51,5 +51,5 @@ controller:
   waypoints:
     -
       time: 0
-      position: [0, 0, 0]  # stay still
+      position: [0, 2, 0]
       orientation: [0, 0, 0, 1]

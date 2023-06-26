@@ -69,10 +69,21 @@ def parse_controller_from_config(ctrl_config, model, timestep):
         # )
 
     if tilting_type == "full":
-        return rob.NominalReactiveBalancingControllerFullTilting(model, timestep)
+        # rotational tracking gains
+        kθ = 10
+        kω = 2 * np.sqrt(kθ)
+        use_dvdt_scaling = True
+
+        return rob.NominalReactiveBalancingControllerFullTilting(
+            model, timestep, kθ=kθ, kω=kω, use_dvdt_scaling=use_dvdt_scaling
+        )
     elif tilting_type == "tray":
         return rob.NominalReactiveBalancingControllerTrayTilting(
-            model, timestep, use_balance_cons=use_balancing_constraints
+            model, timestep, use_balancing_constraints=use_balancing_constraints
+        )
+    elif tilting_type == "flat":
+        return rob.NominalReactiveBalancingControllerFlat(
+            model, timestep, use_balancing_constraints=use_balancing_constraints
         )
     else:
         raise ValueError(f"Unknown tilting type {tilting_type}")
@@ -114,11 +125,11 @@ def main():
         o2 = objects[c.object2_name]
         c.r_co_o2 = c.r_co_o2 + o2.body.com
 
-    controller = parse_controller_from_config(ctrl_config, model, env.timestep)
-
-    # tracking controller gains
+    # translational tracking gains
     kp = 1
     kv = 2 * np.sqrt(kp)
+
+    controller = parse_controller_from_config(ctrl_config, model, env.timestep)
 
     t = 0.0
     q, v = env.robot.joint_states()
@@ -128,9 +139,7 @@ def main():
 
     robot.forward(q, v)
     r_ew_w_0, Q_we_0 = robot.link_pose()
-
-    # TODO parse from config
-    r_ew_w_d = r_ew_w_0 + [0, 2, 0]
+    r_ew_w_d = r_ew_w_0 + ctrl_config["waypoints"][0]["position"]
 
     # desired trajectory
     trajectory = mm.PointToPointTrajectory.quintic(
@@ -159,19 +168,16 @@ def main():
 
         # commanded EE acceleration
         a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad
-        α_ew_w_cmd = np.zeros(3)
-        A_ew_w_cmd = np.concatenate((a_ew_w_cmd, α_ew_w_cmd))
 
         # compute command
-        # TODO want to just track a_ew_w_cmd
         t0 = time.time()
-        u, A_e = controller.solve(q, v, A_ew_w_cmd)
+        u, A_e = controller.solve(q, v, a_ew_w_cmd)
         t1 = time.time()
 
         A_w = block_diag(C_we, C_we) @ A_e
 
         print(f"solve took {1000 * (t1 - t0)} ms")
-        print(f"A_cmd = {A_ew_w_cmd}")
+        print(f"a_cmd = {a_ew_w_cmd}")
         print(f"A_w = {A_w}")
 
         # NOTE: we want to use v_cmd rather than v here because PyBullet

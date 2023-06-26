@@ -1,7 +1,7 @@
 include:
   -
     package: upright_robust
-    path: config/demos/_base.yaml
+    path: config/demos/nominal_tray/_base.yaml
 
 simulation:
   arrangement: stacked_cubes

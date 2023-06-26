@@ -3,9 +3,10 @@ include:
     package: upright_robust
     path: config/demos/_base.yaml
 
-simulation:
-  arrangement: single_cube
-
 controller:
+  reactive:
+    tilting: tray
+    robust: false
+
   balancing:
-    arrangement: single_cube
+    enabled: false
