@@ -15,10 +15,10 @@ class ReactiveBalancingController:
 
     def __init__(
         self,
-        model,
+        robot,
+        objects,
+        contacts,
         dt,
-        θ_min=None,
-        θ_max=None,
         a_cart_weight=1,
         α_cart_weight=1,
         a_joint_weight=0,
@@ -29,17 +29,10 @@ class ReactiveBalancingController:
         solver="proxqp",
     ):
         self.solver = solver
-        self.robot = model.robot
+        self.robot = robot
+        self.objects = objects
+        self.contacts = contacts
         self.dt = dt
-
-        self.objects = {
-            k: mdl.UncertainObject(v, θ_min, θ_max)
-            for k, v in model.settings.balancing_settings.objects.items()
-        }
-        self.contacts = [
-            mdl.RobustContactPoint(c)
-            for c in model.settings.balancing_settings.contacts
-        ]
 
         self.nc = len(self.contacts)  # number of contacts
 
@@ -132,8 +125,10 @@ class ReactiveBalancingController:
 class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
     """Reactive balancing controller that keeps the tray flat."""
 
-    def __init__(self, model, dt, use_balancing_constraints=False, **kwargs):
-        super().__init__(model, dt, **kwargs)
+    def __init__(
+        self, robot, objects, contacts, dt, use_balancing_constraints=False, **kwargs
+    ):
+        super().__init__(robot, objects, contacts, dt, **kwargs)
 
         self.use_balancing_constraints = use_balancing_constraints
 
@@ -214,9 +209,17 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
     """
 
     def __init__(
-        self, model, dt, kθ=0, kω=0, use_balancing_constraints=False, **kwargs
+        self,
+        robot,
+        objects,
+        contacts,
+        dt,
+        kθ=0,
+        kω=0,
+        use_balancing_constraints=False,
+        **kwargs
     ):
-        super().__init__(model, dt, **kwargs)
+        super().__init__(robot, objects, contacts, dt, **kwargs)
 
         self.use_balancing_constraints = use_balancing_constraints
 
@@ -326,7 +329,9 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
 
     def __init__(
         self,
-        model,
+        robot,
+        objects,
+        contacts,
         dt,
         kθ=0,
         kω=0,
@@ -335,7 +340,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         use_robust_constraints=False,
         **kwargs
     ):
-        super().__init__(model, dt, **kwargs)
+        super().__init__(robot, objects, contacts, dt, **kwargs)
 
         # angular control gains
         self.kθ = kθ
@@ -509,58 +514,59 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         )
 
 
-class RobustReactiveBalancingController(ReactiveBalancingController):
-    def __init__(self, model, dt, **kwargs):
-        super().__init__(model, dt, **kwargs)
-
-        self.P_sparse = sparse.csc_matrix(self.P)
-
-        # polytopic uncertainty Pθ + p >= 0
-        P = block_diag(*[obj.P for obj in self.objects.values()])
-        p = np.concatenate([obj.p for obj in self.objects.values()])
-
-        # fmt: off
-        self.P_tilde = np.block([
-            [P, p[:, None]],
-            [np.zeros((1, P.shape[1])), np.array([[-1]])]])
-        # fmt: on
-        self.R = utils.span_to_face_form(self.P_tilde.T)[0]
-
-        # pre-compute inequality matrix
-        self.nv = 15
-
-        nf = self.face.shape[0]
-        n_ineq = self.R.shape[0]
-        N_ineq = n_ineq * nf
-        self.A_ineq = np.zeros((N_ineq, nv))
-        for i in range(nf):
-            D = utils.body_regressor_A_by_vector(self.face[i, :])
-            D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
-            self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:] = -self.R @ D_tilde
-        self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
-
-    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
-        x0 = self._initial_guess(a_ew_e_cmd)
-
-        # map joint acceleration to EE acceleration
-        A_eq = np.hstack((-J, np.eye(6)))
-        b_eq = δ
-
-        # build robust constraints
-        B = utils.body_regressor_VG_by_vector_tilde_vectorized(V_ew_e, G_e, self.face)
-        b_ineq = (self.R @ B).T.flatten()
-
-        # compute the cost: 0.5 * x @ P @ x + q @ x
-        q = self._compute_q(v, a_ew_e_cmd)
-
-        return self._solve_qp(
-            P=self.P_sparse,
-            q=q,
-            G=self.A_ineq_sparse,
-            h=b_ineq,
-            A=sparse.csc_matrix(A_eq),
-            b=b_eq,
-            lb=self.lb,
-            ub=self.ub,
-            x0=x0,
-        )
+# TODO deprecated but currently still here for reference
+# class RobustReactiveBalancingController(ReactiveBalancingController):
+#     def __init__(self, model, dt, **kwargs):
+#         super().__init__(model, dt, **kwargs)
+#
+#         self.P_sparse = sparse.csc_matrix(self.P)
+#
+#         # polytopic uncertainty Pθ + p >= 0
+#         P = block_diag(*[obj.P for obj in self.objects.values()])
+#         p = np.concatenate([obj.p for obj in self.objects.values()])
+#
+#         # fmt: off
+#         self.P_tilde = np.block([
+#             [P, p[:, None]],
+#             [np.zeros((1, P.shape[1])), np.array([[-1]])]])
+#         # fmt: on
+#         self.R = utils.span_to_face_form(self.P_tilde.T)[0]
+#
+#         # pre-compute inequality matrix
+#         self.nv = 15
+#
+#         nf = self.face.shape[0]
+#         n_ineq = self.R.shape[0]
+#         N_ineq = n_ineq * nf
+#         self.A_ineq = np.zeros((N_ineq, nv))
+#         for i in range(nf):
+#             D = utils.body_regressor_A_by_vector(self.face[i, :])
+#             D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
+#             self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:] = -self.R @ D_tilde
+#         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
+#
+#     def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
+#         x0 = self._initial_guess(a_ew_e_cmd)
+#
+#         # map joint acceleration to EE acceleration
+#         A_eq = np.hstack((-J, np.eye(6)))
+#         b_eq = δ
+#
+#         # build robust constraints
+#         B = utils.body_regressor_VG_by_vector_tilde_vectorized(V_ew_e, G_e, self.face)
+#         b_ineq = (self.R @ B).T.flatten()
+#
+#         # compute the cost: 0.5 * x @ P @ x + q @ x
+#         q = self._compute_q(v, a_ew_e_cmd)
+#
+#         return self._solve_qp(
+#             P=self.P_sparse,
+#             q=q,
+#             G=self.A_ineq_sparse,
+#             h=b_ineq,
+#             A=sparse.csc_matrix(A_eq),
+#             b=b_eq,
+#             lb=self.lb,
+#             ub=self.ub,
+#             x0=x0,
+#         )

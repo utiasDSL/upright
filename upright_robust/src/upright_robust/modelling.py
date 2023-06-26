@@ -60,8 +60,76 @@ def parameter_bounds(θ, θ_min, θ_max):
     return θ_min_actual, θ_max_actual
 
 
+class ObjectBounds:
+    """Bounds on the inertial parameters of a rigid body."""
+
+    def __init__(
+        self, mass_lower=None, mass_upper=None, com_lower=None, com_upper=None
+    ):
+        """All quantities are *relative to the nominal value*."""
+        if mass_lower is None:
+            mass_lower = 0
+        self.mass_lower = mass_lower
+
+        if mass_upper is None:
+            mass_upper = 0
+        self.mass_upper = mass_upper
+
+        if com_lower is None:
+            com_lower = np.zeros(3)
+        self.com_lower = np.array(com_lower)
+
+        if com_upper is None:
+            com_upper = np.zeros(3)
+        self.com_upper = np.array(com_upper)
+
+    @classmethod
+    def from_config(cls, config):
+        mass_lower = config.get("mass_lower", None)
+        mass_upper = config.get("mass_upper", None)
+        com_lower = config.get("com_lower", None)
+        com_upper = config.get("com_upper", None)
+        return cls(
+            mass_lower=mass_lower,
+            mass_upper=mass_upper,
+            com_lower=com_lower,
+            com_upper=com_upper,
+        )
+
+    def polytope(self, m, c, J):
+        """Build the polytope containing the inertial parameters given the
+        nominal values.
+
+        Returns matrix P and vector p such that Pθ + p >= 0.
+        """
+        Jvec = utils.vech(J)
+
+        # mass bounds
+        P_m = np.hstack(([[1], [-1]], np.zeros((2, 9))))
+        p_m = np.array([m + self.mass_lower, -(m + self.mass_upper)])
+
+        # CoM bounds
+        I3 = np.eye(3)
+        P_h = np.block(
+            [
+                [-(c + self.com_lower)[:, None], I3, np.zeros((3, 6))],
+                [(c + self.com_upper)[:, None], -I3, np.zeros((3, 6))],
+            ]
+        )
+        p_h = np.zeros(6)
+
+        # inertia bounds (inertia currently assumed to be exact)
+        I6 = np.eye(6)
+        P_J = np.block([[np.zeros((6, 4)), I6], [np.zeros((6, 4)), -I6]])
+        p_J = np.concatenate((Jvec, -Jvec))
+
+        P = np.vstack((P_m, P_h, P_J))
+        p = np.concatenate((p_m, p_h, p_J))
+        return P, p
+
+
 class UncertainObject:
-    def __init__(self, obj, θ_min=None, θ_max=None):
+    def __init__(self, obj, bounds=None):
         self.object = obj
         self.body = obj.body
 
@@ -69,7 +137,8 @@ class UncertainObject:
         # self.body.com is the vector from the EE origin to the CoM of this
         # object)
         m = self.body.mass
-        h = m * self.body.com
+        c = self.body.com
+        h = m * c
         H = core.math.skew3(h)
         J = obj.body.inertia - H @ core.math.skew3(self.body.com)
 
@@ -81,11 +150,15 @@ class UncertainObject:
         # fmt: on
 
         # polytopic parameter uncertainty: Pθ + p >= 0
-        self.θ = np.concatenate(([m], h, utils.vech(J)))
-        self.θ_min, self.θ_max = parameter_bounds(self.θ, θ_min, θ_max)
-        I = np.eye(self.θ.shape[0])
-        self.P = np.vstack((I, -I))
-        self.p = np.concatenate((self.θ_min, -self.θ_max))
+        if bounds is None:
+            bounds = ObjectBounds()
+        self.P, self.p = bounds.polytope(m, c, J)
+
+        # self.θ = np.concatenate(([m], h, utils.vech(J)))
+        # self.θ_min, self.θ_max = parameter_bounds(self.θ, θ_min, θ_max)
+        # I = np.eye(self.θ.shape[0])
+        # self.P = np.vstack((I, -I))
+        # self.p = np.concatenate((self.θ_min, -self.θ_max))
 
     def bias(self, V):
         """Compute Coriolis and centrifugal terms."""

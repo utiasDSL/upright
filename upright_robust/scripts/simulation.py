@@ -26,33 +26,7 @@ def sigint_handler(sig, frame):
     sys.exit(0)
 
 
-def get_parameter_bounds():
-    # θ_min = [None] * 10
-    # θ_max = [None] * 10
-    # θ_min[0] = 0.1
-    # θ_max[0] = 1.0
-
-    # TODO these are wrong; need to implement proper box constraints for the CoM
-    θ_min = [None] * 10
-    θ_max = [None] * 10
-
-    θ_min[1] = -0.5 * 0.02
-    θ_max[1] = 0.5 * 0.02
-    θ_min[2] = -0.5 * 0.02
-    θ_max[2] = 0.5 * 0.02
-    θ_min[3] = -0.5 * 0.02
-    θ_max[3] = 0.5 * 0.02
-    # θ_min[3] = 0 * 0.2
-    # θ_max[3] = 0 * 0.2
-    θ_min[1] = -0.5 * 0.02
-    θ_max[1] = 0.5 * 0.02
-    θ_min[2] = -0.5 * 0.02
-    θ_max[2] = 0.5 * 0.02
-    θ_min[3] = -0.5 * 0.13
-    θ_max[3] = 0.5 * 0.17
-
-
-def parse_controller_from_config(ctrl_config, model, timestep):
+def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep):
     use_balancing_constraints = ctrl_config["balancing"]["enabled"]
     tilting_type = ctrl_config["reactive"]["tilting"]
     use_robust_constraints = ctrl_config["reactive"]["robust"]
@@ -64,9 +38,10 @@ def parse_controller_from_config(ctrl_config, model, timestep):
     use_dvdt_scaling = False
 
     if tilting_type == "full":
-        # TODO need to pass in θ_min and θ_max
         return rob.ReactiveBalancingControllerFullTilting(
-            model,
+            robot,
+            objects,
+            contacts,
             timestep,
             kθ=kθ,
             kω=kω,
@@ -76,7 +51,9 @@ def parse_controller_from_config(ctrl_config, model, timestep):
         )
     elif tilting_type == "tray":
         return rob.NominalReactiveBalancingControllerTrayTilting(
-            model,
+            robot,
+            objects,
+            contacts,
             timestep,
             kθ=kθ,
             kω=kω,
@@ -84,7 +61,11 @@ def parse_controller_from_config(ctrl_config, model, timestep):
         )
     elif tilting_type == "flat":
         return rob.NominalReactiveBalancingControllerFlat(
-            model, timestep, use_balancing_constraints=use_balancing_constraints
+            robot,
+            objects,
+            contacts,
+            timestep,
+            use_balancing_constraints=use_balancing_constraints,
         )
     else:
         raise ValueError(f"Unknown tilting type {tilting_type}")
@@ -115,7 +96,7 @@ def main():
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
     robot = model.robot
 
-    # make EE origin the reference point for all objects
+    # make EE origin the reference point for all contacts
     objects = model.settings.balancing_settings.objects
     for c in model.settings.balancing_settings.contacts:
         if c.object1_name != "ee":
@@ -124,11 +105,28 @@ def main():
         o2 = objects[c.object2_name]
         c.r_co_o2 = c.r_co_o2 + o2.body.com
 
+    contacts = [
+        rob.RobustContactPoint(c) for c in model.settings.balancing_settings.contacts
+    ]
+
+    # parse the bounds for each object
+    uncertain_objects = {}
+    arrangement_name = ctrl_config["balancing"]["arrangement"]
+    arrangement_config = ctrl_config["arrangements"][arrangement_name]
+    for conf in arrangement_config["objects"]:
+        name = conf["name"]
+        type_ = conf["type"]
+        bounds_config = ctrl_config["objects"][type_].get("bounds", {})
+        bounds = rob.ObjectBounds.from_config(bounds_config)
+        uncertain_objects[name] = rob.UncertainObject(objects[name], bounds)
+
     # translational tracking gains
     kp = 1
     kv = 2 * np.sqrt(kp)
 
-    controller = parse_controller_from_config(ctrl_config, model, env.timestep)
+    controller = parse_controller_from_config(
+        ctrl_config, model.robot, uncertain_objects, contacts, env.timestep
+    )
 
     t = 0.0
     q, v = env.robot.joint_states()

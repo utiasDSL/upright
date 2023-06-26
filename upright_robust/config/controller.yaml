@@ -6,7 +6,6 @@ include:
     package: upright_robust
     path: config/arrangements.yaml
 
-# NOTE: experimental new config
 reactive:
   tilting: full  # tray | full | flat
   robust: false
@@ -44,3 +43,10 @@ objects:
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.6]
+
+    # bounds are all relative to the nominal values above
+    bounds:
+      com_lower: [-0.02, -0.02, -0.02]
+      com_upper: [0.02, 0.02, 0.02]
+      mass_lower: 0
+      mass_upper: 0
