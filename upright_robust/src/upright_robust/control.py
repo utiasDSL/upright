@@ -315,26 +315,67 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
 class NominalReactiveBalancingControllerFullTilting(ReactiveBalancingController):
     """Reactive balancing controller that tilts to account for all balanced objects."""
 
-    def __init__(self, model, dt, kθ=0, kω=0, use_dvdt_scaling=False, **kwargs):
+    def __init__(
+        self,
+        model,
+        dt,
+        kθ=0,
+        kω=0,
+        use_dvdt_scaling=False,
+        use_face_form=False,
+        **kwargs
+    ):
         super().__init__(model, dt, **kwargs)
 
+        # angular control gains
+        self.kθ = kθ
+        self.kω = kω
+        self.use_dvdt_scaling = use_dvdt_scaling
+        self.use_face_form = use_face_form
+
         self.no = len(self.objects)
-        self.nf = 3 * self.nc
+
+        if use_face_form:
+            self.nf = 0
+            r = self.face.shape[0]
+            self.A_ineq = np.hstack(
+                (np.zeros((r, 9)), self.face @ self.M, np.zeros((r, 6 * self.no)))
+            )
+        else:
+            self.nf = 3 * self.nc
+
+            # pre-compute part of equality constraints
+            nM = self.M.shape[0]
+            self.A_eq_bal = np.hstack(
+                (np.zeros((nM, 9)), self.M, np.zeros((nM, 6 * self.no)), self.W)
+            )
+
+            # inequality constraints
+            F = block_diag(*[c.F for c in self.contacts])
+            self.A_ineq = np.hstack((np.zeros((F.shape[0], 15 + 6 * self.no)), F))
+
+        self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
+
+        # equality constraint for linear velocity at object CoMs
+        I3 = np.eye(3)
+        self.coms = np.array([o.body.com for o in self.objects.values()])
+        self.A_eq_tilt1 = np.hstack(
+            (
+                np.zeros((3 * self.no, 9)),  # joints
+                np.tile(-I3, (self.no, 1)),  # dvedt
+                np.vstack([core.math.skew3(c) for c in self.coms]),  # dωedt
+                np.zeros((3 * self.no, 3 * self.no)),  # dωddt
+                np.eye(3 * self.no),  # dvodt
+                np.zeros((3 * self.no, self.nf)),  # contact forces
+            )
+        )
 
         # number of optimization variables: 9 joint accelerations, 6 EE
         # acceleration twist, no * desired angular acceleration no * object
         # linear acceleration, nf force
         self.nv = 9 + 6 + 6 * self.no + self.nf
 
-        self.coms = np.array([o.body.com for o in self.objects.values()])
-
-        # angular control gains
-        self.kθ = kθ
-        self.kω = kω
-        self.use_dvdt_scaling = use_dvdt_scaling
-
         # cost
-        I3 = np.eye(3)
         P_α_cart = np.eye(3 * (1 + self.no))
         P_α_cart[:3, 3:] = np.tile(-I3, self.no)
         P_α_cart[3:, :3] = np.tile(-I3, self.no).T
@@ -358,37 +399,12 @@ class NominalReactiveBalancingControllerFullTilting(ReactiveBalancingController)
         )
         self.lb = -self.ub
 
-        # pre-compute part of equality constraints
-        nM = self.M.shape[0]
-        self.A_eq_bal = np.hstack(
-            (np.zeros((nM, 9)), self.M, np.zeros((nM, 6 * self.no)), self.W)
-        )
-
-        # inequality constraints
-        F = block_diag(*[c.F for c in self.contacts])
-        self.A_ineq = np.hstack((np.zeros((F.shape[0], self.nv - self.nf)), F))
-        self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
-        self.b_ineq = np.zeros(self.A_ineq.shape[0])
-
-        # equality constraint for linear velocity at object CoMs
-        self.A_eq_tilt1 = np.hstack(
-            (
-                np.zeros((3 * self.no, 9)),  # joints
-                np.tile(-I3, (self.no, 1)),  # dvedt
-                np.vstack([core.math.skew3(c) for c in self.coms]),  # dωedt
-                np.zeros((3 * self.no, 3 * self.no)),  # dωddt
-                np.eye(3 * self.no),  # dvodt
-                np.zeros((3 * self.no, self.nf)),  # contact forces
-            )
-        )
-
     def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
         x0 = self._initial_guess(a_ew_e_cmd)
 
         # compute the equality constraints A_eq @ x == b
         # N-E equations for object balancing
         h = np.concatenate([obj.bias(V_ew_e) for obj in self.objects.values()])
-        b_eq_bal = self.M @ G_e - h
 
         # map joint acceleration to EE acceleration
         A_eq_track = np.hstack((-J, np.eye(6), np.zeros((6, 6 * self.no + self.nf))))
@@ -416,51 +432,18 @@ class NominalReactiveBalancingControllerFullTilting(ReactiveBalancingController)
         g = G_e[:3]
         b_eq_tilt2 = np.tile(-self.kω * ω_ew_e - scale * np.cross(z, g), self.no)
 
-        A_eq = np.vstack((A_eq_track, self.A_eq_bal, self.A_eq_tilt1, A_eq_tilt2))
-        b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2))
+        if self.use_face_form:
+            A_eq = np.vstack((A_eq_track, self.A_eq_tilt1, A_eq_tilt2))
+            b_eq = np.concatenate((b_eq_track, b_eq_tilt1, b_eq_tilt2))
+            b_ineq = self.face @ (self.M @ G_e - h)
+        else:
+            b_eq_bal = self.M @ G_e - h
+            A_eq = np.vstack((A_eq_track, self.A_eq_bal, self.A_eq_tilt1, A_eq_tilt2))
+            b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2))
+            b_ineq = np.zeros(self.A_ineq.shape[0])
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = self._compute_q(v, a_ew_e_cmd)
-
-        return self._solve_qp(
-            P=self.P_sparse,
-            q=q,
-            G=self.A_ineq_sparse,
-            h=self.b_ineq,
-            A=sparse.csc_matrix(A_eq),
-            b=b_eq,
-            lb=self.lb,
-            ub=self.ub,
-            x0=x0,
-        )
-
-
-# TODO we want to reformulation this to use the generalized adaptive tilting
-class NominalReactiveBalancingControllerFaceForm(ReactiveBalancingController):
-    """Reactive balancing controller without explicit contact force computation."""
-
-    def __init__(self, model, dt):
-        super().__init__(model, dt)
-
-        self.P_sparse = sparse.csc_matrix(self.P)
-
-        self.A_ineq = np.hstack((np.zeros((self.face.shape[0], 9)), self.face @ self.M))
-        self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
-
-    def _setup_and_solve_qp(self, G_e, V_ew_e, A_ew_e_cmd, δ, J, v):
-        nv = 15
-        x0 = self._initial_guess(nv, A_ew_e_cmd)
-
-        # map joint acceleration to EE acceleration
-        A_eq = np.hstack((-J, np.eye(6)))
-        b_eq = δ
-
-        # compute the inequality constraints A_ineq @ x <= b_ineq
-        h = np.concatenate([obj.bias(V_ew_e) for obj in self.objects.values()])
-        b_ineq = self.face @ (self.M @ G_e - h)
-
-        # compute the cost: 0.5 * x @ P @ x + q @ x
-        q = self._compute_q(nv, v, A_ew_e_cmd)
 
         return self._solve_qp(
             P=self.P_sparse,

@@ -74,9 +74,8 @@ def parse_controller_from_config(ctrl_config, model, timestep):
     use_dvdt_scaling = False
 
     if tilting_type == "full":
-
         return rob.NominalReactiveBalancingControllerFullTilting(
-            model, timestep, kθ=kθ, kω=kω, use_dvdt_scaling=use_dvdt_scaling
+            model, timestep, kθ=kθ, kω=kω, use_dvdt_scaling=use_dvdt_scaling, use_face_form=False
         )
     elif tilting_type == "tray":
         return rob.NominalReactiveBalancingControllerTrayTilting(
