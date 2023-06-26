@@ -8,8 +8,9 @@ include:
 
 # NOTE: experimental new config
 reactive:
-  tilting: full  # tray | full
+  tilting: full  # tray | full | flat
   robust: false
+  face_form: false
 
 balancing:
   enabled: true

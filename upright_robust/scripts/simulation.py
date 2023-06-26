@@ -56,17 +56,7 @@ def parse_controller_from_config(ctrl_config, model, timestep):
     use_balancing_constraints = ctrl_config["balancing"]["enabled"]
     tilting_type = ctrl_config["reactive"]["tilting"]
     use_robust_constraints = ctrl_config["reactive"]["robust"]
-
-    if use_robust_constraints:
-        raise NotImplementedError()
-        # robust_controller = rob.RobustReactiveBalancingController(
-        #     model,
-        #     env.timestep,
-        #     θ_min=θ_min,
-        #     θ_max=θ_max,
-        #     solver="proxqp",
-        #     α_cart_weight=0.0,
-        # )
+    use_face_form = ctrl_config["reactive"]["face_form"]
 
     # rotational tracking gains
     kθ = 1
@@ -74,12 +64,23 @@ def parse_controller_from_config(ctrl_config, model, timestep):
     use_dvdt_scaling = False
 
     if tilting_type == "full":
-        return rob.NominalReactiveBalancingControllerFullTilting(
-            model, timestep, kθ=kθ, kω=kω, use_dvdt_scaling=use_dvdt_scaling, use_face_form=False
+        # TODO need to pass in θ_min and θ_max
+        return rob.ReactiveBalancingControllerFullTilting(
+            model,
+            timestep,
+            kθ=kθ,
+            kω=kω,
+            use_dvdt_scaling=use_dvdt_scaling,
+            use_face_form=use_face_form,
+            use_robust_constraints=use_robust_constraints,
         )
     elif tilting_type == "tray":
         return rob.NominalReactiveBalancingControllerTrayTilting(
-            model, timestep, kθ=kθ, kω=kω, use_balancing_constraints=use_balancing_constraints
+            model,
+            timestep,
+            kθ=kθ,
+            kω=kω,
+            use_balancing_constraints=use_balancing_constraints,
         )
     elif tilting_type == "flat":
         return rob.NominalReactiveBalancingControllerFlat(
@@ -113,8 +114,6 @@ def main():
     # controller
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
     robot = model.robot
-
-    # TODO we need to modify the contact points based on the CoM
 
     # make EE origin the reference point for all objects
     objects = model.settings.balancing_settings.objects

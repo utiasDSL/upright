@@ -312,8 +312,17 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
         )
 
 
-class NominalReactiveBalancingControllerFullTilting(ReactiveBalancingController):
-    """Reactive balancing controller that tilts to account for all balanced objects."""
+class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
+    """Reactive balancing controller that tilts to account for all balanced objects.
+
+    Constraints can be nominal with force variable or face form (if
+    `use_face_form=True`), or robust constraints can be used
+    (`use_robust_constraints=True`).
+
+    Currently, non-face form robust constraints are not supported (so when
+    `use_robust_constraints=True`, then the value of `use_face_form` does not
+    matter).
+    """
 
     def __init__(
         self,
@@ -323,6 +332,7 @@ class NominalReactiveBalancingControllerFullTilting(ReactiveBalancingController)
         kω=0,
         use_dvdt_scaling=False,
         use_face_form=False,
+        use_robust_constraints=False,
         **kwargs
     ):
         super().__init__(model, dt, **kwargs)
@@ -332,15 +342,50 @@ class NominalReactiveBalancingControllerFullTilting(ReactiveBalancingController)
         self.kω = kω
         self.use_dvdt_scaling = use_dvdt_scaling
         self.use_face_form = use_face_form
+        self.use_robust_constraints = use_robust_constraints
 
         self.no = len(self.objects)
 
-        if use_face_form:
+        if use_robust_constraints:
             self.nf = 0
-            r = self.face.shape[0]
+
+            # polytopic uncertainty Pθ + p >= 0
+            P = block_diag(*[obj.P for obj in self.objects.values()])
+            p = np.concatenate([obj.p for obj in self.objects.values()])
+
+            # fmt: off
+            self.P_tilde = np.block([
+                [P, p[:, None]],
+                [np.zeros((1, P.shape[1])), np.array([[-1]])]])
+            # fmt: on
+            self.R = utils.span_to_face_form(self.P_tilde.T)[0]
+
+            # pre-compute inequality matrix
+            n_face = self.face.shape[0]
+            n_ineq = self.R.shape[0]
+            self.A_ineq = np.zeros((n_ineq * n_face, 15 + 6 * self.no))
+            for i in range(n_face):
+                D = utils.body_regressor_A_by_vector(self.face[i, :])
+                D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
+                self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:15] = -self.R @ D_tilde
+
+            # no balancing equality constraints
+            self.A_eq_bal = np.zeros((0, 15 + 6 * self.no))
+
+        elif use_face_form:
+            self.nf = 0
+            n_face = self.face.shape[0]
             self.A_ineq = np.hstack(
-                (np.zeros((r, 9)), self.face @ self.M, np.zeros((r, 6 * self.no)))
+                (
+                    np.zeros((n_face, 9)),
+                    self.face @ self.M,
+                    np.zeros((n_face, 6 * self.no)),
+                )
             )
+
+            # no balancing equality constraints
+            self.A_eq_bal = np.zeros((0, 15 + 6 * self.no))
+
         else:
             self.nf = 3 * self.nc
 
@@ -432,15 +477,21 @@ class NominalReactiveBalancingControllerFullTilting(ReactiveBalancingController)
         g = G_e[:3]
         b_eq_tilt2 = np.tile(-self.kω * ω_ew_e - scale * np.cross(z, g), self.no)
 
-        if self.use_face_form:
-            A_eq = np.vstack((A_eq_track, self.A_eq_tilt1, A_eq_tilt2))
-            b_eq = np.concatenate((b_eq_track, b_eq_tilt1, b_eq_tilt2))
+        if self.use_robust_constraints:
+            B = utils.body_regressor_VG_by_vector_tilde_vectorized(
+                V_ew_e, G_e, self.face
+            )
+            b_ineq = (self.R @ B).T.flatten()
+            b_eq_bal = np.zeros(0)
+        elif self.use_face_form:
             b_ineq = self.face @ (self.M @ G_e - h)
+            b_eq_bal = np.zeros(0)
         else:
-            b_eq_bal = self.M @ G_e - h
-            A_eq = np.vstack((A_eq_track, self.A_eq_bal, self.A_eq_tilt1, A_eq_tilt2))
-            b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2))
             b_ineq = np.zeros(self.A_ineq.shape[0])
+            b_eq_bal = self.M @ G_e - h
+
+        A_eq = np.vstack((A_eq_track, self.A_eq_bal, self.A_eq_tilt1, A_eq_tilt2))
+        b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2))
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = self._compute_q(v, a_ew_e_cmd)
@@ -474,47 +525,33 @@ class RobustReactiveBalancingController(ReactiveBalancingController):
             [np.zeros((1, P.shape[1])), np.array([[-1]])]])
         # fmt: on
         self.R = utils.span_to_face_form(self.P_tilde.T)[0]
-        # self.R = self.R / np.max(np.abs(self.R))
 
         # pre-compute inequality matrix
-        nv = 15
-        nf = self.F.shape[0]
+        self.nv = 15
+
+        nf = self.face.shape[0]
         n_ineq = self.R.shape[0]
         N_ineq = n_ineq * nf
         self.A_ineq = np.zeros((N_ineq, nv))
         for i in range(nf):
-            D = utils.body_regressor_A_by_vector(self.F[i, :])
+            D = utils.body_regressor_A_by_vector(self.face[i, :])
             D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
             self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:] = -self.R @ D_tilde
-        # self.A_ineq_max = np.max(np.abs(self.A_ineq))
-        # self.A_ineq = self.A_ineq / self.A_ineq_max
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
-    def _setup_and_solve_qp(self, G_e, V_ew_e, A_ew_e_cmd, δ, J, v, fixed_α=False):
-        nv = 15
-        x0 = self._initial_guess(nv, A_ew_e_cmd)
+    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
+        x0 = self._initial_guess(a_ew_e_cmd)
 
         # map joint acceleration to EE acceleration
         A_eq = np.hstack((-J, np.eye(6)))
         b_eq = δ
 
-        if fixed_α:
-            A_α_fixed = np.zeros((3, nv))
-            A_α_fixed[:, 12:15] = np.eye(3)
-            b_α_fixed = A_ew_e_cmd[3:]
-
-            A_eq = np.vstack((A_eq, A_α_fixed))
-            b_eq = np.concatenate((b_eq, b_α_fixed))
-
         # build robust constraints
-        # t0 = time.time()
-        B = utils.body_regressor_VG_by_vector_tilde_vectorized(V_ew_e, G_e, self.F)
-        b_ineq = (self.R @ B).T.flatten()  # / self.A_ineq_max
-        # t1 = time.time()
-        # print(f"build time = {1000 * (t1 - t0)} ms")
+        B = utils.body_regressor_VG_by_vector_tilde_vectorized(V_ew_e, G_e, self.face)
+        b_ineq = (self.R @ B).T.flatten()
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
-        q = self._compute_q(nv, v, A_ew_e_cmd)
+        q = self._compute_q(v, a_ew_e_cmd)
 
         return self._solve_qp(
             P=self.P_sparse,
