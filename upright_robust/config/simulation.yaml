@@ -29,12 +29,19 @@ objects:
     mass: 0.5
     com_offset: [0, 0, 0]
     shape: cuboid
-    side_lengths: [0.1, 0.1, 1.0]
+    side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]
 
-  tall_block_uncertain:
+  tall_block_offset:
     mass: 0.5
-    com_offset: [0, -0.03, 0]
+    com_offset: [0, -0.04, 0]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.5]
+    color: [1, 0, 0, 1]
+
+  very_tall_block:
+    mass: 0.5
+    com_offset: [0, 0, 0]
     shape: cuboid
     side_lengths: [0.1, 0.1, 1.0]
     color: [1, 0, 0, 1]

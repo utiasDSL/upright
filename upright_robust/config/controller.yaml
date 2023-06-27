@@ -11,6 +11,16 @@ reactive:
   robust: false
   face_form: false
 
+  # rotational control gains
+  kθ: 1.0
+  kω: 2.0
+  # kθ: 3.0
+  # kω: 4.0
+
+  # linear control gains
+  kp: 1.0
+  kv: 2.0
+
 balancing:
   enabled: true
 
@@ -42,11 +52,18 @@ objects:
     com_offset: [0, 0, 0]
     shape:
         type: cuboid
-        side_lengths: [0.1, 0.1, 0.6]
+        side_lengths: [0.1, 0.1, 0.5]
 
     # bounds are all relative to the nominal values above
     bounds:
-      com_lower: [-0.02, -0.02, -0.02]
-      com_upper: [0.02, 0.02, 0.02]
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
       mass_lower: 0
       mass_upper: 0
+
+  very_tall_block:
+    mass: 0.5
+    com_offset: [0, 0, 0]
+    shape:
+        type: cuboid
+        side_lengths: [0.1, 0.1, 1.0]

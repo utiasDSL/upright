@@ -33,8 +33,8 @@ def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep
     use_face_form = ctrl_config["reactive"]["face_form"]
 
     # rotational tracking gains
-    kθ = 1
-    kω = 2 * np.sqrt(kθ)
+    kθ = ctrl_config["reactive"]["kθ"]
+    kω = ctrl_config["reactive"]["kω"]
     use_dvdt_scaling = False
 
     if tilting_type == "full":
@@ -121,9 +121,10 @@ def main():
         uncertain_objects[name] = rob.UncertainObject(objects[name], bounds)
 
     # translational tracking gains
-    kp = 1
-    kv = 2 * np.sqrt(kp)
+    kp = ctrl_config["reactive"]["kp"]
+    kv = ctrl_config["reactive"]["kv"]
 
+    # balancing controller
     controller = parse_controller_from_config(
         ctrl_config, model.robot, uncertain_objects, contacts, env.timestep
     )

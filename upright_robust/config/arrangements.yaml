@@ -54,5 +54,30 @@ arrangements:
         first: ee
         second: block1
         mu: 0.5
-        # support_area_inset: 0.005
-        support_area_inset: 0.00
+        support_area_inset: 0.0
+
+  tall_offset:
+    objects:
+      -
+        name: block1
+        type: tall_block_offset
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: block1
+        mu: 0.5
+        support_area_inset: 0.0
+
+  very_tall:
+    objects:
+      -
+        name: block1
+        type: very_tall_block
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: block1
+        mu: 0.5
+        support_area_inset: 0.0

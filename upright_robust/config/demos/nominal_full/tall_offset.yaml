@@ -1,0 +1,11 @@
+include:
+  -
+    package: upright_robust
+    path: config/demos/nominal_full/_base.yaml
+
+simulation:
+  arrangement: tall_offset
+
+controller:
+  balancing:
+    arrangement: tall
