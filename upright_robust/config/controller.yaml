@@ -14,8 +14,6 @@ reactive:
   # rotational control gains
   kθ: 1.0
   kω: 2.0
-  # kθ: 3.0
-  # kω: 4.0
 
   # linear control gains
   kp: 1.0

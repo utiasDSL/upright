@@ -427,6 +427,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
 
         # cost
         P_α_cart = np.eye(3 * (1 + self.no))
+        P_α_cart[:3, :3] = self.no * I3
         P_α_cart[:3, 3:] = np.tile(-I3, self.no)
         P_α_cart[3:, :3] = np.tile(-I3, self.no).T
         P_α_cart = self.α_cart_weight * P_α_cart / self.no
