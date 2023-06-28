@@ -1,5 +1,6 @@
 import numpy as np
 import cdd
+from scipy.spatial import ConvexHull
 
 import upright_core as core
 
@@ -234,14 +235,24 @@ def body_gravity6(C_ew, g=9.81):
     return np.concatenate((body_gravity3(C_ew, g), np.zeros(3)))
 
 
-def span_to_face_form(S):
-    """Convert the span form of a polyhedral cone to face form.
+def _span_to_face_form_qhull(S):
+    points = np.vstack((np.zeros((1, S.shape[0])), S.T))
+    hull = ConvexHull(points)
+    mask = np.any(hull.simplices == 0, axis=1)
+    F = hull.equations[mask, :]
+    G = [F[0, :]]
+    for i in range(1, F.shape[0]):
+        if np.allclose(F[i, :], G[-1]):
+            continue
+        G.append(F[i, :])
+    G = np.array(G)
 
-    Span form is { Sz | z  >= 0 }
-    Face form is { x  | Ax <= b }
+    A = G[:, :-1]
+    b = G[:, -1]
+    return A, b
 
-    Return (A, b) of the face form.
-    """
+
+def _span_to_face_form_cdd(S):
     # span form
     # we have generators as columns but cdd wants it as rows, hence the transpose
     Smat = cdd.Matrix(np.hstack((np.zeros((S.shape[1], 1)), S.T)))
@@ -258,18 +269,37 @@ def span_to_face_form(S):
     return A, b
 
 
-def cwc(contacts):
-    """Build the (face form of the) contact wrench cone from contact points of an object."""
-    # combine span form of each contact wrench cone to get the overall CWC in
-    # span form
-    S = np.hstack([c.W @ c.S for c in contacts])
+def span_to_face_form(S, library="cdd"):
+    """Convert the span form of a polyhedral convex cone to face form.
 
-    # convert to face form
-    A, b = span_to_face_form(S)
+    Span form is { Sz | z  >= 0 }
+    Face form is { x  | Ax <= 0 }
+
+    Return A of the face form.
+    """
+    if library == "cdd":
+        A, b = _span_to_face_form_cdd(S)
+    elif library == "qhull":
+        A, b = _span_to_face_form_qhull(S)
+    else:
+        raise ValueError(f"library much be either 'cdd' or 'qhull', not {library}")
+
+    # for cones b should be zero
     assert np.allclose(b, 0)
 
-    # Aw <= 0 implies there exist feasible contact forces to support wrench w
     return A
+
+
+# def cwc(contacts):
+#     """Build the (face form of the) contact wrench cone from contact points of an object."""
+#     # combine span form of each contact wrench cone to get the overall CWC in
+#     # span form
+#     S = np.hstack([c.W @ c.S for c in contacts])
+#
+#     # convert to face form
+#     # Aw <= 0 implies there exist feasible contact forces to support wrench w
+#     A = span_to_face_form(S)
+#     return A
 
 
 def body_regressor_by_vector_acceleration_matrix(x):

@@ -29,28 +29,28 @@ objects:
     com_offset: [0, 0, 0]
     shape:
         type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
+        side_lengths: [0.1, 0.1, 0.15]
 
   stack_cube_heavy:
     mass: 0.1
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
-      side_lengths: [0.1, 0.1, 0.1]
+      side_lengths: [0.1, 0.1, 0.15]
 
   stack_cube_light:
     mass: 0.1
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
-      side_lengths: [0.1, 0.1, 0.1]
+      side_lengths: [0.1, 0.1, 0.15]
 
   tall_block:
     mass: 0.5
     com_offset: [0, 0, 0]
     shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.5]
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.5]
 
     # bounds are all relative to the nominal values above
     bounds:
@@ -65,3 +65,24 @@ objects:
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 1.0]
+
+  narrow_strut:
+    mass: 0.1
+    com_offset: [0, 0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.01, 0.3]
+
+  wide_strut:
+    mass: 0.5
+    com_offset: [0, 0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.3]
+
+  bridge:
+    mass: 0.5
+    com_offset: [0, 0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.2, 0.1]

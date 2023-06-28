@@ -10,19 +10,19 @@ objects:
   stack_cube:
     shape: cuboid
     mass: 0.1
-    side_lengths: [0.1, 0.1, 0.1]
+    side_lengths: [0.1, 0.1, 0.15]
     color: [1, 0, 0, 1]
 
   stack_cube_heavy:
     shape: cuboid
-    mass: 0.1
-    side_lengths: [0.1, 0.1, 0.1]
+    mass: 1.0
+    side_lengths: [0.1, 0.1, 0.15]
     color: [1, 0, 0, 1]
 
   stack_cube_light:
     shape: cuboid
     mass: 0.1
-    side_lengths: [0.1, 0.1, 0.1]
+    side_lengths: [0.1, 0.1, 0.15]
     color: [1, 0, 0, 1]
 
   tall_block:
@@ -44,4 +44,25 @@ objects:
     com_offset: [0, 0, 0]
     shape: cuboid
     side_lengths: [0.1, 0.1, 1.0]
+    color: [1, 0, 0, 1]
+
+  narrow_strut:
+    mass: 0.1
+    com_offset: [0, 0, 0]
+    shape: cuboid
+    side_lengths: [0.1, 0.01, 0.3]
+    color: [1, 0, 0, 1]
+
+  wide_strut:
+    mass: 0.5
+    com_offset: [0, 0, 0]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.3]
+    color: [1, 0, 0, 1]
+
+  bridge:
+    mass: 0.5
+    com_offset: [0, 0, 0]
+    shape: cuboid
+    side_lengths: [0.1, 0.2, 0.1]
     color: [1, 0, 0, 1]

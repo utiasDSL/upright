@@ -4,8 +4,8 @@ include:
     path: config/demos/nominal_flat/_base.yaml
 
 simulation:
-  arrangement: stacked_cubes
+  arrangement: stack3
 
 controller:
   balancing:
-    arrangement: stacked_cubes
+    arrangement: stack3

@@ -33,7 +33,7 @@ class RobustContactPoint:
         # fmt: on
 
         # span (generator) form matrix FC = {Sz | z >= 0}
-        # this is w.r.t. to the first object (since the normal points into the
+        # this is w.r.t. the first object (since the normal points into the
         # first object)
         # fmt: off
         self.S = np.vstack([
@@ -44,20 +44,20 @@ class RobustContactPoint:
         # fmt: on
 
 
-def parameter_bounds(θ, θ_min, θ_max):
-    θ_min_actual = θ
-    θ_max_actual = θ
-
-    n = θ.shape[0]
-    if θ_min is not None:
-        θ_min_actual = np.array(
-            [θ[i] if θ_min[i] is None else θ_min[i] for i in range(n)]
-        )
-    if θ_max is not None:
-        θ_max_actual = np.array(
-            [θ[i] if θ_max[i] is None else θ_max[i] for i in range(n)]
-        )
-    return θ_min_actual, θ_max_actual
+# def parameter_bounds(θ, θ_min, θ_max):
+#     θ_min_actual = θ
+#     θ_max_actual = θ
+#
+#     n = θ.shape[0]
+#     if θ_min is not None:
+#         θ_min_actual = np.array(
+#             [θ[i] if θ_min[i] is None else θ_min[i] for i in range(n)]
+#         )
+#     if θ_max is not None:
+#         θ_max_actual = np.array(
+#             [θ[i] if θ_max[i] is None else θ_max[i] for i in range(n)]
+#         )
+#     return θ_min_actual, θ_max_actual
 
 
 class ObjectBounds:
@@ -154,12 +154,6 @@ class UncertainObject:
             bounds = ObjectBounds()
         self.P, self.p = bounds.polytope(m, c, J)
 
-        # self.θ = np.concatenate(([m], h, utils.vech(J)))
-        # self.θ_min, self.θ_max = parameter_bounds(self.θ, θ_min, θ_max)
-        # I = np.eye(self.θ.shape[0])
-        # self.P = np.vstack((I, -I))
-        # self.p = np.concatenate((self.θ_min, -self.θ_max))
-
     def bias(self, V):
         """Compute Coriolis and centrifugal terms."""
         return utils.skew6(V) @ self.M @ V
@@ -197,9 +191,10 @@ def compute_cwc_face_form(name_index, contacts):
     # computing mapping from face form of contact forces to span form
     S = block_diag(*[c.S for c in contacts])
 
+    H = W @ S
+
     # convert the whole contact wrench cone to face form
-    A, b = utils.span_to_face_form(W @ S)
-    assert np.allclose(b, 0)
+    A = utils.span_to_face_form(H)
 
     # Aw <= 0 implies there exist feasible contact forces to support wrench w
     return A

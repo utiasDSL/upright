@@ -64,7 +64,9 @@ class ReactiveBalancingController:
         self.M = np.vstack([obj.M for obj in self.objects.values()])
 
         # face form of the CWC
+        print("one")
         self.face = mdl.compute_cwc_face_form(self.object_name_index, self.contacts)
+        print("two")
 
     def update(self, q, v):
         self.robot.update(q, v)
@@ -363,7 +365,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                 [P, p[:, None]],
                 [np.zeros((1, P.shape[1])), np.array([[-1]])]])
             # fmt: on
-            self.R = utils.span_to_face_form(self.P_tilde.T)[0]
+            self.R = utils.span_to_face_form(self.P_tilde.T)
 
             # pre-compute inequality matrix
             n_face = self.face.shape[0]

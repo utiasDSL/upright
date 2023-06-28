@@ -2,7 +2,7 @@ arrangements:
   nothing:
     objects: []
 
-  stacked_cubes:
+  stack3:
     objects:
       -
         name: cube1
@@ -20,15 +20,59 @@ arrangements:
       -
         first: ee
         second: cube1
-        mu: 0.1
+        mu: 0.2
       -
         first: cube1
         second: cube2
-        mu: 0.1
+        mu: 0.2
       -
         first: cube2
         second: cube3
-        mu: 0.1
+        mu: 0.2
+
+  stack5:
+    objects:
+      -
+        name: cube1
+        type: stack_cube_light
+        parent: ee
+      -
+        name: cube2
+        type: stack_cube
+        parent: cube1
+      -
+        name: cube3
+        type: stack_cube_heavy
+        parent: cube2
+      -
+        name: cube4
+        type: stack_cube_heavy
+        parent: cube3
+      -
+        name: cube5
+        type: stack_cube_heavy
+        parent: cube4
+    contacts:
+      -
+        first: ee
+        second: cube1
+        mu: 0.2
+      -
+        first: cube1
+        second: cube2
+        mu: 0.2
+      -
+        first: cube2
+        second: cube3
+        mu: 0.2
+      -
+        first: cube3
+        second: cube4
+        mu: 0.2
+      -
+        first: cube4
+        second: cube5
+        mu: 0.2
 
   single_cube:
     objects:
@@ -81,3 +125,41 @@ arrangements:
         second: block1
         mu: 0.5
         support_area_inset: 0.0
+
+  asymmetric_arch:
+    objects:
+      -
+        name: narrow
+        type: narrow_strut
+        parent: ee
+        offset:
+          y: -0.095
+      -
+        name: wide
+        type: wide_strut
+        parent: ee
+        offset:
+          y: 0.05
+      -
+        name: bridge
+        type: bridge
+        parent: wide
+        offset:
+          y: -0.05
+    contacts:
+      -
+        first: ee
+        second: narrow
+        mu: 0.2
+      -
+        first: ee
+        second: wide
+        mu: 0.2
+      -
+        first: wide
+        second: bridge
+        mu: 0.2
+      -
+        first: narrow
+        second: bridge
+        mu: 0.2
