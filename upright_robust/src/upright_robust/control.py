@@ -4,10 +4,13 @@ import numpy as np
 from scipy import sparse
 from scipy.linalg import block_diag
 from qpsolvers import solve_qp
+from lpsolvers import solve_lp
 
 import upright_core as core
 import upright_robust.utils as utils
 import upright_robust.modelling as mdl
+
+import IPython
 
 
 class ReactiveBalancingController:
@@ -64,9 +67,11 @@ class ReactiveBalancingController:
         self.M = np.vstack([obj.M for obj in self.objects.values()])
 
         # face form of the CWC
-        print("one")
+        print("Computing CWC face form...")
         self.face = mdl.compute_cwc_face_form(self.object_name_index, self.contacts)
-        print("two")
+        print("...done.")
+
+        self.x_last = None
 
     def update(self, q, v):
         self.robot.update(q, v)
@@ -74,6 +79,8 @@ class ReactiveBalancingController:
     def _solve_qp(
         self, P, q, G=None, h=None, A=None, b=None, lb=None, ub=None, x0=None
     ):
+        if x0 is None:
+            x0 = self.x_last
         x = solve_qp(
             P=P,
             q=q,
@@ -89,6 +96,7 @@ class ReactiveBalancingController:
             max_iter=10000,
             solver=self.solver,
         )
+        self.x_last = x
         u = x[:9]
         A = x[9:15]
         return u, A
@@ -317,6 +325,61 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
         )
 
 
+def check_redundant_face_form(R):
+    """{x | Rx <= 0}"""
+
+    n = R.shape[0]
+    for i in range(n):
+        r = R[i, :]
+        h = np.zeros(n)
+        h[i] = 1
+        x = solve_lp(c=-r, G=R, h=h)
+        p = r @ x
+        print(p)
+
+
+def approx_polytope_with_hypercuboid(R):
+    """{x | Rx <= 0}"""
+    # dimension of the space
+    d = R.shape[1]
+
+    z = np.zeros(R.shape[0])
+
+    lb = np.zeros(d)
+    ub = np.zeros(d)
+
+    for i in range(d):
+        c = np.zeros(d)
+        c[i] = 1
+
+        # TODO problems are infeasible: this is a cone containing zero
+        try:
+            # max
+            x = solve_lp(c=-c, G=R, h=z, solver="cdd")
+            ub[i] = c @ x
+
+            # min
+            x = solve_lp(c=c, G=R, h=z, solver="cdd")
+            lb[i] = c @ x
+        except ValueError as e:
+            print(e)
+            IPython.embed()
+
+    normals = np.vstack((np.eye(d), -np.eye(d)))
+    bounds = np.concatenate((ub, -lb))
+
+    IPython.embed()
+
+
+def solve_max_min_value(A):
+    c = np.zeros(A.shape[1] + 1)
+    c[0] = 1
+
+    G = np.hstack((np.ones((A.shape[0], 1)), -A))
+    x = solve_lp(c=-c, G=G, h=np.zeros(A.shape[0]))
+    IPython.embed()
+
+
 class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
     """Reactive balancing controller that tilts to account for all balanced objects.
 
@@ -353,7 +416,10 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
 
         self.no = len(self.objects)
 
-        if use_robust_constraints:
+        self.nλ = 0
+
+        if True:
+            # robust constraints without using DD to remove the extra dual variables
             self.nf = 0
 
             # polytopic uncertainty Pθ + p >= 0
@@ -365,7 +431,44 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                 [P, p[:, None]],
                 [np.zeros((1, P.shape[1])), np.array([[-1]])]])
             # fmt: on
+
+            # number of extra dual variables
+            n_face = self.face.shape[0]
+            n_dual = self.P_tilde.shape[0]
+            self.nλ = n_dual * n_face
+
+            # equalities tying together the dual variables and object
+            # accelerations
+            n_ineq = self.P_tilde.shape[1]
+            self.A_eq_bal = np.zeros((n_ineq * n_face, 15 + 6 * self.no + self.nλ))
+            for i in range(n_face):
+                D = utils.body_regressor_A_by_vector(self.face[i, :])
+                D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
+                self.A_eq_bal[i * n_ineq : (i + 1) * n_ineq, 9:15] = D_tilde
+                self.A_eq_bal[
+                    i * n_ineq : (i + 1) * n_ineq,
+                    15 + 6 * self.no + i * n_dual : 15 + 6 * self.no + (i + 1) * n_dual,
+                ] = self.P_tilde.T
+
+            # TODO there are now also bounds
+            self.A_ineq = np.zeros((0, 15 + 6 * self.no + self.nλ))
+
+        elif use_robust_constraints:
+            self.nf = 0
+
+            # polytopic uncertainty Pθ + p >= 0
+            P = block_diag(*[obj.P for obj in self.objects.values()])
+            p = np.concatenate([obj.p for obj in self.objects.values()])
+
+            # fmt: off
+            self.P_tilde = np.block([
+                [P, p[:, None]],
+                [np.zeros((1, P.shape[1])), np.array([[-1]])]])
+            # fmt: on
+
+            print("Computing inertial parameter face form...")
             self.R = utils.span_to_face_form(self.P_tilde.T)
+            print("...done.")
 
             # pre-compute inequality matrix
             n_face = self.face.shape[0]
@@ -375,6 +478,37 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                 D = utils.body_regressor_A_by_vector(self.face[i, :])
                 D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
                 self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:15] = -self.R @ D_tilde
+
+            A = self.P_tilde.T
+            Ainv = np.linalg.pinv(A)
+            import scipy
+
+            Anull = scipy.linalg.null_space(A)
+            self.Ainv = Ainv
+
+            # NOTE bad alternative
+            n_face = self.face.shape[0]
+            n_ineq = Ainv.shape[0]
+            self.A_ineq = np.zeros((n_ineq * n_face, 15 + 6 * self.no))
+            for i in range(n_face):
+                D = utils.body_regressor_A_by_vector(self.face[i, :])
+                D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
+                self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:15] = Ainv @ D_tilde
+
+            # check_redundant_face_form(self.R)
+
+            # P = block_diag(*[obj.P[:8, :] for obj in self.objects.values()])
+            # p = np.concatenate([obj.p[:8] for obj in self.objects.values()])
+            # P_tilde = np.block([
+            #     [P, p[:, None]],
+            #     [np.zeros((1, P.shape[1])), np.array([[-1]])]])
+            # R = utils.span_to_face_form(P_tilde.T)
+            # approx_polytope_with_hypercuboid(self.R)
+
+            # solve_max_min_value(Anull)
+
+            # import IPython
+            # IPython.embed()
 
             # no balancing equality constraints
             self.A_eq_bal = np.zeros((0, 15 + 6 * self.no))
@@ -418,14 +552,14 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                 np.vstack([core.math.skew3(c) for c in self.coms]),  # dωedt
                 np.zeros((3 * self.no, 3 * self.no)),  # dωddt
                 np.eye(3 * self.no),  # dvodt
-                np.zeros((3 * self.no, self.nf)),  # contact forces
+                np.zeros((3 * self.no, self.nf + self.nλ)),  # contact forces
             )
         )
 
         # number of optimization variables: 9 joint accelerations, 6 EE
         # acceleration twist, no * desired angular acceleration no * object
         # linear acceleration, nf force
-        self.nv = 9 + 6 + 6 * self.no + self.nf
+        self.nv = 9 + 6 + 6 * self.no + self.nf + self.nλ
 
         # cost
         P_α_cart = np.eye(3 * (1 + self.no))
@@ -437,7 +571,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             self.a_cart_weight * I3, P_α_cart, self.a_cart_weight * np.eye(3 * self.no)
         )
 
-        P_force = np.zeros((self.nf, self.nf))
+        P_force = np.zeros((self.nf + self.nλ, self.nf + self.nλ))
         self.P = block_diag(self.P_joint, P_cart, P_force)
         self.P_sparse = sparse.csc_matrix(self.P)
 
@@ -448,9 +582,11 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                 self.α_cart_max * np.ones(3 * self.no),
                 self.a_cart_max * np.ones(3 * self.no),
                 np.inf * np.ones(self.nf),
+                np.inf * np.ones(self.nλ),
             )
         )
         self.lb = -self.ub
+        self.lb[-self.nλ:] = 0
 
     def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
         x0 = self._initial_guess(a_ew_e_cmd)
@@ -460,7 +596,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         h = np.concatenate([obj.bias(V_ew_e) for obj in self.objects.values()])
 
         # map joint acceleration to EE acceleration
-        A_eq_track = np.hstack((-J, np.eye(6), np.zeros((6, 6 * self.no + self.nf))))
+        A_eq_track = np.hstack((-J, np.eye(6), np.zeros((6, 6 * self.no + self.nf + self.nλ))))
         b_eq_track = δ
 
         # equality constraints for new consistency stuff
@@ -479,17 +615,24 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                 np.zeros((3 * self.no, 9 + 6)),
                 np.eye(3 * self.no),
                 np.kron(np.eye(self.no), -scale * core.math.skew3(z)),
-                np.zeros((3 * self.no, self.nf)),
+                np.zeros((3 * self.no, self.nf + self.nλ)),
             )
         )
         g = G_e[:3]
         b_eq_tilt2 = np.tile(-self.kω * ω_ew_e - scale * np.cross(z, g), self.no)
 
-        if self.use_robust_constraints:
+        if True:
+            B = utils.body_regressor_VG_by_vector_tilde_vectorized(
+                V_ew_e, G_e, self.face
+            )
+            b_ineq = np.zeros(0)
+            b_eq_bal = -B.T.flatten()
+        elif self.use_robust_constraints:
             B = utils.body_regressor_VG_by_vector_tilde_vectorized(
                 V_ew_e, G_e, self.face
             )
             b_ineq = (self.R @ B).T.flatten()
+            # b_ineq = -(self.Ainv @ B).T.flatten()
             b_eq_bal = np.zeros(0)
         elif self.use_face_form:
             b_ineq = self.face @ (self.M @ G_e - h)
@@ -513,7 +656,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             b=b_eq,
             lb=self.lb,
             ub=self.ub,
-            x0=x0,
+            # x0=x0,
         )
 
 

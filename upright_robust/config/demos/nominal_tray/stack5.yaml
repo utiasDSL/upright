@@ -1,0 +1,11 @@
+include:
+  -
+    package: upright_robust
+    path: config/demos/nominal_tray/_base.yaml
+
+simulation:
+  arrangement: stack5
+
+controller:
+  balancing:
+    arrangement: stack5

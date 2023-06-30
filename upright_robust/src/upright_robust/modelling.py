@@ -44,22 +44,6 @@ class RobustContactPoint:
         # fmt: on
 
 
-# def parameter_bounds(θ, θ_min, θ_max):
-#     θ_min_actual = θ
-#     θ_max_actual = θ
-#
-#     n = θ.shape[0]
-#     if θ_min is not None:
-#         θ_min_actual = np.array(
-#             [θ[i] if θ_min[i] is None else θ_min[i] for i in range(n)]
-#         )
-#     if θ_max is not None:
-#         θ_max_actual = np.array(
-#             [θ[i] if θ_max[i] is None else θ_max[i] for i in range(n)]
-#         )
-#     return θ_min_actual, θ_max_actual
-
-
 class ObjectBounds:
     """Bounds on the inertial parameters of a rigid body."""
 
@@ -123,6 +107,7 @@ class ObjectBounds:
         P_J = np.block([[np.zeros((6, 4)), I6], [np.zeros((6, 4)), -I6]])
         p_J = np.concatenate((Jvec, -Jvec))
 
+        # combined bounds
         P = np.vstack((P_m, P_h, P_J))
         p = np.concatenate((p_m, p_h, p_J))
         return P, p
@@ -149,7 +134,8 @@ class UncertainObject:
         ])
         # fmt: on
 
-        # polytopic parameter uncertainty: Pθ + p >= 0
+        # polytopic parameter uncertainty: Pθ >= p
+        # NOTE: the inequality is currently flipped compared to the paper
         if bounds is None:
             bounds = ObjectBounds()
         self.P, self.p = bounds.polytope(m, c, J)
@@ -160,6 +146,7 @@ class UncertainObject:
 
 
 def compute_object_name_index(names):
+    """Compute mapping from object names to indices."""
     return {name: idx for idx, name in enumerate(names)}
 
 

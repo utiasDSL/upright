@@ -6,15 +6,15 @@ arrangements:
     objects:
       -
         name: cube1
-        type: stack_cube_light
+        type: stack_cube_red_offset
         parent: ee
       -
         name: cube2
-        type: stack_cube
+        type: stack_cube_blue_offset
         parent: cube1
       -
         name: cube3
-        type: stack_cube_heavy
+        type: stack_cube_red_offset
         parent: cube2
     contacts:
       -
@@ -34,23 +34,23 @@ arrangements:
     objects:
       -
         name: cube1
-        type: stack_cube_light
+        type: stack_cube_red_offset
         parent: ee
       -
         name: cube2
-        type: stack_cube
+        type: stack_cube_blue_offset
         parent: cube1
       -
         name: cube3
-        type: stack_cube_heavy
+        type: stack_cube_red_offset
         parent: cube2
       -
         name: cube4
-        type: stack_cube_heavy
+        type: stack_cube_blue_offset
         parent: cube3
       -
         name: cube5
-        type: stack_cube_heavy
+        type: stack_cube_red_offset
         parent: cube4
     contacts:
       -

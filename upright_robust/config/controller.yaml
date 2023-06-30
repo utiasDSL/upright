@@ -29,21 +29,61 @@ objects:
     com_offset: [0, 0, 0]
     shape:
         type: cuboid
+        side_lengths: [0.1, 0.1, 0.1]
+
+  stack_cube_red:
+    mass: 0.1
+    com_offset: [0, 0, 0]
+    shape:
+        type: cuboid
+        side_lengths: [0.1, 0.1, 0.1]
+
+  stack_cube_blue:
+    mass: 0.1
+    com_offset: [0, 0, 0]
+    shape:
+        type: cuboid
+        side_lengths: [0.1, 0.1, 0.1]
+
+  stack_cube_red_offset:
+    mass: 0.1
+    com_offset: [0, 0, 0]
+    shape:
+        type: cuboid
         side_lengths: [0.1, 0.1, 0.15]
+
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: 0
+      mass_upper: 0
+
+  stack_cube_blue_offset:
+    mass: 0.1
+    com_offset: [0, 0, 0]
+    shape:
+        type: cuboid
+        side_lengths: [0.1, 0.1, 0.15]
+
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: 0
+      mass_upper: 0
 
   stack_cube_heavy:
     mass: 0.1
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
-      side_lengths: [0.1, 0.1, 0.15]
+      side_lengths: [0.1, 0.1, 0.1]
 
   stack_cube_light:
     mass: 0.1
     com_offset: [0, 0, 0]
     shape:
       type: cuboid
-      side_lengths: [0.1, 0.1, 0.15]
+      side_lengths: [0.1, 0.1, 0.1]
 
   tall_block:
     mass: 0.5
