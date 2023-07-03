@@ -14,7 +14,6 @@ from scipy.linalg import block_diag
 import mobile_manipulation_central as mm
 import upright_sim as sim
 import upright_core as core
-import upright_control as ctrl
 import upright_cmd as cmd
 import upright_robust as rob
 
@@ -23,52 +22,8 @@ import IPython
 
 def sigint_handler(sig, frame):
     print("Ctrl-C pressed: exiting.")
+    pyb.disconnect()
     sys.exit(0)
-
-
-def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep):
-    use_balancing_constraints = ctrl_config["balancing"]["enabled"]
-    tilting_type = ctrl_config["reactive"]["tilting"]
-    use_robust_constraints = ctrl_config["reactive"]["robust"]
-    use_face_form = ctrl_config["reactive"]["face_form"]
-
-    # rotational tracking gains
-    kθ = ctrl_config["reactive"]["kθ"]
-    kω = ctrl_config["reactive"]["kω"]
-    use_dvdt_scaling = False
-
-    if tilting_type == "full":
-        return rob.ReactiveBalancingControllerFullTilting(
-            robot,
-            objects,
-            contacts,
-            timestep,
-            kθ=kθ,
-            kω=kω,
-            use_dvdt_scaling=use_dvdt_scaling,
-            use_face_form=use_face_form,
-            use_robust_constraints=use_robust_constraints,
-        )
-    elif tilting_type == "tray":
-        return rob.NominalReactiveBalancingControllerTrayTilting(
-            robot,
-            objects,
-            contacts,
-            timestep,
-            kθ=kθ,
-            kω=kω,
-            use_balancing_constraints=use_balancing_constraints,
-        )
-    elif tilting_type == "flat":
-        return rob.NominalReactiveBalancingControllerFlat(
-            robot,
-            objects,
-            contacts,
-            timestep,
-            use_balancing_constraints=use_balancing_constraints,
-        )
-    else:
-        raise ValueError(f"Unknown tilting type {tilting_type}")
 
 
 def main():
@@ -92,42 +47,11 @@ def main():
     )
     env.settle(5.0)
 
-    # controller
-    model = ctrl.manager.ControllerModel.from_config(ctrl_config)
+    # parse controller model
+    model = rob.RobustControllerModel(ctrl_config, env.timestep)
+    kp, kv = model.kp, model.kv
+    controller = model.controller
     robot = model.robot
-
-    # make EE origin the reference point for all contacts
-    objects = model.settings.balancing_settings.objects
-    for c in model.settings.balancing_settings.contacts:
-        if c.object1_name != "ee":
-            o1 = objects[c.object1_name]
-            c.r_co_o1 = c.r_co_o1 + o1.body.com
-        o2 = objects[c.object2_name]
-        c.r_co_o2 = c.r_co_o2 + o2.body.com
-
-    contacts = [
-        rob.RobustContactPoint(c) for c in model.settings.balancing_settings.contacts
-    ]
-
-    # parse the bounds for each object
-    uncertain_objects = {}
-    arrangement_name = ctrl_config["balancing"]["arrangement"]
-    arrangement_config = ctrl_config["arrangements"][arrangement_name]
-    for conf in arrangement_config["objects"]:
-        name = conf["name"]
-        type_ = conf["type"]
-        bounds_config = ctrl_config["objects"][type_].get("bounds", {})
-        bounds = rob.ObjectBounds.from_config(bounds_config)
-        uncertain_objects[name] = rob.UncertainObject(objects[name], bounds)
-
-    # translational tracking gains
-    kp = ctrl_config["reactive"]["kp"]
-    kv = ctrl_config["reactive"]["kv"]
-
-    # balancing controller
-    controller = parse_controller_from_config(
-        ctrl_config, model.robot, uncertain_objects, contacts, env.timestep
-    )
 
     t = 0.0
     q, v = env.robot.joint_states()
@@ -140,9 +64,9 @@ def main():
     r_ew_w_d = r_ew_w_0 + ctrl_config["waypoints"][0]["position"]
 
     # desired trajectory
-    trajectory = mm.PointToPointTrajectory.quintic(
-        r_ew_w_0, r_ew_w_d, max_vel=2, max_acc=4
-    )
+    # trajectory = mm.PointToPointTrajectory.quintic(
+    #     r_ew_w_0, r_ew_w_d, max_vel=2, max_acc=4
+    # )
 
     # goal position
     debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
@@ -155,7 +79,7 @@ def main():
         # current EE state
         robot.forward(q, v)
         r_ew_w, C_we = robot.link_pose(rotation_matrix=True)
-        v_ew_w, ω_ew_w = robot.link_velocity()
+        v_ew_w, _ = robot.link_velocity()
 
         # desired EE state
         # rd, vd, ad = trajectory.sample(t)

@@ -1,6 +1,7 @@
 import numpy as np
 import cdd
 from scipy.spatial import ConvexHull
+from scipy.linalg import block_diag
 
 import upright_core as core
 
@@ -212,9 +213,12 @@ def body_regressor_VG_by_vector_vectorized(V, G, F):
     above function for each row of F.
     """
     n = F.shape[1] // 6  # number of wrenches
-    I = np.eye(n)
+    # I = np.eye(n)
     Y0 = body_regressor(V, -G)
-    M = np.kron(I, Y0).T @ F.T
+
+    # some alternative approaches here:
+    # M = np.kron(I, Y0).T @ F.T
+    M = block_diag(*[Y0.T] * n) @ F.T
     return M
 
 
@@ -222,6 +226,7 @@ def body_regressor_VG_by_vector_tilde_vectorized(V, G, F):
     """Same as the above function but the "tilde" means that each vector d ends
     with an extra zero (for the robust formulation)."""
     M = body_regressor_VG_by_vector_vectorized(V, G, F)
+    # TODO this copy is likely expensive!
     return np.vstack((M, np.zeros((1, M.shape[1]))))
 
 
