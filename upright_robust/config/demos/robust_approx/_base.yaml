@@ -8,7 +8,7 @@ controller:
     tilting: full
     robust: false
     face_form: true
-    approx_robust: false
+    approx_robust: true
 
   balancing:
     enabled: true

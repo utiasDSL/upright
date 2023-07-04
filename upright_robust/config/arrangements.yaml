@@ -6,7 +6,7 @@ arrangements:
     objects:
       -
         name: cube1
-        type: stack_cube_red_offset
+        type: stack_cube_red
         parent: ee
       -
         name: cube2
@@ -29,6 +29,42 @@ arrangements:
         first: cube2
         second: cube3
         mu: 0.2
+
+  stack4:
+    objects:
+      -
+        name: cube1
+        type: stack_cube_red_offset
+        parent: ee
+      -
+        name: cube2
+        type: stack_cube_blue_offset
+        parent: cube1
+      -
+        name: cube3
+        type: stack_cube_red_offset
+        parent: cube2
+      -
+        name: cube4
+        type: stack_cube_blue_offset
+        parent: cube3
+    contacts:
+      -
+        first: ee
+        second: cube1
+        mu: 0.5
+      -
+        first: cube1
+        second: cube2
+        mu: 0.5
+      -
+        first: cube2
+        second: cube3
+        mu: 0.5
+      -
+        first: cube3
+        second: cube4
+        mu: 0.5
 
   stack5:
     objects:

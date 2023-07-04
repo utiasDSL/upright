@@ -1,0 +1,11 @@
+include:
+  -
+    package: upright_robust
+    path: config/demos/robust_approx/_base.yaml
+
+simulation:
+  arrangement: tall
+
+controller:
+  balancing:
+    arrangement: tall

@@ -49,6 +49,7 @@ def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep
     use_balancing_constraints = ctrl_config["balancing"]["enabled"]
     tilting_type = ctrl_config["reactive"]["tilting"]
     use_robust_constraints = ctrl_config["reactive"]["robust"]
+    use_approx_robust_constraints = ctrl_config["reactive"]["approx_robust"]
     use_face_form = ctrl_config["reactive"]["face_form"]
 
     # rotational tracking gains
@@ -67,6 +68,7 @@ def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep
             use_dvdt_scaling=use_dvdt_scaling,
             use_face_form=use_face_form,
             use_robust_constraints=use_robust_constraints,
+            use_approx_robust_constraints=use_approx_robust_constraints,
         )
     elif tilting_type == "tray":
         return robctrl.NominalReactiveBalancingControllerTrayTilting(

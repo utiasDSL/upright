@@ -27,16 +27,16 @@ objects:
 
   stack_cube_red_offset:
     shape: cuboid
-    mass: 0.1
+    mass: 0.125
     com_offset: [0, -0.04, 0]
-    side_lengths: [0.1, 0.1, 0.15]
+    side_lengths: [0.1, 0.1, 0.1]
     color: [1, 0, 0, 1]
 
   stack_cube_blue_offset:
     shape: cuboid
-    mass: 0.1
+    mass: 0.125
     com_offset: [0, -0.04, 0]
-    side_lengths: [0.1, 0.1, 0.15]
+    side_lengths: [0.1, 0.1, 0.1]
     color: [0, 0, 1, 1]
 
   stack_cube_heavy:
@@ -62,7 +62,7 @@ objects:
     mass: 0.5
     com_offset: [0, -0.04, 0]
     shape: cuboid
-    side_lengths: [0.1, 0.1, 0.5]
+    side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]
 
   very_tall_block:

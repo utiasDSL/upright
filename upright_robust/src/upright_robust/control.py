@@ -227,7 +227,7 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
         kθ=0,
         kω=0,
         use_balancing_constraints=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(robot, objects, contacts, dt, **kwargs)
 
@@ -404,7 +404,8 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         use_dvdt_scaling=False,
         use_face_form=False,
         use_robust_constraints=False,
-        **kwargs
+        use_approx_robust_constraints=False,
+        **kwargs,
     ):
         super().__init__(robot, objects, contacts, dt, **kwargs)
 
@@ -414,34 +415,43 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         self.use_dvdt_scaling = use_dvdt_scaling
         self.use_face_form = use_face_form
         self.use_robust_constraints = use_robust_constraints
+        self.use_approx_robust_constraints = use_approx_robust_constraints
 
         self.no = len(self.objects)
 
         self.nλ = 0
 
-        # polytopic parameter uncertainty
-        P = block_diag(*[obj.P for obj in self.objects.values()])
-        p = np.concatenate([obj.p for obj in self.objects.values()])
+        # not the most elegantly implemented at the moment, but we can use
+        # approximate robust constraints to compute the acceleration using the
+        # nominal controller and then scale it to satisfy all robust
+        # constraints
+        assert not (use_approx_robust_constraints and use_robust_constraints)
 
-        # fmt: off
-        self.P_tilde = np.block([
-            [P, p[:, None]],
-            [np.zeros((1, P.shape[1])), np.array([[-1]])]])
-        # fmt: on
+        if use_approx_robust_constraints:
+            # polytopic parameter uncertainty
+            P = block_diag(*[obj.P for obj in self.objects.values()])
+            p = np.concatenate([obj.p for obj in self.objects.values()])
 
-        print("Computing inertial parameter face form...")
-        self.R = utils.span_to_face_form(self.P_tilde.T)
-        print("...done.")
+            # fmt: off
+            self.P_tilde = np.block([
+                [P, p[:, None]],
+                [np.zeros((1, P.shape[1])), np.array([[-1]])]])
+            # fmt: on
 
-        n_face = self.face.shape[0]
-        n_ineq = self.R.shape[0]
-        self.A_ineq = np.zeros((n_ineq * n_face, 15 + 6 * self.no))
-        for i in range(n_face):
-            D = utils.body_regressor_A_by_vector(self.face[i, :])
-            D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
-            self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:15] = -self.R @ D_tilde
+            print("Computing inertial parameter face form...")
+            self.R = utils.span_to_face_form(self.P_tilde.T)
+            print("...done.")
 
-        self.A_ineq_rob = self.A_ineq
+            n_face = self.face.shape[0]
+            n_ineq = self.R.shape[0]
+            self.A_ineq = np.zeros((n_ineq * n_face, 15 + 6 * self.no))
+            for i in range(n_face):
+                D = utils.body_regressor_A_by_vector(self.face[i, :])
+                D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
+                self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:15] = -self.R @ D_tilde
+
+            self.A_ineq_rob = self.A_ineq
+            self.RT = self.R[:, :-1].T
 
         if use_robust_constraints:
             # robust constraints without using DD to remove the extra dual variables
@@ -487,16 +497,22 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
 
                 # equalities tying together the dual variables and object
                 # accelerations
-                n_ineq = P_null.shape[0]  #self.P_tilde.shape[1]
+                n_ineq = P_null.shape[0]  # self.P_tilde.shape[1]
                 self.A_eq_bal = np.zeros((n_ineq * n_face, 15 + 6 * self.no + self.nλ))
                 self.A_ineq = np.zeros((n_ineq * n_face, 15 + 6 * self.no + self.nλ))
                 for i in range(n_face):
                     D = utils.body_regressor_A_by_vector(self.face[i, :])
                     D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
-                    self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:15] = self.P_inv @ D_tilde
+                    self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:15] = (
+                        self.P_inv @ D_tilde
+                    )
                     self.A_ineq[
                         i * n_ineq : (i + 1) * n_ineq,
-                        15 + 6 * self.no + i * n_dual : 15 + 6 * self.no + (i + 1) * n_dual,
+                        15
+                        + 6 * self.no
+                        + i * n_dual : 15
+                        + 6 * self.no
+                        + (i + 1) * n_dual,
                     ] = -P_null
 
                     # self.A_eq_bal[i * n_ineq : (i + 1) * n_ineq, 9:15] = D_tilde
@@ -585,7 +601,6 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             )
         )
         self.lb = -self.ub
-        # self.lb[-self.nλ:] = 0
 
     def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
         x0 = self._initial_guess(a_ew_e_cmd)
@@ -595,7 +610,9 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         h = np.concatenate([obj.bias(V_ew_e) for obj in self.objects.values()])
 
         # map joint acceleration to EE acceleration
-        A_eq_track = np.hstack((-J, np.eye(6), np.zeros((6, 6 * self.no + self.nf + self.nλ))))
+        A_eq_track = np.hstack(
+            (-J, np.eye(6), np.zeros((6, 6 * self.no + self.nf + self.nλ)))
+        )
         b_eq_track = δ
 
         # equality constraints for new consistency stuff
@@ -625,7 +642,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                 V_ew_e, G_e, self.face
             )
             if self.use_face_form:
-                b_ineq = (self.R @ B).T.flatten()  #/ self.A_ineq_max
+                b_ineq = (self.R @ B).T.flatten()  # / self.A_ineq_max
                 # check_redundant_linear_constraints(self.A_ineq, b_ineq)
                 b_eq_bal = np.zeros(0)
             else:
@@ -657,103 +674,35 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             ub=self.ub,
             # x0=x0,
         )
-        # return u, A
+        if self.use_approx_robust_constraints:
+            # NOTE seems to work somewhat, but is still quite slow just to compute
+            # these quantities
+            t0 = time.time()
 
-        n = self.face.shape[1] // 6  # number of wrenches
-        RT = self.R[:, :-1].T
+            # the implementation below is equivalent to but faster than:
+            # B = utils.body_regressor_VG_by_vector_vectorized(V_ew_e, G_e, self.face)
+            # b_ineq_rob = (self.R @ B).T.flatten()
 
-        # NOTE seems to work somewhat, but is still quite slow just to compute
-        # these quantities
-        # TODO is this just projection onto the polyhedral cone?
-        t0 = time.time()
+            Y0 = utils.body_regressor(V_ew_e, -G_e)
+            b_ineq_rob = np.ravel(self.face @ block_diag(*[Y0] * self.no) @ self.RT)
 
-        # B = utils.body_regressor_VG_by_vector_vectorized(V_ew_e, G_e, self.face)
-        #
-        # t11 = time.time()
-        # # equivalent to but faster than: b_ineq_rob = (self.R @ B).T.flatten()
-        # b_ineq_rob = np.ravel(self.R[:, :-1] @ B, order="F")
-        # t12 = time.time()
+            x = self.A_ineq_rob[:, 9:15] @ A
+            mask = x > b_ineq_rob
+            s = b_ineq_rob[mask] / x[mask]
 
-        Y0 = utils.body_regressor(V_ew_e, -G_e)
-        b_ineq_rob = np.ravel(self.face @ block_diag(*[Y0] * n) @ RT)
+            # short-circuit if there are no constraint violations
+            if s.shape == (0,):
+                return u, A
 
-        # t13 = time.time()
+            if np.any(s < 0):
+                raise ValueError("Different signs in inequality constraints!")
 
-        x = self.A_ineq_rob[:, 9:15] @ A
-        mask = x > b_ineq_rob
-        s = b_ineq_rob[mask] / x[mask]
+            scale = np.min(s)
+            sA = scale * A
+            su = np.linalg.lstsq(J, sA - δ, rcond=None)[0]
 
-        # short-circuit if there are no constraint violations
-        if s.shape == (0,):
-            return u, A
+            t1 = time.time()
+            print(f"scale took {1000 * (t1 - t0)} ms")
 
-        if np.any(s < 0):
-            raise ValueError("Different signs in inequality constraints!")
-
-        scale = np.min(s)
-        sA = scale * A
-        su = np.linalg.lstsq(J, sA - δ, rcond=None)[0]
-
-        t2 = time.time()
-
-        print(f"scale took {1000 * (t2 - t0)} ms")
-
-        return su, sA
-
-
-# TODO deprecated but currently still here for reference
-# class RobustReactiveBalancingController(ReactiveBalancingController):
-#     def __init__(self, model, dt, **kwargs):
-#         super().__init__(model, dt, **kwargs)
-#
-#         self.P_sparse = sparse.csc_matrix(self.P)
-#
-#         # polytopic uncertainty Pθ + p >= 0
-#         P = block_diag(*[obj.P for obj in self.objects.values()])
-#         p = np.concatenate([obj.p for obj in self.objects.values()])
-#
-#         # fmt: off
-#         self.P_tilde = np.block([
-#             [P, p[:, None]],
-#             [np.zeros((1, P.shape[1])), np.array([[-1]])]])
-#         # fmt: on
-#         self.R = utils.span_to_face_form(self.P_tilde.T)[0]
-#
-#         # pre-compute inequality matrix
-#         self.nv = 15
-#
-#         nf = self.face.shape[0]
-#         n_ineq = self.R.shape[0]
-#         N_ineq = n_ineq * nf
-#         self.A_ineq = np.zeros((N_ineq, nv))
-#         for i in range(nf):
-#             D = utils.body_regressor_A_by_vector(self.face[i, :])
-#             D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
-#             self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:] = -self.R @ D_tilde
-#         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
-#
-#     def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
-#         x0 = self._initial_guess(a_ew_e_cmd)
-#
-#         # map joint acceleration to EE acceleration
-#         A_eq = np.hstack((-J, np.eye(6)))
-#         b_eq = δ
-#
-#         # build robust constraints
-#         B = utils.body_regressor_VG_by_vector_tilde_vectorized(V_ew_e, G_e, self.face)
-#         b_ineq = (self.R @ B).T.flatten()
-#
-#         # compute the cost: 0.5 * x @ P @ x + q @ x
-#         q = self._compute_q(v, a_ew_e_cmd)
-#
-#         return self._solve_qp(
-#             P=self.P_sparse,
-#             q=q,
-#             G=self.A_ineq_sparse,
-#             h=b_ineq,
-#             A=sparse.csc_matrix(A_eq),
-#             b=b_eq,
-#             lb=self.lb,
-#             ub=self.ub,
-#             x0=x0,
-#         )
+            return su, sA
+        return u, A
