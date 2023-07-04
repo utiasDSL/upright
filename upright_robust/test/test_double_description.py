@@ -1,19 +1,20 @@
-from scipy.spatial import ConvexHull
 import numpy as np
 import IPython
 
 import upright_robust as rob
 
-# TODO
+
 def test_single_contact():
     μ = 0.5
-    # F = np.array([[1, 0, -μ], [0, 1, -μ], [-1, 0, -μ], [0, -1, -μ]])
-
     S = np.array([[μ, 0, 1], [0, μ, 1], [-μ, 0, 1], [0, -μ, 1]]).T
-    # points = np.vstack((S.T, [[0, 0, 0]]))
-    F1 = rob.span_to_face_form(S)
+    F1 = rob.span_to_face_form(S, library="cdd")
+    F2 = rob.span_to_face_form(S, library="qhull")
 
-    # hull = ConvexHull(points)
-    # F2 = hull.equations
+    assert F1.shape == F2.shape
 
-    # IPython.embed()
+    # for each row of F1, check that there is one and only one row of F2 that
+    # is a scalar multiple
+    for i in range(F1.shape[0]):
+        f = F1[i, :]
+        X = F2 / f
+        assert np.sum(np.isclose(X.ptp(axis=1), 0)) == 1
