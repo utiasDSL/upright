@@ -11,6 +11,8 @@ reactive:
   robust: false
   face_form: false
   approx_robust: false
+  use_slack: true  # true to soften EE acceleration kinematics with slack variables
+  slack_weight: 10
 
   # rotational control gains
   kθ: 1.0

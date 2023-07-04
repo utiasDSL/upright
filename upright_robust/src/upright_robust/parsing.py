@@ -51,6 +51,8 @@ def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep
     use_robust_constraints = ctrl_config["reactive"]["robust"]
     use_approx_robust_constraints = ctrl_config["reactive"]["approx_robust"]
     use_face_form = ctrl_config["reactive"]["face_form"]
+    use_slack = ctrl_config["reactive"]["use_slack"]
+    slack_weight = ctrl_config["reactive"]["slack_weight"]
 
     # rotational tracking gains
     kθ = ctrl_config["reactive"]["kθ"]
@@ -69,6 +71,8 @@ def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep
             use_face_form=use_face_form,
             use_robust_constraints=use_robust_constraints,
             use_approx_robust_constraints=use_approx_robust_constraints,
+            use_slack=use_slack,
+            slack_weight=slack_weight,
         )
     elif tilting_type == "tray":
         return robctrl.NominalReactiveBalancingControllerTrayTilting(
@@ -79,6 +83,8 @@ def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep
             kθ=kθ,
             kω=kω,
             use_balancing_constraints=use_balancing_constraints,
+            use_slack=use_slack,
+            slack_weight=slack_weight,
         )
     elif tilting_type == "flat":
         return robctrl.NominalReactiveBalancingControllerFlat(
@@ -87,6 +93,8 @@ def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep
             contacts,
             timestep,
             use_balancing_constraints=use_balancing_constraints,
+            use_slack=use_slack,
+            slack_weight=slack_weight,
         )
     else:
         raise ValueError(f"Unknown tilting type {tilting_type}")

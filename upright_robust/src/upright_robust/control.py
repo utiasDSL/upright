@@ -30,7 +30,7 @@ class ReactiveBalancingController:
         a_cart_max=5,
         α_cart_max=1,
         a_joint_max=5,
-        use_slack=False,
+        use_slack=True,
         solver="proxqp",
     ):
         self.solver = solver
@@ -40,8 +40,11 @@ class ReactiveBalancingController:
         self.dt = dt
         self.use_slack = use_slack
 
+        self.no = len(self.objects)  # number of objects
         self.nc = len(self.contacts)  # number of contacts
         self.ns = use_slack * 6  # number of slack variables
+        self.nu = 9  # numer of inputs
+        self.nv0 = self.nu + 6 + self.ns  # default number of decision variables
 
         # canonical map of object names to indices
         names = list(self.objects.keys())
@@ -62,12 +65,18 @@ class ReactiveBalancingController:
         self.a_cart_max = a_cart_max
         self.α_cart_max = α_cart_max
 
-        self.nv0 = 15 + self.ns
+        # slices for decision variables
+        self.su = np.s_[: self.nu]
+        self.ss = np.s_[self.nu : self.nu + self.ns]
+        self.sa = np.s_[self.nu + self.ns : self.nu + self.ns + 3]
+        self.sα = np.s_[self.nu + self.ns + 3 : self.nu + self.ns + 6]
+        self.sA = np.s_[self.nu + self.ns : self.nu + self.ns + 6]
+
         self.ub = np.zeros(self.nv0)
-        self.ub[:9] = a_joint_max
-        self.ub[9:12] = a_cart_max
-        self.ub[12:15] = α_cart_max
-        self.ub[15:] = np.inf
+        self.ub[self.su] = a_joint_max  # inputs
+        self.ub[self.ss] = np.inf  # slacks
+        self.ub[self.sa] = a_cart_max  # linear EE acceleration
+        self.ub[self.sα] = α_cart_max  # angular EE acceleration
         self.lb = -self.ub
 
         self.W = mdl.compute_contact_force_to_wrench_map(
@@ -106,25 +115,29 @@ class ReactiveBalancingController:
             solver=self.solver,
         )
         self.x_last = x
-        u = x[:9]
-        A = x[9:15]
+        u = x[self.su]
+        A = x[self.sA]
         return u, A
 
     def _initial_guess(self, a_ew_e_cmd):
         x0 = np.zeros(self.nv)
-        x0[9:12] = a_ew_e_cmd
+        x0[self.sa] = a_ew_e_cmd
         return x0
 
     def _compute_q(self, v, a_ew_e_cmd):
         q = np.zeros(self.nv)
-        q[:9] = self.v_joint_weight * self.dt * v
-        q[9:12] = -self.a_cart_weight * a_ew_e_cmd
+        q[self.su] = self.v_joint_weight * self.dt * v
+        q[self.sa] = -self.a_cart_weight * a_ew_e_cmd
         return q
 
     def _compute_tracking_equalities(self, J, δ):
-        A = np.hstack(
-            (-J, np.eye(6), np.eye(self.ns), np.zeros((6, self.nv - self.nv0)))
-        )
+        """Compute matrix (A, b) such that Ax == b enforces EE acceleration tracking,
+        with x the decision variables."""
+        if self.use_slack:
+            S = np.eye(self.ns)
+        else:
+            S = np.zeros((6, self.ns))
+        A = np.hstack((-J, S, np.eye(6), np.zeros((6, self.nv - self.nv0))))
         b = δ
         return A, b
 
@@ -162,11 +175,13 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
             self.nf = 3 * self.nc
 
             # pre-compute part of equality constraints
-            self.A_eq_bal = np.hstack((np.zeros((self.M.shape[0], 9)), self.M, self.W))
+            self.A_eq_bal = np.hstack(
+                (np.zeros((self.M.shape[0], self.nu + self.ns)), self.M, self.W)
+            )
 
             # inequality constraints for balancing
             F = block_diag(*[c.F for c in self.contacts])
-            self.A_ineq = np.hstack((np.zeros((F.shape[0], 9 + 6)), F))
+            self.A_ineq = np.hstack((np.zeros((F.shape[0], self.nu + self.ns + 6)), F))
             self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
             self.b_ineq = np.zeros(self.A_ineq.shape[0])
         else:
@@ -174,13 +189,13 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
             self.A_ineq_sparse = None
             self.b_ineq = None
 
-        # number of optimization variables: 9 joint accelerations, 6 EE
-        # acceleration twist, 6 slack, nf force
+        # number of optimization variables: 9 joint accelerations, 6 slack, 6
+        # EE acceleration twist, nf force
         self.nv = self.nv0 + self.nf
 
         # cost
         P_force = np.zeros((self.nf, self.nf))
-        self.P = block_diag(self.P_joint, self.P_cart, self.P_slack, P_force)
+        self.P = block_diag(self.P_joint, self.P_slack, self.P_cart, P_force)
         self.P_sparse = sparse.csc_matrix(self.P)
 
         # optimization bounds
@@ -195,7 +210,7 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
 
         # keep angular acceleration fixed to zero
         A_α_fixed = np.zeros((3, self.nv))
-        A_α_fixed[:, 12:15] = np.eye(3)
+        A_α_fixed[:, self.sα] = np.eye(3)
         b_α_fixed = np.zeros(3)
 
         if self.use_balancing_constraints:
@@ -226,7 +241,8 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
 
 
 class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController):
-    """Reactive balancing controller that tilts so that the tray is normal to total acceleration.
+    """Reactive balancing controller that tilts so that the tray is normal to
+    total acceleration.
 
     Neglects the rotational dynamics of the tray in the tilting computation.
     Optionally also enforces the overall balancing constraints on the objects
@@ -259,11 +275,11 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
             # pre-compute part of equality constraints
             nM = self.M.shape[0]
             self.A_eq_bal = np.hstack(
-                (np.zeros((nM, 9)), self.M, np.zeros((nM, 3)), self.W)
+                (np.zeros((nM, self.nu + self.ns)), self.M, np.zeros((nM, 3)), self.W)
             )
 
             F = block_diag(*[c.F for c in self.contacts])
-            self.A_ineq = np.hstack((np.zeros((F.shape[0], 18)), F))
+            self.A_ineq = np.hstack((np.zeros((F.shape[0], self.nu + self.ns + 9)), F))
             self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
             self.b_ineq = np.zeros(self.A_ineq.shape[0])
         else:
@@ -271,8 +287,8 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
             self.A_ineq_sparse = None
             self.b_ineq = None
 
-        # number of optimization variables: 9 joint accelerations, 6 EE
-        # acceleration twist, 6 slack, 3 desired angular acceleration, nf force
+        # number of optimization variables: 9 joint accelerations, 6 slack, 6
+        # EE acceleration twist, 3 desired angular acceleration, nf force
         self.nv = self.nv0 + 3 + self.nf
 
         # cost
@@ -281,7 +297,7 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
         P_α_cart = self.α_cart_weight * np.block([[I3, -I3], [-I3, I3]])
         P_force = np.zeros((self.nf, self.nf))
         P_cart = block_diag(P_a_cart, P_α_cart)
-        self.P = block_diag(self.P_joint, P_cart, P_force)
+        self.P = block_diag(self.P_joint, self.P_slack, P_cart, P_force)
         self.P_sparse = sparse.csc_matrix(self.P)
 
         # bounds
@@ -301,7 +317,7 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
         z = np.array([0, 0, 1])
         A_eq_tilt = np.hstack(
             (
-                np.zeros((3, 9)),
+                np.zeros((3, self.nu + self.ns)),
                 -self.kθ * core.math.skew3(z),
                 np.zeros((3, 3)),
                 np.eye(3),
@@ -431,8 +447,6 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         self.use_robust_constraints = use_robust_constraints
         self.use_approx_robust_constraints = use_approx_robust_constraints
 
-        self.no = len(self.objects)
-
         self.nλ = 0
 
         # not the most elegantly implemented at the moment, but we can use
@@ -441,6 +455,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         # constraints
         assert not (use_approx_robust_constraints and use_robust_constraints)
 
+        # TODO reduce duplication with subsequent code
         if use_approx_robust_constraints:
             # polytopic parameter uncertainty
             P = block_diag(*[obj.P for obj in self.objects.values()])
@@ -453,19 +468,18 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             # fmt: on
 
             print("Computing inertial parameter face form...")
-            self.R = utils.span_to_face_form(self.P_tilde.T)
+            R = utils.span_to_face_form(self.P_tilde.T)
             print("...done.")
 
             n_face = self.face.shape[0]
             n_ineq = self.R.shape[0]
-            self.A_ineq = np.zeros((n_ineq * n_face, 15 + 6 * self.no))
+            self.A_ineq_rob = np.zeros((n_ineq * n_face, 6))
             for i in range(n_face):
                 D = utils.body_regressor_A_by_vector(self.face[i, :])
                 D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
-                self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:15] = -self.R @ D_tilde
+                self.A_ineq_rob[i * n_ineq : (i + 1) * n_ineq, :] = -R @ D_tilde
 
-            self.A_ineq_rob = self.A_ineq
-            self.RT = self.R[:, :-1].T
+            self.RT = R[:, :-1].T
 
         if use_robust_constraints:
             # robust constraints without using DD to remove the extra dual variables
@@ -486,20 +500,24 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                 self.R = utils.span_to_face_form(self.P_tilde.T)
                 print("...done.")
 
+                self.RT = self.R[:, :-1].T
+
                 # self.R /= np.max(np.abs(self.R))
 
                 # pre-compute inequality matrix
                 n_face = self.face.shape[0]
                 n_ineq = self.R.shape[0]
-                self.A_ineq = np.zeros((n_ineq * n_face, 15 + 6 * self.no))
+                self.A_ineq = np.zeros((n_ineq * n_face, self.nv0 + 6 * self.no))
                 for i in range(n_face):
                     D = utils.body_regressor_A_by_vector(self.face[i, :])
                     D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
-                    self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:15] = -self.R @ D_tilde
+                    self.A_ineq[i * n_ineq : (i + 1) * n_ineq, self.sA] = (
+                        -self.R @ D_tilde
+                    )
 
                 # self.A_ineq_max = np.max(np.abs(self.A_ineq))
                 # self.A_ineq /= self.A_ineq_max
-                self.A_eq_bal = np.zeros((0, 15 + 6 * self.no))
+                self.A_eq_bal = np.zeros((0, self.nv0 + 6 * self.no))
             else:
                 self.P_inv = np.linalg.pinv(self.P_tilde.T)
                 P_null = null_space(self.P_tilde.T)
@@ -512,17 +530,21 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                 # equalities tying together the dual variables and object
                 # accelerations
                 n_ineq = P_null.shape[0]  # self.P_tilde.shape[1]
-                self.A_eq_bal = np.zeros((n_ineq * n_face, 15 + 6 * self.no + self.nλ))
-                self.A_ineq = np.zeros((n_ineq * n_face, 15 + 6 * self.no + self.nλ))
+                self.A_eq_bal = np.zeros(
+                    (n_ineq * n_face, self.nv0 + 6 * self.no + self.nλ)
+                )
+                self.A_ineq = np.zeros(
+                    (n_ineq * n_face, self.nv0 + 6 * self.no + self.nλ)
+                )
                 for i in range(n_face):
                     D = utils.body_regressor_A_by_vector(self.face[i, :])
                     D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
-                    self.A_ineq[i * n_ineq : (i + 1) * n_ineq, 9:15] = (
+                    self.A_ineq[i * n_ineq : (i + 1) * n_ineq, self.sA] = (
                         self.P_inv @ D_tilde
                     )
                     self.A_ineq[
                         i * n_ineq : (i + 1) * n_ineq,
-                        15
+                        self.nv0
                         + 6 * self.no
                         + i * n_dual : 15
                         + 6 * self.no
@@ -540,21 +562,21 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                     # ] = self.P_tilde.T
 
                 # self.A_ineq = np.zeros((0, 15 + 6 * self.no + self.nλ))
-                self.A_eq_bal = np.zeros((0, 15 + 6 * self.no + self.nλ))
+                self.A_eq_bal = np.zeros((0, self.nv0 + 6 * self.no + self.nλ))
 
         elif use_face_form:
             self.nf = 0
             n_face = self.face.shape[0]
             self.A_ineq = np.hstack(
                 (
-                    np.zeros((n_face, 9)),
+                    np.zeros((n_face, self.nu + self.ns)),
                     self.face @ self.M,
                     np.zeros((n_face, 6 * self.no)),
                 )
             )
 
             # no balancing equality constraints
-            self.A_eq_bal = np.zeros((0, 15 + 6 * self.no))
+            self.A_eq_bal = np.zeros((0, self.nv0 + 6 * self.no))
 
         else:
             self.nf = 3 * self.nc
@@ -562,12 +584,17 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             # pre-compute part of equality constraints
             nM = self.M.shape[0]
             self.A_eq_bal = np.hstack(
-                (np.zeros((nM, 9)), self.M, np.zeros((nM, 6 * self.no)), self.W)
+                (
+                    np.zeros((nM, self.nu + self.ns)),
+                    self.M,
+                    np.zeros((nM, 6 * self.no)),
+                    self.W,
+                )
             )
 
             # inequality constraints
             F = block_diag(*[c.F for c in self.contacts])
-            self.A_ineq = np.hstack((np.zeros((F.shape[0], 15 + 6 * self.no)), F))
+            self.A_ineq = np.hstack((np.zeros((F.shape[0], self.nv0 + 6 * self.no)), F))
 
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
@@ -576,7 +603,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         self.coms = np.array([o.body.com for o in self.objects.values()])
         self.A_eq_tilt1 = np.hstack(
             (
-                np.zeros((3 * self.no, 9)),  # joints
+                np.zeros((3 * self.no, self.nu + self.ns)),  # joints
                 np.tile(-I3, (self.no, 1)),  # dvedt
                 np.vstack([core.math.skew3(c) for c in self.coms]),  # dωedt
                 np.zeros((3 * self.no, 3 * self.no)),  # dωddt
@@ -588,7 +615,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         # number of optimization variables: 9 joint accelerations, 6 EE
         # acceleration twist, no * desired angular acceleration no * object
         # linear acceleration, nf force
-        self.nv = 9 + 6 + 6 * self.no + self.nf + self.nλ
+        self.nv = self.nv0 + 6 * self.no + self.nf + self.nλ
 
         # cost
         P_α_cart = np.eye(3 * (1 + self.no))
@@ -601,7 +628,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         )
 
         P_force = 0 * np.eye(self.nf + self.nλ)
-        self.P = block_diag(self.P_joint, P_cart, P_force)
+        self.P = block_diag(self.P_joint, self.P_slack, P_cart, P_force)
         self.P_sparse = sparse.csc_matrix(self.P)
 
         # bounds
@@ -624,10 +651,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         h = np.concatenate([obj.bias(V_ew_e) for obj in self.objects.values()])
 
         # map joint acceleration to EE acceleration
-        A_eq_track = np.hstack(
-            (-J, np.eye(6), np.zeros((6, 6 * self.no + self.nf + self.nλ)))
-        )
-        b_eq_track = δ
+        A_eq_track, b_eq_track = self._compute_tracking_equalities(J, δ)
 
         # equality constraints for new consistency stuff
         ω_ew_e = V_ew_e[3:]
@@ -635,33 +659,34 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             [np.cross(ω_ew_e, np.cross(ω_ew_e, c)) for c in self.coms]
         )
 
+        g = G_e[:3]
         scale = self.kθ
         if self.use_dvdt_scaling:
-            scale /= np.linalg.norm(a_ew_e_cmd - G_e[:3])
+            scale /= np.linalg.norm(a_ew_e_cmd - g)
 
         z = np.array([0, 0, 1])
         A_eq_tilt2 = np.hstack(
             (
-                np.zeros((3 * self.no, 9 + 6)),
+                np.zeros((3 * self.no, self.nv0)),
                 np.eye(3 * self.no),
                 np.kron(np.eye(self.no), -scale * core.math.skew3(z)),
                 np.zeros((3 * self.no, self.nf + self.nλ)),
             )
         )
-        g = G_e[:3]
         b_eq_tilt2 = np.tile(-self.kω * ω_ew_e - scale * np.cross(z, g), self.no)
 
         if self.use_robust_constraints:
-            B = utils.body_regressor_VG_by_vector_tilde_vectorized(
-                V_ew_e, G_e, self.face
-            )
             if self.use_face_form:
-                b_ineq = (self.R @ B).T.flatten()  # / self.A_ineq_max
-                # check_redundant_linear_constraints(self.A_ineq, b_ineq)
+                Y0 = utils.body_regressor(V_ew_e, -G_e)
+                b_ineq = np.ravel(self.face @ block_diag(*[Y0] * self.no) @ self.RT)
+                # b_ineq = (self.R @ B).T.flatten()  # / self.A_ineq_max
                 b_eq_bal = np.zeros(0)
             else:
                 # b_ineq = np.zeros(0)
                 # b_eq_bal = -B.T.flatten()
+                B = utils.body_regressor_VG_by_vector_tilde_vectorized(
+                    V_ew_e, G_e, self.face
+                )
                 b_ineq = -(self.P_inv @ B).T.flatten()
                 b_eq_bal = np.zeros(0)
         elif self.use_face_form:
@@ -700,7 +725,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             Y0 = utils.body_regressor(V_ew_e, -G_e)
             b_ineq_rob = np.ravel(self.face @ block_diag(*[Y0] * self.no) @ self.RT)
 
-            x = self.A_ineq_rob[:, 9:15] @ A
+            x = self.A_ineq_rob @ A
             mask = x > b_ineq_rob
             s = b_ineq_rob[mask] / x[mask]
 
