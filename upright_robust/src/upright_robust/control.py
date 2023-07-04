@@ -26,9 +26,11 @@ class ReactiveBalancingController:
         α_cart_weight=5,
         a_joint_weight=0.01,
         v_joint_weight=0.1,
+        slack_weight=10,
         a_cart_max=5,
         α_cart_max=1,
         a_joint_max=5,
+        use_slack=False,
         solver="proxqp",
     ):
         self.solver = solver
@@ -36,29 +38,36 @@ class ReactiveBalancingController:
         self.objects = objects
         self.contacts = contacts
         self.dt = dt
+        self.use_slack = use_slack
 
         self.nc = len(self.contacts)  # number of contacts
+        self.ns = use_slack * 6  # number of slack variables
 
         # canonical map of object names to indices
         names = list(self.objects.keys())
         self.object_name_index = mdl.compute_object_name_index(names)
 
-        # default optimization variables are (u, A)
+        # default optimization variables are (u, A, s), where s is the optimal
+        # slack variables on the EE acceleration kinematics constraint
         # shared optimization weight
         self.v_joint_weight = v_joint_weight
         self.a_cart_weight = a_cart_weight
         self.α_cart_weight = α_cart_weight
+        self.slack_weight = slack_weight
         self.P_joint = (a_joint_weight + dt**2 * v_joint_weight) * np.eye(9)
         self.P_cart = block_diag(a_cart_weight * np.eye(3), α_cart_weight * np.eye(3))
+        self.P_slack = slack_weight * np.eye(self.ns)
 
         # shared optimization bounds
         self.a_cart_max = a_cart_max
         self.α_cart_max = α_cart_max
 
-        self.ub = np.zeros(15)
+        self.nv0 = 15 + self.ns
+        self.ub = np.zeros(self.nv0)
         self.ub[:9] = a_joint_max
         self.ub[9:12] = a_cart_max
-        self.ub[12:] = α_cart_max
+        self.ub[12:15] = α_cart_max
+        self.ub[15:] = np.inf
         self.lb = -self.ub
 
         self.W = mdl.compute_contact_force_to_wrench_map(
@@ -112,6 +121,13 @@ class ReactiveBalancingController:
         q[9:12] = -self.a_cart_weight * a_ew_e_cmd
         return q
 
+    def _compute_tracking_equalities(self, J, δ):
+        A = np.hstack(
+            (-J, np.eye(6), np.eye(self.ns), np.zeros((6, self.nv - self.nv0)))
+        )
+        b = δ
+        return A, b
+
     def solve(self, q, v, a_ew_w_cmd, **kwargs):
         """Solve for an updated joint acceleration command given current robot
         state (q, v) and desired EE (world-frame) acceleration A_ew_w_cmd.
@@ -159,12 +175,12 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
             self.b_ineq = None
 
         # number of optimization variables: 9 joint accelerations, 6 EE
-        # acceleration twist, nf force
-        self.nv = 15 + self.nf
+        # acceleration twist, 6 slack, nf force
+        self.nv = self.nv0 + self.nf
 
         # cost
         P_force = np.zeros((self.nf, self.nf))
-        self.P = block_diag(self.P_joint, self.P_cart, P_force)
+        self.P = block_diag(self.P_joint, self.P_cart, self.P_slack, P_force)
         self.P_sparse = sparse.csc_matrix(self.P)
 
         # optimization bounds
@@ -175,8 +191,7 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
         x0 = self._initial_guess(a_ew_e_cmd)
 
         # map joint acceleration to EE acceleration
-        A_eq_track = np.hstack((-J, np.eye(6), np.zeros((6, self.W.shape[1]))))
-        b_eq_track = δ
+        A_eq_track, b_eq_track = self._compute_tracking_equalities(J, δ)
 
         # keep angular acceleration fixed to zero
         A_α_fixed = np.zeros((3, self.nv))
@@ -257,8 +272,8 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
             self.b_ineq = None
 
         # number of optimization variables: 9 joint accelerations, 6 EE
-        # acceleration twist, desired angular acceleration, nf force
-        self.nv = 9 + 6 + 3 + self.nf
+        # acceleration twist, 6 slack, 3 desired angular acceleration, nf force
+        self.nv = self.nv0 + 3 + self.nf
 
         # cost
         I3 = np.eye(3)
@@ -279,8 +294,7 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
         x0 = self._initial_guess(a_ew_e_cmd)
 
         # map joint acceleration to EE acceleration
-        A_eq_track = np.hstack((-J, np.eye(6), np.zeros((6, 3 + self.nf))))
-        b_eq_track = δ
+        A_eq_track, b_eq_track = self._compute_tracking_equalities(J, δ)
 
         # equality constraints for new consistency stuff
         I3 = np.eye(3)
