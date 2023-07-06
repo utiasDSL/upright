@@ -3,7 +3,7 @@ import time
 import numpy as np
 from scipy import sparse
 from scipy.linalg import block_diag, null_space
-from qpsolvers import solve_qp
+from qpsolvers import solve_qp, Problem, solve_problem
 from lpsolvers import solve_lp
 
 import upright_core as core
@@ -99,21 +99,35 @@ class ReactiveBalancingController:
     ):
         if x0 is None:
             x0 = self.x_last
-        x = solve_qp(
-            P=P,
-            q=q,
-            G=G,
-            h=h,
-            A=A,
-            b=b,
-            lb=lb,
-            ub=ub,
+        # t0 = time.time()
+        problem = Problem(P=P, q=q, G=G, h=h, A=A, b=b, lb=lb, ub=ub)
+        solution = solve_problem(problem,
             initvals=x0,
             eps_abs=1e-6,
             eps_rel=1e-6,
             max_iter=10000,
             solver=self.solver,
         )
+        # t1 = time.time()
+        x = solution.x
+        # print(f"num iter = {solution.extras['info'].iter}")
+        # print(f"QP time = {1000 * (t1 - t0)} ms")
+
+        # x = solve_qp(
+        #     P=P,
+        #     q=q,
+        #     G=G,
+        #     h=h,
+        #     A=A,
+        #     b=b,
+        #     lb=lb,
+        #     ub=ub,
+        #     initvals=x0,
+        #     eps_abs=1e-6,
+        #     eps_rel=1e-6,
+        #     max_iter=10000,
+        #     solver=self.solver,
+        # )
         self.x_last = x
         u = x[self.su]
         A = x[self.sA]

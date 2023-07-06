@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Closed-loop upright reactive simulation using Pybullet."""
 import datetime
+import signal
+import sys
 import time
 
 import rospy
@@ -18,8 +20,15 @@ import upright_robust as rob
 import IPython
 
 
+def sigint_handler(sig, frame):
+    print("Ctrl-C pressed: exiting.")
+    pyb.disconnect()
+    sys.exit(0)
+
+
 def main():
     np.set_printoptions(precision=6, suppress=True)
+    signal.signal(signal.SIGINT, sigint_handler)
 
     cli_args = cmd.cli.sim_arg_parser().parse_args()
 
@@ -53,8 +62,6 @@ def main():
     robot_interface.base.cmd_vel = np.zeros(3)
     robot_interface.arm.cmd_vel = np.zeros(6)
 
-    rate = rospy.Rate(1. / env.timestep)
-
     t = 0
     robot_interface.publish_time(t)
     while not rospy.is_shutdown():
@@ -68,7 +75,9 @@ def main():
 
         t = env.step(t, step_robot=False)[0]
         robot_interface.publish_time(t)
-        rate.sleep()
+
+        # NOTE: we can't use the rate here since the sim is in charge of time
+        time.sleep(env.timestep)
 
 
 if __name__ == "__main__":
