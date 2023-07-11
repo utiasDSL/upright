@@ -357,3 +357,16 @@ def compute_desired_axis_angle(a, C_we):
     normal = C_we @ z
     θ = np.arccos(normal_d @ normal)
     return θ * np.cross(normal, normal_d)
+
+
+class RunningAverage:
+    def __init__(self, size=None):
+        self.count = 0
+        if size is None:
+            self.average = 0
+        else:
+            self.average = np.zeros(size)
+
+    def update(self, value):
+        self.average = (self.count * self.average + value) / (1 + self.count)
+        self.count += 1

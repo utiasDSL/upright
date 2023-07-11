@@ -13,5 +13,5 @@ PYBIND11_MODULE(bindings, m) {
                             const MatX<Scalar>&>(),
              "RT"_a, "F"_a, "A_ineq"_a)
         .def("compute_scale", &RobustBounds<Scalar>::compute_scale, "V"_a,
-             "G"_a);
+             "G"_a, "A"_a);
 }

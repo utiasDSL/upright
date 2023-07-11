@@ -23,7 +23,7 @@ TIMESTEP = 1.0 / RATE
 # TODO adjust this
 MAX_JOINT_VELOCITY = np.array([0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1])
 
-PROCESS_COV = 1000
+PROCESS_COV = 1000000
 MEASUREMENT_COV = 1
 
 
@@ -60,6 +60,7 @@ def main():
     # initial condition
     q, v = robot_interface.q, np.zeros(robot_interface.nv)
     u = np.zeros(robot_interface.nv)
+    cmd_vel = np.zeros(robot_interface.nv)
 
     # desired waypoint
     robot_model.forward(q, v)
@@ -78,8 +79,6 @@ def main():
     C = np.hstack((Iq, 0 * Iq))
     estimate = mm.GaussianEstimate(x=x0, P=P0)
 
-    # TODO compare raw and filtered state data
-
     avg_solve_time = 0
     num_solves = 0
 
@@ -93,13 +92,18 @@ def main():
 
         # robot feedback
         q_meas, v_meas = robot_interface.q, robot_interface.v
-        y = robot_interface.q
-        A = np.block([[Iq, dt * Iq], [0 * Iq, Iq]])
-        B = np.vstack((0.5 * dt**2 * Iq, dt * Iq))
-        Q = B @ Q0 @ B.T
-        estimate = mm.KalmanFilter.predict(estimate, A, Q, B @ u)
-        estimate = mm.KalmanFilter.correct(estimate, C, R0, y)
-        q, v = estimate.x[:nq], estimate.x[nq:]
+
+        v_meas = cmd_vel
+        q_meas = q + dt * cmd_vel
+        q, v = q_meas, v_meas
+
+        # y = q_meas
+        # A = np.block([[Iq, dt * Iq], [0 * Iq, Iq]])
+        # B = np.vstack((0.5 * dt**2 * Iq, dt * Iq))
+        # Q = B @ Q0 @ B.T
+        # estimate = mm.KalmanFilter.predict(estimate, A, Q, B @ u)
+        # estimate = mm.KalmanFilter.correct(estimate, C, R0, y)
+        # q, v = estimate.x[:nq], estimate.x[nq:]
 
         # estimated EE state
         robot_model.forward(q, v)

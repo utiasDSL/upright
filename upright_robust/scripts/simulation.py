@@ -16,8 +16,14 @@ import upright_sim as sim
 import upright_core as core
 import upright_cmd as cmd
 import upright_robust as rob
+from upright_core.logging import DataLogger
 
 import IPython
+
+
+USE_KALMAN_FILTER = True
+PROCESS_COV = 1
+MEASUREMENT_COV = 1
 
 
 def sigint_handler(sig, frame):
@@ -36,7 +42,6 @@ def main():
     config = core.parsing.load_config(cli_args.config)
     sim_config = config["simulation"]
     ctrl_config = config["controller"]
-    log_config = config["logging"]
 
     timestamp = datetime.datetime.now()
     env = sim.simulation.UprightSimulation(
@@ -47,6 +52,9 @@ def main():
     )
     env.settle(5.0)
 
+    # data logging
+    logger = DataLogger(config)
+
     # parse controller model
     model = rob.RobustControllerModel(ctrl_config, env.timestep)
     kp, kv = model.kp, model.kv
@@ -55,8 +63,7 @@ def main():
 
     t = 0.0
     q, v = env.robot.joint_states()
-    a = np.zeros(env.robot.nv)
-
+    u = np.zeros(env.robot.nv)
     v_cmd = np.zeros(env.robot.nv)
 
     robot.forward(q, v)
@@ -68,13 +75,47 @@ def main():
     #     r_ew_w_0, r_ew_w_d, max_vel=2, max_acc=4
     # )
 
+    # state estimate
+    # obviously not needed here, but used to test the effect of the KF on the
+    # overall system dynamics
+    x0 = np.concatenate((q, v))
+    P0 = 0.01 * np.eye(x0.shape[0])
+    Iq = np.eye(env.robot.nq)
+    Q0 = PROCESS_COV * Iq
+    R0 = MEASUREMENT_COV * Iq
+    C = np.hstack((Iq, 0 * Iq))
+    estimate = mm.GaussianEstimate(x=x0, P=P0)
+
     # goal position
     debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
+
+    # profiling for controller solve time
+    ctrl_prof = rob.RunningAverage()
+    kf_prof = rob.RunningAverage()
 
     # simulation loop
     while t <= env.duration:
         # current joint state
-        q, v = env.robot.joint_states(add_noise=False)
+        q_meas, v_meas = env.robot.joint_states(add_noise=False)
+
+        # Kalman filtering
+        if USE_KALMAN_FILTER:
+            y = q_meas
+            A = np.block([[Iq, env.timestep * Iq], [0 * Iq, Iq]])
+            B = np.vstack((0.5 * env.timestep**2 * Iq, env.timestep * Iq))
+            Q = B @ Q0 @ B.T
+
+            estimate = mm.KalmanFilter.predict(estimate, A, Q, B @ u)
+            t0 = time.perf_counter_ns()
+            estimate = mm.KalmanFilter.correct(estimate, C, R0, y)
+            t1 = time.perf_counter_ns()
+            kf_prof.update(t1 - t0)
+            print(f"kf avg = {kf_prof.average / 1e6} ms")
+
+            q, v = estimate.x[:env.robot.nq], estimate.x[env.robot.nq:]
+        else:
+            q = q_meas
+            v = v_meas
 
         # current EE state
         robot.forward(q, v)
@@ -92,15 +133,17 @@ def main():
         a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad
 
         # compute command
-        t0 = time.time()
+        t0 = time.perf_counter_ns()
         u, A_e = controller.solve(q, v, a_ew_w_cmd)
-        t1 = time.time()
+        t1 = time.perf_counter_ns()
 
         A_w = block_diag(C_we, C_we) @ A_e
 
-        print(f"solve took {1000 * (t1 - t0)} ms")
-        print(f"a_cmd = {a_ew_w_cmd}")
-        print(f"A_w = {A_w}")
+        ctrl_prof.update(t1 - t0)
+        print(f"curr = {(t1 - t0) / 1e6} ms")
+        print(f"avg  = {ctrl_prof.average / 1e6} ms")
+        # print(f"a_cmd = {a_ew_w_cmd}")
+        # print(f"A_w = {A_w}")
 
         # NOTE: we want to use v_cmd rather than v here because PyBullet
         # doesn't respond to small velocities well, and it screws up angular
@@ -109,7 +152,46 @@ def main():
         env.robot.command_velocity(v_cmd, bodyframe=False)
         t = env.step(t, step_robot=False)[0]
 
-    IPython.embed()
+        if logger.ready(t):
+            logger.append("ts", t)
+            logger.append("qs_meas", q_meas)
+            logger.append("vs_meas", v_meas)
+            logger.append("qs_est", q)
+            logger.append("vs_est", v)
+
+    # plotting
+    prop_cycle = plt.rcParams["axes.prop_cycle"]
+    colors = prop_cycle.by_key()["color"]
+
+    ts = np.array(logger.data["ts"])
+    qs_meas = np.array(logger.data["qs_meas"])
+    vs_meas = np.array(logger.data["vs_meas"])
+    qs = np.array(logger.data["qs_est"])
+    vs = np.array(logger.data["vs_est"])
+
+    plt.figure()
+    for i in range(env.robot.nq):
+        plt.plot(ts, qs[:, i], label=f"q_{i}", color=colors[i])
+    for i in range(env.robot.nq):
+        plt.plot(ts, qs_meas[:, i], label=f"q_meas_{i}", linestyle="--", color=colors[i])
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.xlabel("Joint position")
+    plt.title("Joint positions vs. time")
+
+    plt.figure()
+    for i in range(env.robot.nv):
+        plt.plot(ts, vs[:, i], label=f"v_{i}", color=colors[i])
+    for i in range(env.robot.nv):
+        plt.plot(ts, vs_meas[:, i], label=f"v_meas_{i}", linestyle="--", color=colors[i])
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.xlabel("Joint velocity")
+    plt.title("Joint velocities vs. time")
+
+    plt.show()
 
 
 if __name__ == "__main__":

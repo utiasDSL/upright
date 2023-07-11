@@ -11,6 +11,9 @@ template <typename Scalar>
 using Mat36 = Eigen::Matrix<Scalar, 3, 6>;
 
 template <typename Scalar>
+using Vec6 = Eigen::Matrix<Scalar, 6, 1>;
+
+template <typename Scalar>
 using Mat6 = Eigen::Matrix<Scalar, 6, 6>;
 
 template <typename Scalar>
@@ -55,7 +58,8 @@ class RobustBounds {
                  const MatX<Scalar>& A_ineq)
         : RT_(RT), F_(F), A_ineq_(A_ineq), no_(F.cols() / 6) {}
 
-    Scalar compute_scale(const Twist<Scalar>& V, const Twist<Scalar>& G) {
+    Scalar compute_scale(const Twist<Scalar>& V, const Twist<Scalar>& G,
+                         const Twist<Scalar>& A) {
         const MatX<Scalar> Y0 = body_regressor(V, G);
         MatX<Scalar> B = MatX<Scalar>::Zero(F_.rows(), RT_.cols());
         for (int i = 0; i < no_; ++i) {
@@ -65,9 +69,26 @@ class RobustBounds {
         MatX<Scalar> BT = B.transpose();  // TODO
         Eigen::Map<VecX<Scalar>> b(BT.data(), BT.size());
 
-        // MatX<Scalar> x = A_ineq_ * A - b;
+        Vec6<Scalar> A_vec;
+        A_vec << A.linear, A.angular;
+        MatX<Scalar> x = A_ineq_ * A_vec;
+        Scalar scale(1.0);
+        for (int i = 0; i < x.size(); ++i) {
+            if (x(i) > b(i)) {
+                if (abs(x(i)) < 1e-8) {
+                    throw std::runtime_error("Division by zero!");
+                }
+                Scalar s = b(i) / x(i);
+                if (s < 0) {
+                    throw std::runtime_error("Different signs in inequality constraints!");
+                }
+                if (s < scale) {
+                    scale = s;
+                }
+            }
+        }
 
-        return Scalar(0);
+        return scale;
     }
 
    private:

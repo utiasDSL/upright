@@ -91,6 +91,8 @@ class ReactiveBalancingController:
 
         self.x_last = None
 
+        self.qp_prof = utils.RunningAverage()
+
     def update(self, q, v):
         self.robot.update(q, v)
 
@@ -99,19 +101,21 @@ class ReactiveBalancingController:
     ):
         if x0 is None:
             x0 = self.x_last
-        # t0 = time.time()
+        t0 = time.perf_counter_ns()
         problem = Problem(P=P, q=q, G=G, h=h, A=A, b=b, lb=lb, ub=ub)
         solution = solve_problem(problem,
             initvals=x0,
             eps_abs=1e-6,
             eps_rel=1e-6,
-            max_iter=10000,
+            max_iter=10,  # TODO play with this
             solver=self.solver,
         )
-        # t1 = time.time()
+        t1 = time.perf_counter_ns()
         x = solution.x
-        # print(f"num iter = {solution.extras['info'].iter}")
-        # print(f"QP time = {1000 * (t1 - t0)} ms")
+        self.qp_prof.update(t1 - t0)
+        print(f"QP curr = {(t1 - t0) / 1e6} ms")
+        print(f"QP avg  = {self.qp_prof.average / 1e6} ms")
+        # print(f"QP iter = {solution.extras['info'].iter}")
 
         # x = solve_qp(
         #     P=P,
@@ -725,7 +729,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             b=b_eq,
             lb=self.lb,
             ub=self.ub,
-            # x0=x0,
+            x0=x0,
         )
         if self.use_approx_robust_constraints:
             # NOTE seems to work somewhat, but is still quite slow just to compute
