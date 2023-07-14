@@ -25,11 +25,12 @@ class ReactiveBalancingController:
         a_cart_weight=1,
         α_cart_weight=5,
         a_joint_weight=0.01,
-        v_joint_weight=0.1,
+        v_joint_weight=3,
         slack_weight=10,
         a_cart_max=5,
         α_cart_max=1,
         a_joint_max=5,
+        v_joint_max=1,
         use_slack=True,
         solver="proxqp",
     ):
@@ -57,6 +58,8 @@ class ReactiveBalancingController:
         self.a_cart_weight = a_cart_weight
         self.α_cart_weight = α_cart_weight
         self.slack_weight = slack_weight
+        # here we are penalizing ||u_k||^2 directly but also ||v_{k+1}||^2 =
+        # ||v_k + dt * u_k||^2
         self.P_joint = (a_joint_weight + dt**2 * v_joint_weight) * np.eye(9)
         self.P_cart = block_diag(a_cart_weight * np.eye(3), α_cart_weight * np.eye(3))
         self.P_slack = slack_weight * np.eye(self.ns)
@@ -71,6 +74,9 @@ class ReactiveBalancingController:
         self.sa = np.s_[self.nu + self.ns : self.nu + self.ns + 3]
         self.sα = np.s_[self.nu + self.ns + 3 : self.nu + self.ns + 6]
         self.sA = np.s_[self.nu + self.ns : self.nu + self.ns + 6]
+
+        self.v_joint_max = v_joint_max
+        self.a_joint_max = a_joint_max
 
         self.ub = np.zeros(self.nv0)
         self.ub[self.su] = a_joint_max  # inputs
@@ -101,6 +107,7 @@ class ReactiveBalancingController:
     ):
         if x0 is None:
             x0 = self.x_last
+
         t0 = time.perf_counter_ns()
         problem = Problem(P=P, q=q, G=G, h=h, A=A, b=b, lb=lb, ub=ub)
         solution = solve_problem(problem,
@@ -113,8 +120,8 @@ class ReactiveBalancingController:
         t1 = time.perf_counter_ns()
         x = solution.x
         self.qp_prof.update(t1 - t0)
-        print(f"QP curr = {(t1 - t0) / 1e6} ms")
-        print(f"QP avg  = {self.qp_prof.average / 1e6} ms")
+        # print(f"QP curr = {(t1 - t0) / 1e6} ms")
+        # print(f"QP avg  = {self.qp_prof.average / 1e6} ms")
         # print(f"QP iter = {solution.extras['info'].iter}")
 
         # x = solve_qp(
@@ -147,6 +154,18 @@ class ReactiveBalancingController:
         q[self.su] = self.v_joint_weight * self.dt * v
         q[self.sa] = -self.a_cart_weight * a_ew_e_cmd
         return q
+
+    def _compute_bounds(self, v):
+        """Compute bounds for the problem.
+
+        We assume the bounds are fixed except for the joint acceleration, which
+        depends on the current joint velocity.
+        """
+        lb_u = np.maximum(-self.a_joint_max, (-self.v_joint_max - v) / self.dt)
+        ub_u = np.minimum(self.a_joint_max, (self.v_joint_max - v) / self.dt)
+        lb = np.concatenate((lb_u, self.lb[self.nu:]))
+        ub = np.concatenate((ub_u, self.ub[self.nu:]))
+        return lb, ub
 
     def _compute_tracking_equalities(self, J, δ):
         """Compute matrix (A, b) such that Ax == b enforces EE acceleration tracking,
@@ -244,6 +263,7 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = self._compute_q(v, a_ew_e_cmd)
+        lb, ub = self._compute_bounds(v)
 
         return self._solve_qp(
             P=self.P_sparse,
@@ -252,8 +272,8 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
             h=self.b_ineq,
             A=sparse.csc_matrix(A_eq),
             b=b_eq,
-            lb=self.lb,
-            ub=self.ub,
+            lb=lb,
+            ub=ub,
             x0=x0,
         )
 
@@ -359,6 +379,7 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = self._compute_q(v, a_ew_e_cmd)
+        lb, ub = self._compute_bounds(v)
 
         return self._solve_qp(
             P=self.P_sparse,
@@ -367,8 +388,8 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
             h=self.b_ineq,
             A=sparse.csc_matrix(A_eq),
             b=b_eq,
-            lb=self.lb,
-            ub=self.ub,
+            lb=lb,
+            ub=ub,
             x0=x0,
         )
 
@@ -719,6 +740,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = self._compute_q(v, a_ew_e_cmd)
+        lb, ub = self._compute_bounds(v)
 
         u, A = self._solve_qp(
             P=self.P_sparse,
@@ -727,8 +749,8 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             h=b_ineq,
             A=sparse.csc_matrix(A_eq),
             b=b_eq,
-            lb=self.lb,
-            ub=self.ub,
+            lb=lb,
+            ub=ub,
             x0=x0,
         )
         if self.use_approx_robust_constraints:

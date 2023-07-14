@@ -4,7 +4,7 @@ import upright_robust.control as robctrl
 
 
 class RobustControllerModel:
-    def __init__(self, ctrl_config, timestep):
+    def __init__(self, ctrl_config, timestep, v_joint_max, a_joint_max):
         # controller
         model = ctrl.manager.ControllerModel.from_config(ctrl_config)
         self.robot = model.robot
@@ -40,11 +40,19 @@ class RobustControllerModel:
 
         # balancing controller
         self.controller = parse_controller_from_config(
-            ctrl_config, self.robot, self.uncertain_objects, self.contacts, timestep
+            ctrl_config,
+            self.robot,
+            self.uncertain_objects,
+            self.contacts,
+            timestep,
+            a_joint_max=a_joint_max,
+            v_joint_max=v_joint_max,
         )
 
 
-def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep):
+def parse_controller_from_config(
+    ctrl_config, robot, objects, contacts, timestep, v_joint_max, a_joint_max
+):
     """Parse the balancing controller from config."""
     use_balancing_constraints = ctrl_config["balancing"]["enabled"]
     tilting_type = ctrl_config["reactive"]["tilting"]
@@ -73,6 +81,8 @@ def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep
             use_approx_robust_constraints=use_approx_robust_constraints,
             use_slack=use_slack,
             slack_weight=slack_weight,
+            v_joint_max=v_joint_max,
+            a_joint_max=a_joint_max,
         )
     elif tilting_type == "tray":
         return robctrl.NominalReactiveBalancingControllerTrayTilting(
@@ -85,6 +95,8 @@ def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep
             use_balancing_constraints=use_balancing_constraints,
             use_slack=use_slack,
             slack_weight=slack_weight,
+            v_joint_max=v_joint_max,
+            a_joint_max=a_joint_max,
         )
     elif tilting_type == "flat":
         return robctrl.NominalReactiveBalancingControllerFlat(
@@ -95,6 +107,8 @@ def parse_controller_from_config(ctrl_config, robot, objects, contacts, timestep
             use_balancing_constraints=use_balancing_constraints,
             use_slack=use_slack,
             slack_weight=slack_weight,
+            v_joint_max=v_joint_max,
+            a_joint_max=a_joint_max,
         )
     else:
         raise ValueError(f"Unknown tilting type {tilting_type}")

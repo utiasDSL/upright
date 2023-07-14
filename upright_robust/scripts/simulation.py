@@ -25,6 +25,10 @@ USE_KALMAN_FILTER = True
 PROCESS_COV = 1
 MEASUREMENT_COV = 1
 
+# TODO specify these properly via config
+MAX_JOINT_VELOCITY = np.array([0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1])
+MAX_JOINT_ACCELERATION = np.array([2.5, 2.5, 1, 5, 5, 5, 5, 5, 5])
+
 
 def sigint_handler(sig, frame):
     print("Ctrl-C pressed: exiting.")
@@ -56,7 +60,12 @@ def main():
     logger = DataLogger(config)
 
     # parse controller model
-    model = rob.RobustControllerModel(ctrl_config, env.timestep)
+    model = rob.RobustControllerModel(
+        ctrl_config,
+        env.timestep,
+        v_joint_max=MAX_JOINT_VELOCITY,
+        a_joint_max=MAX_JOINT_ACCELERATION,
+    )
     kp, kv = model.kp, model.kv
     controller = model.controller
     robot = model.robot
@@ -84,7 +93,7 @@ def main():
     Q0 = PROCESS_COV * Iq
     R0 = MEASUREMENT_COV * Iq
     C = np.hstack((Iq, 0 * Iq))
-    estimate = mm.GaussianEstimate(x=x0, P=P0)
+    estimate = mm.kf.GaussianEstimate(x0, P0)
 
     # goal position
     debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
@@ -105,14 +114,13 @@ def main():
             B = np.vstack((0.5 * env.timestep**2 * Iq, env.timestep * Iq))
             Q = B @ Q0 @ B.T
 
-            estimate = mm.KalmanFilter.predict(estimate, A, Q, B @ u)
             t0 = time.perf_counter_ns()
-            estimate = mm.KalmanFilter.correct(estimate, C, R0, y)
+            estimate = mm.kf.predict_and_correct(estimate, A, Q, B @ u, C, R0, y)
             t1 = time.perf_counter_ns()
             kf_prof.update(t1 - t0)
             print(f"kf avg = {kf_prof.average / 1e6} ms")
 
-            q, v = estimate.x[:env.robot.nq], estimate.x[env.robot.nq:]
+            q, v = estimate.x[: env.robot.nq], estimate.x[env.robot.nq :]
         else:
             q = q_meas
             v = v_meas
@@ -158,6 +166,9 @@ def main():
             logger.append("vs_meas", v_meas)
             logger.append("qs_est", q)
             logger.append("vs_est", v)
+            logger.append("us", u)
+            logger.append("r_ew_ws", r_ew_w)
+            logger.append("v_ew_ws", v_ew_w)
 
     # plotting
     prop_cycle = plt.rcParams["axes.prop_cycle"]
@@ -168,14 +179,19 @@ def main():
     vs_meas = np.array(logger.data["vs_meas"])
     qs = np.array(logger.data["qs_est"])
     vs = np.array(logger.data["vs_est"])
+    us = np.array(logger.data["us"])
+    r_ew_ws = np.array(logger.data["r_ew_ws"])
+    v_ew_ws = np.array(logger.data["v_ew_ws"])
 
     plt.figure()
     for i in range(env.robot.nq):
         plt.plot(ts, qs[:, i], label=f"q_{i}", color=colors[i])
     for i in range(env.robot.nq):
-        plt.plot(ts, qs_meas[:, i], label=f"q_meas_{i}", linestyle="--", color=colors[i])
+        plt.plot(
+            ts, qs_meas[:, i], label=f"q_meas_{i}", linestyle="--", color=colors[i]
+        )
     plt.grid()
-    plt.legend()
+    plt.legend(ncols=2)
     plt.xlabel("Time [s]")
     plt.xlabel("Joint position")
     plt.title("Joint positions vs. time")
@@ -184,12 +200,43 @@ def main():
     for i in range(env.robot.nv):
         plt.plot(ts, vs[:, i], label=f"v_{i}", color=colors[i])
     for i in range(env.robot.nv):
-        plt.plot(ts, vs_meas[:, i], label=f"v_meas_{i}", linestyle="--", color=colors[i])
+        plt.plot(
+            ts, vs_meas[:, i], label=f"v_meas_{i}", linestyle="--", color=colors[i]
+        )
     plt.grid()
-    plt.legend()
+    plt.legend(ncols=2)
     plt.xlabel("Time [s]")
     plt.xlabel("Joint velocity")
     plt.title("Joint velocities vs. time")
+
+    plt.figure()
+    for i in range(env.robot.nv):
+        plt.plot(ts, us[:, i], label=f"u_{i}", color=colors[i])
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.xlabel("Joint acceleration commands")
+    plt.title("Joint acceleration commands vs. time")
+
+    plt.figure()
+    plt.plot(ts, r_ew_ws[:, 0], label="x", color=colors[0])
+    plt.plot(ts, r_ew_ws[:, 1], label="y", color=colors[1])
+    plt.plot(ts, r_ew_ws[:, 2], label="z", color=colors[2])
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.xlabel("Position [m]")
+    plt.title("End effector position vs. time")
+
+    plt.figure()
+    plt.plot(ts, v_ew_ws[:, 0], label="x", color=colors[0])
+    plt.plot(ts, v_ew_ws[:, 1], label="y", color=colors[1])
+    plt.plot(ts, v_ew_ws[:, 2], label="z", color=colors[2])
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.xlabel("Velocity [m/s]")
+    plt.title("End effector velocity vs. time")
 
     plt.show()
 
