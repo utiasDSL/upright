@@ -4,8 +4,8 @@ include:
     path: config/demos/robust_approx/_base.yaml
 
 simulation:
-  arrangement: tall_offset
+  arrangement: tall_0.04
 
 controller:
   balancing:
-    arrangement: tall
+    arrangement: tall_0.04

@@ -4,8 +4,8 @@ include:
     path: config/demos/nominal_tray_only/_base.yaml
 
 simulation:
-  arrangement: short
+  arrangement: tall_0
 
 controller:
   balancing:
-    arrangement: short
+    arrangement: tall_0

@@ -27,75 +27,119 @@ balancing:
 
 objects:
   # these are all the same from the controller's perspective
-  stack_cube:
-    mass: 0.1
+  stack_cube_red_0:
+    mass: 0.125
     com_offset: [0, 0, 0]
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.1]
-
-  stack_cube_red:
-    mass: 0.1
-    com_offset: [0, 0, 0]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
-
-  stack_cube_blue:
-    mass: 0.1
-    com_offset: [0, 0, 0]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
-
-  stack_cube_red_offset:
-    mass: 0.1
-    com_offset: [0, 0, 0]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
-
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
       mass_lower: 0
       mass_upper: 0
 
-  stack_cube_blue_offset:
-    mass: 0.1
+  stack_cube_blue_0:
+    mass: 0.125
     com_offset: [0, 0, 0]
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.1]
-
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
       mass_lower: 0
       mass_upper: 0
 
-  stack_cube_heavy:
-    mass: 0.1
+  stack_cube_red_0.03:
+    mass: 0.125
     com_offset: [0, 0, 0]
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
     shape:
-      type: cuboid
-      side_lengths: [0.1, 0.1, 0.1]
+        type: cuboid
+        side_lengths: [0.1, 0.1, 0.1]
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: 0
+      mass_upper: 0
 
-  stack_cube_light:
-    mass: 0.1
+  stack_cube_blue_0.03:
+    mass: 0.125
     com_offset: [0, 0, 0]
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
     shape:
-      type: cuboid
-      side_lengths: [0.1, 0.1, 0.1]
+        type: cuboid
+        side_lengths: [0.1, 0.1, 0.1]
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: 0
+      mass_upper: 0
 
-  tall_block:
+  stack_cube_red_0.04:
+    mass: 0.125
+    com_offset: [0, 0, 0]
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
+    shape:
+        type: cuboid
+        side_lengths: [0.1, 0.1, 0.1]
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: 0
+      mass_upper: 0
+
+  stack_cube_blue_0.04:
+    mass: 0.125
+    com_offset: [0, 0, 0]
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
+    shape:
+        type: cuboid
+        side_lengths: [0.1, 0.1, 0.1]
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: 0
+      mass_upper: 0
+
+  tall_block_0:
     mass: 0.5
     com_offset: [0, 0, 0]
+    inertia_diag: [0.0066834, 0.0066834, 0.000034]
     shape:
       type: cuboid
       side_lengths: [0.1, 0.1, 0.4]
 
     # bounds are all relative to the nominal values above
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: 0
+      mass_upper: 0
+
+  tall_block_0.03:
+    mass: 0.5
+    com_offset: [0, 0, 0]
+    inertia_diag: [0.0066834, 0.0066834, 0.000034]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.4]
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: 0
+      mass_upper: 0
+
+  tall_block_0.04:
+    mass: 0.5
+    com_offset: [0, 0, 0]
+    inertia_diag: [0.0066834, 0.0066834, 0.000034]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.4]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]

@@ -4,8 +4,8 @@ include:
     path: config/demos/nominal_flat/_base.yaml
 
 simulation:
-  arrangement: short
+  arrangement: asymmetric_arch
 
 controller:
   balancing:
-    arrangement: short
+    arrangement: asymmetric_arch

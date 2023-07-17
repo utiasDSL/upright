@@ -4,8 +4,8 @@ include:
     path: config/demos/robust_approx/_base.yaml
 
 simulation:
-  arrangement: stack5
+  arrangement: stack4_0.03
 
 controller:
   balancing:
-    arrangement: stack5
+    arrangement: stack4_0.03

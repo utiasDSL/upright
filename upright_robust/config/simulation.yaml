@@ -7,60 +7,73 @@ include:
     path: config/arrangements.yaml
 
 objects:
-  stack_cube:
+  stack_cube_red_0:
     shape: cuboid
-    mass: 0.1
-    side_lengths: [0.1, 0.1, 0.1]
-    color: [0, 0, 1, 1]
-
-  stack_cube_red:
-    shape: cuboid
-    mass: 0.1
+    mass: 0.125
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
     side_lengths: [0.1, 0.1, 0.1]
     color: [1, 0, 0, 1]
 
-  stack_cube_blue:
+  stack_cube_blue_0:
     shape: cuboid
-    mass: 0.1
+    mass: 0.125
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
     side_lengths: [0.1, 0.1, 0.1]
     color: [0, 0, 1, 1]
 
-  stack_cube_red_offset:
+  stack_cube_red_0.03:
     shape: cuboid
     mass: 0.125
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
+    com_offset: [0, -0.03, 0]
+    side_lengths: [0.1, 0.1, 0.1]
+    color: [1, 0, 0, 1]
+
+  stack_cube_blue_0.03:
+    shape: cuboid
+    mass: 0.125
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
+    com_offset: [0, -0.03, 0]
+    side_lengths: [0.1, 0.1, 0.1]
+    color: [0, 0, 1, 1]
+
+  stack_cube_red_0.04:
+    shape: cuboid
+    mass: 0.125
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
     com_offset: [0, -0.04, 0]
     side_lengths: [0.1, 0.1, 0.1]
     color: [1, 0, 0, 1]
 
-  stack_cube_blue_offset:
+  stack_cube_blue_0.04:
     shape: cuboid
     mass: 0.125
+    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
     com_offset: [0, -0.04, 0]
     side_lengths: [0.1, 0.1, 0.1]
     color: [0, 0, 1, 1]
 
-  stack_cube_heavy:
-    shape: cuboid
-    mass: 1.0
-    side_lengths: [0.1, 0.1, 0.1]
-    color: [1, 0, 0, 1]
-
-  stack_cube_light:
-    shape: cuboid
-    mass: 0.1
-    side_lengths: [0.1, 0.1, 0.1]
-    color: [1, 0, 0, 1]
-
-  tall_block:
+  tall_block_0:
     mass: 0.5
     com_offset: [0, 0, 0]
+    inertia_diag: [0.0066834, 0.0066834, 0.000034]
     shape: cuboid
     side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]
 
-  tall_block_offset:
+  tall_block_0.03:
+    mass: 0.5
+    com_offset: [0, -0.03, 0]
+    # inertial diagonal about the CoM
+    inertia_diag: [0.0066834, 0.0066834, 0.000034]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.4]
+    color: [1, 0, 0, 1]
+
+  tall_block_0.04:
     mass: 0.5
     com_offset: [0, -0.04, 0]
+    inertia_diag: [0.0066834, 0.0066834, 0.000034]
     shape: cuboid
     side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]

@@ -4,8 +4,8 @@ include:
     path: config/demos/nominal_full/_base.yaml
 
 simulation:
-  arrangement: tall
+  arrangement: stack4_0.03
 
 controller:
   balancing:
-    arrangement: tall
+    arrangement: stack4_0.03

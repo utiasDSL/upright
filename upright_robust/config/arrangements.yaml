@@ -30,23 +30,23 @@ arrangements:
         second: cube3
         mu: 0.2
 
-  stack4:
+  stack4_0:
     objects:
       -
         name: cube1
-        type: stack_cube_red_offset
+        type: stack_cube_red_0
         parent: ee
       -
         name: cube2
-        type: stack_cube_blue_offset
+        type: stack_cube_blue_0
         parent: cube1
       -
         name: cube3
-        type: stack_cube_red_offset
+        type: stack_cube_red_0
         parent: cube2
       -
         name: cube4
-        type: stack_cube_blue_offset
+        type: stack_cube_blue_0
         parent: cube3
     contacts:
       -
@@ -66,88 +66,129 @@ arrangements:
         second: cube4
         mu: 0.5
 
-  stack5:
+  stack4_0.03:
     objects:
       -
         name: cube1
-        type: stack_cube_red_offset
+        type: stack_cube_red_0.03
         parent: ee
       -
         name: cube2
-        type: stack_cube_blue_offset
+        type: stack_cube_blue_0.03
         parent: cube1
       -
         name: cube3
-        type: stack_cube_red_offset
+        type: stack_cube_red_0.03
         parent: cube2
       -
         name: cube4
-        type: stack_cube_blue_offset
+        type: stack_cube_blue_0.03
         parent: cube3
-      -
-        name: cube5
-        type: stack_cube_red_offset
-        parent: cube4
     contacts:
       -
         first: ee
         second: cube1
-        mu: 0.2
+        mu: 0.5
       -
         first: cube1
         second: cube2
-        mu: 0.2
+        mu: 0.5
       -
         first: cube2
         second: cube3
-        mu: 0.2
+        mu: 0.5
       -
         first: cube3
         second: cube4
-        mu: 0.2
-      -
-        first: cube4
-        second: cube5
-        mu: 0.2
+        mu: 0.5
 
-  single_cube:
+  stack4_0.04:
     objects:
       -
         name: cube1
-        type: stack_cube
+        type: stack_cube_red_0.04
+        parent: ee
+      -
+        name: cube2
+        type: stack_cube_blue_0.04
+        parent: cube1
+      -
+        name: cube3
+        type: stack_cube_red_0.04
+        parent: cube2
+      -
+        name: cube4
+        type: stack_cube_blue_0.04
+        parent: cube3
+    contacts:
+      -
+        first: ee
+        second: cube1
+        mu: 0.5
+      -
+        first: cube1
+        second: cube2
+        mu: 0.5
+      -
+        first: cube2
+        second: cube3
+        mu: 0.5
+      -
+        first: cube3
+        second: cube4
+        mu: 0.5
+
+  tall_0:
+    objects:
+      -
+        name: block1
+        type: tall_block_0
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: block1
+        mu: 0.5
+        support_area_inset: 0.0
+
+  tall_0.03:
+    objects:
+      -
+        name: block1
+        type: tall_block_0.03
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: block1
+        mu: 0.5
+        support_area_inset: 0.0
+
+  tall_0.04:
+    objects:
+      -
+        name: block1
+        type: tall_block_0.04
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: block1
+        mu: 0.5
+        support_area_inset: 0.0
+
+  short:
+    objects:
+      -
+        name: cube1
+        type: stack_cube_red_0
         parent: ee
     contacts:
       -
         first: ee
         second: cube1
         mu: 0.1
-        mu_margin: 0.01
-
-  tall:
-    objects:
-      -
-        name: block1
-        type: tall_block
-        parent: ee
-    contacts:
-      -
-        first: ee
-        second: block1
-        mu: 0.5
-        support_area_inset: 0.0
-
-  tall_offset:
-    objects:
-      -
-        name: block1
-        type: tall_block_offset
-        parent: ee
-    contacts:
-      -
-        first: ee
-        second: block1
-        mu: 0.5
-        support_area_inset: 0.0
+        mu_margin: 0.0
 
   very_tall:
     objects:

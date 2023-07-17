@@ -7,7 +7,7 @@ import sys
 
 import numpy as np
 import pybullet as pyb
-from pyb_utils.frame import debug_frame_world
+import pyb_utils
 import matplotlib.pyplot as plt
 from scipy.linalg import block_diag
 
@@ -55,6 +55,10 @@ def main():
         extra_gui=sim_config.get("extra_gui", False),
     )
     env.settle(5.0)
+    print("Sim object info")
+    for name, obj in env.objects.items():
+        info = pyb_utils.getDynamicsInfo(obj.uid, -1)
+        print(f"{name} inertia diag = {info.localInertiaDiagonal}")
 
     # data logging
     logger = DataLogger(config)
@@ -96,7 +100,7 @@ def main():
     estimate = mm.kf.GaussianEstimate(x0, P0)
 
     # goal position
-    debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
+    pyb_utils.debug_frame_world(0.2, list(r_ew_w_d), orientation=Q_we_0, line_width=3)
 
     # profiling for controller solve time
     ctrl_prof = rob.RunningAverage()
