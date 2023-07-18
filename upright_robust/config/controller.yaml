@@ -30,7 +30,7 @@ objects:
   stack_cube_red_0:
     mass: 0.125
     com_offset: [0, 0, 0]
-    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
+    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.1]
@@ -43,7 +43,7 @@ objects:
   stack_cube_blue_0:
     mass: 0.125
     com_offset: [0, 0, 0]
-    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
+    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.1]
@@ -56,7 +56,7 @@ objects:
   stack_cube_red_0.03:
     mass: 0.125
     com_offset: [0, 0, 0]
-    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
+    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.1]
@@ -69,7 +69,7 @@ objects:
   stack_cube_blue_0.03:
     mass: 0.125
     com_offset: [0, 0, 0]
-    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
+    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.1]
@@ -82,7 +82,7 @@ objects:
   stack_cube_red_0.04:
     mass: 0.125
     com_offset: [0, 0, 0]
-    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
+    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.1]
@@ -95,7 +95,7 @@ objects:
   stack_cube_blue_0.04:
     mass: 0.125
     com_offset: [0, 0, 0]
-    inertia_diag: [0.00010834, 0.00010834, 0.00000834]
+    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
     shape:
         type: cuboid
         side_lengths: [0.1, 0.1, 0.1]
@@ -108,7 +108,7 @@ objects:
   tall_block_0:
     mass: 0.5
     com_offset: [0, 0, 0]
-    inertia_diag: [0.0066834, 0.0066834, 0.000034]
+    inertia_diag: [0.0066833333, 0.0070833333, 0.0004333333]
     shape:
       type: cuboid
       side_lengths: [0.1, 0.1, 0.4]
@@ -123,7 +123,7 @@ objects:
   tall_block_0.03:
     mass: 0.5
     com_offset: [0, 0, 0]
-    inertia_diag: [0.0066834, 0.0066834, 0.000034]
+    inertia_diag: [0.0066833333, 0.0070833333, 0.0004333333]
     shape:
       type: cuboid
       side_lengths: [0.1, 0.1, 0.4]
@@ -136,7 +136,7 @@ objects:
   tall_block_0.04:
     mass: 0.5
     com_offset: [0, 0, 0]
-    inertia_diag: [0.0066834, 0.0066834, 0.000034]
+    inertia_diag: [0.0066833333, 0.0070833333, 0.0004333333]
     shape:
       type: cuboid
       side_lengths: [0.1, 0.1, 0.4]

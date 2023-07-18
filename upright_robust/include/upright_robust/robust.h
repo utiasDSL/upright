@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 #include <upright_core/types.h>
 #include <upright_core/util.h>
 
@@ -15,6 +17,9 @@ using Vec6 = Eigen::Matrix<Scalar, 6, 1>;
 
 template <typename Scalar>
 using Mat6 = Eigen::Matrix<Scalar, 6, 6>;
+
+template <typename Scalar>
+using Mat6_10 = Eigen::Matrix<Scalar, 6, 10>;
 
 template <typename Scalar>
 Mat36<Scalar> lift3(const Vec3<Scalar>& x) {
@@ -37,8 +42,8 @@ Mat6<Scalar> skew6(const Twist<Scalar>& V) {
 }
 
 template <typename Scalar>
-Mat6<Scalar> lift6(const Twist<Scalar>& A) {
-    Mat6<Scalar> L;
+Mat6_10<Scalar> lift6(const Twist<Scalar>& A) {
+    Mat6_10<Scalar> L;
     // clang-format off
     L << A.linear, skew3(A.angular), Mat36<Scalar>::Zero(),
          Vec3<Scalar>::Zero(), -skew3(A.linear), lift3(A.angular);
@@ -58,20 +63,32 @@ class RobustBounds {
                  const MatX<Scalar>& A_ineq)
         : RT_(RT), F_(F), A_ineq_(A_ineq), no_(F.cols() / 6) {}
 
-    Scalar compute_scale(const Twist<Scalar>& V, const Twist<Scalar>& G,
-                         const Twist<Scalar>& A) {
-        const MatX<Scalar> Y0 = body_regressor(V, G);
-        MatX<Scalar> B = MatX<Scalar>::Zero(F_.rows(), RT_.cols());
+    Scalar compute_scale(const Vec6<Scalar>& V, const Vec6<Scalar>& G,
+                         const Vec6<Scalar>& A) {
+
+        Twist<Scalar> Vt;
+        Vt.linear = V.head(3);
+        Vt.angular = V.tail(3);
+        Twist<Scalar> Gt;
+        Gt.linear = G.head(3);
+        Gt.angular = G.tail(3);
+
+        const MatX<Scalar> Y0 = body_regressor(Vt, Gt);
+        // MatX<Scalar> B = MatX<Scalar>::Zero(F_.rows(), RT_.cols());
+        // for (int i = 0; i < no_; ++i) {
+        //     B.noalias() += F_.middleCols(i * 6, 6) * Y0 * RT_.middleRows(i * 10, 10);
+        // }
+
+        MatX<Scalar> BT = MatX<Scalar>::Zero(RT_.cols(), F_.rows());
         for (int i = 0; i < no_; ++i) {
-            B += F_.middleCols(i * 6, 6) * Y0 * RT_.middleRows(i * 10, 10);
+            BT.noalias() += RT_.middleRows(i * 10, 10).transpose() * Y0.transpose() * F_.middleCols(i * 6, 6).transpose();
         }
 
-        MatX<Scalar> BT = B.transpose();  // TODO
-        Eigen::Map<VecX<Scalar>> b(BT.data(), BT.size());
+        // MatX<Scalar> BT = B.transpose();  // TODO
+        // Eigen::Map<VecX<Scalar>> b(BT.data(), BT.size());
+        Eigen::Map<Eigen::Array<Scalar, -1, 1>> b(BT.data(), BT.size());
 
-        Vec6<Scalar> A_vec;
-        A_vec << A.linear, A.angular;
-        MatX<Scalar> x = A_ineq_ * A_vec;
+        VecX<Scalar> x = A_ineq_ * A;
         Scalar scale(1.0);
         for (int i = 0; i < x.size(); ++i) {
             if (x(i) > b(i)) {
@@ -87,7 +104,6 @@ class RobustBounds {
                 }
             }
         }
-
         return scale;
     }
 

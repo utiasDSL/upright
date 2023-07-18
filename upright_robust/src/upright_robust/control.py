@@ -5,12 +5,37 @@ from scipy import sparse
 from scipy.linalg import block_diag, null_space
 from qpsolvers import solve_qp, Problem, solve_problem
 from lpsolvers import solve_lp
+import proxsuite
 
 import upright_core as core
 import upright_robust.utils as utils
 import upright_robust.modelling as mdl
+from upright_robust.bindings import RobustBounds
 
 import IPython
+
+
+class QPUpdateMask:
+    def __init__(self, P=True, q=True, A=True, b=True, G=True, h=True, lb=True, ub=True):
+        self.P = P
+        self.q = q
+        self.A = A
+        self.b = b
+        self.G = G
+        self.h = h
+        self.lb = lb
+        self.ub = ub
+
+    def update(self, P, q, A=None, b=None, G=None, h=None, lb=None, ub=None):
+        P = P if self.P else None
+        q = q if self.q else None
+        A = A if self.A else None
+        b = b if self.b else None
+        G = G if self.G else None
+        h = h if self.h else None
+        lb = lb if self.lb else None
+        ub = ub if self.ub else None
+        return P, q, A, b, G, h, lb, ub
 
 
 class ReactiveBalancingController:
@@ -97,10 +122,35 @@ class ReactiveBalancingController:
 
         self.x_last = None
 
+        self.qp = None
         self.qp_prof = utils.RunningAverage()
 
     def update(self, q, v):
         self.robot.update(q, v)
+
+    def _solve_qp_prox(
+        self, P, q, G=None, h=None, A=None, b=None, lb=None, ub=None, x0=None
+    ):
+        """Solve QP using proxqp's dense solver."""
+        if self.qp is None:
+            nv = P.shape[0]
+            n_eq = A.shape[0] if A is not None else 0
+            n_ineq = G.shape[0] if G is not None else 0
+            use_box = lb is not None
+            self.qp = proxsuite.proxqp.dense.QP(nv, n_eq, n_ineq, use_box)
+            l = -np.infty * np.ones_like(h)
+            self.qp.init(P, q, A, b, G, l, h, lb, ub)
+        else:
+            l = None  # doesn't change
+            P, q, A, b, G, h, lb, ub = self.update_mask.update(P, q, A, b, G, h, lb, ub)
+            self.qp.update(P, q, A, b, G, l, h, lb, ub)
+
+        # by default proxqp uses the previous solution as a warm-start
+        self.qp.solve()
+        x = self.qp.results.x
+        u = x[self.su]
+        A = x[self.sA]
+        return u, A
 
     def _solve_qp(
         self, P, q, G=None, h=None, A=None, b=None, lb=None, ub=None, x0=None
@@ -110,7 +160,8 @@ class ReactiveBalancingController:
 
         t0 = time.perf_counter_ns()
         problem = Problem(P=P, q=q, G=G, h=h, A=A, b=b, lb=lb, ub=ub)
-        solution = solve_problem(problem,
+        solution = solve_problem(
+            problem,
             initvals=x0,
             eps_abs=1e-6,
             eps_rel=1e-6,
@@ -163,8 +214,8 @@ class ReactiveBalancingController:
         """
         lb_u = np.maximum(-self.a_joint_max, (-self.v_joint_max - v) / self.dt)
         ub_u = np.minimum(self.a_joint_max, (self.v_joint_max - v) / self.dt)
-        lb = np.concatenate((lb_u, self.lb[self.nu:]))
-        ub = np.concatenate((ub_u, self.ub[self.nu:]))
+        lb = np.concatenate((lb_u, self.lb[self.nu :]))
+        ub = np.concatenate((ub_u, self.ub[self.nu :]))
         return lb, ub
 
     def _compute_tracking_equalities(self, J, δ):
@@ -511,7 +562,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             print("...done.")
 
             n_face = self.face.shape[0]
-            n_ineq = self.R.shape[0]
+            n_ineq = R.shape[0]
             self.A_ineq_rob = np.zeros((n_ineq * n_face, 6))
             for i in range(n_face):
                 D = utils.body_regressor_A_by_vector(self.face[i, :])
@@ -519,6 +570,8 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                 self.A_ineq_rob[i * n_ineq : (i + 1) * n_ineq, :] = -R @ D_tilde
 
             self.RT = R[:, :-1].T
+
+            self.robust_bounds = RobustBounds(self.RT, self.face, self.A_ineq_rob)
 
         if use_robust_constraints:
             # robust constraints without using DD to remove the extra dual variables
@@ -682,6 +735,9 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         )
         self.lb = -self.ub
 
+        self.update_mask = QPUpdateMask(P=False, G=False)
+        self.approx_scale_prof = utils.RunningAverage()
+
     def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
         x0 = self._initial_guess(a_ew_e_cmd)
 
@@ -742,46 +798,58 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         q = self._compute_q(v, a_ew_e_cmd)
         lb, ub = self._compute_bounds(v)
 
-        u, A = self._solve_qp(
-            P=self.P_sparse,
+        # u, A = self._solve_qp(
+        #     P=self.P_sparse,
+        #     q=q,
+        #     G=self.A_ineq_sparse,
+        #     h=b_ineq,
+        #     A=sparse.csc_matrix(A_eq),
+        #     b=b_eq,
+        #     lb=lb,
+        #     ub=ub,
+        #     x0=x0,
+        # )
+        u, A = self._solve_qp_prox(
+            P=self.P,
             q=q,
-            G=self.A_ineq_sparse,
+            G=self.A_ineq,
             h=b_ineq,
-            A=sparse.csc_matrix(A_eq),
+            A=A_eq,
             b=b_eq,
             lb=lb,
             ub=ub,
             x0=x0,
         )
         if self.use_approx_robust_constraints:
-            # NOTE seems to work somewhat, but is still quite slow just to compute
-            # these quantities
-            t0 = time.time()
+            t0 = time.perf_counter_ns()
+            scale = self.robust_bounds.compute_scale(V_ew_e, -G_e, A)
+            assert scale >= 0, "Scale must be non-negative."
 
-            # the implementation below is equivalent to but faster than:
-            # B = utils.body_regressor_VG_by_vector_vectorized(V_ew_e, G_e, self.face)
-            # b_ineq_rob = (self.R @ B).T.flatten()
-
-            Y0 = utils.body_regressor(V_ew_e, -G_e)
-            b_ineq_rob = np.ravel(self.face @ block_diag(*[Y0] * self.no) @ self.RT)
-
-            x = self.A_ineq_rob @ A
-            mask = x > b_ineq_rob
-            s = b_ineq_rob[mask] / x[mask]
-
-            # short-circuit if there are no constraint violations
-            if s.shape == (0,):
-                return u, A
-
-            if np.any(s < 0):
-                raise ValueError("Different signs in inequality constraints!")
-
-            scale = np.min(s)
+            # # the implementation below is equivalent to but faster than:
+            # # B = utils.body_regressor_VG_by_vector_vectorized(V_ew_e, G_e, self.face)
+            # # b_ineq_rob = (self.R @ B).T.flatten()
+            #
+            # Y0 = utils.body_regressor(V_ew_e, -G_e)
+            # b_ineq_rob = np.ravel(self.face @ block_diag(*[Y0] * self.no) @ self.RT)
+            #
+            # x = self.A_ineq_rob @ A
+            # mask = x > b_ineq_rob
+            # s = b_ineq_rob[mask] / x[mask]
+            #
+            # # short-circuit if there are no constraint violations
+            # if s.shape == (0,):
+            #     return u, A
+            #
+            # if np.any(s < 0):
+            #     raise ValueError("Different signs in inequality constraints!")
+            #
+            # scale = np.min(s)
             sA = scale * A
             su = np.linalg.lstsq(J, sA - δ, rcond=None)[0]
 
-            t1 = time.time()
-            print(f"scale took {1000 * (t1 - t0)} ms")
+            t1 = time.perf_counter_ns()
+            self.approx_scale_prof.update(t1 - t0)
+            print(f"scale avg = {self.approx_scale_prof.average / 1e6} ms")
 
             return su, sA
         return u, A
