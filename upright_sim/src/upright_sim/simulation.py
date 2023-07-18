@@ -151,7 +151,13 @@ class BulletBody:
 
     @staticmethod
     def cuboid(
-        mass, mu, side_lengths, orientation=None, com_offset=None, color=(0, 0, 1, 1)
+        mass,
+        mu,
+        side_lengths,
+        orientation=None,
+        com_offset=None,
+        local_inertia_diagonal=None,
+        color=(0, 0, 1, 1),
     ):
         """Construct a cuboid object."""
         half_extents = 0.5 * np.array(side_lengths)
@@ -174,10 +180,19 @@ class BulletBody:
             visual_uid=visual_uid,
             orientation=orientation,
             com_offset=com_offset,
+            local_inertia_diagonal=local_inertia_diagonal,
         )
 
     @staticmethod
-    def sphere(mass, mu, radius, orientation=None, com_offset=None, color=(0, 0, 1, 1)):
+    def sphere(
+        mass,
+        mu,
+        radius,
+        orientation=None,
+        com_offset=None,
+        local_inertia_diagonal=None,
+        color=(0, 0, 1, 1),
+    ):
         """Construct a cylinder object."""
         half_extents = np.ones(3) * radius / 2
         box = polyhedron.ConvexPolyhedron.box(half_extents)
@@ -198,6 +213,7 @@ class BulletBody:
             collision_uid=collision_uid,
             visual_uid=visual_uid,
             com_offset=com_offset,
+            local_inertia_diagonal=local_inertia_diagonal,
         )
 
     @staticmethod
@@ -240,7 +256,9 @@ class BulletBody:
     @staticmethod
     def from_config(d, mu, orientation=None):
         """Construct the object from a dictionary."""
-        com_offset = np.array(d["com_offset"]) if "com_offset" in d else np.zeros(3)
+        com_offset = np.array(d.get("com_offset", (0, 0, 0)))
+        local_inertia_diagonal = d.get("inertia_diag", None)
+
         if d["shape"] == "cylinder":
             return BulletBody.cylinder(
                 mass=d["mass"],
@@ -250,6 +268,7 @@ class BulletBody:
                 color=d["color"],
                 orientation=orientation,
                 com_offset=com_offset,
+                local_inertia_diagonal=local_inertia_diagonal,
             )
         elif d["shape"] == "cuboid":
             return BulletBody.cuboid(
@@ -259,8 +278,13 @@ class BulletBody:
                 color=d["color"],
                 orientation=orientation,
                 com_offset=com_offset,
+                local_inertia_diagonal=local_inertia_diagonal,
             )
         elif d["shape"] == "wedge":
+            if local_inertia_diagonal is not None:
+                raise NotImplementedError(
+                    "Manually setting inertia diagonal not supported for wedge."
+                )
             return BulletBody.wedge(
                 mass=d["mass"],
                 mu=mu,

@@ -497,7 +497,7 @@ def parse_inset_dict(contact_conf):
     return insets
 
 
-def parse_inertia(mass, shape_config, com_offset):
+def parse_inertia(mass, shape_config):
     type_ = shape_config["type"].lower()
     if type_ == "cylinder":
         inertia = math.cylinder_inertia_matrix(
@@ -530,7 +530,12 @@ def _parse_rigid_body_and_box(obj_type_conf, base_position, quat):
         local_com_offset += np.array([-hx, 0, -hz]) / 3
     com_offset = C @ local_com_offset
 
-    local_inertia = parse_inertia(mass, shape_config, local_com_offset)
+    # inertia can be manually specified; otherwise defaults to assuming uniform
+    # density for the given shape
+    if "inertia_diag" in obj_type_conf:
+        local_inertia = np.diag(obj_type_conf["inertia_diag"])
+    else:
+        local_inertia = parse_inertia(mass, shape_config)
     inertia = C @ local_inertia @ C.T
 
     z = np.array([0, 0, 1])
