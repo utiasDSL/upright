@@ -53,6 +53,36 @@ objects:
     side_lengths: [0.1, 0.1, 0.1]
     color: [0, 0, 1, 1]
 
+  # the certain/uncertain variants are the same from the simulation side: only
+  # the controller bounds change
+  stack2_block_bottom_mass_uncertain:
+    shape: cuboid
+    mass: 0.2
+    com_offset: [0, -0.04, 0]
+    side_lengths: [0.1, 0.1, 0.25]
+    color: [0, 0, 1, 1]
+
+  stack2_block_top_mass_uncertain:
+    shape: cuboid
+    mass: 0.8
+    com_offset: [0, -0.04, 0]
+    side_lengths: [0.1, 0.1, 0.25]
+    color: [1, 0, 0, 1]
+
+  stack2_block_bottom_mass_certain:
+    shape: cuboid
+    mass: 0.2
+    com_offset: [0, -0.04, 0]
+    side_lengths: [0.1, 0.1, 0.25]
+    color: [0, 0, 1, 1]
+
+  stack2_block_top_mass_certain:
+    shape: cuboid
+    mass: 0.8
+    com_offset: [0, -0.04, 0]
+    side_lengths: [0.1, 0.1, 0.25]
+    color: [1, 0, 0, 1]
+
   tall_block_0:
     mass: 0.5
     com_offset: [0, 0, 0]
@@ -74,6 +104,15 @@ objects:
     mass: 0.5
     com_offset: [0, -0.04, 0]
     inertia_diag: [0.0066833333, 0.0070833333, 0.0004333333]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.4]
+    color: [1, 0, 0, 1]
+
+  tall_block_I0:
+    mass: 0.5
+    com_offset: [0, 0, 0]
+    inertia_diag: [0, 0, 0]
+    # inertia_diag: [0.02125, 0.02125, 0.0025]
     shape: cuboid
     side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]

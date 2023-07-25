@@ -36,21 +36,21 @@ def point_mass_system_com(masses, points):
 def main():
     np.set_printoptions(precision=10, suppress=True)
 
+    I_slice_stack4 = core.math.cuboid_inertia_matrix(mass=0.125, side_lengths=[0.1, 0.02, 0.1])
+    I_slice_tall = core.math.cuboid_inertia_matrix(mass=0.5, side_lengths=[0.1, 0.02, 0.4])
+
+    print("Inertia diagonals")
+    print(f"stack4 = {np.diag(I_slice_stack4)}")
+    print(f"tall = {np.diag(I_slice_tall)}")
+    return
+
     mass = 0.5
     masses = np.concatenate((1 * np.ones(4), 1 * np.ones(4)))
     masses *= mass / np.sum(masses)
-    half_extents = np.array([0.01, 0.01, 0.05])
+    half_extents = np.array([0.05, 0.05, 0.2])
     vertices = cuboid_vertices(half_extents)
-
-    # I_slice = core.math.cuboid_inertia_matrix(mass, [0.1, 0.02, 0.1])
-    I_slice = core.math.cuboid_inertia_matrix(mass, [0.1, 0.02, 0.4])
-
-    print(I_slice)
-    print(np.diag(I_slice))
-    return
-
-    # c = point_mass_system_com(masses, vertices)
-    # H, _ = point_mass_system_inertia(masses, vertices)
+    H, I = point_mass_system_inertia(masses, vertices)
+    print(np.diag(I))
     # print(c)
     # Hc = H - mass * np.outer(c, c)
     # Ic = np.trace(Hc) * np.eye(3) - Hc

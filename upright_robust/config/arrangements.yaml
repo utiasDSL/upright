@@ -138,6 +138,46 @@ arrangements:
         second: cube4
         mu: 0.5
 
+  stack2_mass_uncertain:
+    objects:
+      -
+        name: block1
+        type: stack2_block_bottom_mass_uncertain
+        parent: ee
+      -
+        name: block2
+        type: stack2_block_top_mass_uncertain
+        parent: block1
+    contacts:
+      -
+        first: ee
+        second: block1
+        mu: 0.2
+      -
+        first: block1
+        second: block2
+        mu: 0.2
+
+  stack2_mass_certain:
+    objects:
+      -
+        name: block1
+        type: stack2_block_bottom_mass_certain
+        parent: ee
+      -
+        name: block2
+        type: stack2_block_top_mass_certain
+        parent: block1
+    contacts:
+      -
+        first: ee
+        second: block1
+        mu: 0.2
+      -
+        first: block1
+        second: block2
+        mu: 0.2
+
   tall_0:
     objects:
       -
@@ -169,6 +209,19 @@ arrangements:
       -
         name: block1
         type: tall_block_0.04
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: block1
+        mu: 0.5
+        support_area_inset: 0.0
+
+  tall_I0:
+    objects:
+      -
+        name: block1
+        type: tall_block_I0
         parent: ee
     contacts:
       -

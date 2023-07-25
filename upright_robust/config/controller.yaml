@@ -105,6 +105,54 @@ objects:
       mass_lower: 0
       mass_upper: 0
 
+  stack2_block_bottom_mass_uncertain:
+    mass: 0.5
+    com_offset: [0, 0.0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.25]
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: -0.3
+      mass_upper: 0.3
+
+  stack2_block_top_mass_uncertain:
+    mass: 0.5
+    com_offset: [0, 0.0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.25]
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: -0.3
+      mass_upper: 0.3
+
+  stack2_block_bottom_mass_certain:
+    mass: 0.5
+    com_offset: [0, 0.0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.25]
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: 0
+      mass_upper: 0
+
+  stack2_block_top_mass_certain:
+    mass: 0.5
+    com_offset: [0, 0.0, 0]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.25]
+    bounds:
+      com_lower: [-0.04, -0.04, -0.04]
+      com_upper: [0.04, 0.04, 0.04]
+      mass_lower: 0
+      mass_upper: 0
+
   tall_block_0:
     mass: 0.5
     com_offset: [0, 0, 0]
@@ -145,6 +193,16 @@ objects:
       com_upper: [0.04, 0.04, 0.04]
       mass_lower: 0
       mass_upper: 0
+
+  tall_block_I0:
+    mass: 0.5
+    com_offset: [0, 0, 0]
+    # inertia_diag: [0, 0, 0]
+    inertia_diag: [0.02125, 0.02125, 0.0025]
+    shape:
+      type: cuboid
+      side_lengths: [0.1, 0.1, 0.4]
+    color: [1, 0, 0, 1]
 
   very_tall_block:
     mass: 0.5
