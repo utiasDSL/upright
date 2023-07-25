@@ -36,12 +36,13 @@ def point_mass_system_com(masses, points):
 def main():
     np.set_printoptions(precision=10, suppress=True)
 
-    I_slice_stack4 = core.math.cuboid_inertia_matrix(mass=0.125, side_lengths=[0.1, 0.02, 0.1])
-    I_slice_tall = core.math.cuboid_inertia_matrix(mass=0.5, side_lengths=[0.1, 0.02, 0.4])
+    I_slice_stack4 = core.math.cuboid_inertia_matrix(mass=0.25, side_lengths=[0.1, 0.02, 0.1])
+    I_slice_tall = core.math.cuboid_inertia_matrix(mass=1.0, side_lengths=[0.1, 0.02, 0.4])
 
+    # using `repr` gets us commas
     print("Inertia diagonals")
-    print(f"stack4 = {np.diag(I_slice_stack4)}")
-    print(f"tall = {np.diag(I_slice_tall)}")
+    print(f"stack4 = {repr(np.diag(I_slice_stack4))}")
+    print(f"tall = {repr(np.diag(I_slice_tall))}")
     return
 
     mass = 0.5

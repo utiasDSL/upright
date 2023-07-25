@@ -7,52 +7,54 @@ include:
     path: config/arrangements.yaml
 
 objects:
-  stack_cube_red_0:
+  # STACK4
+  stack4_cube_red_0:
     shape: cuboid
-    mass: 0.125
-    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
+    mass: 0.25
+    inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
     side_lengths: [0.1, 0.1, 0.1]
     color: [1, 0, 0, 1]
 
-  stack_cube_blue_0:
+  stack4_cube_blue_0:
     shape: cuboid
-    mass: 0.125
-    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
+    mass: 0.25
+    inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
     side_lengths: [0.1, 0.1, 0.1]
     color: [0, 0, 1, 1]
 
-  stack_cube_red_0.03:
+  stack4_cube_red_0.03:
     shape: cuboid
-    mass: 0.125
-    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
+    mass: 0.25
+    inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
     com_offset: [0, -0.03, 0]
     side_lengths: [0.1, 0.1, 0.1]
     color: [1, 0, 0, 1]
 
-  stack_cube_blue_0.03:
+  stack4_cube_blue_0.03:
     shape: cuboid
-    mass: 0.125
-    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
+    mass: 0.25
+    inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
     com_offset: [0, -0.03, 0]
     side_lengths: [0.1, 0.1, 0.1]
     color: [0, 0, 1, 1]
 
-  stack_cube_red_0.04:
+  stack4_cube_red_0.04:
     shape: cuboid
-    mass: 0.125
-    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
+    mass: 0.25
+    inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
     com_offset: [0, -0.04, 0]
     side_lengths: [0.1, 0.1, 0.1]
     color: [1, 0, 0, 1]
 
-  stack_cube_blue_0.04:
+  stack4_cube_blue_0.04:
     shape: cuboid
-    mass: 0.125
-    inertia_diag: [0.0001083333, 0.0002083333, 0.0001083333]
+    mass: 0.25
+    inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
     com_offset: [0, -0.04, 0]
     side_lengths: [0.1, 0.1, 0.1]
     color: [0, 0, 1, 1]
 
+  # STACK2
   # the certain/uncertain variants are the same from the simulation side: only
   # the controller bounds change
   stack2_block_bottom_mass_uncertain:
@@ -83,33 +85,34 @@ objects:
     side_lengths: [0.1, 0.1, 0.25]
     color: [1, 0, 0, 1]
 
+  # TALL
   tall_block_0:
-    mass: 0.5
+    mass: 1.0
     com_offset: [0, 0, 0]
-    inertia_diag: [0.0066833333, 0.0070833333, 0.0004333333]
+    # inertial diagonal about the CoM
+    inertia_diag: [0.0133666667, 0.0141666667, 0.0008666667]
     shape: cuboid
     side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]
 
   tall_block_0.03:
-    mass: 0.5
+    mass: 1.0
     com_offset: [0, -0.03, 0]
-    # inertial diagonal about the CoM
-    inertia_diag: [0.0066833333, 0.0070833333, 0.0004333333]
+    inertia_diag: [0.0133666667, 0.0141666667, 0.0008666667]
     shape: cuboid
     side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]
 
   tall_block_0.04:
-    mass: 0.5
+    mass: 1.0
     com_offset: [0, -0.04, 0]
-    inertia_diag: [0.0066833333, 0.0070833333, 0.0004333333]
+    inertia_diag: [0.0133666667, 0.0141666667, 0.0008666667]
     shape: cuboid
     side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]
 
   tall_block_I0:
-    mass: 0.5
+    mass: 1.0
     com_offset: [0, 0, 0]
     inertia_diag: [0, 0, 0]
     # inertia_diag: [0.02125, 0.02125, 0.0025]
@@ -117,6 +120,7 @@ objects:
     side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]
 
+  # MISC/EXPERIMENTAL
   very_tall_block:
     mass: 0.5
     com_offset: [0, 0, 0]

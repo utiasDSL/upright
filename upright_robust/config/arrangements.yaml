@@ -2,51 +2,23 @@ arrangements:
   nothing:
     objects: []
 
-  stack3:
-    objects:
-      -
-        name: cube1
-        type: stack_cube_red
-        parent: ee
-      -
-        name: cube2
-        type: stack_cube_blue_offset
-        parent: cube1
-      -
-        name: cube3
-        type: stack_cube_red_offset
-        parent: cube2
-    contacts:
-      -
-        first: ee
-        second: cube1
-        mu: 0.2
-      -
-        first: cube1
-        second: cube2
-        mu: 0.2
-      -
-        first: cube2
-        second: cube3
-        mu: 0.2
-
   stack4_0:
     objects:
       -
         name: cube1
-        type: stack_cube_red_0
+        type: stack4_cube_red_0
         parent: ee
       -
         name: cube2
-        type: stack_cube_blue_0
+        type: stack4_cube_blue_0
         parent: cube1
       -
         name: cube3
-        type: stack_cube_red_0
+        type: stack4_cube_red_0
         parent: cube2
       -
         name: cube4
-        type: stack_cube_blue_0
+        type: stack4_cube_blue_0
         parent: cube3
     contacts:
       -
@@ -70,19 +42,19 @@ arrangements:
     objects:
       -
         name: cube1
-        type: stack_cube_red_0.03
+        type: stack4_cube_red_0.03
         parent: ee
       -
         name: cube2
-        type: stack_cube_blue_0.03
+        type: stack4_cube_blue_0.03
         parent: cube1
       -
         name: cube3
-        type: stack_cube_red_0.03
+        type: stack4_cube_red_0.03
         parent: cube2
       -
         name: cube4
-        type: stack_cube_blue_0.03
+        type: stack4_cube_blue_0.03
         parent: cube3
     contacts:
       -
@@ -106,19 +78,19 @@ arrangements:
     objects:
       -
         name: cube1
-        type: stack_cube_red_0.04
+        type: stack4_cube_red_0.04
         parent: ee
       -
         name: cube2
-        type: stack_cube_blue_0.04
+        type: stack4_cube_blue_0.04
         parent: cube1
       -
         name: cube3
-        type: stack_cube_red_0.04
+        type: stack4_cube_red_0.04
         parent: cube2
       -
         name: cube4
-        type: stack_cube_blue_0.04
+        type: stack4_cube_blue_0.04
         parent: cube3
     contacts:
       -
@@ -152,11 +124,11 @@ arrangements:
       -
         first: ee
         second: block1
-        mu: 0.2
+        mu: 0.5
       -
         first: block1
         second: block2
-        mu: 0.2
+        mu: 0.5
 
   stack2_mass_certain:
     objects:
@@ -172,11 +144,11 @@ arrangements:
       -
         first: ee
         second: block1
-        mu: 0.2
+        mu: 0.5
       -
         first: block1
         second: block2
-        mu: 0.2
+        mu: 0.5
 
   tall_0:
     objects:
@@ -234,7 +206,7 @@ arrangements:
     objects:
       -
         name: cube1
-        type: stack_cube_red_0
+        type: stack4_cube_red_0
         parent: ee
     contacts:
       -
