@@ -3,7 +3,7 @@ import pytest
 import yaml
 from pathlib import Path
 import upright_core as core
-from upright_core.util import sort_canonical
+from upright_core.util import allclose_unordered
 
 
 def load_config():
@@ -108,8 +108,8 @@ def test_parse_box():
         [[0.1, 0.1, -0.1], [0.1, -0.1, -0.1], [-0.1, -0.1, -0.1], [-0.1, 0.1, -0.1]]
     )
 
-    assert np.allclose(sort_canonical(points1), sort_canonical(points1_expected))
-    assert np.allclose(sort_canonical(points2), sort_canonical(points2_expected))
+    assert allclose_unordered(points1, points1_expected)
+    assert allclose_unordered(points2, points2_expected)
 
 
 def test_parse_cylinder_box():
@@ -141,13 +141,9 @@ def test_parse_cylinder_box():
         [0.03, 0, -0.15], [0.03, 0, 0.05]])
     # fmt: on
 
-    assert np.allclose(sort_canonical(points["ee"]), sort_canonical(ee_points_expected))
-    assert np.allclose(
-        sort_canonical(points["box"]), sort_canonical(box_points_expected)
-    )
-    assert np.allclose(
-        sort_canonical(points["cylinder"]), sort_canonical(cylinder_points_expected)
-    )
+    assert allclose_unordered(points["ee"], ee_points_expected)
+    assert allclose_unordered(points["box"], box_points_expected)
+    assert allclose_unordered(points["cylinder"], cylinder_points_expected)
 
 
 def test_parse_wedge_box():
@@ -183,9 +179,5 @@ def test_parse_wedge_box():
         [0, 0.1, -a], [0, -0.1, -a], [-a, -0.1, 0], [-a, 0.1, 0]])
     # fmt: on
 
-    assert np.allclose(
-        sort_canonical(points["wedge"]), sort_canonical(wedge_points_expected)
-    )
-    assert np.allclose(
-        sort_canonical(points["box"]), sort_canonical(box_points_expected)
-    )
+    assert allclose_unordered(points["wedge"], wedge_points_expected)
+    assert allclose_unordered(points["box"], box_points_expected)

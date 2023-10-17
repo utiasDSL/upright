@@ -442,6 +442,7 @@ def wind_polygon_vertices(V):
     return V[idx, :], idx
 
 
+# TODO this name is somewhat misleading
 def axis_aligned_contact(poly1, poly2, tol=DEFAULT_TOLERANCE):
     """Compute contact points and normal between two polyhedra.
 

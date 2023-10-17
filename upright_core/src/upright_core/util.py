@@ -10,6 +10,35 @@ def sort_canonical(A):
     return B
 
 
+def allclose_unordered(A, B):
+    """Helper to compare two nd-arrays where each array should have the same
+    rows, but they may be in different orders.
+
+    Returns True if the arrays are the same (but possibly with rows in a
+    different order), False otherwise.
+    """
+    assert A.shape == B.shape
+    n = A.shape[0]
+    B_checked = np.zeros(n, dtype=bool)
+    for i in range(n):
+        a = A[i, :]
+        residuals = np.linalg.norm(B - a, axis=1)
+
+        # False where residual = 0, True otherwise
+        mask = ~np.isclose(residuals, 0)
+
+        # False where residual = 0 AND B has not been checked yet
+        test = np.logical_or(mask, B_checked)
+
+        # check to see if we have any cases where the test passes
+        idx = np.argmin(test)
+        if not test[idx]:
+            B_checked[idx] = True
+        else:
+            return False
+    return True
+
+
 def support_area_distance(ctrl_object, Q_we):
     """Compute distance outside of SA at current EE orientation Q_we."""
     C_we = math.quat_to_rot(Q_we)

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import upright_core as core
-from upright_core.util import sort_canonical
+from upright_core.util import allclose_unordered
 
 
 def test_polyhedron_transform():
@@ -25,15 +25,13 @@ def test_polyhedron_transform():
     rotation = core.math.rotx(np.pi / 2) @ core.math.roty(np.pi / 2)
     box3 = box.transform(rotation=rotation)
     assert np.allclose(box3.rotation, rotation)
-    assert np.allclose(sort_canonical(box.vertices), sort_canonical(box3.vertices))
-    assert np.allclose(sort_canonical(box.normals), sort_canonical(box3.normals))
+    assert allclose_unordered(box.vertices, box3.vertices)
+    assert allclose_unordered(box.normals, box3.normals)
 
     # rotation and translation
     box4 = box.transform(translation=translation, rotation=rotation)
-    assert np.allclose(
-        sort_canonical(box.vertices + translation), sort_canonical(box4.vertices)
-    )
-    assert np.allclose(sort_canonical(box.normals), sort_canonical(box4.normals))
+    assert allclose_unordered(box.vertices + translation, box4.vertices)
+    assert allclose_unordered(box.normals, box4.normals)
 
 
 def test_polyhedron_limits():
@@ -93,7 +91,7 @@ def test_get_vertices_in_plane():
     # vertices are in no particular order
     V_actual = box.get_vertices_in_plane(p, n)
     V_expected = np.array([[1, 1, 1], [1, -1, 1], [1, -1, -1], [1, 1, -1]])
-    assert np.allclose(sort_canonical(V_actual), sort_canonical(V_expected))
+    assert allclose_unordered(V_actual, V_expected)
 
 
 def test_get_polygon_in_plane():
@@ -105,7 +103,7 @@ def test_get_polygon_in_plane():
     # vertices are wound counter-clockwise but can start at an arbitrary index
     V_actual = box.get_polygon_in_plane(p, n, S)
     V_expected = np.array([[1, 1], [-1, 1], [-1, -1], [1, -1]])
-    assert np.allclose(sort_canonical(V_actual), sort_canonical(V_expected))
+    assert allclose_unordered(V_actual, V_expected)
 
 
 def test_distance_from_centroid_to_boundary():
@@ -177,8 +175,8 @@ def test_wedge():
     )
     n = np.array([1, 0, 1])  # non-axis-aligned normal
     N_expected = np.vstack((-np.eye(3), [0, 1, 0], n / np.linalg.norm(n)))
-    assert np.allclose(sort_canonical(wedge.vertices), sort_canonical(V_expected))
-    assert np.allclose(sort_canonical(wedge.normals), sort_canonical(N_expected))
+    assert allclose_unordered(wedge.vertices, V_expected)
+    assert allclose_unordered(wedge.normals, N_expected)
 
 
 def test_box_box_contact():
@@ -192,7 +190,7 @@ def test_box_box_contact():
     points_expected = np.array([[0, 0, 1], [0, 1, 1], [1, 1, 1], [1, 0, 1]])
 
     assert np.allclose(normal, [0, 0, -1])
-    assert np.allclose(sort_canonical(points_expected), sort_canonical(points))
+    assert allclose_unordered(points_expected, points)
 
     # shapes are penetrating: nothing should be returned
     box3 = box2.transform(translation=[0, 0, -0.1])
@@ -223,7 +221,7 @@ def test_wedge_box_contact():
 
     a = np.sqrt(2) / 2
     points_expected = np.array([[-a, 1, a], [-a, -1, a], [a, -1, -a], [a, 1, -a]])
-    assert np.allclose(sort_canonical(points_expected), sort_canonical(points))
+    assert allclose_unordered(points_expected, points)
 
 
 def test_line_contact():
@@ -238,17 +236,11 @@ def test_line_contact():
 
     points, normal = core.polyhedron.axis_aligned_contact(box1, box2)
 
-    # print(points)
-    # print(normal)
-    #
-    # import IPython
-    # IPython.embed()
-
     # only two contact points
     points_expected = np.array([[dx, 0, -0.1], [dx, 0, 0.1]])
 
     assert np.allclose(normal, [-1, 0, 0])
-    assert np.allclose(sort_canonical(points), sort_canonical(points_expected))
+    assert allclose_unordered(points, points_expected)
 
 
 def test_vertices_projection_on_axes():
@@ -312,12 +304,12 @@ def test_clip_polygon_with_half_space():
 
     V_clipped = core.polyhedron.clip_polygon_with_half_space(V, point, normal)
     V_clipped_expected = np.array([[-1, -1], [1, 1], [-1, 1]])
-    assert np.allclose(sort_canonical(V_clipped), sort_canonical(V_clipped_expected))
+    assert allclose_unordered(V_clipped, V_clipped_expected)
 
     # no intersection but shape is kept
     point = np.array([1, -1])
     V_clipped = core.polyhedron.clip_polygon_with_half_space(V, point, normal)
-    assert np.allclose(sort_canonical(V_clipped), sort_canonical(V))
+    assert allclose_unordered(V_clipped, V)
 
     # no intersection and shape is discarded
     point = np.array([-1, 1])
@@ -333,7 +325,7 @@ def test_clip_polygon_with_polygon():
 
     V = core.polyhedron.clip_polygon_with_polygon(V1, V2)
     V_expected = np.array([[0, 0], [1, 0], [1, 1], [0, 1]])
-    assert np.allclose(sort_canonical(V), sort_canonical(V_expected))
+    assert allclose_unordered(V, V_expected)
 
     # no overlap
     V2 = V1 + [-2, 2]
