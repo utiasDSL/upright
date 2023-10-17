@@ -137,15 +137,17 @@ Run `pytest .` inside a package's `tests` directory to run the Python tests.
 ## Citation
 
 If you find this work useful, feel free to cite the accompanying
-[paper](https://arxiv.org/abs/2305.17484):
+[paper](https://doi.org/10.1109/LRA.2023.3324520):
 ```
-@misc{heins2023upright,
-      title={Keep it Upright: Model Predictive Control for Nonprehensile Object Transportation with Obstacle Avoidance on a Mobile Manipulator}, 
-      author={Adam Heins and Angela P. Schoellig},
-      year={2023},
-      eprint={2305.17484},
-      archivePrefix={arXiv},
-      primaryClass={cs.RO}
+@article{heins2023upright,
+  title={Keep It Upright: Model Predictive Control for Nonprehensile Object Transportation With Obstacle Avoidance on a Mobile Manipulator}, 
+  author={Adam Heins and Angela P. Schoellig},
+  journal={{IEEE Robotics and Automation Letters}}, 
+  year={2023},
+  volume={},
+  number={},
+  pages={1--8},
+  doi={10.1109/LRA.2023.3324520}
 }
 ```
 
