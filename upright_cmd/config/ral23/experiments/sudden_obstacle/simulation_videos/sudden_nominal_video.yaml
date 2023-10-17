@@ -43,7 +43,7 @@ simulation:
 
   video:
     save_frames: true
-    dir: /media/adam/Data/PhD/Data/upright/ral23/videos/simulation
+    dir: /media/adam/Data/PhD/Data/upright/heins-ral23/videos/simulation
     timestep: 0.040
     views:
       # -

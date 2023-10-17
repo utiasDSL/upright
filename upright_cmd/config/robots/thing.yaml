@@ -36,7 +36,7 @@ simulation:
       args:
         use_collision: "false"
         transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
-        show_balance_link: "true"
+        show_balance_link: "false"
 
 controller:
   # robot parameters

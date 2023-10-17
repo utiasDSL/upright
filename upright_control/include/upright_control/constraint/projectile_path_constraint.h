@@ -142,6 +142,9 @@ class ProjectilePathConstraint final : public ocs2::StateConstraint {
             Vec3d normal =
                 delta.normalized();  // TODO: 0 when in contact---bad Jacobian?
 
+            // We scale the whole constraint by scale_ / min_distance, which is
+            // somewhat arbitrary. In the case of soft L2 penalties, this is
+            // equivalent to using a slack weight of (scale_ / min_distance)**2.
             ocs2::scalar_t w = scale_ / distances_(i);
             approximation.f(i) = w * s * (normal.dot(delta) - distances_(i));
 

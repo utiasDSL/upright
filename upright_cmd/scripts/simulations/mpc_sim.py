@@ -72,6 +72,11 @@ def main():
     mapping = ctrl.trajectory.StateInputMapping(model.settings.dims.robot)
     gravity = model.settings.gravity
 
+    # r_pyb, Q_pyb = env.robot.link_pose()
+    # r_pin, Q_pin = model.robot.link_pose()
+    # IPython.embed()
+    # return
+
     # data logging
     logger = DataLogger(config)
 
@@ -126,6 +131,9 @@ def main():
             xd_robot = xd[: dims.robot.x]
             u_robot = u[: dims.robot.u]
             f = u[-dims.f() :]
+
+            # check out the gain matrix if desired
+            # K = ctrl_manager.mpc.getLinearFeedbackGain(t)
         except RuntimeError as e:
             print(e)
             print("Exit the interpreter to proceed to plots.")

@@ -84,12 +84,20 @@ def parse_object_error(
 
     r_ot_ts = np.array(r_ot_ts)
 
-    # compute distance w.r.t. the initial position
+    # compute distance w.r.t. the initial position: this is like computing
+    # r_{o_i}{o_0}_t, the difference between the ith and 0th positions
     r_ot_t_err = r_ot_ts - r_ot_ts[0, :]
     if not quiet:
-        print(
-            f"Initial offset of object w.r.t. tray = {r_ot_ts[0, :]} (distance = {np.linalg.norm(r_ot_ts[0, :])})"
-        )
+        pass
+        # print(
+        #     f"Initial offset of object w.r.t. tray = {r_ot_ts[0, :]} (distance = {np.linalg.norm(r_ot_ts[0, :])})"
+        # )
+        # print(
+        #     f"Final offset w.r.t. tray = {r_ot_ts[-1, :]})"
+        # )
+        # d = np.linalg.norm(r_ot_t_err, axis=1)
+        # i = np.argmax(d)
+        # print(f"Max offset = {r_ot_t_err[i, :]} at index {i / d.shape[0]}")
         # print(f"Initial object orientation (world) = {obj_poses[0, 3:]}")
     distances = np.linalg.norm(r_ot_t_err, axis=1)
 
@@ -121,6 +129,7 @@ def parse_mpc_solve_times(
         # trim off any solve times from times > max_time, relative to the time
         # that the first message was received
         if max_time > policy_times[-1]:
+            print(f"Duration is only {policy_times[-1]} seconds.")
             max_idx = len(policy_times)
         else:
             max_idx = np.argmax(policy_times > max_time)
@@ -169,7 +178,7 @@ def parse_bag_dir(directory, config_name=None, bag_name=None):
             raise FileNotFoundError(
                 "Error: could not find a bag file in the specified directory."
             )
-        if len(config_files) > 1:
+        if len(bag_files) > 1:
             raise FileNotFoundError(
                 "Error: multiple bag files in the specified directory. Please specify the name using the `--bag_name` option."
             )

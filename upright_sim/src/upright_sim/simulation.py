@@ -113,7 +113,14 @@ class BulletBody:
 
     @staticmethod
     def cylinder(
-        mass, mu, radius, height, orientation=None, com_offset=None, color=(0, 0, 1, 1)
+        mass,
+        mu,
+        radius,
+        height,
+        orientation=None,
+        com_offset=None,
+        local_inertia_diagonal=None,
+        color=(0, 0, 1, 1),
     ):
         """Construct a cylinder object."""
         if orientation is None:
@@ -546,8 +553,14 @@ class UprightSimulation(BulletSimulation):
         self.duration = config["duration"]
 
         # setup robot
-        self.robot = UprightSimulatedRobot(config)
+        # the -1cm z-offset it to align the simulation with the Pinocchio
+        # model; TODO this is to be fixed more robustly later
+        self.robot = UprightSimulatedRobot(config, position=(0, 0, -0.01))
         self.robot.reset_joint_configuration(self.robot.home)
+
+        pyb.resetBasePositionAndOrientation(
+            self.ground_uid, (0, 0, -0.01), (0, 0, 0, 1)
+        )
 
         # simulate briefly to let the robot settle down after being positioned
         self.settle(1.0)

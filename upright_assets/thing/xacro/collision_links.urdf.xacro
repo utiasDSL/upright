@@ -4,9 +4,10 @@
   <!-- Set false to not include <collision> blocks, which is useful if we just want to visualize in a simulator. -->
   <xacro:arg name="use_collision" default="true"/>
 
+  <!-- NOTE: Use zero transparency for the photo shoot -->
   <material name="obstacle_material">
-    <color rgba="1.0 0.0 0.0 0.25"/>
-    <!-- <color rgba="1.0 0.0 0.0 1.0"/> -->
+    <!-- <color rgba="1.0 0.0 0.0 0.25"/> -->
+    <color rgba="1.0 0.0 0.0 1.0"/>
   </material>
   <xacro:property name="material" value="obstacle_material"/>
 
@@ -149,6 +150,7 @@
       <sphere radius="0.5"/>
     </geometry>
   </xacro:collision_link>
+  <!-- TODO it would probably be better to make this relative to the chassis link, so that it includes the calibrated base transform, but this would require some testing as well -->
   <joint name="base_collision_joint" type="fixed">
     <!-- <origin rpy="0 0 0" xyz="0 0 0.16"/> -->
     <origin rpy="0 0 0" xyz="0 0 0"/>
