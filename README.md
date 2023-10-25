@@ -144,9 +144,9 @@ If you find this work useful, feel free to cite the accompanying
   author={Adam Heins and Angela P. Schoellig},
   journal={{IEEE Robotics and Automation Letters}}, 
   year={2023},
-  volume={},
-  number={},
-  pages={1--8},
+  volume={8},
+  number={12},
+  pages={7986-7993},
   doi={10.1109/LRA.2023.3324520}
 }
 ```
