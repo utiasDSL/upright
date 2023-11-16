@@ -32,6 +32,13 @@ def main():
     tbs, qbs, vbs = ros_utils.parse_ridgeback_joint_state_msgs(
         ridgeback_msgs, normalize_time=False
     )
+
+    # alternatively we can use finite differences, since the vbs are already
+    # low-pass filtered otherwise
+    # vbs = np.zeros_like(qbs)
+    # for i in range(1, vbs.shape[0]):
+    #     vbs[i, :] = (qbs[i, :] - qbs[i - 1, :]) / (tbs[i] - tbs[i - 1])
+
     tms, xms, ums = parse_mpc_observation_msgs(mpc_obs_msgs, normalize_time=False)
     tps, xps, ups = parse_mpc_observation_msgs(mpc_plan_msgs, normalize_time=False)
 

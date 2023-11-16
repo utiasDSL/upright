@@ -553,14 +553,8 @@ class UprightSimulation(BulletSimulation):
         self.duration = config["duration"]
 
         # setup robot
-        # the -1cm z-offset it to align the simulation with the Pinocchio
-        # model; TODO this is to be fixed more robustly later
-        self.robot = UprightSimulatedRobot(config, position=(0, 0, -0.01))
+        self.robot = UprightSimulatedRobot(config, position=(0, 0, 0))
         self.robot.reset_joint_configuration(self.robot.home)
-
-        pyb.resetBasePositionAndOrientation(
-            self.ground_uid, (0, 0, -0.01), (0, 0, 0, 1)
-        )
 
         # simulate briefly to let the robot settle down after being positioned
         self.settle(1.0)

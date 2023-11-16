@@ -12,5 +12,6 @@
   <depend>upright_control</depend>
   <depend>controller_manager</depend>
   <depend>hardware_interface</depend>
+  <depend>mobile_manipulation_central</depend>
   <buildtool_depend>catkin</buildtool_depend>
 </package>
