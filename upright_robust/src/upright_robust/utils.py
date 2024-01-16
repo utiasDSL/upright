@@ -189,10 +189,9 @@ def body_regressor_A_by_vector(f):
 def body_regressor_VG_by_vector(V, G, f):
     """Compute a vector d such that d + D @ A == Y.T @ f for some vector f.
 
-    V: body velocity test
+    V: body velocity twist
     A: body acceleration twist
     G: body gravity twist
-    Y: body regressor
 
     The vector d contains velocity and gravity components.
     """
@@ -305,6 +304,14 @@ def cwc(contacts):
     # Aw <= 0 implies there exist feasible contact forces to support wrench w
     A = span_to_face_form(S)
     return A
+
+
+# def body_regressor_by_vector_matrix(C, V, z):
+#     """Compute a matrix D such that d0 + D @ A == Y.T @ z for some vector z."""
+#     Y0, Ys = body_regressor_components(C, V)
+#     d0 = Y0.T @ z
+#     D = np.vstack([Y.T @ z for Y in Ys]).T
+#     return d0, D
 
 
 def body_regressor_by_vector_acceleration_matrix(x):
