@@ -62,6 +62,48 @@ def vech(J):
     return np.array([J[0, 0], J[0, 1], J[0, 2], J[1, 1], J[1, 2], J[2, 2]])
 
 
+# def J_vec_constraint(J, θ, eps=1e-4):
+#     """Constraint to enforce consistency between J and θ representations."""
+#     H = J[:3, :3]
+#     I = cp.trace(H) * np.eye(3) - H
+#     return [
+#         J >> eps * np.eye(4),
+#         J[3, 3] == θ[0],
+#         J[:3, 3] == θ[1:4],
+#         I[0, :3] == θ[4:7],
+#         I[1, 1:3] == θ[7:9],
+#         I[2, 2] == θ[9],
+#     ]
+
+def Jθ_matrices():
+    """Generate the matrices A_i such that tr(A_i @ J) == θ_i"""
+    As = [np.zeros((4, 4)) for _ in range(10)]
+    As[0][3, 3] = 1  # mass
+
+    As[1][0, 3] = 1  # hx
+    As[2][1, 3] = 1  # hy
+    As[3][2, 3] = 1  # hz
+
+    # Ixx
+    As[4][1, 1] = 1
+    As[4][2, 2] = 1
+
+    As[5][0, 1] = -1  # Ixy
+    As[6][0, 2] = -1  # Ixz
+
+    # Iyy
+    As[7][0, 0] = 1
+    As[7][2, 2] = 1
+
+    As[8][1, 2] = -1  # Iyz
+
+    # Izz
+    As[9][0, 0] = 1
+    As[9][1, 1] = 1
+
+    return As
+
+
 class ContactPoint:
     def __init__(self, position, normal, μ):
         self.position = np.array(position)
@@ -96,7 +138,7 @@ class ContactPoint:
 
 
 class BalancedObject:
-    def __init__(self, m, h, δ, μ, h0=0, x0=0):
+    def __init__(self, m, h, δ, μ, h0=0, x0=0, uncertain_J=False):
         self.m = m
         self.h = h  # height of CoM above base of object
         self.δ = δ
@@ -120,6 +162,14 @@ class BalancedObject:
         self.θ = np.concatenate(([m], m * self.origin, Jvec))
         # Δθ = np.concatenate(([0.1, 0.01 * δ, 0.01 * δ, 0.01 * h], 0 * Jvec))
         Δθ = np.zeros_like(self.θ)
+        if uncertain_J:
+            Δθ[-6:] = 0.1 * Jvec
+        else:
+            # try using a larger J matrix
+            self.J = 1 * self.J
+            Jvec = vech(self.J)
+            self.θ = np.concatenate(([m], m * self.origin, Jvec))
+
         self.θ_min = self.θ - Δθ
         self.θ_max = self.θ + Δθ
         self.P = np.vstack((np.eye(self.θ.shape[0]), -np.eye(self.θ.shape[0])))
