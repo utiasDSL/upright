@@ -221,7 +221,7 @@ def solve_global_relaxed_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
         [obj.P, obj.p[:, None]],
         [np.zeros((1, obj.P.shape[1])), np.array([[-1]])]])
     # fmt: on
-    R = rob.span_to_face_form(P_tilde.T)[0]
+    R = rob.span_to_face_form(P_tilde.T)
     R = R / np.max(np.abs(R))
 
     # gravity constraints

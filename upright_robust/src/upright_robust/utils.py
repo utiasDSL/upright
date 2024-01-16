@@ -295,16 +295,16 @@ def span_to_face_form(S, library="cdd"):
     return A
 
 
-# def cwc(contacts):
-#     """Build the (face form of the) contact wrench cone from contact points of an object."""
-#     # combine span form of each contact wrench cone to get the overall CWC in
-#     # span form
-#     S = np.hstack([c.W @ c.S for c in contacts])
-#
-#     # convert to face form
-#     # Aw <= 0 implies there exist feasible contact forces to support wrench w
-#     A = span_to_face_form(S)
-#     return A
+def cwc(contacts):
+    """Build the (face form of the) contact wrench cone from contact points of an object."""
+    # combine span form of each contact wrench cone to get the overall CWC in
+    # span form
+    S = np.hstack([c.W @ c.S for c in contacts])
+
+    # convert to face form
+    # Aw <= 0 implies there exist feasible contact forces to support wrench w
+    A = span_to_face_form(S)
+    return A
 
 
 def body_regressor_by_vector_acceleration_matrix(x):
