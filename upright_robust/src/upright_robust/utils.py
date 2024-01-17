@@ -104,6 +104,53 @@ def Jθ_matrices():
     return As
 
 
+def Jθ_matrices_inv():
+    """Generate the matrices A_i such that J == sum(A_i * θ_i)"""
+    As = [np.zeros((4, 4)) for _ in range(10)]
+    As[0][3, 3] = 1  # mass
+
+    # hx
+    As[1][0, 3] = 1
+    As[1][3, 0] = 1
+
+    # hy
+    As[2][1, 3] = 1
+    As[2][3, 1] = 1
+
+    # hz
+    As[3][2, 3] = 1
+    As[3][3, 2] = 1
+
+    # Ixx
+    As[4][0, 0] = -0.5
+    As[4][1, 1] = 0.5
+    As[4][2, 2] = 0.5
+
+    # Ixy
+    As[5][0, 1] = -1
+    As[5][1, 0] = -1
+
+    # Ixz
+    As[6][0, 2] = -1
+    As[6][2, 0] = -1
+
+    # Iyy
+    As[7][0, 0] = 0.5
+    As[7][1, 1] = -0.5
+    As[7][2, 2] = 0.5
+
+    # Iyz
+    As[8][1, 2] = -1
+    As[8][2, 1] = -1
+
+    # Izz
+    As[9][0, 0] = 0.5
+    As[9][1, 1] = 0.5
+    As[9][2, 2] = -0.5
+
+    return As
+
+
 class ContactPoint:
     def __init__(self, position, normal, μ):
         self.position = np.array(position)
@@ -160,20 +207,27 @@ class BalancedObject:
         # Pθ >= p
         Jvec = vech(self.J)
         self.θ = np.concatenate(([m], m * self.origin, Jvec))
-        # Δθ = np.concatenate(([0.1, 0.01 * δ, 0.01 * δ, 0.01 * h], 0 * Jvec))
-        Δθ = np.zeros_like(self.θ)
+        Δθ = np.concatenate(([0.1, 0.01 * δ, 0.01 * δ, 0.01 * h], 0 * Jvec))
+        # Δθ = np.zeros_like(self.θ)
         if uncertain_J:
-            Δθ[-6:] = 0.1 * Jvec
+            # Δθ[-6:] = 0.1 * Jvec
+            # TODO we should actually just use different P matrix here
+            self.P = np.zeros((8, 10))
+            self.P[:4, :4] = np.eye(4)
+            self.P[4:, :4] = -np.eye(4)
+            Δmh = Δθ[:4]
+            mh_min = self.θ[:4] - Δmh
+            mh_max = self.θ[:4] + Δmh
+            self.p = np.concatenate((mh_min, -mh_max))
         else:
             # try using a larger J matrix
-            self.J = 1 * self.J
-            Jvec = vech(self.J)
-            self.θ = np.concatenate(([m], m * self.origin, Jvec))
-
-        self.θ_min = self.θ - Δθ
-        self.θ_max = self.θ + Δθ
-        self.P = np.vstack((np.eye(self.θ.shape[0]), -np.eye(self.θ.shape[0])))
-        self.p = np.concatenate((self.θ_min, -self.θ_max))
+            # self.J = 1 * self.J
+            # Jvec = vech(self.J)
+            # self.θ = np.concatenate(([m], m * self.origin, Jvec))
+            self.θ_min = self.θ - Δθ
+            self.θ_max = self.θ + Δθ
+            self.P = np.vstack((np.eye(self.θ.shape[0]), -np.eye(self.θ.shape[0])))
+            self.p = np.concatenate((self.θ_min, -self.θ_max))
 
     def contacts(self):
         # contacts are in the body frame w.r.t. to the origin

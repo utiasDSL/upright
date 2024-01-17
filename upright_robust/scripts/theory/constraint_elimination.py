@@ -9,6 +9,7 @@ import time
 from scipy.optimize import minimize
 
 import upright_robust as rob
+import inertial_params as ip
 
 import IPython
 
@@ -243,15 +244,12 @@ def solve_global_relaxed_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
         objective = cp.Minimize(R[i, :-1] @ (Z.T @ z + Dg.T @ G + D.T @ A))
         constraints = [
             z == cp.vec(Λ),
-
             # we constrain z completely through Λ
             cp.trace(Λ[:3, :3]) <= v_max**2,
             cp.trace(Λ[3:, 3:]) <= ω_max**2,
-
             # gravity constraints
             cp.norm(G) <= g,
             z_normal @ G <= -g * np.cos(max_tilt_angle),
-
             # acceleration constraints
             cp.norm(A[:3]) <= a_max,
             cp.norm(A[3:]) <= α_max,
@@ -273,7 +271,7 @@ def solve_global_relaxed_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
     return np.min(values)
 
 
-def solve_global_relaxed_dual_approx_inertia(obj1, obj2, F, idx, v_max=1, ω_max=1):
+def solve_global_relaxed_dual_approx_inertia(obj1, obj2, F, idx, ell, v_max=1, ω_max=1):
     """Global convex problem based on the face form of the dual constraint formulation.
 
     Minimize the constraints for obj1 subject to all constraints on obj2, which
@@ -299,10 +297,16 @@ def solve_global_relaxed_dual_approx_inertia(obj1, obj2, F, idx, v_max=1, ω_max
     ng = 3
     nz = Z.shape[0]
 
+    # ellipsoid realizability
+    Q = ell.Q
+    As = rob.Jθ_matrices_inv()
+    νs = np.array([np.trace(Q @ A) for A in As])
+
     # fmt: off
     P1_tilde = np.block([
         [obj1.P, obj1.p[:, None]],
-        [np.zeros((1, obj1.P.shape[1])), np.array([[-1]])]])
+        [np.zeros((1, obj1.P.shape[1])), np.array([[-1]])],
+        [νs[None, :], np.array([[0]])]])
     # fmt: on
     R1 = rob.span_to_face_form(P1_tilde.T)
     R1 = R1 / np.max(np.abs(R1))
@@ -323,6 +327,19 @@ def solve_global_relaxed_dual_approx_inertia(obj1, obj2, F, idx, v_max=1, ω_max
     a_max = 1
     α_max = 1
 
+    # ellipsoid realizability
+    # Q = ell.Q
+    # As = rob.Jθ_matrices_inv()
+    # # λ = cp.Variable(1)
+    # Σ = cp.Variable((4, 4), PSD=True)
+    # βs = cp.hstack([cp.trace(A @ Σ) for A in As])
+    # # νs = cp.hstack([cp.trace((λ * Q + Σ) @ A) for A in As])
+    # νs = np.array([np.trace(Q @ A) for A in As])
+
+    # params = ip.InertialParameters.random()
+    # IPython.embed()
+    # raise ValueError()
+
     A = cp.Variable(nv)
     G = cp.Variable(ng)
     z = cp.Variable(nz)
@@ -333,28 +350,41 @@ def solve_global_relaxed_dual_approx_inertia(obj1, obj2, F, idx, v_max=1, ω_max
 
     for i in range(R1.shape[0]):
         objective = cp.Minimize(R1[i, :-1] @ (Z.T @ z + Dg.T @ G + D.T @ A))
+        # fmt: off
         constraints = [
             z == cp.vec(Λ),
 
             # we constrain z completely through Λ
             cp.trace(Λ[:3, :3]) <= v_max**2,
             cp.trace(Λ[3:, 3:]) <= ω_max**2,
+            # Λ == np.zeros((6, 6)),
 
             # gravity constraints
             cp.norm(G) <= g,
             z_normal @ G <= -g * np.cos(max_tilt_angle),
+            # G == np.array([0, 0, -g]),
 
             # acceleration constraints
             cp.norm(A[:3]) <= a_max,
             cp.norm(A[3:]) <= α_max,
-
-        ] + [R2[:, :-1] @ (Z.T @ z + Dg.T @ G + D.T @ A) >= 0.01 for (Z, D, Dg) in zip(Zs, Ds, Dgs)]
+        ] 
+        # + [
+        #     # all of the approximate constraints
+        #     R2[:, :-1] @ (Z.T @ z + Dg.T @ G + D.T @ A) >= 0.0
+        #     # TODO I think we need the F matrix preceding everything
+        #     # Z.T @ z + Dg.T @ G + D.T @ A <= 0.0
+        #     for (Z, D, Dg) in zip(Zs, Ds, Dgs)
+        # ]
+        # fmt: on
         problem = cp.Problem(objective, constraints)
         t0 = time.time()
         problem.solve(solver=cp.MOSEK)
         t1 = time.time()
         # print(f"Δt = {t1 - t0}")
         values.append(problem.value)
+
+        # IPython.embed()
+        # raise ValueError()
 
         # eigs, eigvecs = np.linalg.eig(Λ.value)
         # max_eig_idx = np.argmax(eigs)
@@ -500,8 +530,14 @@ def solve_local_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
             # differentiable)
             return np.concatenate(
                 (
-                    [a_max**2 - np.linalg.norm(A[:3])**2, α_max**2 - np.linalg.norm(A[3:])**2],
-                    [v_max**2 - np.linalg.norm(V[:3])**2, ω_max**2 - np.linalg.norm(V[3:])**2],
+                    [
+                        a_max**2 - np.linalg.norm(A[:3]) ** 2,
+                        α_max**2 - np.linalg.norm(A[3:]) ** 2,
+                    ],
+                    [
+                        v_max**2 - np.linalg.norm(V[:3]) ** 2,
+                        ω_max**2 - np.linalg.norm(V[3:]) ** 2,
+                    ],
                     [-g * np.cos(max_tilt_angle) - G[2]],
                 )
             )
@@ -536,6 +572,8 @@ def main_inertia_approx():
 
     obj1 = rob.BalancedObject(m=1, h=0.1, δ=0.05, μ=0.5, h0=0, x0=0, uncertain_J=True)
     obj2 = rob.BalancedObject(m=1, h=0.1, δ=0.05, μ=0.5, h0=0, x0=0, uncertain_J=False)
+    box = ip.AxisAlignedBox(half_extents=[0.05, 0.05, 0.1], center=[0, 0, 0.1])
+    ell = ip.maximum_inscribed_ellipsoid(box.vertices)
 
     F = rob.cwc(obj1.contacts())
     F = F / np.max(np.abs(F))
@@ -543,11 +581,7 @@ def main_inertia_approx():
     num_never_active = 0
 
     for i in range(F.shape[0]):
-        # print(i)
-
-        # NOTE this is not actually right: we want to actually solve the
-        # uncertain version in the presence of all the nominal constraints
-        relaxed = solve_global_relaxed_dual_approx_inertia(obj1, obj2, F, i)
+        relaxed = solve_global_relaxed_dual_approx_inertia(obj1, obj2, F, i, ell)
         print(f"{i+1}: {relaxed}")
 
 
