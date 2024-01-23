@@ -2,3 +2,34 @@
 
 Nonprehensile object transportation that is robust to uncertainty in the
 inertial parameters (mass, center of mass, inertia matrix).
+
+## Configuration
+
+Tilting type:
+
+* **tray**: rotate the tray so its normal vector is aligned with total
+  acceleration, neglecting the objects (but constraints can still be enforced
+  to avoid dropping them)
+* **full**: take all objects into accounting when tilting/rotating
+* **flat**: keep the tray flat
+
+Constraint type:
+
+* **nominal**: nominal balancing constraints based on some guess of the
+  inertial parameters, does not account for uncertainty
+* **robust**: balancing constraints robust to uncertainty in the inertial
+  parameters
+* **approx_robust**: instead of solving the full robust QP, solve the nominal
+  one and then just scale the resulting acceleration to satisfy the robust
+  balancing constraints. This is useful when there are many (3+) objects and
+  the QP becomes too slow to solve at real-time rates.
+
+If `reactive.face_form=true`, the face form of the robust constraints is used
+(rather than the original span form).
+
+To remove all balancing constraints, set `balancing.enabled=false`.
+
+
+## SDP relaxation
+
+The work on SDP relaxations can be found in `scripts/theory/constraint_elimination.py`

@@ -1,6 +1,9 @@
 import numpy as np
 from scipy.linalg import block_diag
 
+# TODO probably don't want this dependency at the moment
+import inertial_params as ip
+
 import upright_core as core
 import upright_robust.utils as utils
 
@@ -48,16 +51,28 @@ class ObjectBounds:
     """Bounds on the inertial parameters of a rigid body."""
 
     def __init__(
-        self, mass_lower=None, mass_upper=None, com_lower=None, com_upper=None
+        self,
+        mass_lower=None,
+        mass_upper=None,
+        com_lower=None,
+        com_upper=None,
+        ellipsoid_half_extents=None,
     ):
-        """All quantities are *relative to the nominal value*."""
+        """All quantities are *relative to the nominal value*.
+
+        For example, we want:
+            mass_actual >= mass_nominal + mass_lower
+            mass_actual <= mass_nominal + mass_upper
+        """
         if mass_lower is None:
             mass_lower = 0
         self.mass_lower = mass_lower
+        assert self.mass_lower <= 0
 
         if mass_upper is None:
             mass_upper = 0
         self.mass_upper = mass_upper
+        assert self.mass_upper >= 0
 
         if com_lower is None:
             com_lower = np.zeros(3)
@@ -67,24 +82,45 @@ class ObjectBounds:
             com_upper = np.zeros(3)
         self.com_upper = np.array(com_upper)
 
+        # ellipsoid_half_extents can be None
+        self.ellipsoid_half_extents = ellipsoid_half_extents
+
     @classmethod
     def from_config(cls, config):
         mass_lower = config.get("mass_lower", None)
         mass_upper = config.get("mass_upper", None)
         com_lower = config.get("com_lower", None)
         com_upper = config.get("com_upper", None)
+        if "ellipsoid" in config:
+            # the center of the ellipsoid will be the nominal CoM
+            half_extents = np.array(config["ellipsoid"]["half_extents"])
+        else:
+            half_extents = None
         return cls(
             mass_lower=mass_lower,
             mass_upper=mass_upper,
             com_lower=com_lower,
             com_upper=com_upper,
+            ellipsoid_half_extents=half_extents,
         )
 
     def polytope(self, m, c, J):
         """Build the polytope containing the inertial parameters given the
         nominal values.
 
-        Returns matrix P and vector p such that Pθ + p >= 0.
+        Parameters
+        ----------
+        m : float
+            The nominal mass.
+        c : np.ndarray, shape (3,)
+            The nominal center of mass.
+        J : np.ndarray, shape (3, 3)
+            The nominal inertia matrix.
+
+        Returns
+        -------
+        : tuple
+            A tuple (P, p) with matrix P and vector p such that Pθ >= p.
         """
         Jvec = utils.vech(J)
 
@@ -102,10 +138,48 @@ class ObjectBounds:
         )
         p_h = np.zeros(6)
 
-        # inertia bounds (inertia currently assumed to be exact)
-        I6 = np.eye(6)
-        P_J = np.block([[np.zeros((6, 4)), I6], [np.zeros((6, 4)), -I6]])
-        p_J = np.concatenate((Jvec, -Jvec))
+        # inertia bounds
+        if self.ellipsoid_half_extents is None:
+            # assume inertia J is exact
+            I6 = np.eye(6)
+            P_J = np.block([[np.zeros((6, 4)), I6], [np.zeros((6, 4)), -I6]])
+            p_J = np.concatenate((Jvec, -Jvec))
+        else:
+            # otherwise we enforce (relaxed) physical realiability constraints
+            # on a bounding ellipsoid
+            # instead of enforcing the pseudo inertia matrix to be p.s.d., we
+            # just enforce the diagonal of H to be non-negative (this also
+            # implies the diagonal of I is non-negative)
+            P_J = np.zeros((13, 10))
+            p_J = np.zeros(13)
+
+            Q = ip.Ellipsoid.from_half_extents(
+                half_extents=self.ellipsoid_half_extents, center=c
+            ).Q
+
+            # tr(ΠQ) >= 0
+            As = utils.pim_sum_vec_matrices()
+            # P_J[0, :] = [np.trace(A @ Q) for A in As]
+
+            # TODO let's put upper bounds on as well
+            # diag(H) >= 0
+            # recall θ = [m, hx, hy, hz, Ixx, Ixy, Ixz, Iyy, Iyz, Izz]
+            P_J[1, :] = [0, 0, 0, 0, -1, 0, 0, 1, 0, 1]  # Hxx >= 0
+            P_J[2, :] = [0, 0, 0, 0, 1, 0, 0, -1, 0, 1]  # Hyy >= 0
+            P_J[3, :] = [0, 0, 0, 0, 1, 0, 0, 1, 0, -1]  # Hzz >= 0
+
+            # TODO: depends on the mass, right now just using nominal
+            H_diag_upper = m * self.ellipsoid_half_extents ** 2
+
+            # negative because <=
+            P_J[4:7, :] = -P_J[1:4, :]
+            p_J[4:7] = -2 * H_diag_upper
+
+            # TODO force other elements to zero
+            P_J[7, :] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]  # Hxy
+            P_J[8, :] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]  # Hxz
+            P_J[9, :] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]  # Hyz
+            P_J[10:13, :] = -P_J[7:10, :]
 
         # combined bounds
         P = np.vstack((P_m, P_h, P_J))
@@ -127,6 +201,7 @@ class UncertainObject:
         H = core.math.skew3(h)
         J = obj.body.inertia - H @ core.math.skew3(self.body.com)
 
+        # spatial mass matrix
         # fmt: off
         self.M = np.block([
             [m * np.eye(3), -H],

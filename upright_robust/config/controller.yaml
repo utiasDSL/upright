@@ -167,6 +167,8 @@ objects:
       com_upper: [0.04, 0.04, 0.04]
       mass_lower: 0
       mass_upper: 0
+      ellipsoid:
+        half_extents: [0.05, 0.05, 0.2]
 
   tall_block_0.03:
     mass: 1.0

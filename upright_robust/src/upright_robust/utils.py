@@ -5,6 +5,8 @@ from scipy.linalg import block_diag
 
 import upright_core as core
 
+import inertial_params as ip
+
 
 def lift3(x):
     """Lift a 3-vector x such that A @ x = lift(x) @ vech(A) for symmetric A."""
@@ -75,7 +77,7 @@ def vech(J):
 #         I[2, 2] == θ[9],
 #     ]
 
-def Jθ_matrices():
+def pim_trace_vec_matrices():
     """Generate the matrices A_i such that tr(A_i @ J) == θ_i"""
     As = [np.zeros((4, 4)) for _ in range(10)]
     As[0][3, 3] = 1  # mass
@@ -104,7 +106,7 @@ def Jθ_matrices():
     return As
 
 
-def Jθ_matrices_inv():
+def pim_sum_vec_matrices():
     """Generate the matrices A_i such that J == sum(A_i * θ_i)"""
     As = [np.zeros((4, 4)) for _ in range(10)]
     As[0][3, 3] = 1  # mass
@@ -191,57 +193,108 @@ class BalancedObject:
         self.δ = δ
         self.μ = μ
 
-        side_lengths = 2 * np.array([δ, δ, h])
-        self.J = core.math.cuboid_inertia_matrix(m, side_lengths)
-
         self.h0 = h0  # height of base above tray
         self.x0 = x0
 
-        self.origin = np.array([self.x0, 0, self.h + self.h0])
-        S = core.math.skew3(self.origin)
+        self.com = np.array([self.x0, 0, self.h + self.h0])
+        S = core.math.skew3(self.com)
+
+        side_lengths = 2 * np.array([δ, δ, h])
+        # self.J = core.math.cuboid_inertia_matrix(m, side_lengths) - m * S @ S
+        self.J = ip.cuboid_vertices_inertia_matrix(m, 0.5 * side_lengths) - m * S @ S
 
         # mass matrix
-        self.M = np.block([[m * np.eye(3), -m * S], [m * S, self.J]])
+        # TODO: this is *nominal only*
+        # self.M = np.block([[m * np.eye(3), -m * S], [m * S, self.J]])
 
         # polytopic constraints on the inertial parameters
         # Pθ >= p
         Jvec = vech(self.J)
-        self.θ = np.concatenate(([m], m * self.origin, Jvec))
+        self.θ = np.concatenate(([m], m * self.com, Jvec))
         Δθ = np.concatenate(([0.1, 0.01 * δ, 0.01 * δ, 0.01 * h], 0 * Jvec))
         # Δθ = np.zeros_like(self.θ)
         if uncertain_J:
-            # Δθ[-6:] = 0.1 * Jvec
-            # TODO we should actually just use different P matrix here
-            self.P = np.zeros((8, 10))
+            self.P = np.zeros((11, 10))
+            self.p = np.zeros(11)
+
+            # mass and CoM bounds
             self.P[:4, :4] = np.eye(4)
-            self.P[4:, :4] = -np.eye(4)
+            self.P[4:8, :4] = -np.eye(4)
             Δmh = Δθ[:4]
             mh_min = self.θ[:4] - Δmh
             mh_max = self.θ[:4] + Δmh
-            self.p = np.concatenate((mh_min, -mh_max))
+            self.p[:4] = mh_min
+            self.p[4:8] = -mh_max
+
+            # H matrix bounds
+            # TODO this is loose considering it is w.r.t. the tray origin
+            # (rather than the CoM)
+            self.P[8, :] = [0, 0, 0, 0, -1, 0, 0, 1, 0, 1]  # Hxx >= 0
+            self.P[9, :] = [0, 0, 0, 0, 1, 0, 0, -1, 0, 1]  # Hyy >= 0
+            self.P[10, :] = [0, 0, 0, 0, 1, 0, 0, 1, 0, -1]  # Hzz >= 0
+
+            # H_diag_upper = m * self.ellipsoid_half_extents ** 2
+            # P_J[4:7, :] = -P_J[1:4, :]
+            # p_J[4:7] = -2 * H_diag_upper
         else:
             # try using a larger J matrix
             # self.J = 1 * self.J
+            # self.J = ip.cuboid_vertices_inertia_matrix(np.array([δ, δ, h]))
             # Jvec = vech(self.J)
-            # self.θ = np.concatenate(([m], m * self.origin, Jvec))
+            self.θ = np.concatenate(([m], m * self.com, Jvec))
             self.θ_min = self.θ - Δθ
             self.θ_max = self.θ + Δθ
             self.P = np.vstack((np.eye(self.θ.shape[0]), -np.eye(self.θ.shape[0])))
             self.p = np.concatenate((self.θ_min, -self.θ_max))
 
+            return
+
+            # TODO could try to enforce some weird H matrix, like that it is
+            # strictly diagonal
+
+            self.P = np.zeros((20, 10))
+            self.p = np.zeros(20)
+
+            # mass and CoM bounds
+            self.P[:4, :4] = np.eye(4)
+            self.P[4:8, :4] = -np.eye(4)
+            Δmh = Δθ[:4]
+            mh_min = self.θ[:4] - Δmh
+            mh_max = self.θ[:4] + Δmh
+            self.p[:4] = mh_min
+            self.p[4:8] = -mh_max
+
+            # bounds on diagonal of H
+            self.P[8, :] = [0, 0, 0, 0, -1, 0, 0, 1, 0, 1]  # Hxx >= 0
+            self.P[9, :] = [0, 0, 0, 0, 1, 0, 0, -1, 0, 1]  # Hyy >= 0
+            self.P[10, :] = [0, 0, 0, 0, 1, 0, 0, 1, 0, -1]  # Hzz >= 0
+
+            H_nom = ip.I2H(self.J)
+            H_diag_upper = np.diag(H_nom)
+            self.P[11:14, :] = -self.P[8:11, :]
+            self.p[11:14] = -2 * H_diag_upper
+
+            # other H elements are constant
+            self.P[14, :] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]  # Hxy
+            self.P[15, :] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]  # Hxz
+            self.P[16, :] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]  # Hyz
+            self.P[17:20, :] = -self.P[14:17, :]
+            self.p[14:17] = [self.J[0, 1], self.J[0, 2], self.J[1, 2]]
+            self.p[17:20] = -self.p[14:17]
+
     def contacts(self):
-        # contacts are in the body frame w.r.t. to the origin
+        # contacts are in the body frame w.r.t. to the base of the tray
         C1 = ContactPoint(
-            position=[-self.δ, -self.δ, -self.h], normal=[0, 0, 1], μ=self.μ
+            position=self.com + [-self.δ, -self.δ, -self.h], normal=[0, 0, 1], μ=self.μ
         )
         C2 = ContactPoint(
-            position=[self.δ, -self.δ, -self.h], normal=[0, 0, 1], μ=self.μ
+            position=self.com + [self.δ, -self.δ, -self.h], normal=[0, 0, 1], μ=self.μ
         )
         C3 = ContactPoint(
-            position=[self.δ, self.δ, -self.h], normal=[0, 0, 1], μ=self.μ
+            position=self.com + [self.δ, self.δ, -self.h], normal=[0, 0, 1], μ=self.μ
         )
         C4 = ContactPoint(
-            position=[-self.δ, self.δ, -self.h], normal=[0, 0, 1], μ=self.μ
+            position=self.com + [-self.δ, self.δ, -self.h], normal=[0, 0, 1], μ=self.μ
         )
         return [C1, C2, C3, C4]
 
