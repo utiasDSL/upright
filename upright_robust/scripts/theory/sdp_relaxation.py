@@ -60,15 +60,20 @@ def compute_Q_matrix(f):
     nθ = 10
     nz = Z.shape[0]
 
-    Q = np.block([
-        [np.zeros((nv, nv + ng + nz)), D],
-        [np.zeros((ng, nv + ng +  nz)), Dg],
-        [np.zeros((nz, nv + ng +  nz)), Z],
-        [D.T, Dg.T, Z.T, np.zeros((nθ, nθ))]])
+    Q = np.block(
+        [
+            [np.zeros((nv, nv + ng + nz)), D],
+            [np.zeros((ng, nv + ng + nz)), Dg],
+            [np.zeros((nz, nv + ng + nz)), Z],
+            [D.T, Dg.T, Z.T, np.zeros((nθ, nθ))],
+        ]
+    )
     return Q
 
 
-def solve_global_relaxed(obj, F, idx, other_constr_idx):
+def solve_global_relaxed(
+    obj, F, idx, other_constr_idx, v_max=0.5, ω_max=0.5, a_max=1, α_max=1
+):
     f = F[idx, :]
     Q = compute_Q_matrix(f)
     # Z = rob.body_regressor_by_vector_velocity_matrix_half(f)
@@ -85,26 +90,19 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
     z_normal = np.array([0, 0, 1])
     max_tilt_angle = np.deg2rad(30)
 
-    # velocity and acceleration constraints
-    A_min = -np.ones(nv)
-    A_max = np.ones(nv)
-    V_max = 0.5 * np.array([1, 1, 1, 1, 1, 1])
-    V_min = -V_max
-    Λ_max = np.outer(V_max, V_max)
-
-    v_max = 0.5
-    ω_max = 0.5
-
     A = cp.Variable(nv)
     G = cp.Variable(ng)
     z = cp.Variable(nz)
     θ = cp.Variable(nθ)
-    V = cp.Variable(nv)
+    # V = cp.Variable(nv)
 
     y = cp.hstack((A, G, z, θ))
     X = cp.Variable((ny, ny), PSD=True)
 
     Λ = cp.Variable((6, 6), PSD=True)
+
+    # pseudo-inertia matrix
+    Π = cp.Variable((4, 4), PSD=True)
 
     # Xv = X[:nv, :nv]  # acceleration block
     Xa = X[:nv, :nv]  # acceleration block
@@ -114,62 +112,75 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
 
     # notice that we don't need to include V in the optimization problem at all
     objective = cp.Maximize(0.5 * cp.trace(Q @ X))
+
+    # fmt: off
     constraints = [
         z == cp.vec(Λ),
         # z == vech(Λ),
         # z == extract_z(Λ),
-
         # we constrain z completely through Λ
         # Λ <= Λ_max,
         cp.trace(Λ[:3, :3]) <= v_max**2,  # NOTE this constraint is tight
         cp.trace(Λ[3:, 3:]) <= ω_max**2,
-
-        schur(Λ, V) >> 0,
+        # schur(Λ, V) >> 0,
         # cp.diag(Λ) <= np.diag(Λ_max),
         # constraints on X
         schur(X, y) >> 0,
-        cp.trace(Xa[:3, :3]) == 1,
-        cp.trace(Xa[3:, 3:]) == 1,
+        cp.trace(Xa[:3, :3]) <= a_max**2,
+        cp.trace(Xa[3:, 3:]) <= α_max**2,
         # cp.diag(Xa) <= np.maximum(A_max**2, A_min**2),
+
+        # TODO apparently we need this one!!
         cp.diag(Xθ) <= np.maximum(obj.θ_max**2, obj.θ_min**2),
+        # obj.P @ Xθ @ obj.P.T << np.outer(obj.p, obj.p),
+        # TODO this is too tight? i.e. it is not actually true?
+        # cp.diag(obj.P @ Xθ @ obj.P.T) <= obj.p**2,
+
         # Xa <= np.maximum(np.outer(A_max,A_max), np.outer(A_min, A_min)),
         # Xθ <= np.maximum(np.outer(obj.θ_max, obj.θ_max), np.outer(obj.θ_min, obj.θ_min)),
+
         cp.trace(Xg) == g**2,
         Xg[2, 2] >= (g * np.cos(max_tilt_angle)) ** 2,
+
         # consistency between Xz and Λ
         # Xz <= cp.kron(Λ_max, Λ),
         # Xz <= vech_np(Λ_max) @ vech(Λ).T,
         # Xz <= extract_z_np(Λ_max) @ extract_z(Λ).T,
         # Xv == Λ,
-        cp.trace(Xz) == (v_max**2 + ω_max**2) * cp.trace(Λ),
 
+        # TODO this doesn't seem to make a difference
+        # cp.trace(Xz) == (v_max**2 + ω_max**2) * cp.trace(Λ),
         # X[nv + ng : nv + ng + nz, :] == 0,
         # X[:, nv + ng : nv + ng + nz] == 0,
 
         # TODO can we make this tighter by depending directly on Λ?
         # note that this is still conservative regardless because we are not
         # reasoning directly about the norm inequalities we have
-
         # cp.diag(Xz) <= extract_z_np(Λ_max)**2,
         # cp.trace(Xz) <= np.linalg.norm(extract_z_np(Λ_max))**2,
         # cp.trace(Xz) <= np.linalg.norm(extract_z_np(Λ_max)) * cp.norm1(extract_z(Λ)),
         # cp.trace(Xz) <= extract_z_np(Λ_max) @ extract_z(Λ),
 
-        # TODO we can also include physical realizability on J
-        # constraints on y
+        # gravity
         cp.norm(G) <= g,
         z_normal @ G <= -g * np.cos(max_tilt_angle),
-        # A >= A_min,
-        # A <= A_max,
-        cp.norm(A[:3]) <= 1,
-        cp.norm(A[3:]) <= 1,
+
+        # acceleration
+        cp.norm(A[:3]) <= a_max,
+        cp.norm(A[3:]) <= α_max,
+
+        # velocity
+        # cp.norm(V[:3]) <= v_max,
+        # cp.norm(V[3:]) <= ω_max,
+
+        # inertial parameters
+        # TODO we can also include physical realizability on J
+        # constraints on y
+        # obj.P @ θ >= obj.p,
         θ >= obj.θ_min,
         θ <= obj.θ_max,
-        cp.norm(V[:3]) <= v_max,
-        cp.norm(V[3:]) <= ω_max,
-        # V >= V_min,
-        # V <= V_max,
-    ]
+    ] + ip.J_vec_constraint(Π, θ)
+    # fmt: on
 
     for i in other_constr_idx:
         fi = F[i, :]
@@ -183,6 +194,9 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
             Xz_ij = Xz[i * 6 : (i + 1) * 6, j * 6 : (j + 1) * 6]
 
             constraints.append(Xz_ij == Xz_ij.T)
+
+            # TODO what is going on here? these relationships between Xz and z
+            # are necessary for the problem to be bounded but are conservative
             constraints.append(cp.trace(Xz_ij[:3, :3]) == Λ[i, j] * v_max**2)
             constraints.append(cp.trace(Xz_ij[3:, 3:]) == Λ[i, j] * ω_max**2)
             # constraints.append(Xz_ij >> V_max[i] * V_min[j] * Λ)
@@ -201,10 +215,12 @@ def solve_global_relaxed(obj, F, idx, other_constr_idx):
     print(problem.status)
     # print(np.linalg.eigvals(X.value))
 
+    # IPython.embed()
+
     return problem.value
 
 
-def solve_local(obj, F, idx, other_constr_idx, v_max=0.5, ω_max=0.5):
+def solve_local(obj, F, idx, other_constr_idx, v_max=0.5, ω_max=0.5, a_max=1, α_max=1):
 
     # A, g, V, θ
     A0 = np.zeros(6)
@@ -248,14 +264,12 @@ def solve_local(obj, F, idx, other_constr_idx, v_max=0.5, ω_max=0.5):
         A, G, V, θ = x[:6], x[6:9], x[9:15], x[-10:]
         return np.concatenate(
             (
-                # A_max - A,
-                # A - A_min,
-                # V_max - V,
-                # V - V_min,
-                [1 - np.linalg.norm(A[:3]), 1 - np.linalg.norm(A[3:])],
+                # TODO would it be better to square these?
+                [a_max - np.linalg.norm(A[:3]), α_max - np.linalg.norm(A[3:])],
                 [v_max - np.linalg.norm(V[:3]), ω_max - np.linalg.norm(V[3:])],
-                obj.θ_max - θ,
-                θ - obj.θ_min,
+                obj.P @ θ - obj.p,
+                # obj.θ_max - θ,
+                # θ - obj.θ_min,
                 [-g * np.cos(max_tilt_angle) - G[2]],
                 compute_extra_inequalities(x),
             )
@@ -310,7 +324,7 @@ def main_inertia_approx():
 def main_elimination():
     np.set_printoptions(precision=5, suppress=True)
 
-    obj1 = rob.BalancedObject(m=1, h=0.1, δ=0.05, μ=0.5, h0=0, x0=0, uncertain_J=False)
+    obj1 = rob.BalancedObject(m=1, h=0.1, δ=0.05, μ=0.5, h0=0, x0=0, uncertain_mh=True, uncertain_inertia=False)
     # obj2 = rob.BalancedObject(m=1, h=0.1, δ=0.05, μ=0.5, h0=0, x0=0, uncertain_J=False)
 
     F = rob.cwc(obj1.contacts())

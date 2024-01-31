@@ -120,20 +120,20 @@ class ObjectBounds:
         Returns
         -------
         : tuple
-            A tuple (P, p) with matrix P and vector p such that Pθ >= p.
+            A tuple (P, p) with matrix P and vector p such that Pθ <= p.
         """
         Jvec = utils.vech(J)
 
         # mass bounds
-        P_m = np.hstack(([[1], [-1]], np.zeros((2, 9))))
-        p_m = np.array([m + self.mass_lower, -(m + self.mass_upper)])
+        P_m = np.hstack(([[-1], [1]], np.zeros((2, 9))))
+        p_m = np.array([-(m + self.mass_lower), m + self.mass_upper])
 
         # CoM bounds
         I3 = np.eye(3)
         P_h = np.block(
             [
-                [-(c + self.com_lower)[:, None], I3, np.zeros((3, 6))],
-                [(c + self.com_upper)[:, None], -I3, np.zeros((3, 6))],
+                [(c + self.com_lower)[:, None], -I3, np.zeros((3, 6))],
+                [-(c + self.com_upper)[:, None], I3, np.zeros((3, 6))],
             ]
         )
         p_h = np.zeros(6)
@@ -141,45 +141,71 @@ class ObjectBounds:
         # inertia bounds
         if self.ellipsoid_half_extents is None:
             # assume inertia J is exact
-            I6 = np.eye(6)
-            P_J = np.block([[np.zeros((6, 4)), I6], [np.zeros((6, 4)), -I6]])
-            p_J = np.concatenate((Jvec, -Jvec))
+            P_J = np.zeros((12, 10))
+            p_J = np.zeros(12)
+
+            P_J[:6, 4:] = -np.eye(6)
+            P_J[6:, 4:] = np.eye(6)
+
+            p_J[:6] = -Jvec
+            p_J[6:] = Jvec
         else:
-            # otherwise we enforce (relaxed) physical realiability constraints
-            # on a bounding ellipsoid
-            # instead of enforcing the pseudo inertia matrix to be p.s.d., we
-            # just enforce the diagonal of H to be non-negative (this also
-            # implies the diagonal of I is non-negative)
+            # no prior knowledge on inertia; only constraints required for
+            # realizability
             P_J = np.zeros((13, 10))
             p_J = np.zeros(13)
 
+            # H diagonal bounds
+            # TODO we actually want to find Hxx_min as a function of mass!
+            # diag(H) >= diag(H)_min
+            P_J[0, :] = -0.5 * np.array([0, 0, 0, 0, -1, 0, 0, 1, 0, 1])  # -Hxx
+            P_J[1, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, -1, 0, 1])  # -Hyy
+            P_J[2, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, 1, 0, -1])  # -Hzz
+            p_J[:3] = -np.array([Hxx_min, Hyy_min, Hzz_min])
+
+            # diag(H) <= diag(H)_max
+            P_J[3, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, -1, 0, -1])  # Hxx
+            P_J[4, :] = -0.5 * np.array([0, 0, 0, 0, -1, 0, 0, 1, 0, -1])  # Hyy
+            P_J[5, :] = -0.5 * np.array([0, 0, 0, 0, -1, 0, 0, -1, 0, 1])  # Hzz
+            p_J[3:6] = np.array([Hxx_max, Hyy_max, Hzz_max])
+
+            # off-diagonal H values
+            P_J[6, :] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]  # -Hxy
+            P_J[7, :] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]  # -Hxz
+            P_J[8, :] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]  # -Hyz
+            p_J[6:9] = -np.array([Hxy_min, Hxz_min, Hyz_min])
+
+            P_J[9, :] = [0, 0, 0, 0, 0, -1, 0, 0, 0, 0]  # Hxy
+            P_J[10, :] = [0, 0, 0, 0, 0, 0, -1, 0, 0, 0]  # Hxz
+            P_J[11, :] = [0, 0, 0, 0, 0, 0, 0, 0, -1, 0]  # Hyz
+            p_J[9:12] = np.array([Hxy_max, Hxz_max, Hyz_max])
+
+            # ellipsoid density realizability
+            # tr(ΠQ) >= 0
             Q = ip.Ellipsoid.from_half_extents(
                 half_extents=self.ellipsoid_half_extents, center=c
             ).Q
+            P_J[12, :] = [-np.trace(A @ Q) for A in utils.pim_sum_vec_matrices()]
 
-            # tr(ΠQ) >= 0
-            As = utils.pim_sum_vec_matrices()
-            # P_J[0, :] = [np.trace(A @ Q) for A in As]
-
-            # TODO let's put upper bounds on as well
-            # diag(H) >= 0
-            # recall θ = [m, hx, hy, hz, Ixx, Ixy, Ixz, Iyy, Iyz, Izz]
-            P_J[1, :] = [0, 0, 0, 0, -1, 0, 0, 1, 0, 1]  # Hxx >= 0
-            P_J[2, :] = [0, 0, 0, 0, 1, 0, 0, -1, 0, 1]  # Hyy >= 0
-            P_J[3, :] = [0, 0, 0, 0, 1, 0, 0, 1, 0, -1]  # Hzz >= 0
-
-            # TODO: depends on the mass, right now just using nominal
-            H_diag_upper = m * self.ellipsoid_half_extents ** 2
-
-            # negative because <=
-            P_J[4:7, :] = -P_J[1:4, :]
-            p_J[4:7] = -2 * H_diag_upper
-
-            # TODO force other elements to zero
-            P_J[7, :] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]  # Hxy
-            P_J[8, :] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]  # Hxz
-            P_J[9, :] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]  # Hyz
-            P_J[10:13, :] = -P_J[7:10, :]
+            # # TODO let's put upper bounds on as well
+            # # diag(H) >= 0
+            # # recall θ = [m, hx, hy, hz, Ixx, Ixy, Ixz, Iyy, Iyz, Izz]
+            # P_J[1, :] = [0, 0, 0, 0, -1, 0, 0, 1, 0, 1]  # Hxx >= 0
+            # P_J[2, :] = [0, 0, 0, 0, 1, 0, 0, -1, 0, 1]  # Hyy >= 0
+            # P_J[3, :] = [0, 0, 0, 0, 1, 0, 0, 1, 0, -1]  # Hzz >= 0
+            #
+            # # TODO: depends on the mass, right now just using nominal
+            # H_diag_upper = m * self.ellipsoid_half_extents ** 2
+            #
+            # # negative because <=
+            # P_J[4:7, :] = -P_J[1:4, :]
+            # p_J[4:7] = -2 * H_diag_upper
+            #
+            # # TODO force other elements to zero
+            # P_J[7, :] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]  # Hxy
+            # P_J[8, :] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]  # Hxz
+            # P_J[9, :] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]  # Hyz
+            # P_J[10:13, :] = -P_J[7:10, :]
 
         # combined bounds
         P = np.vstack((P_m, P_h, P_J))
@@ -209,8 +235,8 @@ class UncertainObject:
         ])
         # fmt: on
 
-        # polytopic parameter uncertainty: Pθ >= p
-        # NOTE: the inequality is currently flipped compared to the paper
+        # polytopic parameter uncertainty: Pθ <= p
+        # TODO still may be bugs in the controller since I switched from Pθ >= p
         if bounds is None:
             bounds = ObjectBounds()
         self.P, self.p = bounds.polytope(m, c, J)
@@ -260,3 +286,7 @@ def compute_cwc_face_form(name_index, contacts):
 
     # Aw <= 0 implies there exist feasible contact forces to support wrench w
     return A
+
+
+def compute_P_tilde_matrix(P, p):
+    return np.block([[P, p[:, None]], [np.zeros((1, P.shape[1])), np.array([[1]])]])

@@ -550,12 +550,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             # polytopic parameter uncertainty
             P = block_diag(*[obj.P for obj in self.objects.values()])
             p = np.concatenate([obj.p for obj in self.objects.values()])
-
-            # fmt: off
-            self.P_tilde = np.block([
-                [P, p[:, None]],
-                [np.zeros((1, P.shape[1])), np.array([[-1]])]])
-            # fmt: on
+            self.P_tilde = mdl.compute_P_tilde_matrix(P, p)
 
             print("Computing inertial parameter face form...")
             R = utils.span_to_face_form(self.P_tilde.T)
@@ -567,10 +562,11 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             for i in range(n_face):
                 D = utils.body_regressor_A_by_vector(self.face[i, :])
                 D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
-                self.A_ineq_rob[i * n_ineq : (i + 1) * n_ineq, :] = -R @ D_tilde
+                self.A_ineq_rob[i * n_ineq : (i + 1) * n_ineq, :] = R @ D_tilde
 
             self.RT = R[:, :-1].T
 
+            raise NotImplementedError("robust bounds probably needs adjustment since I switched P and R signs")
             self.robust_bounds = RobustBounds(self.RT, self.face, self.A_ineq_rob)
 
         if use_robust_constraints:
@@ -580,12 +576,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             # polytopic parameter uncertainty
             P = block_diag(*[obj.P for obj in self.objects.values()])
             p = np.concatenate([obj.p for obj in self.objects.values()])
-
-            # fmt: off
-            self.P_tilde = np.block([
-                [P, p[:, None]],
-                [np.zeros((1, P.shape[1])), np.array([[-1]])]])
-            # fmt: on
+            self.P_tilde = mdl.compute_P_tilde_matrix(P, p)
 
             if use_face_form:
                 print("Computing inertial parameter face form...")
@@ -604,7 +595,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
                     D = utils.body_regressor_A_by_vector(self.face[i, :])
                     D_tilde = np.vstack((D, np.zeros((1, D.shape[1]))))
                     self.A_ineq[i * n_ineq : (i + 1) * n_ineq, self.sA] = (
-                        -self.R @ D_tilde
+                        self.R @ D_tilde
                     )
 
                 # self.A_ineq_max = np.max(np.abs(self.A_ineq))
@@ -773,7 +764,9 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         if self.use_robust_constraints:
             if self.use_face_form:
                 Y0 = utils.body_regressor(V_ew_e, -G_e)
-                b_ineq = np.ravel(self.face @ block_diag(*[Y0] * self.no) @ self.RT)
+                # TODO added the negative to self.RT with the sign switch---is
+                # this correct?
+                b_ineq = np.ravel(self.face @ block_diag(*[Y0] * self.no) @ -self.RT)
                 # b_ineq = (self.R @ B).T.flatten()  # / self.A_ineq_max
                 b_eq_bal = np.zeros(0)
             else:
