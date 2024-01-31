@@ -77,6 +77,7 @@ def vech(J):
 #         I[2, 2] == θ[9],
 #     ]
 
+
 def pim_trace_vec_matrices():
     """Generate the matrices A_i such that tr(A_i @ J) == θ_i"""
     As = [np.zeros((4, 4)) for _ in range(10)]
@@ -187,7 +188,18 @@ class ContactPoint:
 
 
 class BalancedObject:
-    def __init__(self, m, h, δ, μ, h0=0, x0=0, uncertain_mh=False, uncertain_inertia=False, mh_factor=1):
+    def __init__(
+        self,
+        m,
+        h,
+        δ,
+        μ,
+        h0=0,
+        x0=0,
+        uncertain_mh=False,
+        uncertain_inertia=False,
+        Q=None,
+    ):
         self.m = m
         self.h = h  # height of CoM above base of object
         self.δ = δ
@@ -199,9 +211,10 @@ class BalancedObject:
         self.com = np.array([self.x0, 0, self.h + self.h0])
         S = core.math.skew3(self.com)
 
-        side_lengths = 2 * np.array([δ, δ, h])
+        half_extents = np.array([δ, δ, h])
+        # side_lengths = 2 * half_extents
         # self.J = core.math.cuboid_inertia_matrix(m, side_lengths) - m * S @ S
-        self.J = ip.cuboid_vertices_inertia_matrix(m, 0.5 * side_lengths) - m * S @ S
+        self.J = ip.cuboid_vertices_inertia_matrix(m, 0.5 * half_extents) - m * S @ S
 
         # polytopic constraints on the inertial parameters
         # Pθ <= p
@@ -214,7 +227,7 @@ class BalancedObject:
         # self.θ_max = self.θ + Δθ
 
         if uncertain_mh:
-            Δmh = mh_factor * np.array([0.1, 0.01, 0.01, 0.04])
+            Δmh = np.array([0.1, 0.01, 0.01, 0.04])
         else:
             Δmh = np.zeros(4)
 
@@ -249,17 +262,28 @@ class BalancedObject:
             P_J[1, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, -1, 0, 1])  # Hyy >= 0
             P_J[2, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, 1, 0, -1])  # Hzz >= 0
 
-            P_J[3, :] = -0.5 * np.array([2 * δ**2, 0, 0, 0, 1, 0, 0, -1, 0, -1])  # Hxx <= Hxx_max
-            P_J[4, :] = -0.5 * np.array([2 * δ**2, 0, 0, 0, -1, 0, 0, 1, 0, -1])  # Hyy <= Hyy_max
-            P_J[5, :] = -0.5 * np.array([2 * (2 * h)**2, 0, 0, 0, -1, 0, 0, -1, 0, 1])  # Hzz <= Hzz_max
+            P_J[3, :] = -0.5 * np.array(
+                [2 * δ**2, 0, 0, 0, 1, 0, 0, -1, 0, -1]
+            )  # Hxx <= Hxx_max
+            P_J[4, :] = -0.5 * np.array(
+                [2 * δ**2, 0, 0, 0, -1, 0, 0, 1, 0, -1]
+            )  # Hyy <= Hyy_max
+            P_J[5, :] = -0.5 * np.array(
+                [2 * (2 * h) ** 2, 0, 0, 0, -1, 0, 0, -1, 0, 1]
+            )  # Hzz <= Hzz_max
 
             # other H values
-            P_J[6, :] = [-δ**2, 0, 0, 0, 0, 1, 0, 0, 0, 0]  # Hxy >= Hxy_min
-            P_J[7, :] = [-δ*(2*h), 0, 0, 0, 0, 0, 1, 0, 0, 0]  # Hxz >= Hxz_min
-            P_J[8, :] = [-δ*(2*h), 0, 0, 0, 0, 0, 0, 0, 1, 0]  # Hyz >= Hyz_min
-            P_J[9, :] = [-δ**2, 0, 0, 0, 0, -1, 0, 0, 0, 0]  # Hxy <= Hxy_max
-            P_J[10, :] = [-δ*(2*h), 0, 0, 0, 0, 0, -1, 0, 0, 0]  # Hxz <= Hxz_max
-            P_J[11, :] = [-δ*(2*h), 0, 0, 0, 0, 0, 0, 0, -1, 0]  # Hyz <= Hyz_max
+            P_J[6, :] = [-(δ**2), 0, 0, 0, 0, 1, 0, 0, 0, 0]  # Hxy >= Hxy_min
+            P_J[7, :] = [-δ * (2 * h), 0, 0, 0, 0, 0, 1, 0, 0, 0]  # Hxz >= Hxz_min
+            P_J[8, :] = [-δ * (2 * h), 0, 0, 0, 0, 0, 0, 0, 1, 0]  # Hyz >= Hyz_min
+            P_J[9, :] = [-(δ**2), 0, 0, 0, 0, -1, 0, 0, 0, 0]  # Hxy <= Hxy_max
+            P_J[10, :] = [-δ * (2 * h), 0, 0, 0, 0, 0, -1, 0, 0, 0]  # Hxz <= Hxz_max
+            P_J[11, :] = [-δ * (2 * h), 0, 0, 0, 0, 0, 0, 0, -1, 0]  # Hyz <= Hyz_max
+
+            # ellipsoid density realizability
+            if Q is not None:
+                P_J = np.vstack((P_J, [-np.trace(A @ Q) for A in pim_sum_vec_matrices()]))
+                p_J = np.append(p_J, 0)
 
         self.P = np.vstack((P_mh, P_J))
         self.p = np.concatenate((p_mh, p_J))

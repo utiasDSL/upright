@@ -23,9 +23,9 @@ class RobustControllerModel:
             for c in model.settings.balancing_settings.contacts
         ]
 
-        print("Ctrl object info")
-        for name, obj in objects.items():
-            print(f"{name} inertia =\n{obj.body.inertia}")
+        # print("Ctrl object info")
+        # for name, obj in objects.items():
+        #     print(f"{name} inertia =\n{obj.body.inertia}")
 
         # parse the bounds for each object
         self.uncertain_objects = {}

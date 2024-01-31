@@ -1,4 +1,5 @@
 import numpy as np
+import cvxpy as cp
 from scipy.linalg import block_diag
 
 # TODO probably don't want this dependency at the moment
@@ -6,6 +7,39 @@ import inertial_params as ip
 
 import upright_core as core
 import upright_robust.utils as utils
+
+
+def H_min_max(bounding_box, com_box, mass_min, mass_max):
+    Es = bounding_box.as_ellipsoidal_intersection()
+
+    J = cp.Variable((4, 4), PSD=True)
+    h = J[:3, 3]
+    m = J[3, 3]
+    constraints = (
+        [
+            m >= mass_min,
+            m <= mass_max,
+        ]
+        + com_box.must_contain(points=h, mass=m)
+        + [cp.trace(E.Q @ J) >= 0 for E in Es]
+    )
+
+    H_min = np.zeros((3, 3))
+    H_max = np.zeros((3, 3))
+    for i in range(3):
+        for j in range(i, 3):
+            objective = cp.Maximize(J[i, j])
+            problem = cp.Problem(objective, constraints)
+            problem.solve(solver=cp.MOSEK)
+            H_max[i, j] = objective.value
+            H_max[j, i] = objective.value
+
+            objective = cp.Minimize(J[i, j])
+            problem = cp.Problem(objective, constraints)
+            problem.solve(solver=cp.MOSEK)
+            H_min[i, j] = objective.value
+            H_min[j, i] = objective.value
+    return H_min, H_max
 
 
 class RobustContactPoint:
@@ -57,6 +91,7 @@ class ObjectBounds:
         com_lower=None,
         com_upper=None,
         ellipsoid_half_extents=None,
+        box_half_extents=None,
     ):
         """All quantities are *relative to the nominal value*.
 
@@ -84,6 +119,7 @@ class ObjectBounds:
 
         # ellipsoid_half_extents can be None
         self.ellipsoid_half_extents = ellipsoid_half_extents
+        self.box_half_extents = box_half_extents
 
     @classmethod
     def from_config(cls, config):
@@ -93,15 +129,20 @@ class ObjectBounds:
         com_upper = config.get("com_upper", None)
         if "ellipsoid" in config:
             # the center of the ellipsoid will be the nominal CoM
-            half_extents = np.array(config["ellipsoid"]["half_extents"])
+            ell_half_extents = np.array(config["ellipsoid"]["half_extents"])
         else:
-            half_extents = None
+            ell_half_extents = None
+        if "box" in config:
+            box_half_extents = np.array(config["box"]["half_extents"])
+        else:
+            box_half_extents = None
         return cls(
             mass_lower=mass_lower,
             mass_upper=mass_upper,
             com_lower=com_lower,
             com_upper=com_upper,
-            ellipsoid_half_extents=half_extents,
+            ellipsoid_half_extents=ell_half_extents,
+            box_half_extents=box_half_extents,
         )
 
     def polytope(self, m, c, J):
@@ -155,30 +196,36 @@ class ObjectBounds:
             P_J = np.zeros((13, 10))
             p_J = np.zeros(13)
 
+            bounding_box = ip.Box(half_extents=self.box_half_extents, center=c)
+            com_box = ip.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
+            mass_min = m + self.mass_lower
+            mass_max = m + self.mass_upper
+            H_min, H_max = H_min_max(bounding_box, com_box, mass_min, mass_max)
+
             # H diagonal bounds
             # TODO we actually want to find Hxx_min as a function of mass!
             # diag(H) >= diag(H)_min
             P_J[0, :] = -0.5 * np.array([0, 0, 0, 0, -1, 0, 0, 1, 0, 1])  # -Hxx
             P_J[1, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, -1, 0, 1])  # -Hyy
             P_J[2, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, 1, 0, -1])  # -Hzz
-            p_J[:3] = -np.array([Hxx_min, Hyy_min, Hzz_min])
+            p_J[:3] = -np.diag(H_min)
 
             # diag(H) <= diag(H)_max
             P_J[3, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, -1, 0, -1])  # Hxx
             P_J[4, :] = -0.5 * np.array([0, 0, 0, 0, -1, 0, 0, 1, 0, -1])  # Hyy
             P_J[5, :] = -0.5 * np.array([0, 0, 0, 0, -1, 0, 0, -1, 0, 1])  # Hzz
-            p_J[3:6] = np.array([Hxx_max, Hyy_max, Hzz_max])
+            p_J[3:6] = np.diag(H_max)
 
             # off-diagonal H values
             P_J[6, :] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]  # -Hxy
             P_J[7, :] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]  # -Hxz
             P_J[8, :] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]  # -Hyz
-            p_J[6:9] = -np.array([Hxy_min, Hxz_min, Hyz_min])
+            p_J[6:9] = -np.array([H_min[0, 1], H_min[0, 2], H_min[1, 2]])
 
             P_J[9, :] = [0, 0, 0, 0, 0, -1, 0, 0, 0, 0]  # Hxy
             P_J[10, :] = [0, 0, 0, 0, 0, 0, -1, 0, 0, 0]  # Hxz
             P_J[11, :] = [0, 0, 0, 0, 0, 0, 0, 0, -1, 0]  # Hyz
-            p_J[9:12] = np.array([Hxy_max, Hxz_max, Hyz_max])
+            p_J[9:12] = np.array([H_max[0, 1], H_max[0, 2], H_max[1, 2]])
 
             # ellipsoid density realizability
             # tr(ΠQ) >= 0

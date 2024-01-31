@@ -19,9 +19,19 @@ import IPython
 g = 9.81
 
 
-def solve_global_relaxed_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
+def solve_global_relaxed_dual(
+    obj,
+    f,
+    other_constr_idx=None,
+    v_max=1,
+    ω_max=0.25,
+    a_max=1,
+    α_max=0.25,
+    max_tilt_angle=np.deg2rad(30),
+):
     """Global convex problem based on the face form of the dual constraint formulation."""
-    f = F[idx, :]
+    if other_constr_idx is None:
+        other_constr_idx = []
 
     Z = rob.body_regressor_by_vector_velocity_matrix(f)
     D = rob.body_regressor_by_vector_acceleration_matrix(f)
@@ -32,20 +42,12 @@ def solve_global_relaxed_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
     nz = Z.shape[0]
 
     # fmt: off
-    P_tilde = np.block([
-        [obj.P, obj.p[:, None]],
-        [np.zeros((1, obj.P.shape[1])), np.array([[1]])]])
-    # fmt: on
+    P_tilde = rob.compute_P_tilde_matrix(obj.P, obj.p)
     R = rob.span_to_face_form(P_tilde.T)
-    R = R / np.max(np.abs(R))
+    # R = R / np.max(np.abs(R))
 
     # gravity constraints
     z_normal = np.array([0, 0, 1])
-    max_tilt_angle = np.deg2rad(30)
-
-    # acceleration constraints
-    a_max = 1
-    α_max = 1
 
     A = cp.Variable(nv)
     G = cp.Variable(ng)
@@ -70,29 +72,29 @@ def solve_global_relaxed_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
             z_normal @ G <= -g * np.cos(max_tilt_angle),
 
             # acceleration constraints
-            -a_max <= A[:3] <= a_max,
-            -α_max <= A[3:] <= α_max,
+            A[:3] >= -a_max,
+            A[:3] <= a_max,
+            A[3:] >= -α_max,
+            A[3:] <= α_max,
         ]
         # fmt: on
         problem = cp.Problem(objective, constraints)
-        t0 = time.time()
         problem.solve(solver=cp.MOSEK)
-        t1 = time.time()
-        # print(f"Δt = {t1 - t0}")
         values.append(problem.value)
-
-        eigs, eigvecs = np.linalg.eig(Λ.value)
-        max_eig_idx = np.argmax(eigs)
-        Vs.append(np.sqrt(eigs[max_eig_idx]) * eigvecs[:, max_eig_idx])
-
-    min_idx = np.argmin(values)
-    print(f"relaxed value = {values[min_idx]}")
-    print(f"relaxed V = {Vs[min_idx]}")
     return np.min(values)
 
 
 def solve_global_relaxed_dual_approx_inertia(
-    obj1, obj2, F1, F2, idx, ell, v_max=1, ω_max=0.25, a_max=1, α_max=0.25,
+    obj1,
+    obj2,
+    F1,
+    F2,
+    idx,
+    ell,
+    v_max=1,
+    ω_max=0.25,
+    a_max=1,
+    α_max=0.25,
 ):
     """Global convex problem based on the face form of the dual constraint formulation.
 
@@ -118,30 +120,13 @@ def solve_global_relaxed_dual_approx_inertia(
     ng = 3
     nz = Z.shape[0]
 
-    # ellipsoid realizability
-    Q = ell.Q
-    As = rob.pim_sum_vec_matrices()
-    νs = np.array([np.trace(Q @ A) for A in As])
-
-    # fmt: off
-    P1_tilde = np.block([
-        [obj1.P, obj1.p[:, None]],
-        [np.zeros((1, obj1.P.shape[1])), np.array([[1]])],
-        [-νs[None, :], np.array([[0]])]])
-    # P1_tilde = np.block([
-    #     [obj1.P, -obj1.p[:, None]],
-    #     [np.zeros((1, obj1.P.shape[1])), np.array([[-1]])]])
-    # fmt: on
+    P1_tilde = rob.compute_P_tilde_matrix(obj1.P, obj1.p)
     R1 = rob.span_to_face_form(P1_tilde.T)
-    R1 = R1 / np.max(np.abs(R1))
+    # R1 = R1 / np.max(np.abs(R1))
 
-    # fmt: off
-    P2_tilde = np.block([
-        [obj2.P, obj2.p[:, None]],
-        [np.zeros((1, obj2.P.shape[1])), np.array([[1]])]])
-    # fmt: on
+    P2_tilde = rob.compute_P_tilde_matrix(obj2.P, obj2.p)
     R2 = rob.span_to_face_form(P2_tilde.T)
-    R2 = R2 / np.max(np.abs(R2))
+    # R2 = R2 / np.max(np.abs(R2))
 
     # gravity constraints
     z_normal = np.array([0, 0, 1])
@@ -196,18 +181,10 @@ def solve_global_relaxed_dual_approx_inertia(
         if problem.value > 0:
             print(f"eigvals = {np.linalg.eigvals(Λ.value)}")
 
-        # IPython.embed()
-        # raise ValueError()
-
-        # eigs, eigvecs = np.linalg.eig(Λ.value)
-        # max_eig_idx = np.argmax(eigs)
-        # Vs.append(np.sqrt(eigs[max_eig_idx]) * eigvecs[:, max_eig_idx])
-
-    # min_idx = np.argmin(values)
-    # print(f"relaxed value = {values[min_idx]}")
-    # print(f"relaxed V = {Vs[min_idx]}")
     n_neg = np.sum(np.array(values) < 0)
-    print(f"min={np.min(values)}, max={np.max(values)}, ({n_neg} / {len(values)} negative)")
+    print(
+        f"min={np.min(values)}, max={np.max(values)}, ({n_neg} / {len(values)} negative)"
+    )
     return np.min(values)
 
 
@@ -303,8 +280,18 @@ def solve_local_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
 def main_inertia_approx():
     np.set_printoptions(precision=5, suppress=True)
 
+    box = ip.Box(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
+    ell = box.minimum_bounding_ellipsoid()
     obj1 = rob.BalancedObject(
-        m=1, h=0.2, δ=0.05, μ=0.2, h0=0, x0=0, uncertain_mh=False, uncertain_inertia=True
+        m=1,
+        h=0.2,
+        δ=0.05,
+        μ=0.2,
+        h0=0,
+        x0=0,
+        Q=ell.Q,
+        uncertain_mh=False,
+        uncertain_inertia=True,
     )
     obj2 = rob.BalancedObject(
         m=1,
@@ -317,9 +304,6 @@ def main_inertia_approx():
         uncertain_inertia=False,
         mh_factor=1,
     )
-    box = ip.Box(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
-    # ell = ip.maximum_inscribed_ellipsoid(box.vertices)
-    ell = box.minimum_bounding_ellipsoid()
 
     F1 = rob.cwc(obj1.contacts())
     F2 = rob.cwc(obj2.contacts())
@@ -328,7 +312,7 @@ def main_inertia_approx():
     # F2 /= norm
 
     for i in range(F1.shape[0]):
-        print(i+1)
+        print(i + 1)
         relaxed = solve_global_relaxed_dual_approx_inertia(obj1, obj2, F1, F2, i, ell)
         # print(f"{i+1}: {relaxed}")
 
@@ -336,37 +320,30 @@ def main_inertia_approx():
 def main_elimination():
     np.set_printoptions(precision=5, suppress=True)
 
-    obj1 = rob.BalancedObject(m=1, h=0.1, δ=0.05, μ=0.5, h0=0, x0=0, uncertain_J=False)
-    # obj2 = rob.BalancedObject(m=1, h=0.1, δ=0.05, μ=0.5, h0=0, x0=0, uncertain_J=False)
+    box = ip.Box(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
+    ell = box.minimum_bounding_ellipsoid()
 
-    F = rob.cwc(obj1.contacts())
-    F = F / np.max(np.abs(F))
-
-    num_never_active = 0
+    # TODO now this depends on how I specify P, p
+    obj = rob.BalancedObject(
+        m=1,
+        h=0.2,
+        δ=0.05,
+        μ=0.5,
+        h0=0,
+        x0=0,
+        Q=ell.Q,
+        uncertain_mh=True,
+        uncertain_inertia=True,
+    )
+    F = rob.cwc(obj.contacts())
 
     for i in range(F.shape[0]):
-        print(i)
-        # solve_global_relaxed(obj, F, i, list(range(i)))
-        # solve_local(obj, F, i, list(range(i)))
-        # relaxed = solve_global_relaxed(obj, F, i, [])
-
-        # NOTE this is not actually right: we want to actually solve the
-        # uncertain version in the presence of all the nominal constraints
-        relaxed1 = solve_global_relaxed(obj1, F, i, [])
-        # relaxed2 = solve_global_relaxed_dual(obj2, F, i, [])
-        # if relaxed1 < relaxed2:
-        #     print("uncertain worse than nominal!")
-
-        # other_constr_idx = list(range(i))
-        # relaxed = solve_global_relaxed_dual(obj, F, i, other_constr_idx)
-        # local = solve_local_dual(obj, F, i, other_constr_idx)
-        # if relaxed >= 0:
-        #     print("CONSTRAINT NEVER ACTIVE!")
-        #     num_never_active += 1
-        # print(f"gap = relaxed - local = {relaxed - local}\n")
-    print(f"Constraints never active = {num_never_active} / {F.shape[0]}")
+        print(i + 1)
+        f = F[i, :]
+        relaxed = solve_global_relaxed_dual(obj, f)
+        print(relaxed)
 
 
 if __name__ == "__main__":
-    main_inertia_approx()
-    # main_elimination()
+    # main_inertia_approx()
+    main_elimination()
