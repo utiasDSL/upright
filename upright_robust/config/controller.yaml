@@ -156,19 +156,32 @@ objects:
   tall_block_0:
     mass: 1.0
     com_offset: [0, 0, 0]
-    inertia_diag: [0.0133666667, 0.0141666667, 0.0008666667]
+    # inertia_diag: [0.0133666667, 0.0141666667, 0.0008666667]  # uniform density
+    inertia_diag: [0.0425, 0.0425, 0.005]  # 1kg mass spread in corners
     shape:
       type: cuboid
       side_lengths: [0.1, 0.1, 0.4]
 
     # bounds are all relative to the nominal values above
-    bounds:
-      com_lower: [-0.04, -0.04, -0.04]
-      com_upper: [0.04, 0.04, 0.04]
+    # these are the bounds actually enforced by the QP-based controller
+    bounds_approx_inertia:
+      com_lower: [-0.04, -0.04, -0.1]
+      com_upper: [0.04, 0.04, 0.1]
       mass_lower: 0
       mass_upper: 0
+
+    # these are the bounds that allow any inertia matrix that is physically
+    # realizable
+    bounds_realizable:
+      com_lower: [-0.035, -0.035, -0.035]
+      com_upper: [0.035, 0.035, 0.035]
+      mass_lower: 0
+      mass_upper: 0
+
       ellipsoid:
-        half_extents: [0.05, 0.05, 0.2]
+        # half_extents: [0.05, 0.05, 0.2]  # inscribed
+        # TODO could generate this automatically from the box
+        half_extents: [0.08660115, 0.08660115, 0.34642127]  # bounding
       box:
         half_extents: [0.05, 0.05, 0.2]
 

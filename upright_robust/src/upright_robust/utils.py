@@ -196,8 +196,7 @@ class BalancedObject:
         μ,
         h0=0,
         x0=0,
-        uncertain_mh=False,
-        uncertain_inertia=False,
+        approx_inertia=False,
         Q=None,
     ):
         self.m = m
@@ -214,35 +213,41 @@ class BalancedObject:
         half_extents = np.array([δ, δ, h])
         # side_lengths = 2 * half_extents
         # self.J = core.math.cuboid_inertia_matrix(m, side_lengths) - m * S @ S
-        self.J = ip.cuboid_vertices_inertia_matrix(m, 0.5 * half_extents) - m * S @ S
+        self.J = ip.Box(half_extents).vertex_point_mass_params(m).I - m * S @ S
 
         # polytopic constraints on the inertial parameters
         # Pθ <= p
         Jvec = vech(self.J)
         self.θ = np.concatenate(([m], m * self.com, Jvec))
 
-        # Δθ = np.concatenate(([0.1, 0.01 * δ, 0.01 * δ, 0.01 * h], 0 * Jvec))
-        # Δθ = np.zeros_like(self.θ)
-        # self.θ_min = self.θ - Δθ
-        # self.θ_max = self.θ + Δθ
-
-        if uncertain_mh:
-            Δmh = np.array([0.1, 0.01, 0.01, 0.04])
+        if approx_inertia:
+            Δm = 0
+            # Δc = np.array([0.04, 0.04, 0.04])
+            Δc = np.array([0.04, 0.04, 0.04])
         else:
-            Δmh = np.zeros(4)
+            Δm = 0
+            # Δc = np.array([0, 0, 0])
+            Δc = np.array([0.03, 0.03, 0.03])
 
         P_mh = np.zeros((8, 10))
         p_mh = np.zeros(8)
 
-        P_mh[:4, :4] = -np.eye(4)
-        P_mh[4:8, :4] = np.eye(4)
+        # mass
+        P_mh[0, 0] = 1
+        P_mh[1, 0] = -1
+        p_mh[0] = m + Δm
+        p_mh[1] = -(m - Δm)
 
-        mh_min = self.θ[:4] - Δmh
-        mh_max = self.θ[:4] + Δmh
-        p_mh[:4] = -mh_min
-        p_mh[4:] = mh_max
+        # CoM
+        c_max = self.com + Δc
+        c_min = self.com - Δc
+        P_mh[2:5, 0] = -c_max
+        P_mh[2:5, 1:4] = np.eye(3)
+        P_mh[5:8, 0] = c_min
+        P_mh[5:8, 1:4] = -np.eye(3)
 
-        if not uncertain_inertia:
+        if approx_inertia:
+            # approximate inertia as some exact value
             P_J = np.zeros((12, 10))
             p_J = np.zeros(12)
 
@@ -284,6 +289,9 @@ class BalancedObject:
             if Q is not None:
                 P_J = np.vstack((P_J, [-np.trace(A @ Q) for A in pim_sum_vec_matrices()]))
                 p_J = np.append(p_J, 0)
+
+            # P_J = np.array([-np.trace(A @ Q) for A in pim_sum_vec_matrices()]).reshape((1, 10))
+            # p_J = np.zeros(1)
 
         self.P = np.vstack((P_mh, P_J))
         self.p = np.concatenate((p_mh, p_J))
@@ -431,14 +439,17 @@ def _span_to_face_form_cdd(S):
     # general face form is Ax <= b, which cdd stores as one matrix [b -A]
     Fmat = poly.get_inequalities()
 
-    # ensure no equality constraints: we are only setup to handle inequalities
-    # at the moment
-    assert len(Fmat.lin_set) == 0
+    face_form = ip.FaceForm.from_cdd_matrix(Fmat)
+    return face_form.A, face_form.b
 
-    F = np.array([Fmat[i] for i in range(Fmat.row_size)])
-    b = F[:, 0]
-    A = -F[:, 1:]
-    return A, b
+    # # ensure no equality constraints: we are only setup to handle inequalities
+    # # at the moment
+    # assert len(Fmat.lin_set) == 0
+    #
+    # F = np.array([Fmat[i] for i in range(Fmat.row_size)])
+    # b = F[:, 0]
+    # A = -F[:, 1:]
+    # return A, b
 
 
 def span_to_face_form(S, library="cdd"):

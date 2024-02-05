@@ -87,10 +87,9 @@ def solve_global_relaxed_dual(
 def solve_global_relaxed_dual_approx_inertia(
     obj1,
     obj2,
-    F1,
+    f,
     F2,
     idx,
-    ell,
     v_max=1,
     ω_max=0.25,
     a_max=1,
@@ -101,8 +100,6 @@ def solve_global_relaxed_dual_approx_inertia(
     Minimize the constraints for obj1 subject to all constraints on obj2, which
     are typically approximations of those on obj1.
     """
-    f = F1[idx, :]
-
     Z = rob.body_regressor_by_vector_velocity_matrix(f)
     D = rob.body_regressor_by_vector_acceleration_matrix(f)
     Dg = -D[:3, :]
@@ -173,13 +170,13 @@ def solve_global_relaxed_dual_approx_inertia(
         ]
         # fmt: on
         problem = cp.Problem(objective, constraints)
-        t0 = time.time()
+        # t0 = time.time()
         problem.solve(solver=cp.MOSEK)
-        t1 = time.time()
+        # t1 = time.time()
         # print(f"Δt = {t1 - t0}")
         values.append(problem.value)
-        if problem.value > 0:
-            print(f"eigvals = {np.linalg.eigvals(Λ.value)}")
+        # if problem.value > 0:
+        #     print(f"eigvals = {np.linalg.eigvals(Λ.value)}")
 
     n_neg = np.sum(np.array(values) < 0)
     print(
@@ -290,19 +287,16 @@ def main_inertia_approx():
         h0=0,
         x0=0,
         Q=ell.Q,
-        uncertain_mh=False,
-        uncertain_inertia=True,
+        approx_inertia=False,
     )
     obj2 = rob.BalancedObject(
         m=1,
         h=0.2,
-        δ=0.04,
+        δ=0.05,
         μ=0.2,
         h0=0,
         x0=0,
-        uncertain_mh=True,
-        uncertain_inertia=False,
-        mh_factor=1,
+        approx_inertia=True,
     )
 
     F1 = rob.cwc(obj1.contacts())
@@ -311,10 +305,12 @@ def main_inertia_approx():
     # F1 /= norm
     # F2 /= norm
 
+    print("We want all constraints negative.")
+
     for i in range(F1.shape[0]):
         print(i + 1)
-        relaxed = solve_global_relaxed_dual_approx_inertia(obj1, obj2, F1, F2, i, ell)
-        # print(f"{i+1}: {relaxed}")
+        f = F1[i, :]
+        relaxed = solve_global_relaxed_dual_approx_inertia(obj1, obj2, f, F2, i)
 
 
 def main_elimination():
@@ -322,8 +318,6 @@ def main_elimination():
 
     box = ip.Box(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
     ell = box.minimum_bounding_ellipsoid()
-
-    # TODO now this depends on how I specify P, p
     obj = rob.BalancedObject(
         m=1,
         h=0.2,
@@ -332,10 +326,11 @@ def main_elimination():
         h0=0,
         x0=0,
         Q=ell.Q,
-        uncertain_mh=True,
-        uncertain_inertia=True,
+        approx_inertia=False,
     )
     F = rob.cwc(obj.contacts())
+
+    IPython.embed()
 
     for i in range(F.shape[0]):
         print(i + 1)
@@ -345,5 +340,5 @@ def main_elimination():
 
 
 if __name__ == "__main__":
-    # main_inertia_approx()
-    main_elimination()
+    main_inertia_approx()
+    # main_elimination()

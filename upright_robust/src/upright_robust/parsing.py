@@ -3,40 +3,53 @@ import upright_robust.modelling as mdl
 import upright_robust.control as robctrl
 
 
+def parse_objects_and_contacts(ctrl_config, model=None, approx_inertia=False):
+    if model is None:
+        model = ctrl.manager.ControllerModel.from_config(ctrl_config)
+
+    # make EE origin the reference point for all contacts
+    objects = model.settings.balancing_settings.objects
+    for c in model.settings.balancing_settings.contacts:
+        if c.object1_name != "ee":
+            o1 = objects[c.object1_name]
+            c.r_co_o1 = c.r_co_o1 + o1.body.com
+        o2 = objects[c.object2_name]
+        c.r_co_o2 = c.r_co_o2 + o2.body.com
+
+    contacts = [
+        mdl.RobustContactPoint(c) for c in model.settings.balancing_settings.contacts
+    ]
+
+    if approx_inertia:
+        bounds_name = "bounds_approx_inertia"
+    else:
+        bounds_name = "bounds_realizable"
+
+    # parse the bounds for each object
+    uncertain_objects = {}
+    arrangement_name = ctrl_config["balancing"]["arrangement"]
+    arrangement_config = ctrl_config["arrangements"][arrangement_name]
+    for conf in arrangement_config["objects"]:
+        name = conf["name"]
+        type_ = conf["type"]
+        bounds_config = ctrl_config["objects"][type_].get(bounds_name, {})
+        bounds = mdl.ObjectBounds.from_config(
+            bounds_config, approx_inertia=approx_inertia
+        )
+        uncertain_objects[name] = mdl.UncertainObject(objects[name], bounds)
+
+    return uncertain_objects, contacts
+
+
 class RobustControllerModel:
     def __init__(self, ctrl_config, timestep, v_joint_max, a_joint_max):
         # controller
         model = ctrl.manager.ControllerModel.from_config(ctrl_config)
         self.robot = model.robot
 
-        # make EE origin the reference point for all contacts
-        objects = model.settings.balancing_settings.objects
-        for c in model.settings.balancing_settings.contacts:
-            if c.object1_name != "ee":
-                o1 = objects[c.object1_name]
-                c.r_co_o1 = c.r_co_o1 + o1.body.com
-            o2 = objects[c.object2_name]
-            c.r_co_o2 = c.r_co_o2 + o2.body.com
-
-        self.contacts = [
-            mdl.RobustContactPoint(c)
-            for c in model.settings.balancing_settings.contacts
-        ]
-
-        # print("Ctrl object info")
-        # for name, obj in objects.items():
-        #     print(f"{name} inertia =\n{obj.body.inertia}")
-
-        # parse the bounds for each object
-        self.uncertain_objects = {}
-        arrangement_name = ctrl_config["balancing"]["arrangement"]
-        arrangement_config = ctrl_config["arrangements"][arrangement_name]
-        for conf in arrangement_config["objects"]:
-            name = conf["name"]
-            type_ = conf["type"]
-            bounds_config = ctrl_config["objects"][type_].get("bounds", {})
-            bounds = mdl.ObjectBounds.from_config(bounds_config)
-            self.uncertain_objects[name] = mdl.UncertainObject(objects[name], bounds)
+        self.uncertain_objects, self.contacts = parse_objects_and_contacts(
+            ctrl_config, model=model, approx_inertia=True
+        )
 
         # translational tracking gains
         self.kp = ctrl_config["reactive"]["kp"]

@@ -8,8 +8,9 @@ inertial parameters (mass, center of mass, inertia matrix).
 Tilting type:
 
 * **tray**: rotate the tray so its normal vector is aligned with total
-  acceleration, neglecting the objects (but constraints can still be enforced
-  to avoid dropping them)
+  acceleration, neglecting the object CoMs, but constraints are still enforced
+  to avoid dropping them
+* **tray_only**: same as tray but without any balancing constraints
 * **full**: take all objects into accounting when tilting/rotating
 * **flat**: keep the tray flat
 

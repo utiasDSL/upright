@@ -20,8 +20,9 @@ def H_min_max(bounding_box, com_box, mass_min, mass_max):
             m >= mass_min,
             m <= mass_max,
         ]
-        + com_box.must_contain(points=h, mass=m)
-        + [cp.trace(E.Q @ J) >= 0 for E in Es]
+        + com_box.must_contain(points=h, scale=m)
+        + bounding_box.must_realize(J)
+        # + [cp.trace(E.Q @ J) >= 0 for E in Es]
     )
 
     H_min = np.zeros((3, 3))
@@ -39,6 +40,11 @@ def H_min_max(bounding_box, com_box, mass_min, mass_max):
             problem.solve(solver=cp.MOSEK)
             H_min[i, j] = objective.value
             H_min[j, i] = objective.value
+
+    # we know the diagonal must be non-negative, but small numerical errors in
+    # the solvers can cause that to fail, which CDD doesn't like
+    np.fill_diagonal(H_min, np.maximum(np.diag(H_min), 0))
+
     return H_min, H_max
 
 
@@ -92,6 +98,7 @@ class ObjectBounds:
         com_upper=None,
         ellipsoid_half_extents=None,
         box_half_extents=None,
+        approx_inertia=False,
     ):
         """All quantities are *relative to the nominal value*.
 
@@ -121,14 +128,17 @@ class ObjectBounds:
         self.ellipsoid_half_extents = ellipsoid_half_extents
         self.box_half_extents = box_half_extents
 
+        self.approx_inertia = approx_inertia
+
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, approx_inertia=False):
         mass_lower = config.get("mass_lower", None)
         mass_upper = config.get("mass_upper", None)
         com_lower = config.get("com_lower", None)
         com_upper = config.get("com_upper", None)
+
+        # the center of the bounding shapes is the nominal CoM
         if "ellipsoid" in config:
-            # the center of the ellipsoid will be the nominal CoM
             ell_half_extents = np.array(config["ellipsoid"]["half_extents"])
         else:
             ell_half_extents = None
@@ -136,6 +146,7 @@ class ObjectBounds:
             box_half_extents = np.array(config["box"]["half_extents"])
         else:
             box_half_extents = None
+
         return cls(
             mass_lower=mass_lower,
             mass_upper=mass_upper,
@@ -143,6 +154,7 @@ class ObjectBounds:
             com_upper=com_upper,
             ellipsoid_half_extents=ell_half_extents,
             box_half_extents=box_half_extents,
+            approx_inertia=approx_inertia,
         )
 
     def polytope(self, m, c, J):
@@ -180,7 +192,7 @@ class ObjectBounds:
         p_h = np.zeros(6)
 
         # inertia bounds
-        if self.ellipsoid_half_extents is None:
+        if self.approx_inertia:
             # assume inertia J is exact
             P_J = np.zeros((12, 10))
             p_J = np.zeros(12)
@@ -191,8 +203,8 @@ class ObjectBounds:
             p_J[:6] = -Jvec
             p_J[6:] = Jvec
         else:
-            # no prior knowledge on inertia; only constraints required for
-            # realizability
+            # otherwise we assume no prior knowledge on inertia except object
+            # bounding shapes; only constraints required for realizability
             P_J = np.zeros((13, 10))
             p_J = np.zeros(13)
 
@@ -229,30 +241,17 @@ class ObjectBounds:
 
             # ellipsoid density realizability
             # tr(ΠQ) >= 0
-            Q = ip.Ellipsoid.from_half_extents(
-                half_extents=self.ellipsoid_half_extents, center=c
-            ).Q
-            P_J[12, :] = [-np.trace(A @ Q) for A in utils.pim_sum_vec_matrices()]
+            ell = ip.Ellipsoid(half_extents=self.ellipsoid_half_extents, center=c)
+            P_J[12, :] = [-np.trace(A @ ell.Q) for A in utils.pim_sum_vec_matrices()]
 
-            # # TODO let's put upper bounds on as well
-            # # diag(H) >= 0
-            # # recall θ = [m, hx, hy, hz, Ixx, Ixy, Ixz, Iyy, Iyz, Izz]
-            # P_J[1, :] = [0, 0, 0, 0, -1, 0, 0, 1, 0, 1]  # Hxx >= 0
-            # P_J[2, :] = [0, 0, 0, 0, 1, 0, 0, -1, 0, 1]  # Hyy >= 0
-            # P_J[3, :] = [0, 0, 0, 0, 1, 0, 0, 1, 0, -1]  # Hzz >= 0
-            #
-            # # TODO: depends on the mass, right now just using nominal
-            # H_diag_upper = m * self.ellipsoid_half_extents ** 2
-            #
-            # # negative because <=
-            # P_J[4:7, :] = -P_J[1:4, :]
-            # p_J[4:7] = -2 * H_diag_upper
-            #
-            # # TODO force other elements to zero
-            # P_J[7, :] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]  # Hxy
-            # P_J[8, :] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]  # Hxz
-            # P_J[9, :] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]  # Hyz
-            # P_J[10:13, :] = -P_J[7:10, :]
+            # TODO why does this make less constraints negative than the
+            # ellipsoidal constraint?
+            # box density realizability
+            # As = utils.pim_sum_vec_matrices()
+            # Es = bounding_box.as_ellipsoidal_intersection()
+            # P_J[12, :] = [-np.trace(A @ Es[0].Q) for A in As]
+            # P_J[13, :] = [-np.trace(A @ Es[1].Q) for A in As]
+            # P_J[14, :] = [-np.trace(A @ Es[2].Q) for A in As]
 
         # combined bounds
         P = np.vstack((P_m, P_h, P_J))
