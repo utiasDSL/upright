@@ -17,15 +17,21 @@ import IPython
 # gravity constant
 g = 9.81
 
+V_MAX=0.5
+ω_MAX=0.25
+A_MAX=0.5
+α_MAX=0.25
+TILT_ANGLE_MAX = np.deg2rad(30)
+
 
 def solve_constraint_elimination_sdp(
     obj,
     f,
-    v_max=1,
-    ω_max=0.25,
-    a_max=1,
-    α_max=0.25,
-    max_tilt_angle=np.deg2rad(30),
+    v_max=V_MAX,
+    ω_max=ω_MAX,
+    a_max=A_MAX,
+    α_max=α_MAX,
+    tilt_angle_max=TILT_ANGLE_MAX,
     verbose=False,
 ):
     """Global convex problem based on the face form of the dual constraint formulation.
@@ -66,7 +72,7 @@ def solve_constraint_elimination_sdp(
 
             # gravity constraints
             cp.norm(G) <= g,
-            z_normal @ G <= -g * np.cos(max_tilt_angle),
+            z_normal @ G <= -g * np.cos(tilt_angle_max),
 
             # aligned approach
             # (A[:3] - G) @ [1, 0, 0] == 0,
@@ -101,10 +107,11 @@ def solve_approx_inertia_sdp(
     obj2,
     f,
     F2,
-    v_max=1,
-    ω_max=0.25,
-    a_max=1,
-    α_max=0.25,
+    v_max=V_MAX,
+    ω_max=ω_MAX,
+    a_max=A_MAX,
+    α_max=α_MAX,
+    tilt_angle_max=TILT_ANGLE_MAX,
     verbose=False,
 ):
     """Global convex problem based on the face form of the dual constraint formulation.
@@ -137,9 +144,7 @@ def solve_approx_inertia_sdp(
     R2 = rob.span_to_face_form(P2_tilde.T)
     # R2 = R2 / np.max(np.abs(R2))
 
-    # gravity constraints
     z_normal = np.array([0, 0, 1])
-    max_tilt_angle = np.deg2rad(30)
 
     A = cp.Variable(nv)
     G = cp.Variable(ng)
@@ -161,7 +166,7 @@ def solve_approx_inertia_sdp(
 
             # gravity constraints
             cp.norm(G) <= g,
-            z_normal @ G <= -g * np.cos(max_tilt_angle),
+            z_normal @ G <= -g * np.cos(tilt_angle_max),
 
             # aligned approach
             # (A[:3] - G) @ [1, 0, 0] == 0,
@@ -184,6 +189,8 @@ def solve_approx_inertia_sdp(
         problem = cp.Problem(objective, constraints)
         problem.solve(solver=cp.MOSEK)
         values.append(problem.value)
+        # print(f"Λ eigvals = {np.linalg.eigvals(Λ.value)}")
+        # print(f"||g|| = {np.linalg.norm(G.value)}")
 
     values = np.array(values)
     n_neg = np.sum(values < 0)

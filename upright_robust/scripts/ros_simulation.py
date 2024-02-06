@@ -58,17 +58,21 @@ def main():
     rospy.init_node("upright_ros_simulation")
     robot_interface = mm.SimulatedMobileManipulatorROSInterface()
 
+    print("Simulation ready.")
+
     # TODO
+    # initialize the commands for the simulation, before any have been received
     robot_interface.base.cmd_vel = np.zeros(3)
     robot_interface.arm.cmd_vel = np.zeros(6)
 
     t = 0
     robot_interface.publish_time(t)
     while not rospy.is_shutdown():
+        # publish the state of the robot
         q, v = env.robot.joint_states(add_noise=True, bodyframe=False)
         robot_interface.publish_feedback(t, q, v)
 
-        # send along the commanded the velocity
+        # send the latest commanded the velocity to the simulated robot
         cmd_vel_world = env.robot.command_velocity(
             robot_interface.cmd_vel, bodyframe=True
         )

@@ -33,4 +33,29 @@ To remove all balancing constraints, set `balancing.enabled=false`.
 
 ## SDP relaxation
 
-The work on SDP relaxations can be found in `scripts/theory/constraint_elimination.py`
+The work on SDP relaxations can be found in `scripts/relaxation`. The
+relaxations integrated with the config files can be found in
+`dual_sdp_relaxation_integrated.py`.
+
+## Simulation
+
+To run the simulation normally use `scripts/simulation.py`.
+
+To run the simulation using ROS to talk to the controller, ensure ROS master is
+running. Then run the simulation using `scripts/ros_simulation.py` followed by
+the controller using `scripts/ros_controller.py`.
+
+## Hardware
+
+When first starting out, one needs to build up task complexity gradually to
+ensure things work as expected:
+1. Use `nominal_flat/short.yaml` after having modified the goal waypoint to
+   zero, in order to remain stationary.
+2. Use `nominal_full/short.yaml`, again with stationary trajectory, to ensure
+   balancing constraints are okay with rotation capabilities.
+3. Repeat 1 and 2, slowly increasing the waypoint distance to 2 meters.
+
+Other notes:
+* The KF may need tuning.
+* Using an actual pre-planned trajectory does not make too much sense, since we
+  do not know how fast the object can actually travel.

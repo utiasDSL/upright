@@ -16,7 +16,7 @@ from upright_core.logging import DataLogger
 
 DRY_RUN = False
 VERBOSE = False
-DURATION = 10.0
+DURATION = 60.0
 
 RATE = 125  # Hz
 TIMESTEP = 1.0 / RATE
@@ -29,6 +29,10 @@ USE_KALMAN_FILTER = True
 PROCESS_COV = 1000
 MEASUREMENT_COV = 1
 
+
+# TODO
+# * incorporate record.py directly
+# * incorporate ViconRateChecker
 
 def main():
     # os.nice(-10)
@@ -96,6 +100,7 @@ def main():
         last_t = t
         t = rospy.Time.now().to_sec()
         dt = t - last_t
+        print(f"t = {t - t0}")
 
         # robot feedback
         q_meas, v_meas = robot_interface.q, robot_interface.v
