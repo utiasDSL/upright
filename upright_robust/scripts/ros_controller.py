@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import os
 import resource
 import time
@@ -18,6 +19,8 @@ DRY_RUN = False
 VERBOSE = False
 DURATION = 60.0
 
+# TODO should something be done to account for the Vicon rate being different
+# from this? Note also the Ridgeback command rate is different...
 RATE = 125  # Hz
 TIMESTEP = 1.0 / RATE
 
@@ -29,10 +32,9 @@ USE_KALMAN_FILTER = True
 PROCESS_COV = 1000
 MEASUREMENT_COV = 1
 
+USE_DATA_LOGGER = False
+CHECK_VICON_RATE = False
 
-# TODO
-# * incorporate record.py directly
-# * incorporate ViconRateChecker
 
 def main():
     # os.nice(-10)
@@ -40,9 +42,14 @@ def main():
 
     np.set_printoptions(precision=6, suppress=True)
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True, help="Path to configuration file.")
+    parser.add_argument("--save", help="Save data to this file.")
+    parser.add_argument("--notes", help="Additional information written to notes.txt.")
+
     # load configuration
-    cli_args = cmd.cli.sim_arg_parser().parse_args()
-    config = core.parsing.load_config(cli_args.config)
+    args = parser.parse_args()
+    config = core.parsing.load_config(args.config)
     ctrl_config = config["controller"]
 
     # parse controller model
@@ -57,12 +64,25 @@ def main():
     robot_model = model.robot
 
     # data logging
-    logger = DataLogger(config)
+    if USE_DATA_LOGGER:
+        logger = DataLogger(config)
 
     # start ROS
     rospy.init_node("upright_robust_controller", disable_signals=True)
     robot_interface = mm.MobileManipulatorROSInterface()
     signal_handler = mm.RobotSignalHandler(robot_interface)
+
+    if CHECK_VICON_RATE:
+        print("Checking Vicon rate...")
+        checker = mm.ViconRateChecker(vicon_object_name="ThingBase3", expected_rate=100)
+
+    if args.save is not None:
+        recorder = rob.DataRecorder(name=args.save, notes=args.notes)
+        recorder.record()
+        print(f"Recording data to {recorder.log_dir}")
+
+        # wait for bag to be set up properly
+        time.sleep(5.0)
 
     # wait until robot feedback has been received
     rate = rospy.Rate(RATE)
@@ -144,7 +164,7 @@ def main():
         else:
             robot_interface.publish_cmd_vel(cmd_vel, bodyframe=False)
 
-        if logger.ready(t):
+        if USE_DATA_LOGGER and logger.ready(t):
             logger.append("ts", t - t0)
             logger.append("qs_meas", q_meas)
             logger.append("vs_meas", v_meas)
@@ -157,6 +177,11 @@ def main():
         rate.sleep()
 
     robot_interface.brake()
+    if args.save is not None:
+        recorder.close()
+
+    if not USE_DATA_LOGGER:
+        return
 
     # plotting
     prop_cycle = plt.rcParams["axes.prop_cycle"]
