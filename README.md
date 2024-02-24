@@ -83,12 +83,12 @@ software"):
   ```
   git clone -b upright https://github.com/utiasDSL/ocs2
   ```
-* [mobile_manipulation_central](https://github.com/utiasDSL/dsl__projects__mobile_manipulation_central)
+* [mobile_manipulation_central](https://github.com/utiasDSL/mobile_manipulation_central)
   and its dependenices.
 
 Clone this repo into the catkin workspace:
 ```
-git clone https://github.com/utiasDSL/dsl__projects__tray_balance catkin_ws/src/upright
+git clone https://github.com/utiasDSL/upright catkin_ws/src/upright
 ```
 
 Install Python dependencies:
@@ -115,7 +115,7 @@ files in the YAML format, which are stored under `upright_cmd/config`.
 ## Hardware Experiments
 
 Interaction with hardware is done over ROS via
-[mobile_manipulation_central](https://github.com/utiasDSL/dsl__projects__mobile_manipulation_central).
+[mobile_manipulation_central](https://github.com/utiasDSL/mobile_manipulation_central).
 So far we have targetted an omnidirectional mobile manipulator consisting of a
 Ridgeback mobile base and a UR10 manipulator arm (collectively named the
 "Thing"). The general flow of experiments is to connect to the robot, and run
