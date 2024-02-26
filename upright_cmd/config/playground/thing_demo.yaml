@@ -28,14 +28,11 @@ controller:
     time_horizon: 2.0
 
   balancing:
-    enabled: false
+    enabled: true
     use_force_constraints: true
     frictionless: false
     arrangement: pink_bottle
     constraint_type: hard
-    enable_normal_constraint: true
-    enable_friction_constraint: true
-    enable_zmp_constraint: true
 
   inertial_alignment:
     cost_enabled: false
@@ -49,5 +46,5 @@ controller:
   waypoints:
     -
       time: 0
-      position: [0, 0, 0]  # stay still
+      position: [-0.25, 0.5, 0.25]
       orientation: [0, 0, 0, 1]

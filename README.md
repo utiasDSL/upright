@@ -108,9 +108,24 @@ run a simulation without ROS, do something like:
 ```
 upright_cmd/scripts/simulations
 ./mpc_sim --config <path to yaml file>
+
+# for example
+# thing_demo.yaml uses the entire mobile manipulator; ur10_demo.yaml and
+# ridgeback_demo.yaml use only the arm and only the base, respectively.
+./mpc_sim --config $(rospack find upright_cmd)/config/playground/thing_demo.yaml
 ```
 All experiments, whether simulated or real, are specified by configuration
 files in the YAML format, which are stored under `upright_cmd/config`.
+
+Note that once the simulation is setup (this can take some time when
+re-compiling auto-differentiated libraries), you will be dropped into an
+IPython shell, which should look something like:
+```
+In [1]:
+```
+This allows you to inspect any variables of interest. If you just want to start
+executing the simulated trajectory, type `exit` and press Enter to exit the
+shell and continue.
 
 ## Hardware Experiments
 

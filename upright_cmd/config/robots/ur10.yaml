@@ -31,13 +31,14 @@ simulation:
       package: "upright_assets"
       path: "thing/urdf/thing_pyb.urdf"
       includes:
-        - "$(find upright_assets)/thing/xacro/cartesian_base_joints.urdf.xacro"
+        - "$(find mobile_manipulation_central)/urdf/xacro/cartesian_base_joints.urdf.xacro"
         - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
         - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
         - "$(find upright_assets)/thing/xacro/collision_links.urdf.xacro"
       args:
         use_collision: "false"
         transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+        show_balance_link: "false"
 
 controller:
   # robot parameters
