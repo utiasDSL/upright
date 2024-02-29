@@ -10,7 +10,7 @@ from scipy.optimize import minimize
 
 import upright_core as core
 import upright_robust as rob
-import inertial_params as ip
+import rigeo as rg
 
 import IPython
 
@@ -277,7 +277,7 @@ def solve_local_dual(obj, F, idx, other_constr_idx, v_max=1, ω_max=1):
 def main_inertia_approx():
     np.set_printoptions(precision=5, suppress=True)
 
-    box = ip.Box(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
+    box = rg.Box(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
     ell = box.minimum_bounding_ellipsoid()
     obj1 = rob.BalancedObject(
         m=1,
@@ -316,7 +316,7 @@ def main_inertia_approx():
 def main_elimination():
     np.set_printoptions(precision=5, suppress=True)
 
-    box = ip.Box(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
+    box = rg.Box(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
     ell = box.minimum_bounding_ellipsoid()
     obj = rob.BalancedObject(
         m=1,

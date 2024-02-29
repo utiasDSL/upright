@@ -213,7 +213,7 @@ arrangements:
         first: ee
         second: cube1
         mu: 0.1
-        mu_margin: 0.0
+        mu_margin: 0.01
 
   very_tall:
     objects:

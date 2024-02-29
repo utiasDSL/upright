@@ -9,7 +9,7 @@ import time
 from scipy.optimize import minimize
 
 import upright_robust as rob
-import inertial_params as ip
+import rigeo as rg
 
 import IPython
 
@@ -179,7 +179,7 @@ def solve_global_relaxed(
         # obj.P @ θ >= obj.p,
         θ >= obj.θ_min,
         θ <= obj.θ_max,
-    ] + ip.J_vec_constraint(Π, θ)
+    ] + rg.J_vec_constraint(Π, θ)
     # fmt: on
 
     for i in other_constr_idx:
@@ -305,8 +305,8 @@ def main_inertia_approx():
 
     obj1 = rob.BalancedObject(m=1, h=0.2, δ=0.05, μ=0.5, h0=0, x0=0, uncertain_J=True)
     obj2 = rob.BalancedObject(m=1, h=0.2, δ=0.04, μ=0.4, h0=0, x0=0, uncertain_J=False)
-    box = ip.AxisAlignedBox(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
-    ell = ip.maximum_inscribed_ellipsoid(box.vertices)
+    box = rg.AxisAlignedBox(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
+    ell = rg.maximum_inscribed_ellipsoid(box.vertices)
 
     F1 = rob.cwc(obj1.contacts())
     F2 = rob.cwc(obj2.contacts())

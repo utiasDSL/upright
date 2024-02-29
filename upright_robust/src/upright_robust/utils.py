@@ -5,7 +5,7 @@ from scipy.linalg import block_diag
 
 import upright_core as core
 
-import inertial_params as ip
+import rigeo as rg
 
 
 def lift3(x):
@@ -213,7 +213,7 @@ class BalancedObject:
         half_extents = np.array([δ, δ, h])
         # side_lengths = 2 * half_extents
         # self.J = core.math.cuboid_inertia_matrix(m, side_lengths) - m * S @ S
-        self.J = ip.Box(half_extents).vertex_point_mass_params(m).I - m * S @ S
+        self.J = rg.Box(half_extents).vertex_point_mass_params(m).I - m * S @ S
 
         # polytopic constraints on the inertial parameters
         # Pθ <= p
@@ -439,7 +439,7 @@ def _span_to_face_form_cdd(S):
     # general face form is Ax <= b, which cdd stores as one matrix [b -A]
     Fmat = poly.get_inequalities()
 
-    face_form = ip.FaceForm.from_cdd_matrix(Fmat)
+    face_form = rg.FaceForm.from_cdd_matrix(Fmat)
     return face_form.A, face_form.b
 
     # # ensure no equality constraints: we are only setup to handle inequalities

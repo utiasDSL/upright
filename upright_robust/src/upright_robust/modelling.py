@@ -3,7 +3,7 @@ import cvxpy as cp
 from scipy.linalg import block_diag
 
 # TODO probably don't want this dependency at the moment
-import inertial_params as ip
+import rigeo as rg
 
 import upright_core as core
 import upright_robust.utils as utils
@@ -208,8 +208,8 @@ class ObjectBounds:
             P_J = np.zeros((13, 10))
             p_J = np.zeros(13)
 
-            bounding_box = ip.Box(half_extents=self.box_half_extents, center=c)
-            com_box = ip.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
+            bounding_box = rg.Box(half_extents=self.box_half_extents, center=c)
+            com_box = rg.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
             mass_min = m + self.mass_lower
             mass_max = m + self.mass_upper
             H_min, H_max = H_min_max(bounding_box, com_box, mass_min, mass_max)
@@ -241,7 +241,7 @@ class ObjectBounds:
 
             # ellipsoid density realizability
             # tr(ΠQ) >= 0
-            ell = ip.Ellipsoid(half_extents=self.ellipsoid_half_extents, center=c)
+            ell = rg.Ellipsoid(half_extents=self.ellipsoid_half_extents, center=c)
             P_J[12, :] = [-np.trace(A @ ell.Q) for A in utils.pim_sum_vec_matrices()]
 
             # TODO why does this make less constraints negative than the

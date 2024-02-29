@@ -16,7 +16,7 @@ import upright_sim as sim
 import upright_core as core
 import upright_cmd as cmd
 import upright_robust as rob
-from upright_core.logging import DataLogger
+from upright_core.logging import DataLogger, DataPlotter
 
 import IPython
 
@@ -62,6 +62,7 @@ def main():
 
     # data logging
     logger = DataLogger(config)
+    logger.add("object_names", [str(name) for name in env.objects.keys()])
 
     # parse controller model
     model = rob.RobustControllerModel(
@@ -87,6 +88,14 @@ def main():
     # trajectory = mm.PointToPointTrajectory.quintic(
     #     r_ew_w_0, r_ew_w_d, max_vel=2, max_acc=4
     # )
+
+    # ensure that PyBullet sim matches the Pinocchio model
+    r_ew_w_sim, Q_we_sim = env.robot.link_pose()
+    assert np.allclose(r_ew_w_0, r_ew_w_sim)
+    assert np.allclose(Q_we_0, Q_we_sim)
+
+    IPython.embed()
+    return
 
     # state estimate
     # obviously not needed here, but used to test the effect of the KF on the
@@ -130,9 +139,10 @@ def main():
             v = v_meas
 
         # current EE state
-        robot.forward(q, v)
+        robot.forward(q, v, u)
         r_ew_w, C_we = robot.link_pose(rotation_matrix=True)
         v_ew_w, _ = robot.link_velocity()
+        a_ew_w, _ = robot.link_classical_acceleration()
 
         # desired EE state
         # rd, vd, ad = trajectory.sample(t)
@@ -171,8 +181,20 @@ def main():
             logger.append("qs_est", q)
             logger.append("vs_est", v)
             logger.append("us", u)
-            logger.append("r_ew_ws", r_ew_w)
+            # logger.append("r_ew_ws", r_ew_w)
             logger.append("v_ew_ws", v_ew_w)
+            logger.append("a_ew_ws", a_ew_w)
+            logger.append("a_ew_ws_cmd", a_ew_w_cmd)
+            logger.append("a_ew_ws_feas", A_e[:3])  # feasible acceleration under balancing
+
+            # from the simulation
+            # TODO: check this is the same as the model
+            r_ew_w, Q_we = env.robot.link_pose()
+            r_ow_ws, Q_wos = env.object_poses()
+            logger.append("r_ew_ws", r_ew_w)
+            logger.append("Q_wes", Q_we)
+            logger.append("r_ow_ws", r_ow_ws)
+            logger.append("Q_wos", Q_wos)
 
     # plotting
     prop_cycle = plt.rcParams["axes.prop_cycle"]
@@ -186,6 +208,11 @@ def main():
     us = np.array(logger.data["us"])
     r_ew_ws = np.array(logger.data["r_ew_ws"])
     v_ew_ws = np.array(logger.data["v_ew_ws"])
+    a_ew_ws = np.array(logger.data["a_ew_ws"])
+    a_ew_ws_cmd = np.array(logger.data["a_ew_ws_cmd"])
+    a_ew_ws_feas = np.array(logger.data["a_ew_ws_feas"])
+
+    DataPlotter.from_logger(logger).plot_object_error(obj_index=0)
 
     plt.figure()
     for i in range(env.robot.nq):
@@ -241,6 +268,22 @@ def main():
     plt.xlabel("Time [s]")
     plt.xlabel("Velocity [m/s]")
     plt.title("End effector velocity vs. time")
+
+    plt.figure()
+    plt.plot(ts, a_ew_ws[:, 0], label="x", color=colors[0])
+    plt.plot(ts, a_ew_ws[:, 1], label="y", color=colors[1])
+    plt.plot(ts, a_ew_ws[:, 2], label="z", color=colors[2])
+    plt.plot(ts, a_ew_ws_cmd[:, 0], label="x_cmd", linestyle="--", color=colors[0])
+    plt.plot(ts, a_ew_ws_cmd[:, 1], label="y_cmd", linestyle="--", color=colors[1])
+    plt.plot(ts, a_ew_ws_cmd[:, 2], label="z_cmd", linestyle="--", color=colors[2])
+    plt.plot(ts, a_ew_ws_feas[:, 0], label="x_feas", linestyle="dotted", color=colors[0])
+    plt.plot(ts, a_ew_ws_feas[:, 1], label="y_feas", linestyle="dotted", color=colors[1])
+    plt.plot(ts, a_ew_ws_feas[:, 2], label="z_feas", linestyle="dotted", color=colors[2])
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.xlabel("Acceleration [m/s^2]")
+    plt.title("End effector acceleration vs. time")
 
     plt.show()
 

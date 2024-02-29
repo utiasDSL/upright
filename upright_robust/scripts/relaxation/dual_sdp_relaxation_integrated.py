@@ -21,7 +21,7 @@ V_MAX=0.5
 ω_MAX=0.25
 A_MAX=0.5
 α_MAX=0.25
-TILT_ANGLE_MAX = np.deg2rad(30)
+TILT_ANGLE_MAX = np.deg2rad(15)
 
 
 def solve_constraint_elimination_sdp(

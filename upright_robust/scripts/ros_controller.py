@@ -2,6 +2,7 @@
 import argparse
 import os
 import resource
+import signal
 import time
 
 import numpy as np
@@ -15,9 +16,13 @@ import upright_robust as rob
 from upright_core.logging import DataLogger
 
 
-DRY_RUN = False
-VERBOSE = False
-DURATION = 60.0
+# TODO make some of these into command line arguments?
+DRY_RUN = True
+VERBOSE = True
+USE_DATA_LOGGER = False
+CHECK_VICON_RATE = False
+VICON_OBJECT_NAME = "ThingBase_3"
+DURATION = 30.0
 
 # TODO should something be done to account for the Vicon rate being different
 # from this? Note also the Ridgeback command rate is different...
@@ -25,15 +30,25 @@ RATE = 125  # Hz
 TIMESTEP = 1.0 / RATE
 
 # TODO adjust this
-MAX_JOINT_VELOCITY = np.array([0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1])
-MAX_JOINT_ACCELERATION = np.array([2.5, 2.5, 1, 5, 5, 5, 5, 5, 5])
+# MAX_JOINT_VELOCITY = np.array([0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1])
+# MAX_JOINT_ACCELERATION = np.array([2.5, 2.5, 1, 5, 5, 5, 5, 5, 5])
+MAX_JOINT_VELOCITY = 0.5 * np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1])
+MAX_JOINT_ACCELERATION = 0.25 * np.array([2.5, 2.5, 1, 5, 5, 5, 5, 5, 5])
 
 USE_KALMAN_FILTER = True
 PROCESS_COV = 1000
 MEASUREMENT_COV = 1
 
-USE_DATA_LOGGER = False
-CHECK_VICON_RATE = False
+
+class SignalHandler:
+    def __init__(self):
+        self.received = False
+        signal.signal(signal.SIGINT, self.handler)
+        signal.signal(signal.SIGTERM, self.handler)
+
+    def handler(self, signum, frame):
+        print(f"Received signal: {signum}")
+        self.received = True
 
 
 def main():
@@ -68,13 +83,17 @@ def main():
         logger = DataLogger(config)
 
     # start ROS
-    rospy.init_node("upright_robust_controller", disable_signals=True)
+    rospy.init_node("upright_robust_controller", disable_signals=True, log_level=rospy.DEBUG)
     robot_interface = mm.MobileManipulatorROSInterface()
-    signal_handler = mm.RobotSignalHandler(robot_interface)
+    signal_handler = SignalHandler()
 
+    # check that Vicon rate is as we expect
     if CHECK_VICON_RATE:
         print("Checking Vicon rate...")
-        checker = mm.ViconRateChecker(vicon_object_name="ThingBase3", expected_rate=100)
+        checker = mm.ViconRateChecker(vicon_object_name=VICON_OBJECT_NAME)
+        if not checker.check_rate(expected_rate=100):
+            print("Vicon rate is wrong!")
+            return
 
     if args.save is not None:
         recorder = rob.DataRecorder(name=args.save, notes=args.notes)
@@ -88,6 +107,7 @@ def main():
     rate = rospy.Rate(RATE)
     while not rospy.is_shutdown() and not robot_interface.ready():
         rate.sleep()
+    print("Robot interface is ready.")
 
     # initial condition
     q, v = robot_interface.q, np.zeros(robot_interface.nv)
@@ -116,11 +136,10 @@ def main():
     # control loop
     t0 = rospy.Time.now().to_sec()
     t = t0
-    while not rospy.is_shutdown() and t - t0 < DURATION:
+    while not rospy.is_shutdown() and t - t0 < DURATION and not signal_handler.received:
         last_t = t
         t = rospy.Time.now().to_sec()
         dt = t - last_t
-        print(f"t = {t - t0}")
 
         # robot feedback
         q_meas, v_meas = robot_interface.q, robot_interface.v
@@ -138,9 +157,10 @@ def main():
             v = v_meas
 
         # estimated EE state
-        robot_model.forward(q, v)
+        robot_model.forward(q, v, u)
         r_ew_w, C_we = robot_model.link_pose(rotation_matrix=True)
         v_ew_w, _ = robot_model.link_velocity()
+        a_ew_w, _ = robot_model.link_classical_acceleration()
 
         # commanded EE acceleration
         a_ew_w_cmd = kp * (rd - r_ew_w) + kv * (vd - v_ew_w) + ad
@@ -150,13 +170,15 @@ def main():
         u, A_e = controller.solve(q, v, a_ew_w_cmd)
         tb = time.perf_counter_ns()
 
-        ctrl_prof.update(tb - ta)
-        rospy.loginfo(f"curr = {(tb - ta) / 1e6} ms")
-        rospy.loginfo(f"avg  = {ctrl_prof.average / 1e6} ms")
+        if VERBOSE:
+            ctrl_prof.update(tb - ta)
+            rospy.loginfo(f"curr = {(tb - ta) / 1e6} ms")
+            rospy.loginfo(f"avg  = {ctrl_prof.average / 1e6} ms")
 
         # integrate acceleration command to get new commanded velocity from the
         # current velocity
         cmd_vel = v + dt * u
+        # cmd_vel = cmd_vel + dt * u
         cmd_vel = mm.bound_array(cmd_vel, lb=-MAX_JOINT_VELOCITY, ub=MAX_JOINT_VELOCITY)
 
         if DRY_RUN:
@@ -173,12 +195,19 @@ def main():
             logger.append("us", u)
             logger.append("r_ew_ws", r_ew_w)
             logger.append("v_ew_ws", v_ew_w)
+            logger.append("a_ew_ws", a_ew_w)
+            logger.append("a_ew_ws_cmd", a_ew_w_cmd)
+            logger.append(
+                "a_ew_ws_feas", A_e[:3]
+            )  # feasible acceleration under balancing
 
         rate.sleep()
 
+    print("Braking robot")
     robot_interface.brake()
     if args.save is not None:
         recorder.close()
+    time.sleep(0.5)  # wait a bit to make sure brake is published
 
     if not USE_DATA_LOGGER:
         return
@@ -195,6 +224,9 @@ def main():
     us = np.array(logger.data["us"])
     r_ew_ws = np.array(logger.data["r_ew_ws"])
     v_ew_ws = np.array(logger.data["v_ew_ws"])
+    a_ew_ws = np.array(logger.data["a_ew_ws"])
+    a_ew_ws_cmd = np.array(logger.data["a_ew_ws_cmd"])
+    a_ew_ws_feas = np.array(logger.data["a_ew_ws_feas"])
 
     plt.figure()
     for i in range(robot_interface.nq):
@@ -250,6 +282,28 @@ def main():
     plt.xlabel("Time [s]")
     plt.xlabel("Velocity [m/s]")
     plt.title("End effector velocity vs. time")
+
+    plt.figure()
+    plt.plot(ts, a_ew_ws[:, 0], label="x", color=colors[0])
+    plt.plot(ts, a_ew_ws[:, 1], label="y", color=colors[1])
+    plt.plot(ts, a_ew_ws[:, 2], label="z", color=colors[2])
+    plt.plot(ts, a_ew_ws_cmd[:, 0], label="x_cmd", linestyle="--", color=colors[0])
+    plt.plot(ts, a_ew_ws_cmd[:, 1], label="y_cmd", linestyle="--", color=colors[1])
+    plt.plot(ts, a_ew_ws_cmd[:, 2], label="z_cmd", linestyle="--", color=colors[2])
+    plt.plot(
+        ts, a_ew_ws_feas[:, 0], label="x_feas", linestyle="dotted", color=colors[0]
+    )
+    plt.plot(
+        ts, a_ew_ws_feas[:, 1], label="y_feas", linestyle="dotted", color=colors[1]
+    )
+    plt.plot(
+        ts, a_ew_ws_feas[:, 2], label="z_feas", linestyle="dotted", color=colors[2]
+    )
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.xlabel("Acceleration [m/s^2]")
+    plt.title("End effector acceleration vs. time")
 
     plt.show()
 

@@ -45,11 +45,18 @@ simulation:
         name: view1
 
 controller:
+  robot:
+    urdf:
+      args:
+        use_collision: "true"
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_sim.yaml"
+
   balancing:
     enabled: true
 
   waypoints:
     -
       time: 0
+      # position: [0, 2.0, 0]
       position: [0, 2.0, 0]
       orientation: [0, 0, 0, 1]
