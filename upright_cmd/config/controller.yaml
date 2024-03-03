@@ -3,8 +3,6 @@ include:
     package: upright_cmd
     path: config/arrangements.yaml
 
-# TODO move this top option under simulation
-use_noisy_state_to_plan: true
 gravity: [0, 0, -9.81]
 recompile_libraries: true
 debug: true
