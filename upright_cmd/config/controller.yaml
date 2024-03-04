@@ -104,17 +104,6 @@ projectile_path_constraint:
   scale: 1
   collision_links: []
 
-# desired waypoints are set relative to the initial EE pose
-# each waypoint consists of:
-#   millis: time from beginning of trajectory in milliseconds
-#   position: [x, y, z] end effector position
-#   orientation: [x, y, z, w] end effector orientation quaternion
-# waypoints:
-#   -
-#     millis: 0
-#     position: [2.0, 0.0, 0.0]
-#     orientation: [0.0, 0.0, 0.0, 1.0]
-
 obstacles:
   enabled: false
   constraint_type: hard
