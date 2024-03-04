@@ -133,168 +133,135 @@ operating_points:
 
 objects:
   # EE is a special object
-
   # wood tray
   ee:
-    shape:
-      type: cuboid
-      side_lengths: [0.285, 0.285, 0.02]
+    shape: cuboid
+    side_lengths: [0.285, 0.285, 0.02]
     position: [0, 0, -0.01]  # box centroid relative to r_ew_w
-
-  # box tray
-  # ee:
-  #   shape:
-  #     type: cuboid
-  #     side_lengths: [0.23, 0.3, 0.064]
-  #   position: [0.1, 0.13, -0.032]  # box centroid relative to r_ew_w
-
-  # restaurant tray
-  # ee:
-  #   shape:
-  #     type: cuboid
-  #     side_lengths: [0.356, 0.356, 0.01]
-  #   position: [0.064, 0.127, -0.005]  # box centroid relative to r_ew_w
 
   cube:
     mass: 1.0
     com_offset: [0, 0, 0]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.01]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.01]
 
   bottle:
     mass: 0.5
     com_offset: [0, 0, 0]
-    # TODO revise this
-    shape:
-      type: cylinder
-      radius: 0.0325
-      height: 0.15
+    shape: cylinder
+    radius: 0.0325
+    height: 0.15
 
   tall_bottle:
     mass: 0.72
     com_offset: [0, 0, 0]
-    shape:
-      type: cylinder
-      radius: 0.035
-      height: 0.205
+    shape: cylinder
+    radius: 0.035
+    height: 0.205
 
   pink_bottle:
     mass: 0.827
     com_offset: [0, 0, 0]
-    shape:
-      type: cylinder
-      radius: 0.035
-      height: 0.255
-      # height: 0.75
+    shape: cylinder
+    radius: 0.035
+    height: 0.255
 
   wood_block:
     mass: 0.18
     com_offset: [0, 0, 0]  # relative to centroid of shape
-    shape:
-      type: cuboid
-      side_lengths: [0.103, 0.09, 0.038]
+    shape: cuboid
+    side_lengths: [0.103, 0.09, 0.038]
 
   wood_block_rotx:
     mass: 0.18
     com_offset: [0, 0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.103, 0.038, 0.09]
+    shape: cuboid
+    side_lengths: [0.103, 0.038, 0.09]
 
   wood_block_rotz:
     mass: 0.18
     com_offset: [0, 0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.09, 0.103, 0.038]
+    shape: cuboid
+    side_lengths: [0.09, 0.103, 0.038]
 
   wood_block_standing:
     mass: 0.18
     com_offset: [0, 0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.038, 0.09, 0.103]
+    shape: cuboid
+    side_lengths: [0.038, 0.09, 0.103]
 
   foam_die:
     mass: 0.02
     com_offset: [0, 0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.065, 0.065, 0.065]
+    shape: cuboid
+    side_lengths: [0.065, 0.065, 0.065]
 
   foam_die_with_markers:
     mass: 0.034
     com_offset: [0, 0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.065, 0.065, 0.065]
+    shape: cuboid
+    side_lengths: [0.065, 0.065, 0.065]
 
   tall_box:
     mass: 0.04
     com_offset: [0, 0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.065, 0.065, 0.13]
+    shape: cuboid
+    side_lengths: [0.065, 0.065, 0.13]
 
   really_tall_box:
     mass: 0.5
     com_offset: [0, 0, 0]
-    shape:
-      type: cylinder
-      height: 0.205
-      # height: 0.5
-      radius: 0.035
+    shape: cylinder
+    height: 0.205
+    radius: 0.035
 
   wedge:
     mass: 0.09
     com_offset: [0, 0, 0]
-    shape:
-      type: wedge
-      # approx 15 deg slope with 0.09 long hypoteneuse
-      # side_lengths: [0.0869333, 0.103, 0.0232937]
-      side_lengths: [0.15, 0.15, 0.0401923788646684]
+    shape: wedge
+    # approx 15 deg slope with 0.09 long hypoteneuse
+    # side_lengths: [0.0869333, 0.103, 0.0232937]
+    side_lengths: [0.15, 0.15, 0.0401923788646684]
 
   fixture:
+    shape: cuboid
+    side_lengths: [0.05, 0.05, 0.05]
     mass: 0.1
     com_offset: [0, 0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.05, 0.05, 0.05]
 
   simulation_box:
-    shape:
-      type: cuboid
-      side_lengths: [0.06, 0.06, 0.2]
+    shape: cuboid
+    side_lengths: [0.06, 0.06, 0.2]
     com_offset: [0, 0, 0]
     mass: 0.5
 
   simulation_box_h0:
-    shape:
-      type: cuboid
-      side_lengths: [0.06, 0.06, 0.2]
+    shape: cuboid
+    side_lengths: [0.06, 0.06, 0.2]
     com_offset: [0, 0, -0.1]
     mass: 0.5
 
   tall_simulation_box:
-    shape:
-      type: cuboid
-      side_lengths: [0.06, 0.06, 0.64]
+    shape: cuboid
+    side_lengths: [0.06, 0.06, 0.64]
     com_offset: [0, 0, 0]
     mass: 0.5
 
   blue_cup:
-    shape:
-      type: cylinder
-      radius: 0.025
-      height: 0.08
+    shape: cylinder
+    radius: 0.025
+    height: 0.08
     com_offset: [0, 0, 0]
     mass: 0.2
 
   flat_box:
-    shape:
-      type: cuboid
-      side_lengths: [0.02, 0.02, 0.01]
+    shape: cuboid
+    side_lengths: [0.02, 0.02, 0.01]
     com_offset: [0, 0, 0]
     mass: 0.1
 
+  cardboard_box:
+    shape: cuboid
+    side_lengths: [0.16, 0.16, 0.32]
+    com_offset: [0, 0, 0]
+    mass: 0.1  # TODO

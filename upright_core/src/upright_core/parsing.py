@@ -5,6 +5,7 @@ import rospkg
 import numpy as np
 import yaml
 from scipy.spatial import ConvexHull
+from xacrodoc import XacroDoc
 
 import mobile_manipulation_central as mm
 from upright_core.bindings import (
@@ -124,9 +125,9 @@ def parse_ros_path(d, as_string=True):
 def parse_and_compile_urdf(d, max_runs=10, compare_existing=True, quiet=False):
     """Parse and compile a URDF from a xacro'd URDF file."""
     includes = d["includes"]
-    mappings = d.get("args", None)
+    subargs = d.get("args", None)
 
-    doc = mm.XacroDoc.from_includes(includes, mappings=mappings, max_runs=max_runs)
+    doc = XacroDoc.from_includes(includes, subargs=subargs, max_runs=max_runs)
 
     # write the final document to a file for later consumption
     output_path = parse_ros_path(d, as_string=False)
@@ -329,29 +330,29 @@ def _parse_composite_objects(wrappers, contact_conf):
     return composites
 
 
-def parse_local_half_extents(shape_config):
-    type_ = shape_config["type"].lower()
-    if type_ == "cuboid" or type_ == "wedge":
-        return 0.5 * np.array(shape_config["side_lengths"])
-    elif type_ == "cylinder":
-        r = shape_config["radius"]
-        h = shape_config["height"]
+def parse_local_half_extents(obj_type_conf):
+    shape = obj_type_conf["shape"].lower()
+    if shape == "cuboid" or shape == "wedge":
+        return 0.5 * np.array(obj_type_conf["side_lengths"])
+    elif shape == "cylinder":
+        r = obj_type_conf["radius"]
+        h = obj_type_conf["height"]
         w = np.sqrt(2) * r
         return 0.5 * np.array([w, w, h])
-    raise ValueError(f"Unsupported shape type: {type_}")
+    raise ValueError(f"Unsupported shape type: {shape}")
 
 
-def parse_box(shape_config, position=None, rotation=None):
+def parse_box(obj_type_conf, position=None, rotation=None):
     if rotation is None:
         rotation = np.eye(3)
 
-    type_ = shape_config["type"].lower()
-    local_half_extents = parse_local_half_extents(shape_config)
-    if type_ == "wedge":
+    shape = obj_type_conf["shape"].lower()
+    local_half_extents = parse_local_half_extents(obj_type_conf)
+    if shape == "wedge":
         box = polyhedron.ConvexPolyhedron.wedge(local_half_extents)
-    elif type_ == "cuboid":
+    elif shape == "cuboid":
         box = polyhedron.ConvexPolyhedron.box(local_half_extents)
-    elif type_ == "cylinder":
+    elif shape == "cylinder":
         # for the cylinder, we rotate by 45 deg about z so that contacts occur
         # aligned with x-y axes
         rotation = rotation @ math.rotz(np.pi / 4)
@@ -445,21 +446,21 @@ def parse_inset_dict(contact_conf):
     return insets
 
 
-def parse_inertia(mass, shape_config):
-    type_ = shape_config["type"].lower()
-    if type_ == "cylinder":
+def parse_inertia(mass, obj_type_conf):
+    shape = obj_type_conf["shape"].lower()
+    if shape == "cylinder":
         inertia = math.cylinder_inertia_matrix(
-            mass=mass, radius=shape_config["radius"], height=shape_config["height"]
+            mass=mass, radius=obj_type_conf["radius"], height=obj_type_conf["height"]
         )
-    elif type_ == "cuboid":
+    elif shape == "cuboid":
         inertia = math.cuboid_inertia_matrix(
-            mass=mass, side_lengths=shape_config["side_lengths"]
+            mass=mass, side_lengths=obj_type_conf["side_lengths"]
         )
-    elif type_ == "wedge":
-        D, C = math.wedge_inertia_matrix(mass, shape_config["side_lengths"])
+    elif shape == "wedge":
+        D, C = math.wedge_inertia_matrix(mass, obj_type_conf["side_lengths"])
         inertia = C @ D @ C.T
     else:
-        raise ValueError(f"Unsupported shape type {type_}.")
+        raise ValueError(f"Unsupported shape type {shape}.")
 
     return inertia
 
@@ -467,14 +468,13 @@ def parse_inertia(mass, shape_config):
 def _parse_rigid_body_and_box(obj_type_conf, base_position, quat):
     # base_position is directly beneath the reference position for this shape
     mass = obj_type_conf["mass"]
-    shape_config = obj_type_conf["shape"]
     C = math.quat_to_rot(quat)
 
     local_com_offset = np.array(obj_type_conf["com_offset"], dtype=np.float64)
-    if shape_config["type"].lower() == "wedge":
+    if obj_type_conf["shape"].lower() == "wedge":
         # wedge reference position is the centroid of the box of which it is a
         # half, but that is of course not the CoM: add required offset now
-        hx, hy, hz = 0.5 * np.array(shape_config["side_lengths"])
+        hx, hy, hz = 0.5 * np.array(obj_type_conf["side_lengths"])
         local_com_offset += np.array([-hx, 0, -hz]) / 3
     com_offset = C @ local_com_offset
 
@@ -483,11 +483,11 @@ def _parse_rigid_body_and_box(obj_type_conf, base_position, quat):
     if "inertia_diag" in obj_type_conf:
         local_inertia = np.diag(obj_type_conf["inertia_diag"])
     else:
-        local_inertia = parse_inertia(mass, shape_config)
+        local_inertia = parse_inertia(mass, obj_type_conf)
     inertia = C @ local_inertia @ C.T
 
     z = np.array([0, 0, 1])
-    local_box = parse_box(shape_config, rotation=C)
+    local_box = parse_box(obj_type_conf, rotation=C)
     dz = local_box.distance_from_centroid_to_boundary(-z)
 
     # position of the shape: this is not necessarily the centroid or CoM
@@ -496,7 +496,7 @@ def _parse_rigid_body_and_box(obj_type_conf, base_position, quat):
     com_position = reference_position + com_offset
 
     # now we recompute the box with the correct reference position
-    box = parse_box(shape_config, reference_position, C)
+    box = parse_box(obj_type_conf, reference_position, C)
     body = RigidBody(mass, inertia, com_position)
     return body, box
 
@@ -510,7 +510,7 @@ def parse_control_objects(ctrl_conf):
 
     # placeholder end effector object
     ee_conf = obj_type_confs["ee"]
-    ee_box = parse_box(ee_conf["shape"], np.array(ee_conf["position"]))
+    ee_box = parse_box(ee_conf, np.array(ee_conf["position"]))
     ee_body = RigidBody(1, np.eye(3), ee_box.position)
     wrappers = {
         "ee": _BalancedObjectWrapper(
