@@ -309,3 +309,29 @@ arrangements:
         first: ee
         second: box
         mu: 0.5
+
+  cardboard_box_bottle:
+    objects:
+      -
+        name: box
+        type: cardboard_box
+        parent: ee
+        offset:
+          x: 0.06
+      -
+        name: bottle
+        type: pink_bottle
+        parent: box
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.3
+        mu_margin: 0.03
+        support_area_inset: 0.005
+      -
+        first: box
+        second: bottle
+        mu: 0.2  # TODO
+        mu_margin: 0.02
+        support_area_inset: 0.005

@@ -110,9 +110,9 @@ upright_cmd/scripts/simulations
 ./mpc_sim --config <path to yaml file>
 
 # for example
-# thing_demo.yaml uses the entire mobile manipulator; ur10_demo.yaml and
-# ridgeback_demo.yaml use only the arm and only the base, respectively.
-./mpc_sim --config $(rospack find upright_cmd)/config/playground/thing_demo.yaml
+# thing_demo.yaml uses the entire mobile manipulator
+# ur10_demo.yaml uses only the arm
+./mpc_sim --config $(rospack find upright_cmd)/config/demos/thing_demo.yaml
 ```
 All experiments, whether simulated or real, are specified by configuration
 files in the YAML format, which are stored under `upright_cmd/config`.

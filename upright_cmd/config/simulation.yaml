@@ -208,3 +208,10 @@ objects:
     com_offset: [0, 0, 0]
     mass: 0.1
     color: [0, 0, 1, 1]
+
+  cardboard_box:
+    shape: cuboid
+    side_lengths: [0.16, 0.16, 0.32]
+    com_offset: [0, 0, 0]
+    mass: 0.1  # TODO
+    color: [0, 0, 1, 1]

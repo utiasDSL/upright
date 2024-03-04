@@ -1,19 +1,17 @@
 include:
   -
     package: upright_cmd
-    path: config/ral23/experiments/freespace/_base.yaml
+    path: config/ral23/experiments/extra/aligned_failure/_base.yaml
   -
     package: upright_cmd
     path: config/ral23/experiments/_point1.yaml
 
 
 simulation:
-  duration: 5.0
-  arrangement: pink_bottle
+  arrangement: cardboard_box_bottle
 
 controller:
   balancing:
     enabled: true
     frictionless: true
-    arrangement: pink_bottle
-    constraint_type: hard
+    arrangement: cardboard_box_bottle

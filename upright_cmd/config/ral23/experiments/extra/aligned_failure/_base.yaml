@@ -1,0 +1,79 @@
+include:
+  -
+    key: simulation
+    package: upright_cmd
+    path: config/simulation.yaml
+  -
+    key: controller
+    package: upright_cmd
+    path: config/controller.yaml
+  -
+    package: upright_cmd
+    path: config/robots/thing.yaml
+
+logging:
+  timestep: 0.010
+  log_dir: /media/adam/Data/PhD/Data/upright/ral23/experiments/static_obstacles  # TODO
+
+simulation:
+  duration: 10.0
+  robot:
+    urdf:
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+
+  static_obstacles:
+    enabled: false
+
+controller:
+  mpc:
+    time_horizon: 2.0
+
+  robot:
+    urdf:
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+
+  obstacles:
+    enabled: false
+
+  balancing:
+    enabled: true
+    frictionless: true
+    use_force_constraints: true
+    constraint_type: hard
+    force_weight: 0.001
+
+  inertial_alignment:
+    cost_enabled: false
+    constraint_enabled: false
+    use_angular_acceleration: false
+    align_with_fixed_vector: false
+    cost_weight: 100
+    contact_plane_normal: [0, 0, 1]
+    alpha: 0
+    com: [0, 0, 0]
+
+  weights:
+    input:
+      scale: 0.001
+      diag: [1rep9]
+    state:
+      scale: 0.01
+      diag: [0rep9, 10rep9, 1rep9]
+    end_effector:
+      scale: 1
+      diag: [1, 1, 1, 0, 0, 0]
+
+  limits:
+    constraint_type: hard
+    input:
+      lower: [-20, -20, -20, -80, -80, -80, -80, -80, -80]
+      upper: [20, 20, 20, 80, 80, 80, 80, 80, 80]
+    state:
+      lower: [-10, -10, -10, -2pi, -2pi, -2pi, -2pi, -2pi, -2pi,
+              -1.1, -1.1, -2, -2, -2, -3, -3, -3, -3,
+              -2.5, -2.5, -1, -10, -10, -10, -10, -10, -10]
+      upper: [10, 10, 10, 2pi, 2pi, 2pi, 2pi, 2pi, 2pi,
+              1.1, 1.1, 2, 2, 2, 3, 3, 3, 3,
+              2.5, 2.5, 1, 10, 10, 10, 10, 10, 10]

@@ -1,0 +1,17 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/extra/aligned_failure/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point3.yaml
+
+
+simulation:
+  arrangement: cardboard_box_bottle
+
+controller:
+  balancing:
+    enabled: true
+    frictionless: true
+    arrangement: cardboard_box_bottle
