@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Compute coefficient of friction from Vicon data."""
+"""Compute coefficient of friction from Vicon data.
+
+This assumes that the z-axis of the tray Vicon model is actually aligned with
+the tray normal, and that the world frame z-axis is gravity-aligned.
+"""
 import argparse
 
 import numpy as np

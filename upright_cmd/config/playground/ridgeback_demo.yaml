@@ -1,3 +1,5 @@
+# TODO: the Ridgeback-only simulation does not appear to be working correctly
+# at the moment - possibly an issue with the locked joint implementation?
 include:
   -
     key: simulation
@@ -29,5 +31,5 @@ controller:
   waypoints:
     -
       time: 0
-      position: [0, 2.0, 0]
+      position: [2.0, 0, 0]
       orientation: [0, 0, 0, 1]
