@@ -230,7 +230,7 @@ waypoints:
      orientation: list of float, length 4
 
 # settings for general obstacle avoidance
-obstacles
+obstacles:
   enabled: bool         # set `true` to enable this constraint in the controller
   constraint_type: hard | soft  # `soft` not fully supported
 
@@ -258,11 +258,10 @@ obstacles
           position: list of float, length 3
           velocity: list of float, length 3
           acceleration: list of float, length 3
-    
 
 # the controller can be initialized around some operating points
 # may not fully supported
-operating_points
+operating_points:
   enabled: bool  # leave `false`
 
 # list of the balanced object parameters from the perspective of the controller
@@ -288,6 +287,47 @@ objects:
     # density
     inertia_diag: list of float, length 3, non-negative
 
+# arrangements of the objects
+arrangements:
+  arrangement_name:
+    objects:  # list of objects composing the arrangement
+      -
+        name: str  # the name of this particular object
+        type: str  # the type of the object; must correspond to an entry in `objects`
+        parent: str  # name of (one of) the object(s) this one is placed upon
+
+        # optional offset of this object's CoM in the horizontal plane w.r.t.
+        # the parent's CoM
+        # all the entries under offset are also optional and default to zero
+        # if not provided
+        offset:
+          x: float  # x-component
+          y: float  # y-component
+
+          # polar coordinates can also be used
+          # if both Cartesian and polar coordinates are used, they are added
+          # together
+          r: float  # distance
+          θ: float  # angle
+
+    # define the contact planes in the arrangement
+    contacts:
+      -
+        first: str   # name of the first object in the contact pair
+        second: str  # name of the second object
+
+        mu: float, non-negative  # friction coefficient
+
+        # safety margin for the controller
+        # the balancing constraints are formulated as if the friction
+        # coefficient is `mu - mu_margin`
+        mu_margin: float, non-negative
+
+        # safety margin for the controller
+        # contact points are pulled in by this amount so that the balancing
+        # constraints are more conservative
+        support_area_inset: float, non-negative
+          
 # parameters of the robot
 robot:
   x0: list of float  # initial state
@@ -324,7 +364,7 @@ robot:
     joint_name: float
 
 # weights on state, input, and end effector pose
-weights
+weights:
   input:  # input weight
     scale: float, non-negative         # scale coefficient for the whole weight matrix
     diag: list of float, non-negative  # weight matrix diagonal
@@ -347,9 +387,10 @@ limits:
 
 # settings for performing the forward rollout of the trajectory
 # see <ocs2_oc/rollout/RolloutSettings.h>
-rollout
+rollout:
 
-arrangements
+# TODO
+arrangements:
 ```
 
 ### Simulation
@@ -483,7 +524,7 @@ robot:
 
 # the objects are defined in the same way as in the `controller` section,
 # except that there is color parameter as well:
-objects
+objects:
   object_name:
     ...
     # [r, g, b, a] color, where each value is between 0 and 1, a is the alpha
@@ -494,5 +535,5 @@ objects
 # we typically make a seperate arrangements.yaml file that is included in both
 # the controller and simulation settings, where the parameters of the objects
 # themselves are changed if we want to have differences between the two
-arrangements
+arrangements:
 ```

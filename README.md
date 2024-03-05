@@ -115,7 +115,7 @@ upright_cmd/scripts/simulations
 ./mpc_sim --config $(rospack find upright_cmd)/config/demos/thing_demo.yaml
 ```
 All experiments, whether simulated or real, are specified by configuration
-files in the YAML format, which are stored under `upright_cmd/config`.
+files in the YAML format, which are stored under `upright_cmd/config`. Configuration parameters are documented [here](docs/configuration.md).
 
 Note that once the simulation is setup (this can take some time when
 re-compiling auto-differentiated libraries), you will be dropped into an

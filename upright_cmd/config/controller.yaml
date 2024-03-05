@@ -253,4 +253,4 @@ objects:
     shape: cuboid
     side_lengths: [0.16, 0.16, 0.32]
     com_offset: [0, 0, 0]
-    mass: 0.1  # TODO
+    mass: 0.15
