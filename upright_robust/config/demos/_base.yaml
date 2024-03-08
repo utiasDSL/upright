@@ -25,7 +25,7 @@ simulation:
         - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
         - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
       args:
-        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_sim.yaml"
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
 
   cameras:
     camera1:
@@ -49,7 +49,7 @@ controller:
     urdf:
       args:
         use_collision: "true"
-        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_sim.yaml"
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
 
   balancing:
     enabled: true
@@ -57,6 +57,5 @@ controller:
   waypoints:
     -
       time: 0
-      # position: [0, 2.0, 0]
-      position: [0, 2.0, 0]
+      position: [0, 3.0, 0]
       orientation: [0, 0, 0, 1]

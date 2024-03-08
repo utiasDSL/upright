@@ -42,7 +42,22 @@ def parse_objects_and_contacts(ctrl_config, model=None, approx_inertia=False):
 
 
 class RobustControllerModel:
-    def __init__(self, ctrl_config, timestep, v_joint_max, a_joint_max):
+    def __init__(
+        self,
+        ctrl_config,
+        timestep,
+        v_joint_max,
+        a_joint_max,
+        a_cart_max,
+        α_cart_max,
+        v_cart_max,
+        ω_cart_max,
+        a_cart_weight,
+        α_cart_weight,
+        a_joint_weight,
+        v_joint_weight,
+        j_joint_weight,
+    ):
         # controller
         model = ctrl.manager.ControllerModel.from_config(ctrl_config)
         self.robot = model.robot
@@ -64,11 +79,35 @@ class RobustControllerModel:
             timestep,
             a_joint_max=a_joint_max,
             v_joint_max=v_joint_max,
+            a_cart_max=a_cart_max,
+            α_cart_max=α_cart_max,
+            v_cart_max=v_cart_max,
+            ω_cart_max=ω_cart_max,
+            a_cart_weight=a_cart_weight,
+            α_cart_weight=α_cart_weight,
+            a_joint_weight=a_joint_weight,
+            v_joint_weight=v_joint_weight,
+            j_joint_weight=j_joint_weight,
         )
 
 
 def parse_controller_from_config(
-    ctrl_config, robot, objects, contacts, timestep, v_joint_max, a_joint_max
+    ctrl_config,
+    robot,
+    objects,
+    contacts,
+    timestep,
+    v_joint_max,
+    a_joint_max,
+    a_cart_max,
+    α_cart_max,
+    v_cart_max,
+    ω_cart_max,
+    a_cart_weight,
+    α_cart_weight,
+    a_joint_weight,
+    v_joint_weight,
+    j_joint_weight,
 ):
     """Parse the balancing controller from config."""
     use_balancing_constraints = ctrl_config["balancing"]["enabled"]
@@ -82,50 +121,48 @@ def parse_controller_from_config(
     # rotational tracking gains
     kθ = ctrl_config["reactive"]["kθ"]
     kω = ctrl_config["reactive"]["kω"]
-    use_dvdt_scaling = False
+
+    shared_params = {
+        "robot": robot,
+        "objects": objects,
+        "contacts": contacts,
+        "dt": timestep,
+        "use_slack": use_slack,
+        "slack_weight": slack_weight,
+        "a_cart_max": a_cart_max,
+        "α_cart_max": α_cart_max,
+        "v_cart_max": v_cart_max,
+        "ω_cart_max": ω_cart_max,
+        "a_joint_max": a_joint_max,
+        "v_joint_max": v_joint_max,
+        "a_cart_weight": a_cart_weight,
+        "α_cart_weight": α_cart_weight,
+        "a_joint_weight": a_joint_weight,
+        "v_joint_weight": v_joint_weight,
+        "j_joint_weight": j_joint_weight,
+    }
 
     if tilting_type == "full":
         return robctrl.ReactiveBalancingControllerFullTilting(
-            robot,
-            objects,
-            contacts,
-            timestep,
             kθ=kθ,
             kω=kω,
-            use_dvdt_scaling=use_dvdt_scaling,
             use_face_form=use_face_form,
             use_robust_constraints=use_robust_constraints,
             use_approx_robust_constraints=use_approx_robust_constraints,
-            use_slack=use_slack,
-            slack_weight=slack_weight,
-            v_joint_max=v_joint_max,
-            a_joint_max=a_joint_max,
+            use_dvdt_scaling=False,
+            **shared_params,
         )
     elif tilting_type == "tray":
         return robctrl.NominalReactiveBalancingControllerTrayTilting(
-            robot,
-            objects,
-            contacts,
-            timestep,
             kθ=kθ,
             kω=kω,
             use_balancing_constraints=use_balancing_constraints,
-            use_slack=use_slack,
-            slack_weight=slack_weight,
-            v_joint_max=v_joint_max,
-            a_joint_max=a_joint_max,
+            **shared_params,
         )
     elif tilting_type == "flat":
         return robctrl.NominalReactiveBalancingControllerFlat(
-            robot,
-            objects,
-            contacts,
-            timestep,
             use_balancing_constraints=use_balancing_constraints,
-            use_slack=use_slack,
-            slack_weight=slack_weight,
-            v_joint_max=v_joint_max,
-            a_joint_max=a_joint_max,
+            **shared_params,
         )
     else:
         raise ValueError(f"Unknown tilting type {tilting_type}")

@@ -17,10 +17,10 @@ import IPython
 # gravity constant
 g = 9.81
 
-V_MAX=0.5
-ω_MAX=0.25
-A_MAX=0.5
-α_MAX=0.25
+V_MAX = 2.0
+ω_MAX = 1.0
+A_MAX = 1.0
+α_MAX = 1.0
 TILT_ANGLE_MAX = np.deg2rad(15)
 
 
@@ -146,10 +146,12 @@ def solve_approx_inertia_sdp(
 
     z_normal = np.array([0, 0, 1])
 
-    A = cp.Variable(nv)
-    G = cp.Variable(ng)
+    A = cp.Variable(nv)  # EE acceleration vector
+    G = cp.Variable(ng)  # gravity vector
     z = cp.Variable(nz)
-    Λ = cp.Variable((6, 6), PSD=True)
+    Λ = cp.Variable((6, 6), PSD=True)  # = V @ V.T
+
+    s = cp.Variable(1)
 
     values = []
     Vs = []
@@ -164,6 +166,9 @@ def solve_approx_inertia_sdp(
             cp.diag(Λ[:3, :3]) <= v_max**2,
             cp.diag(Λ[3:, 3:]) <= ω_max**2,
 
+            Λ[:3, 3:] <= v_max * ω_max * np.ones((3, 3)),
+            # Λ[3:, 3:] <= ω_max**2 * np.ones((3, 3)),
+
             # gravity constraints
             cp.norm(G) <= g,
             z_normal @ G <= -g * np.cos(tilt_angle_max),
@@ -173,13 +178,17 @@ def solve_approx_inertia_sdp(
             # (A[:3] - G) @ [0, 1, 0] == 0,
 
             # adaptive tilting
-            # A[3:] == 0.1 * core.math.skew3(z_normal) @ (A[:3] - G),
+            # NOTE this is wrong: need acceleration *at the nominal CoM*
+            # A[3:] == core.math.skew3(z_normal) @ (A[:3] - G),
 
             # acceleration constraints
             A[:3] >= -a_max,
             A[:3] <= a_max,
             A[3:] >= -α_max,
             A[3:] <= α_max,
+
+            # cp.norm(A[:3]) <= a_max,
+            # cp.norm(A[3:]) <= α_max,
         ] + [
             # all of the approximate constraints
             R2[:, :-1] @ (Z.T @ z + Dg.T @ G + D.T @ A) <= 0.0
@@ -189,8 +198,12 @@ def solve_approx_inertia_sdp(
         problem = cp.Problem(objective, constraints)
         problem.solve(solver=cp.MOSEK)
         values.append(problem.value)
-        # print(f"Λ eigvals = {np.linalg.eigvals(Λ.value)}")
-        # print(f"||g|| = {np.linalg.norm(G.value)}")
+        if objective.value > 0:
+            print(f"index = {i}")
+            print(f"objective = {objective.value}")
+            print(f"Λ eigvals = {np.linalg.eigvals(Λ.value)}")
+            print(f"||g|| = {np.linalg.norm(G.value)}")
+            print(f"A = {A.value}")
 
     values = np.array(values)
     n_neg = np.sum(values < 0)

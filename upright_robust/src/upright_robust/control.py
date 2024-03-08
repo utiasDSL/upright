@@ -1,3 +1,4 @@
+import abc
 import time
 
 import numpy as np
@@ -11,35 +12,63 @@ import upright_core as core
 import upright_robust.utils as utils
 import upright_robust.modelling as mdl
 from upright_robust.bindings import RobustBounds
+from upright_robust.qp_utils import QPUpdateMask
 
 import IPython
 
 
-class QPUpdateMask:
-    def __init__(self, P=True, q=True, A=True, b=True, G=True, h=True, lb=True, ub=True):
-        self.P = P
-        self.q = q
-        self.A = A
-        self.b = b
-        self.G = G
-        self.h = h
-        self.lb = lb
-        self.ub = ub
+# TODO inconsistent use of dedicated proxqp interface
+# TODO support different weights on different joints
 
-    def update(self, P, q, A=None, b=None, G=None, h=None, lb=None, ub=None):
-        P = P if self.P else None
-        q = q if self.q else None
-        A = A if self.A else None
-        b = b if self.b else None
-        G = G if self.G else None
-        h = h if self.h else None
-        lb = lb if self.lb else None
-        ub = ub if self.ub else None
-        return P, q, A, b, G, h, lb, ub
+# use a dedicated interface to proxQP rather than going through qpsolvers
+# this enables better warm-starting from timestep to timestep
+USE_DEDICATED_PROXQP_INTERFACE = True
 
 
-class ReactiveBalancingController:
-    """Base class for reactive balancing control."""
+class ReactiveBalancingController(abc.ABC):
+    """Base class for reactive balancing control.
+
+    Parameters
+    ----------
+    robot : RobotModel
+        Robot model.
+    objects : Iterable[UncertainObject]
+        The balanced objects.
+    contacts : Iterable[RobustContactPoint]
+        The contact points between objects.
+    dt: float, non-negative
+        The controller timestep.
+
+    a_cart_weight : float, non-negative
+        The weight on the linear EE acceleration.
+    α_cart_weight : float, non-negative
+        The weight on the angular EE acceleration.
+    v_joint_weight : float, non-negative
+        The weight on the joint velocity.
+    a_joint_weight : float, non-negative
+        The weight on the joint acceleration.
+    j_joint_weight : float, non-negative
+        The weight on the joint jerk.
+
+    a_cart_max : float, non-negative
+        Maximum EE linear acceleration (in each dimension).
+    α_cart_max : float, non-negative
+        Maximum EE angular acceleration (in each dimension).
+    v_cart_max : float, non-negative
+        Maximum EE linear velocity (in each dimension).
+    ω_cart_max : float, non-negative
+        Maximum EE angular velocity (in each dimension).
+    a_joint_max : float, non-negative
+        Maximum joint acceleration.
+    v_joint_max : float, non-negative
+        Maximum joint velocity.
+
+    use_slack : bool
+        Set ``true`` to use slack variables to relax the equality between joint
+        space and task space acceleration.
+    slack_weight : float, non-negative
+        The weight on the slack variables.
+    """
 
     def __init__(
         self,
@@ -50,10 +79,13 @@ class ReactiveBalancingController:
         a_cart_weight=1,
         α_cart_weight=5,
         a_joint_weight=0.01,
-        v_joint_weight=3,
+        v_joint_weight=3,  # TODO tuning
+        j_joint_weight=0,  # 1e-6
         slack_weight=10,
         a_cart_max=5,
         α_cart_max=1,
+        v_cart_max=1,
+        ω_cart_max=1,
         a_joint_max=5,
         v_joint_max=1,
         use_slack=True,
@@ -69,7 +101,7 @@ class ReactiveBalancingController:
         self.no = len(self.objects)  # number of objects
         self.nc = len(self.contacts)  # number of contacts
         self.ns = use_slack * 6  # number of slack variables
-        self.nu = 9  # numer of inputs
+        self.nu = 9  # number of inputs
         self.nv0 = self.nu + 6 + self.ns  # default number of decision variables
 
         # canonical map of object names to indices
@@ -80,18 +112,20 @@ class ReactiveBalancingController:
         # slack variables on the EE acceleration kinematics constraint
         # shared optimization weight
         self.v_joint_weight = v_joint_weight
+        self.j_joint_weight = j_joint_weight
         self.a_cart_weight = a_cart_weight
         self.α_cart_weight = α_cart_weight
         self.slack_weight = slack_weight
+
         # here we are penalizing ||u_k||^2 directly but also ||v_{k+1}||^2 =
         # ||v_k + dt * u_k||^2
-        self.P_joint = (a_joint_weight + dt**2 * v_joint_weight) * np.eye(9)
+        # the linear term from the velocity penalty is computed in the
+        # _compute_linear_cost_term method
+        self.P_joint = (
+            a_joint_weight + dt**2 * v_joint_weight + j_joint_weight / dt**2
+        ) * np.eye(9)
         self.P_cart = block_diag(a_cart_weight * np.eye(3), α_cart_weight * np.eye(3))
         self.P_slack = slack_weight * np.eye(self.ns)
-
-        # shared optimization bounds
-        self.a_cart_max = a_cart_max
-        self.α_cart_max = α_cart_max
 
         # slices for decision variables
         self.su = np.s_[: self.nu]
@@ -100,6 +134,14 @@ class ReactiveBalancingController:
         self.sα = np.s_[self.nu + self.ns + 3 : self.nu + self.ns + 6]
         self.sA = np.s_[self.nu + self.ns : self.nu + self.ns + 6]
 
+        # shared optimization bounds
+        # task space
+        self.a_cart_max = a_cart_max
+        self.α_cart_max = α_cart_max
+        self.v_cart_max = v_cart_max
+        self.ω_cart_max = ω_cart_max
+
+        # joint space
         self.v_joint_max = v_joint_max
         self.a_joint_max = a_joint_max
 
@@ -128,9 +170,7 @@ class ReactiveBalancingController:
     def update(self, q, v):
         self.robot.update(q, v)
 
-    def _solve_qp_prox(
-        self, P, q, G=None, h=None, A=None, b=None, lb=None, ub=None, x0=None
-    ):
+    def _solve_qp_prox(self, P, q, G=None, h=None, A=None, b=None, lb=None, ub=None):
         """Solve QP using proxqp's dense solver."""
         if self.qp is None:
             nv = P.shape[0]
@@ -155,6 +195,12 @@ class ReactiveBalancingController:
     def _solve_qp(
         self, P, q, G=None, h=None, A=None, b=None, lb=None, ub=None, x0=None
     ):
+        if USE_DEDICATED_PROXQP_INTERFACE:
+            # be consistent! only use _solve_qp_prox when the flag is set
+            raise ValueError(
+                "Called _solve_qp but USE_DEDICATED_PROXQP_INTERFACE is true."
+            )
+
         if x0 is None:
             x0 = self.x_last
 
@@ -171,51 +217,83 @@ class ReactiveBalancingController:
         t1 = time.perf_counter_ns()
         x = solution.x
         self.qp_prof.update(t1 - t0)
-        # print(f"QP curr = {(t1 - t0) / 1e6} ms")
-        # print(f"QP avg  = {self.qp_prof.average / 1e6} ms")
-        # print(f"QP iter = {solution.extras['info'].iter}")
 
-        # x = solve_qp(
-        #     P=P,
-        #     q=q,
-        #     G=G,
-        #     h=h,
-        #     A=A,
-        #     b=b,
-        #     lb=lb,
-        #     ub=ub,
-        #     initvals=x0,
-        #     eps_abs=1e-6,
-        #     eps_rel=1e-6,
-        #     max_iter=10000,
-        #     solver=self.solver,
-        # )
         self.x_last = x
         u = x[self.su]
         A = x[self.sA]
         return u, A
 
     def _initial_guess(self, a_ew_e_cmd):
+        """Compute the initial guess for the QP."""
         x0 = np.zeros(self.nv)
         x0[self.sa] = a_ew_e_cmd
         return x0
 
-    def _compute_q(self, v, a_ew_e_cmd):
+    def _compute_linear_cost_term(self, v, a_ew_e_cmd, u_last):
+        """Compute the linear term of the QP's cost function.
+
+        Parameters
+        ----------
+        v : np.ndarray, shape (nu,)
+            The current joint velocity.
+        a_ew_w_cmd : np.ndarray, shape (3,)
+            The commanded EE linear acceleration.
+        u_last : np.ndarray, shape (9,)
+            The current joint acceleration (i.e., from the last timestep).
+
+        Returns
+        -------
+        : np.ndarray shape (nv,)
+            The linear term ``q`` of the QP's cost function.
+        """
         q = np.zeros(self.nv)
-        q[self.su] = self.v_joint_weight * self.dt * v
+
+        # joint acceleration
+        q[self.su] = (
+            self.v_joint_weight * self.dt * v
+            + self.j_joint_weight * u_last / self.dt**2
+        )
+
+        # EE acceleration
+        # note there is no linear term on the EE angular because α and α_d are
+        # both decision variables
         q[self.sa] = -self.a_cart_weight * a_ew_e_cmd
         return q
 
-    def _compute_bounds(self, v):
+    def _compute_bounds(self, v, V):
         """Compute bounds for the problem.
 
         We assume the bounds are fixed except for the joint acceleration, which
         depends on the current joint velocity.
+
+        Parameters
+        ----------
+        v : np.ndarray, shape (nu,)
+            The current joint velocity.
+        V : np.ndarray, shape (6,)
+            The current EE velocity.
+
+        Returns
+        -------
+        : tuple
+            The pair ``(lb, ub)``, representing the lower and upper bounds (box
+            constraints) on the QP optimization variables.
         """
-        lb_u = np.maximum(-self.a_joint_max, (-self.v_joint_max - v) / self.dt)
-        ub_u = np.minimum(self.a_joint_max, (self.v_joint_max - v) / self.dt)
-        lb = np.concatenate((lb_u, self.lb[self.nu :]))
-        ub = np.concatenate((ub_u, self.ub[self.nu :]))
+        lb = self.lb.copy()
+        ub = self.ub.copy()
+
+        # joint acceleration bounds
+        # these combine the true acceleration bounds and the velocity joints
+        # obtained using a first-order approximation
+        lb[self.su] = np.maximum(-self.a_joint_max, (-self.v_joint_max - v) / self.dt)
+        ub[self.su] = np.minimum(self.a_joint_max, (self.v_joint_max - v) / self.dt)
+
+        # EE acceleration bounds
+        lb[self.sa] = np.maximum(-self.a_cart_max, (-self.v_cart_max - V[:3]) / self.dt)
+        ub[self.sa] = np.minimum(self.a_cart_max, (self.v_cart_max - V[:3]) / self.dt)
+        lb[self.sα] = np.maximum(-self.α_cart_max, (-self.ω_cart_max - V[3:]) / self.dt)
+        ub[self.sα] = np.minimum(self.α_cart_max, (self.ω_cart_max - V[3:]) / self.dt)
+
         return lb, ub
 
     def _compute_tracking_equalities(self, J, δ):
@@ -229,7 +307,11 @@ class ReactiveBalancingController:
         b = δ
         return A, b
 
-    def solve(self, q, v, a_ew_w_cmd, **kwargs):
+    @abc.abstractmethod
+    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last, **kwargs):
+        pass
+
+    def solve(self, q, v, a_ew_w_cmd, u_last, **kwargs):
         """Solve for an updated joint acceleration command given current robot
         state (q, v) and desired EE (world-frame) acceleration A_ew_w_cmd.
         """
@@ -246,7 +328,9 @@ class ReactiveBalancingController:
         # body-frame gravity
         G_e = utils.body_gravity6(C_we.T)
 
-        return self._setup_and_solve_qp(G_e, V_ew_e, a_ew_e_cmd, δ, J, v, **kwargs)
+        return self._setup_and_solve_qp(
+            G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last, **kwargs
+        )
 
 
 class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
@@ -290,7 +374,7 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
         self.lb = np.concatenate((self.lb, -np.inf * np.ones(self.nf)))
         self.ub = np.concatenate((self.ub, np.inf * np.ones(self.nf)))
 
-    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
+    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last):
         x0 = self._initial_guess(a_ew_e_cmd)
 
         # map joint acceleration to EE acceleration
@@ -313,8 +397,8 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
             b_eq = np.concatenate((b_eq_track, b_α_fixed))
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
-        q = self._compute_q(v, a_ew_e_cmd)
-        lb, ub = self._compute_bounds(v)
+        q = self._compute_linear_cost_term(v, a_ew_e_cmd, u_last)
+        lb, ub = self._compute_bounds(v, V_ew_e)
 
         return self._solve_qp(
             P=self.P_sparse,
@@ -395,7 +479,7 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
         )
         self.lb = -self.ub
 
-    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
+    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last):
         x0 = self._initial_guess(a_ew_e_cmd)
 
         # map joint acceleration to EE acceleration
@@ -429,8 +513,8 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
             b_eq = np.concatenate((b_eq_track, b_eq_tilt))
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
-        q = self._compute_q(v, a_ew_e_cmd)
-        lb, ub = self._compute_bounds(v)
+        q = self._compute_linear_cost_term(v, a_ew_e_cmd, u_last)
+        lb, ub = self._compute_bounds(v, V_ew_e)
 
         return self._solve_qp(
             P=self.P_sparse,
@@ -443,62 +527,6 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
             ub=ub,
             x0=x0,
         )
-
-
-def check_redundant_linear_constraints(A, b):
-    """{x | Ax <= b}"""
-
-    n = A.shape[0]
-    for i in range(n):
-        a = A[i, :]
-        h = np.copy(b)
-        h[i] = 1
-        x = solve_lp(c=-a, G=A, h=h)
-        p = a @ x
-        print(p - b[i])
-    IPython.embed()
-
-
-def approx_polytope_with_hypercuboid(R):
-    """{x | Rx <= 0}"""
-    # dimension of the space
-    d = R.shape[1]
-
-    z = np.zeros(R.shape[0])
-
-    lb = np.zeros(d)
-    ub = np.zeros(d)
-
-    for i in range(d):
-        c = np.zeros(d)
-        c[i] = 1
-
-        # TODO problems are infeasible: this is a cone containing zero
-        try:
-            # max
-            x = solve_lp(c=-c, G=R, h=z, solver="cdd")
-            ub[i] = c @ x
-
-            # min
-            x = solve_lp(c=c, G=R, h=z, solver="cdd")
-            lb[i] = c @ x
-        except ValueError as e:
-            print(e)
-            IPython.embed()
-
-    normals = np.vstack((np.eye(d), -np.eye(d)))
-    bounds = np.concatenate((ub, -lb))
-
-    IPython.embed()
-
-
-def solve_max_min_value(A):
-    c = np.zeros(A.shape[1] + 1)
-    c[0] = 1
-
-    G = np.hstack((np.ones((A.shape[0], 1)), -A))
-    x = solve_lp(c=-c, G=G, h=np.zeros(A.shape[0]))
-    IPython.embed()
 
 
 class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
@@ -566,7 +594,9 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
 
             self.RT = R[:, :-1].T
 
-            raise NotImplementedError("robust bounds probably needs adjustment since I switched P and R signs")
+            raise NotImplementedError(
+                "robust bounds probably needs adjustment since I switched P and R signs"
+            )
             self.robust_bounds = RobustBounds(self.RT, self.face, self.A_ineq_rob)
 
         if use_robust_constraints:
@@ -729,7 +759,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         self.update_mask = QPUpdateMask(P=False, G=False)
         self.approx_scale_prof = utils.RunningAverage()
 
-    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v):
+    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last):
         x0 = self._initial_guess(a_ew_e_cmd)
 
         # compute the equality constraints A_eq @ x == b
@@ -788,31 +818,32 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2))
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
-        q = self._compute_q(v, a_ew_e_cmd)
-        lb, ub = self._compute_bounds(v)
+        q = self._compute_linear_cost_term(v, a_ew_e_cmd, u_last)
+        lb, ub = self._compute_bounds(v, V_ew_e)
 
-        # u, A = self._solve_qp(
-        #     P=self.P_sparse,
-        #     q=q,
-        #     G=self.A_ineq_sparse,
-        #     h=b_ineq,
-        #     A=sparse.csc_matrix(A_eq),
-        #     b=b_eq,
-        #     lb=lb,
-        #     ub=ub,
-        #     x0=x0,
-        # )
-        u, A = self._solve_qp_prox(
-            P=self.P,
-            q=q,
-            G=self.A_ineq,
-            h=b_ineq,
-            A=A_eq,
-            b=b_eq,
-            lb=lb,
-            ub=ub,
-            x0=x0,
-        )
+        if USE_DEDICATED_PROXQP_INTERFACE:
+            u, A = self._solve_qp_prox(
+                P=self.P,
+                q=q,
+                G=self.A_ineq,
+                h=b_ineq,
+                A=A_eq,
+                b=b_eq,
+                lb=lb,
+                ub=ub,
+            )
+        else:
+            u, A = self._solve_qp(
+                P=self.P_sparse,
+                q=q,
+                G=self.A_ineq_sparse,
+                h=b_ineq,
+                A=sparse.csc_matrix(A_eq),
+                b=b_eq,
+                lb=lb,
+                ub=ub,
+                x0=x0,
+            )
         if self.use_approx_robust_constraints:
             t0 = time.perf_counter_ns()
             scale = self.robust_bounds.compute_scale(V_ew_e, -G_e, A)

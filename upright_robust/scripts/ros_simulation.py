@@ -21,8 +21,15 @@ import upright_robust as rob
 import IPython
 
 
-def sigint_handler(sig, frame):
-    print("Ctrl-C pressed: exiting.")
+# def sigint_handler(sig, frame):
+#     print("Ctrl-C pressed: exiting.")
+#     pyb.disconnect()
+#     # TODO tell ROS?
+#     sys.exit(0)
+
+
+def shutdown_pybullet():
+    print("disconnecting pybullet")
     pyb.disconnect()
     # TODO tell ROS?
     sys.exit(0)
@@ -30,7 +37,9 @@ def sigint_handler(sig, frame):
 
 def main():
     np.set_printoptions(precision=6, suppress=True)
-    signal.signal(signal.SIGINT, sigint_handler)
+
+    signal_handler = mm.SimpleSignalHandler(callback=shutdown_pybullet)
+    # signal.signal(signal.SIGINT, sigint_handler)
 
     cli_args = cmd.cli.sim_arg_parser().parse_args()
 
@@ -72,16 +81,17 @@ def main():
 
     print("Simulation ready.")
 
-    # TODO
-    # initialize the commands for the simulation, before any have been received
-    robot_interface.base.cmd_vel = np.zeros(3)
-    robot_interface.arm.cmd_vel = np.zeros(6)
-
+    # spin until we get something back from the controller
+    # TODO could put a P controller on to keep the tray steady
     t = 0
-    robot_interface.publish_time(t)
+    while not rospy.is_shutdown() and not robot_interface.ready():
+        robot_interface.publish_time(t)
+        robot_interface.publish_feedback(t, q, v)
+        t += env.timestep
+
     while not rospy.is_shutdown():
         # publish the state of the robot
-        q, v = env.robot.joint_states(add_noise=False, bodyframe=False)
+        q, v = env.robot.joint_states()
         robot_interface.publish_feedback(t, q, v)
 
         # send the latest commanded the velocity to the simulated robot
@@ -95,6 +105,7 @@ def main():
         robot_interface.publish_time(t)
 
         # NOTE: we can't use the rate here since the sim is in charge of time
+        # TODO: it would however be nice to use some adaptive timer...
         time.sleep(env.timestep)
 
 

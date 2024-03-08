@@ -17,10 +17,11 @@ from upright_core.logging import DataLogger
 
 
 # TODO make some of these into command line arguments?
-DRY_RUN = True
+DRY_RUN = False
 VERBOSE = True
 USE_DATA_LOGGER = False
 CHECK_VICON_RATE = False
+EXPECTED_VICON_RATE = 100  # Hz
 VICON_OBJECT_NAME = "ThingBase_3"
 DURATION = 30.0
 
@@ -29,26 +30,28 @@ DURATION = 30.0
 RATE = 125  # Hz
 TIMESTEP = 1.0 / RATE
 
-# TODO adjust this
-# MAX_JOINT_VELOCITY = np.array([0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1])
-# MAX_JOINT_ACCELERATION = np.array([2.5, 2.5, 1, 5, 5, 5, 5, 5, 5])
-MAX_JOINT_VELOCITY = 0.5 * np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1])
-MAX_JOINT_ACCELERATION = 0.25 * np.array([2.5, 2.5, 1, 5, 5, 5, 5, 5, 5])
+MAX_JOINT_VELOCITY = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1])
+MAX_JOINT_ACCELERATION = np.array([2.5, 2.5, 1, 5, 5, 5, 5, 5, 5])
+
+MAX_EE_LIN_VEL = 2.0
+MAX_EE_ANG_VEL = 1.0
+MAX_EE_LIN_ACC = 1.0
+MAX_EE_ANG_ACC = 1.0
+
+EE_LIN_ACC_WEIGHT = 1
+
+# this needs to at least ~5, otherwise the tilting action won't be strong
+# enough against the linear acceleration
+EE_ANG_ACC_WEIGHT = 10
+JOINT_ACC_WEIGHT = 0.01
+
+# needs to be high enough to actually converge
+JOINT_VEL_WEIGHT = 3
+JOINT_JERK_WEIGHT = 0
 
 USE_KALMAN_FILTER = True
 PROCESS_COV = 1000
 MEASUREMENT_COV = 1
-
-
-class SignalHandler:
-    def __init__(self):
-        self.received = False
-        signal.signal(signal.SIGINT, self.handler)
-        signal.signal(signal.SIGTERM, self.handler)
-
-    def handler(self, signum, frame):
-        print(f"Received signal: {signum}")
-        self.received = True
 
 
 def main():
@@ -73,6 +76,15 @@ def main():
         TIMESTEP,
         v_joint_max=MAX_JOINT_VELOCITY,
         a_joint_max=MAX_JOINT_ACCELERATION,
+        a_cart_max=MAX_EE_LIN_ACC,
+        α_cart_max=MAX_EE_ANG_ACC,
+        v_cart_max=MAX_EE_LIN_VEL,
+        ω_cart_max=MAX_EE_ANG_VEL,
+        a_cart_weight=EE_LIN_ACC_WEIGHT,
+        α_cart_weight=EE_ANG_ACC_WEIGHT,
+        a_joint_weight=JOINT_ACC_WEIGHT,
+        v_joint_weight=JOINT_VEL_WEIGHT,
+        j_joint_weight=JOINT_JERK_WEIGHT,
     )
     kp, kv = model.kp, model.kv
     controller = model.controller
@@ -83,15 +95,15 @@ def main():
         logger = DataLogger(config)
 
     # start ROS
-    rospy.init_node("upright_robust_controller", disable_signals=True, log_level=rospy.DEBUG)
+    rospy.init_node("upright_robust_controller", disable_signals=True)
     robot_interface = mm.MobileManipulatorROSInterface()
-    signal_handler = SignalHandler()
+    signal_handler = mm.SimpleSignalHandler()
 
     # check that Vicon rate is as we expect
     if CHECK_VICON_RATE:
         print("Checking Vicon rate...")
         checker = mm.ViconRateChecker(vicon_object_name=VICON_OBJECT_NAME)
-        if not checker.check_rate(expected_rate=100):
+        if not checker.check_rate(expected_rate=EXPECTED_VICON_RATE):
             print("Vicon rate is wrong!")
             return
 
@@ -167,7 +179,7 @@ def main():
 
         # compute command taking balancing into account
         ta = time.perf_counter_ns()
-        u, A_e = controller.solve(q, v, a_ew_w_cmd)
+        u, A_e = controller.solve(q, v, a_ew_w_cmd, u)
         tb = time.perf_counter_ns()
 
         if VERBOSE:

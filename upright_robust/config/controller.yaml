@@ -31,9 +31,8 @@ objects:
     mass: 0.25
     com_offset: [0, 0, 0]
     inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.1]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -44,9 +43,8 @@ objects:
     mass: 0.25
     com_offset: [0, 0, 0]
     inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.1]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -57,9 +55,8 @@ objects:
     mass: 0.25
     com_offset: [0, 0, 0]
     inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.1]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -70,9 +67,8 @@ objects:
     mass: 0.25
     com_offset: [0, 0, 0]
     inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.1]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -83,9 +79,8 @@ objects:
     mass: 0.25
     com_offset: [0, 0, 0]
     inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.1]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -96,9 +91,8 @@ objects:
     mass: 0.25
     com_offset: [0, 0, 0]
     inertia_diag: [0.0002166667, 0.0004166667, 0.0002166667]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 0.1]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.1]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -108,9 +102,8 @@ objects:
   stack2_block_bottom_mass_uncertain:
     mass: 0.5
     com_offset: [0, 0.0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.1, 0.1, 0.25]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.25]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -120,9 +113,8 @@ objects:
   stack2_block_top_mass_uncertain:
     mass: 0.5
     com_offset: [0, 0.0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.1, 0.1, 0.25]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.25]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -132,9 +124,8 @@ objects:
   stack2_block_bottom_mass_certain:
     mass: 0.5
     com_offset: [0, 0.0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.1, 0.1, 0.25]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.25]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -144,9 +135,8 @@ objects:
   stack2_block_top_mass_certain:
     mass: 0.5
     com_offset: [0, 0.0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.1, 0.1, 0.25]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.25]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -160,7 +150,7 @@ objects:
   #   inertia_diag: [0.0425, 0.0425, 0.005]  # 1kg mass spread in corners
   #   # inertia_diag: [0.0, 0.0, 0.0]
   #   shape:
-  #     type: cuboid
+  #     shape: cuboid
   #     side_lengths: [0.1, 0.1, 0.4]
   #
   #   # bounds are all relative to the nominal values above
@@ -192,15 +182,16 @@ objects:
     mass: 1.0
     com_offset: [0, 0, 0]
     inertia_diag: [0.064, 0.064, 0.0128]  # 1kg mass spread in corners
-    shape:
-      type: cuboid
-      side_lengths: [0.16, 0.16, 0.48]
+    # inertia_diag: [0.1, 0.1, 0.1]
+    # inertia_diag: [0, 0, 0]
+    shape: cuboid
+    side_lengths: [0.16, 0.16, 0.48]
 
     # bounds are all relative to the nominal values above
     # these are the bounds actually enforced by the QP-based controller
     bounds_approx_inertia:
-      com_lower: [-0.06, -0.06, -0.24]
-      com_upper: [0.06, 0.06, 0.24]
+      com_lower: [-0.07, -0.07, -0.24]
+      com_upper: [0.07, 0.07, 0.24]
       mass_lower: 0
       mass_upper: 0
 
@@ -222,9 +213,8 @@ objects:
     mass: 1.0
     com_offset: [0, 0, 0]
     inertia_diag: [0.0133666667, 0.0141666667, 0.0008666667]
-    shape:
-      type: cuboid
-      side_lengths: [0.1, 0.1, 0.4]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.4]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -235,9 +225,8 @@ objects:
     mass: 1.0
     com_offset: [0, 0, 0]
     inertia_diag: [0.0133666667, 0.0141666667, 0.0008666667]
-    shape:
-      type: cuboid
-      side_lengths: [0.1, 0.1, 0.4]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.4]
     bounds:
       com_lower: [-0.04, -0.04, -0.04]
       com_upper: [0.04, 0.04, 0.04]
@@ -247,37 +236,30 @@ objects:
   tall_block_I0:
     mass: 1.0
     com_offset: [0, 0, 0]
-    # inertia_diag: [0, 0, 0]
-    # inertia_diag: [0.02125, 0.02125, 0.0025]
-    shape:
-      type: cuboid
-      side_lengths: [0.1, 0.1, 0.4]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.4]
     color: [1, 0, 0, 1]
 
   very_tall_block:
     mass: 0.5
     com_offset: [0, 0, 0]
-    shape:
-        type: cuboid
-        side_lengths: [0.1, 0.1, 1.0]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 1.0]
 
   narrow_strut:
     mass: 0.1
     com_offset: [0, 0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.1, 0.01, 0.3]
+    shape: cuboid
+    side_lengths: [0.1, 0.01, 0.3]
 
   wide_strut:
     mass: 0.5
     com_offset: [0, 0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.1, 0.1, 0.3]
+    shape: cuboid
+    side_lengths: [0.1, 0.1, 0.3]
 
   bridge:
     mass: 0.5
     com_offset: [0, 0, 0]
-    shape:
-      type: cuboid
-      side_lengths: [0.1, 0.2, 0.1]
+    shape: cuboid
+    side_lengths: [0.1, 0.2, 0.1]

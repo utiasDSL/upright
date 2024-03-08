@@ -25,9 +25,25 @@ USE_KALMAN_FILTER = True
 PROCESS_COV = 1
 MEASUREMENT_COV = 1
 
-# TODO specify these properly via config
-MAX_JOINT_VELOCITY = np.array([0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1])
+# TODO specify all of these properly via config
+MAX_JOINT_VELOCITY = np.array([1.0, 1, 1, 1, 1, 1, 1, 1, 1])
 MAX_JOINT_ACCELERATION = np.array([2.5, 2.5, 1, 5, 5, 5, 5, 5, 5])
+
+MAX_EE_LIN_VEL = 2.0
+MAX_EE_ANG_VEL = 1.0
+MAX_EE_LIN_ACC = 1.0
+MAX_EE_ANG_ACC = 1.0
+
+EE_LIN_ACC_WEIGHT = 1
+
+# this needs to at least ~5, otherwise the tilting action won't be strong
+# enough against the linear acceleration
+EE_ANG_ACC_WEIGHT = 10
+JOINT_ACC_WEIGHT = 0.01
+
+# needs to be high enough to actually converge
+JOINT_VEL_WEIGHT = 3
+JOINT_JERK_WEIGHT = 0
 
 
 def sigint_handler(sig, frame):
@@ -70,6 +86,15 @@ def main():
         env.timestep,
         v_joint_max=MAX_JOINT_VELOCITY,
         a_joint_max=MAX_JOINT_ACCELERATION,
+        a_cart_max=MAX_EE_LIN_ACC,
+        α_cart_max=MAX_EE_ANG_ACC,
+        v_cart_max=MAX_EE_LIN_VEL,
+        ω_cart_max=MAX_EE_ANG_VEL,
+        a_cart_weight=EE_LIN_ACC_WEIGHT,
+        α_cart_weight=EE_ANG_ACC_WEIGHT,
+        a_joint_weight=JOINT_ACC_WEIGHT,
+        v_joint_weight=JOINT_VEL_WEIGHT,
+        j_joint_weight=JOINT_JERK_WEIGHT,
     )
     kp, kv = model.kp, model.kv
     controller = model.controller
@@ -93,9 +118,6 @@ def main():
     r_ew_w_sim, Q_we_sim = env.robot.link_pose()
     assert np.allclose(r_ew_w_0, r_ew_w_sim)
     assert np.allclose(Q_we_0, Q_we_sim)
-
-    IPython.embed()
-    return
 
     # state estimate
     # obviously not needed here, but used to test the effect of the KF on the
@@ -141,8 +163,8 @@ def main():
         # current EE state
         robot.forward(q, v, u)
         r_ew_w, C_we = robot.link_pose(rotation_matrix=True)
-        v_ew_w, _ = robot.link_velocity()
-        a_ew_w, _ = robot.link_classical_acceleration()
+        v_ew_w, ω_ew_w = robot.link_velocity()
+        a_ew_w, α_ew_w = robot.link_classical_acceleration()
 
         # desired EE state
         # rd, vd, ad = trajectory.sample(t)
@@ -156,7 +178,7 @@ def main():
 
         # compute command
         t0 = time.perf_counter_ns()
-        u, A_e = controller.solve(q, v, a_ew_w_cmd)
+        u, A_e = controller.solve(q, v, a_ew_w_cmd, u)
         t1 = time.perf_counter_ns()
 
         A_w = block_diag(C_we, C_we) @ A_e
@@ -185,7 +207,12 @@ def main():
             logger.append("v_ew_ws", v_ew_w)
             logger.append("a_ew_ws", a_ew_w)
             logger.append("a_ew_ws_cmd", a_ew_w_cmd)
-            logger.append("a_ew_ws_feas", A_e[:3])  # feasible acceleration under balancing
+            logger.append(
+                "a_ew_ws_feas", A_e[:3]
+            )  # feasible acceleration under balancing
+
+            logger.append("α_ew_ws", α_ew_w)
+            logger.append("ω_ew_ws", ω_ew_w)
 
             # from the simulation
             # TODO: check this is the same as the model
@@ -211,6 +238,9 @@ def main():
     a_ew_ws = np.array(logger.data["a_ew_ws"])
     a_ew_ws_cmd = np.array(logger.data["a_ew_ws_cmd"])
     a_ew_ws_feas = np.array(logger.data["a_ew_ws_feas"])
+
+    ω_ew_ws = np.array(logger.data["ω_ew_ws"])
+    α_ew_ws = np.array(logger.data["α_ew_ws"])
 
     DataPlotter.from_logger(logger).plot_object_error(obj_index=0)
 
@@ -267,7 +297,17 @@ def main():
     plt.legend()
     plt.xlabel("Time [s]")
     plt.xlabel("Velocity [m/s]")
-    plt.title("End effector velocity vs. time")
+    plt.title("EE linear velocity vs. time")
+
+    plt.figure()
+    plt.plot(ts, ω_ew_ws[:, 0], label="x", color=colors[0])
+    plt.plot(ts, ω_ew_ws[:, 1], label="y", color=colors[1])
+    plt.plot(ts, ω_ew_ws[:, 2], label="z", color=colors[2])
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.xlabel("Velocity [rad/s]")
+    plt.title("EE angular velocity vs. time")
 
     plt.figure()
     plt.plot(ts, a_ew_ws[:, 0], label="x", color=colors[0])
@@ -276,14 +316,30 @@ def main():
     plt.plot(ts, a_ew_ws_cmd[:, 0], label="x_cmd", linestyle="--", color=colors[0])
     plt.plot(ts, a_ew_ws_cmd[:, 1], label="y_cmd", linestyle="--", color=colors[1])
     plt.plot(ts, a_ew_ws_cmd[:, 2], label="z_cmd", linestyle="--", color=colors[2])
-    plt.plot(ts, a_ew_ws_feas[:, 0], label="x_feas", linestyle="dotted", color=colors[0])
-    plt.plot(ts, a_ew_ws_feas[:, 1], label="y_feas", linestyle="dotted", color=colors[1])
-    plt.plot(ts, a_ew_ws_feas[:, 2], label="z_feas", linestyle="dotted", color=colors[2])
+    plt.plot(
+        ts, a_ew_ws_feas[:, 0], label="x_feas", linestyle="dotted", color=colors[0]
+    )
+    plt.plot(
+        ts, a_ew_ws_feas[:, 1], label="y_feas", linestyle="dotted", color=colors[1]
+    )
+    plt.plot(
+        ts, a_ew_ws_feas[:, 2], label="z_feas", linestyle="dotted", color=colors[2]
+    )
     plt.grid()
     plt.legend()
     plt.xlabel("Time [s]")
     plt.xlabel("Acceleration [m/s^2]")
-    plt.title("End effector acceleration vs. time")
+    plt.title("EE linear acceleration vs. time")
+
+    plt.figure()
+    plt.plot(ts, α_ew_ws[:, 0], label="x", color=colors[0])
+    plt.plot(ts, α_ew_ws[:, 1], label="y", color=colors[1])
+    plt.plot(ts, α_ew_ws[:, 2], label="z", color=colors[2])
+    plt.grid()
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.xlabel("Acceleration [rad/s^2]")
+    plt.title("EE angular acceleration vs. time")
 
     plt.show()
 

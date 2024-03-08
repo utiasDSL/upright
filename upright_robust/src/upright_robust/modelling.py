@@ -10,7 +10,7 @@ import upright_robust.utils as utils
 
 
 def H_min_max(bounding_box, com_box, mass_min, mass_max):
-    Es = bounding_box.as_ellipsoidal_intersection()
+    # Es = bounding_box.as_ellipsoidal_intersection()
 
     J = cp.Variable((4, 4), PSD=True)
     h = J[:3, 3]
@@ -193,15 +193,20 @@ class ObjectBounds:
 
         # inertia bounds
         if self.approx_inertia:
+            # TODO should actually work with a gyration matrix here perhaps
+            Gvec = Jvec / m
+
             # assume inertia J is exact
             P_J = np.zeros((12, 10))
             p_J = np.zeros(12)
 
             P_J[:6, 4:] = -np.eye(6)
+            P_J[:6, 0] = Gvec
             P_J[6:, 4:] = np.eye(6)
+            P_J[6:, 0] = -Gvec
 
-            p_J[:6] = -Jvec
-            p_J[6:] = Jvec
+            # p_J[:6] = -Jvec
+            # p_J[6:] = Jvec
         else:
             # otherwise we assume no prior knowledge on inertia except object
             # bounding shapes; only constraints required for realizability
@@ -248,7 +253,7 @@ class ObjectBounds:
             # ellipsoidal constraint?
             # box density realizability
             # As = utils.pim_sum_vec_matrices()
-            # Es = bounding_box.as_ellipsoidal_intersection()
+            # Es = bounding_box._ellipsoids
             # P_J[12, :] = [-np.trace(A @ Es[0].Q) for A in As]
             # P_J[13, :] = [-np.trace(A @ Es[1].Q) for A in As]
             # P_J[14, :] = [-np.trace(A @ Es[2].Q) for A in As]
@@ -269,15 +274,16 @@ class UncertainObject:
         # object)
         m = self.body.mass
         c = self.body.com
-        h = m * c
-        H = core.math.skew3(h)
-        J = obj.body.inertia - H @ core.math.skew3(self.body.com)
+
+        # c2 = np.array([0, 0, 0.48])  # top center
+        Sc = core.math.skew3(c)
+        I = obj.body.inertia - m * Sc @ Sc
 
         # spatial mass matrix
         # fmt: off
         self.M = np.block([
-            [m * np.eye(3), -H],
-            [H, J]
+            [m * np.eye(3), -m * Sc],
+            [m * Sc, I]
         ])
         # fmt: on
 
@@ -285,7 +291,7 @@ class UncertainObject:
         # TODO still may be bugs in the controller since I switched from Pθ >= p
         if bounds is None:
             bounds = ObjectBounds()
-        self.P, self.p = bounds.polytope(m, c, J)
+        self.P, self.p = bounds.polytope(m, c, I)
 
     def bias(self, V):
         """Compute Coriolis and centrifugal terms."""
