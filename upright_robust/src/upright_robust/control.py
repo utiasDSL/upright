@@ -317,6 +317,10 @@ class ReactiveBalancingController(abc.ABC):
         """
         self.robot.forward(q, v)
         J = self.robot.jacobian(q, frame="local")
+
+        # δ = \dot{J}v, where J is the robot Jacobian and v are the joint
+        # velocities, since we are computing the EE acceleration with zero
+        # joint acceleration
         δ = np.concatenate(self.robot.link_classical_acceleration(frame="local"))
 
         C_we = self.robot.link_pose(rotation_matrix=True)[1]
@@ -726,7 +730,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         )
 
         # number of optimization variables: 9 joint accelerations, 6 EE
-        # acceleration twist, no * desired angular acceleration no * object
+        # acceleration twist, no * desired angular acceleration, no * object
         # linear acceleration, nf force
         self.nv = self.nv0 + 6 * self.no + self.nf + self.nλ
 
@@ -791,6 +795,13 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         )
         b_eq_tilt2 = np.tile(-self.kω * ω_ew_e - scale * np.cross(z, g), self.no)
 
+        # dωdt = dωdt_desired
+        # only works for one object
+        A_eq_ω = np.zeros((3, self.nv))
+        A_eq_ω[:, self.sα] = -np.eye(3)
+        A_eq_ω[:, self.nv0 : self.nv0 + 3] = np.eye(3)
+        b_eq_ω = np.zeros(3)
+
         if self.use_robust_constraints:
             if self.use_face_form:
                 Y0 = utils.body_regressor(V_ew_e, -G_e)
@@ -814,8 +825,8 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             b_ineq = np.zeros(self.A_ineq.shape[0])
             b_eq_bal = self.M @ G_e - h
 
-        A_eq = np.vstack((A_eq_track, self.A_eq_bal, self.A_eq_tilt1, A_eq_tilt2))
-        b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2))
+        A_eq = np.vstack((A_eq_track, self.A_eq_bal, self.A_eq_tilt1, A_eq_tilt2, A_eq_ω))
+        b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2, b_eq_ω))
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = self._compute_linear_cost_term(v, a_ew_e_cmd, u_last)

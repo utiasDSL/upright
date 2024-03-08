@@ -9,27 +9,28 @@ import upright_core as core
 import upright_robust.utils as utils
 
 
-def H_min_max(bounding_box, com_box, mass_min, mass_max):
-    # Es = bounding_box.as_ellipsoidal_intersection()
+def unit_H_min_max(bounding_box, com_box):
+    """Compute the element-wise extrema of the unit H matrix.
 
+    The unit H matrix the second moment matrix H normalized to correspond to
+    unit mass.
+    """
     J = cp.Variable((4, 4), PSD=True)
+    H = J[:3, :3]
     h = J[:3, 3]
     m = J[3, 3]
+
     constraints = (
-        [
-            m >= mass_min,
-            m <= mass_max,
-        ]
+        [m == 1.0]
         + com_box.must_contain(points=h, scale=m)
-        + bounding_box.must_realize(J)
-        # + [cp.trace(E.Q @ J) >= 0 for E in Es]
+        + bounding_box.must_realize(J),
     )
 
     H_min = np.zeros((3, 3))
     H_max = np.zeros((3, 3))
     for i in range(3):
         for j in range(i, 3):
-            objective = cp.Maximize(J[i, j])
+            objective = cp.Maximize(H[i, j])
             problem = cp.Problem(objective, constraints)
             problem.solve(solver=cp.MOSEK)
             H_max[i, j] = objective.value
@@ -193,20 +194,17 @@ class ObjectBounds:
 
         # inertia bounds
         if self.approx_inertia:
-            # TODO should actually work with a gyration matrix here perhaps
-            Gvec = Jvec / m
+            # assume gyration matrix is fixed
+            Gvec = Jvec / m  # vectorized gyration matrix
 
-            # assume inertia J is exact
             P_J = np.zeros((12, 10))
             p_J = np.zeros(12)
 
+            # vech(I) == m * Gvec
             P_J[:6, 4:] = -np.eye(6)
             P_J[:6, 0] = Gvec
             P_J[6:, 4:] = np.eye(6)
             P_J[6:, 0] = -Gvec
-
-            # p_J[:6] = -Jvec
-            # p_J[6:] = Jvec
         else:
             # otherwise we assume no prior knowledge on inertia except object
             # bounding shapes; only constraints required for realizability
@@ -215,34 +213,27 @@ class ObjectBounds:
 
             bounding_box = rg.Box(half_extents=self.box_half_extents, center=c)
             com_box = rg.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
-            mass_min = m + self.mass_lower
-            mass_max = m + self.mass_upper
-            H_min, H_max = H_min_max(bounding_box, com_box, mass_min, mass_max)
+            H_min, H_max = unit_H_min_max(bounding_box, com_box)
 
             # H diagonal bounds
-            # TODO we actually want to find Hxx_min as a function of mass!
             # diag(H) >= diag(H)_min
-            P_J[0, :] = -0.5 * np.array([0, 0, 0, 0, -1, 0, 0, 1, 0, 1])  # -Hxx
-            P_J[1, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, -1, 0, 1])  # -Hyy
-            P_J[2, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, 1, 0, -1])  # -Hzz
-            p_J[:3] = -np.diag(H_min)
+            P_J[0, :] = [H_min[0, 0], 0, 0, 0, 0.5, 0, 0, -0.5, 0, -0.5]  # -Hxx
+            P_J[1, :] = [H_min[1, 1], 0, 0, 0, -0.5, 0, 0, 0.5, 0, -0.5]  # -Hyy
+            P_J[2, :] = [H_min[2, 2], 0, 0, 0, -0.5, 0, 0, -0.5, 0, 0.5]  # -Hzz
 
             # diag(H) <= diag(H)_max
-            P_J[3, :] = -0.5 * np.array([0, 0, 0, 0, 1, 0, 0, -1, 0, -1])  # Hxx
-            P_J[4, :] = -0.5 * np.array([0, 0, 0, 0, -1, 0, 0, 1, 0, -1])  # Hyy
-            P_J[5, :] = -0.5 * np.array([0, 0, 0, 0, -1, 0, 0, -1, 0, 1])  # Hzz
-            p_J[3:6] = np.diag(H_max)
+            P_J[3, :] = [-H_max[0, 0], 0, 0, 0, -0.5, 0, 0, 0.5, 0, 0.5]  # Hxx
+            P_J[4, :] = [-H_max[1, 1], 0, 0, 0, 0.5, 0, 0, -0.5, 0, 0.5]  # Hyy
+            P_J[5, :] = [-H_max[2, 2], 0, 0, 0, 0.5, 0, 0, 0.5, 0, -0.5]  # Hzz
 
             # off-diagonal H values
-            P_J[6, :] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]  # -Hxy
-            P_J[7, :] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]  # -Hxz
-            P_J[8, :] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]  # -Hyz
-            p_J[6:9] = -np.array([H_min[0, 1], H_min[0, 2], H_min[1, 2]])
+            P_J[6, :] = [H_min[0, 1], 0, 0, 0, 0, 1, 0, 0, 0, 0]  # -Hxy
+            P_J[7, :] = [H_min[0, 2], 0, 0, 0, 0, 0, 1, 0, 0, 0]  # -Hxz
+            P_J[8, :] = [H_min[1, 2], 0, 0, 0, 0, 0, 0, 0, 1, 0]  # -Hyz
 
-            P_J[9, :] = [0, 0, 0, 0, 0, -1, 0, 0, 0, 0]  # Hxy
-            P_J[10, :] = [0, 0, 0, 0, 0, 0, -1, 0, 0, 0]  # Hxz
-            P_J[11, :] = [0, 0, 0, 0, 0, 0, 0, 0, -1, 0]  # Hyz
-            p_J[9:12] = np.array([H_max[0, 1], H_max[0, 2], H_max[1, 2]])
+            P_J[9, :] = [-H_max[0, 1], 0, 0, 0, 0, -1, 0, 0, 0, 0]  # Hxy
+            P_J[10, :] = [-H_max[0, 2], 0, 0, 0, 0, 0, -1, 0, 0, 0]  # Hxz
+            P_J[11, :] = [-H_max[1, 2], 0, 0, 0, 0, 0, 0, 0, -1, 0]  # Hyz
 
             # ellipsoid density realizability
             # tr(ΠQ) >= 0

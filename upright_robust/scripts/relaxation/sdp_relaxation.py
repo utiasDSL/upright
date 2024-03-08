@@ -303,10 +303,9 @@ def solve_local(obj, F, idx, other_constr_idx, v_max=0.5, ω_max=0.5, a_max=1, �
 def main_inertia_approx():
     np.set_printoptions(precision=5, suppress=True)
 
-    obj1 = rob.BalancedObject(m=1, h=0.2, δ=0.05, μ=0.5, h0=0, x0=0, uncertain_J=True)
-    obj2 = rob.BalancedObject(m=1, h=0.2, δ=0.04, μ=0.4, h0=0, x0=0, uncertain_J=False)
-    box = rg.AxisAlignedBox(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2])
-    ell = rg.maximum_inscribed_ellipsoid(box.vertices)
+    obj1 = rob.BalancedObject(m=1, h=0.2, δ=0.05, μ=0.3, h0=0, x0=0, approx_inertia=True)
+    obj2 = rob.BalancedObject(m=1, h=0.2, δ=0.05, μ=0.3, h0=0, x0=0, approx_inertia=False)
+    ell = rg.Box(half_extents=[0.05, 0.05, 0.2], center=[0, 0, 0.2]).mie()
 
     F1 = rob.cwc(obj1.contacts())
     F2 = rob.cwc(obj2.contacts())
@@ -361,5 +360,5 @@ def main_elimination():
 
 
 if __name__ == "__main__":
-    # main_inertia_approx()
-    main_elimination()
+    main_inertia_approx()
+    # main_elimination()

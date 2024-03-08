@@ -24,6 +24,11 @@ A_MAX = 1.0
 TILT_ANGLE_MAX = np.deg2rad(15)
 
 
+def schur(X, x):
+    y = cp.reshape(x, (x.shape[0], 1))
+    return cp.bmat([[X, y], [y.T, [[1]]]])
+
+
 def solve_constraint_elimination_sdp(
     obj,
     f,
@@ -151,7 +156,11 @@ def solve_approx_inertia_sdp(
     z = cp.Variable(nz)
     Λ = cp.Variable((6, 6), PSD=True)  # = V @ V.T
 
-    s = cp.Variable(1)
+    W = Λ[3:, 3:]
+    c = obj1.body.com
+    vo = A[:3] - core.math.skew3(c) @ A[3:] + (W - cp.trace(W) * np.eye(3)) @ c
+
+    ω = cp.Variable(3)
 
     values = []
     Vs = []
@@ -178,8 +187,11 @@ def solve_approx_inertia_sdp(
             # (A[:3] - G) @ [0, 1, 0] == 0,
 
             # adaptive tilting
-            # NOTE this is wrong: need acceleration *at the nominal CoM*
-            # A[3:] == core.math.skew3(z_normal) @ (A[:3] - G),
+            # A[3:] == -2 * ω + 1 * core.math.skew3(z_normal) @ (vo - G),
+            #
+            # ω <= ω_max,
+            # ω >= -ω_max,
+            # schur(W, ω) >> 0,
 
             # acceleration constraints
             A[:3] >= -a_max,

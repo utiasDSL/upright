@@ -16,7 +16,7 @@ logging:
   log_dir: /media/adam/Data/PhD/Data/upright/robust
 
 simulation:
-  duration: 10.0
+  duration: 20.0
   extra_gui: false
   robot:
     urdf:
