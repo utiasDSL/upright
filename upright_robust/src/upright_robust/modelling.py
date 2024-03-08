@@ -23,7 +23,7 @@ def unit_H_min_max(bounding_box, com_box):
     constraints = (
         [m == 1.0]
         + com_box.must_contain(points=h, scale=m)
-        + bounding_box.must_realize(J),
+        + bounding_box.must_realize(J)
     )
 
     H_min = np.zeros((3, 3))

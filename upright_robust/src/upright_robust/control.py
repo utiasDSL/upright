@@ -5,7 +5,6 @@ import numpy as np
 from scipy import sparse
 from scipy.linalg import block_diag, null_space
 from qpsolvers import solve_qp, Problem, solve_problem
-from lpsolvers import solve_lp
 import proxsuite
 
 import upright_core as core
@@ -23,6 +22,10 @@ import IPython
 # use a dedicated interface to proxQP rather than going through qpsolvers
 # this enables better warm-starting from timestep to timestep
 USE_DEDICATED_PROXQP_INTERFACE = True
+
+# constrain EE angular acceleration to be exactly equal to the desired value
+# resulting from the adaptive tilting law
+EQUALITY_CONSTRAIN_ANGULAR_ACC = True
 
 
 class ReactiveBalancingController(abc.ABC):
@@ -795,13 +798,6 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         )
         b_eq_tilt2 = np.tile(-self.kω * ω_ew_e - scale * np.cross(z, g), self.no)
 
-        # dωdt = dωdt_desired
-        # only works for one object
-        A_eq_ω = np.zeros((3, self.nv))
-        A_eq_ω[:, self.sα] = -np.eye(3)
-        A_eq_ω[:, self.nv0 : self.nv0 + 3] = np.eye(3)
-        b_eq_ω = np.zeros(3)
-
         if self.use_robust_constraints:
             if self.use_face_form:
                 Y0 = utils.body_regressor(V_ew_e, -G_e)
@@ -825,8 +821,23 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             b_ineq = np.zeros(self.A_ineq.shape[0])
             b_eq_bal = self.M @ G_e - h
 
-        A_eq = np.vstack((A_eq_track, self.A_eq_bal, self.A_eq_tilt1, A_eq_tilt2, A_eq_ω))
-        b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2, b_eq_ω))
+        if EQUALITY_CONSTRAIN_ANGULAR_ACC:
+            # dωdt == dωdt_desired
+            # only works for one object
+            A_eq_ω = np.zeros((3, self.nv))
+            A_eq_ω[:, self.sα] = -np.eye(3)
+            A_eq_ω[:, self.nv0 : self.nv0 + 3] = np.eye(3)
+            b_eq_ω = np.zeros(3)
+
+            A_eq = np.vstack(
+                (A_eq_track, self.A_eq_bal, self.A_eq_tilt1, A_eq_tilt2, A_eq_ω)
+            )
+            b_eq = np.concatenate(
+                (b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2, b_eq_ω)
+            )
+        else:
+            A_eq = np.vstack((A_eq_track, self.A_eq_bal, self.A_eq_tilt1, A_eq_tilt2))
+            b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2))
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = self._compute_linear_cost_term(v, a_ew_e_cmd, u_last)

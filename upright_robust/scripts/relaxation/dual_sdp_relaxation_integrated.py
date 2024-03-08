@@ -11,6 +11,8 @@ import upright_core as core
 import upright_cmd as cmd
 import upright_robust as rob
 
+import rigeo as rg
+
 import IPython
 
 
@@ -22,11 +24,6 @@ V_MAX = 2.0
 A_MAX = 1.0
 α_MAX = 1.0
 TILT_ANGLE_MAX = np.deg2rad(15)
-
-
-def schur(X, x):
-    y = cp.reshape(x, (x.shape[0], 1))
-    return cp.bmat([[X, y], [y.T, [[1]]]])
 
 
 def solve_constraint_elimination_sdp(
@@ -226,6 +223,127 @@ def solve_approx_inertia_sdp(
     return np.min(values)
 
 
+def solve_approx_inertia_sdp_primal(
+    obj1,
+    obj2,
+    f,
+    F2,
+    v_max=V_MAX,
+    ω_max=ω_MAX,
+    a_max=A_MAX,
+    α_max=α_MAX,
+    tilt_angle_max=TILT_ANGLE_MAX,
+    verbose=False,
+):
+    Q = rob.compute_Q_matrix(f)
+
+    # dimensions
+    nv = 6
+    ng = 3
+    nz = nv**2
+    nθ = 10
+    ny = nv + ng + nθ + nz
+
+    # gravity constraints
+    z_normal = np.array([0, 0, 1])
+
+    # variables
+    A = cp.Variable(nv)
+    G = cp.Variable(ng)  # TODO: unneeded?
+    z = cp.Variable(nz)
+    θ = cp.Variable(nθ)
+
+    y = cp.hstack((A, G, z, θ))  # TODO: unneeded?
+    X = cp.Variable((ny, ny), PSD=True)  # = y @ y.T
+    Λ = cp.Variable((nv, nv), PSD=True)  # = V @ V.T
+    Π = cp.Variable((4, 4), PSD=True)  # pseudo-inertia matrix
+
+    Xa = X[:nv, :nv]  # acceleration block
+    Xg = X[nv : nv + ng, nv : nv + ng]  # gravity block
+    Xz = X[nv + ng : nv + ng + nz, nv + ng : nv + ng + nz]  # z block
+    Xθ = X[-nθ:, -nθ:]  # θ block
+
+    objective = cp.Maximize(0.5 * cp.trace(Q @ X))
+
+    # fmt: off
+    constraints = [
+        z == cp.vec(Λ),
+
+        cp.diag(Λ[:3, :3]) <= v_max**2,
+        cp.diag(Λ[3:, 3:]) <= ω_max**2,
+
+        # constraints on X
+        # rob.schur(X, y) >> 0,
+        cp.diag(Xa[:3, :3]) <= a_max**2,
+        cp.diag(Xa[3:, 3:]) <= α_max**2,
+        # cp.diag(Xa) <= np.maximum(A_max**2, A_min**2),
+
+        # TODO apparently we need this one!!
+        # cp.diag(Xθ) <= np.maximum(obj.θ_max**2, obj.θ_min**2),
+        # obj.P @ Xθ @ obj.P.T << np.outer(obj.p, obj.p),
+
+        cp.trace(Xg) == g**2,
+        Xg[2, 2] >= (g * np.cos(tilt_angle_max)) ** 2,
+
+        # gravity
+        # cp.norm(G) <= g,
+        # z_normal @ G <= -g * np.cos(tilt_angle_max),
+
+        # acceleration
+        # cp.norm(A[:3]) <= a_max,
+        # cp.norm(A[3:]) <= α_max,
+        # A[:3] >= -a_max,
+        # A[:3] <= a_max,
+        # A[3:] >= -α_max,
+        # A[3:] <= α_max,
+
+        # TODO I need some sort of consistency with θ
+        rob.schur(Xθ, θ) >> 0,
+
+        # inertial parameters
+        obj1.P @ θ <= obj1.p,  # includes S-density realizability
+        Π == rg.pim_must_equal_vec(θ),  # physical consistency
+    ]
+
+    # approximate constraints
+    for i in range(F2.shape[0]):
+        fi = F2[i, :]
+        Qi = rob.compute_Q_matrix(fi)
+        constraints.append(0.5 * cp.trace(Qi @ X) <= 0)
+
+    # off-diagonal blocks of z @ z.T are symmetric, which helps tighten the
+    # relaxation
+    # for i in range(0, 5):
+    #     for j in range(i + 1, 5):
+    #         Xz_ij = Xz[i * 6 : (i + 1) * 6, j * 6 : (j + 1) * 6]
+    #
+    #         constraints.append(Xz_ij == Xz_ij.T)
+    #
+    #         # TODO what is going on here? these relationships between Xz and z
+    #         # are necessary for the problem to be bounded but are conservative
+    #         constraints.append(cp.trace(Xz_ij[:3, :3]) == Λ[i, j] * v_max**2)
+    #         constraints.append(cp.trace(Xz_ij[3:, 3:]) == Λ[i, j] * ω_max**2)
+    #         # constraints.append(Xz_ij >> V_max[i] * V_min[j] * Λ)
+    #
+    # for i in range(6):
+    #     Xz_ii = Xz[i * 6 : (i + 1) * 6, i * 6 : (i + 1) * 6]
+    #     constraints.append(cp.trace(Xz_ii[:3, :3]) == Λ[i, i] * v_max**2)
+    #     constraints.append(cp.trace(Xz_ii[3:, 3:]) == Λ[i, i] * ω_max**2)
+
+    problem = cp.Problem(objective, constraints)
+    try:
+        problem.solve(solver=cp.MOSEK)
+    except cp.error.SolverError:
+        print("failed to solve relaxed problem")
+    print(problem.status)
+    print(objective.value)
+    import IPython
+    IPython.embed()
+    raise ValueError()
+    # print(np.linalg.eigvals(X.value))
+    return problem.value
+
+
 def verify_approx_inertia(ctrl_config):
     objects, contacts = rob.parse_objects_and_contacts(ctrl_config)
     objects_approx, contacts_approx = rob.parse_objects_and_contacts(
@@ -247,7 +365,10 @@ def verify_approx_inertia(ctrl_config):
     for i in range(F.shape[0]):
         print(i + 1)
         f = F[i, :]
-        relaxed = solve_approx_inertia_sdp(obj, obj_approx, f, F_approx, verbose=True)
+        # relaxed = solve_approx_inertia_sdp(obj, obj_approx, f, F_approx, verbose=True)
+        relaxed = solve_approx_inertia_sdp_primal(
+            obj, obj_approx, f, F_approx, verbose=True
+        )
 
 
 def check_elimination(ctrl_config):

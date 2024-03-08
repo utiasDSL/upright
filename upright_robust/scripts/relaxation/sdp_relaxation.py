@@ -316,7 +316,7 @@ def main_inertia_approx():
     num_never_active = 0
 
     for i in range(F1.shape[0]):
-        relaxed = solve_global_relaxed_dual_approx_inertia(obj1, obj2, F1, F2, i, ell)
+        relaxed = solve_global_relaxed(obj1, obj2, F1, F2, i, ell)
         print(f"{i+1}: {relaxed}")
 
 
