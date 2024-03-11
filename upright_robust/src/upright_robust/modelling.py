@@ -49,6 +49,43 @@ def unit_H_min_max(bounding_box, com_box):
     return H_min, H_max
 
 
+def unit_vec2_max(bounding_box, com_box):
+    J = cp.Variable((4, 4), PSD=True)
+    θ = cp.Variable(10)
+
+    H = J[:3, :3]
+    h = J[:3, 3]
+    m = J[3, 3]
+
+    I = cp.trace(H) * np.eye(3) - H
+
+    constraints = (
+        [m == 1.0, J == rg.pim_must_equal_vec(θ)]
+        + com_box.must_contain(points=h, scale=m)
+        + bounding_box.must_realize(J)
+    )
+
+    θ2_max = np.zeros(10)
+    θ2_max[0] = 1.0
+    for i in range(1, 10):
+        if i == 9:
+            objective = cp.Maximize(I[2, 2])
+        else:
+            objective = cp.Maximize(θ[i])
+        problem = cp.Problem(objective, constraints)
+        problem.solve(solver=cp.MOSEK)
+        θi_max = objective.value
+
+        objective = cp.Minimize(θ[i])
+        problem = cp.Problem(objective, constraints)
+        problem.solve(solver=cp.MOSEK)
+        θi_min = objective.value
+
+        θ2_max[i] = max(θi_min**2, θi_max**2)
+
+    return θ2_max
+
+
 class RobustContactPoint:
     def __init__(self, contact):
         # TODO eventually we can merge this functionality into the base
@@ -158,6 +195,13 @@ class ObjectBounds:
             approx_inertia=approx_inertia,
         )
 
+    def bounding_box(self, c):
+        return rg.Box(half_extents=self.box_half_extents, center=c)
+
+    def com_box(self, c):
+        return rg.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
+
+
     def polytope(self, m, c, J):
         """Build the polytope containing the inertial parameters given the
         nominal values.
@@ -192,6 +236,8 @@ class ObjectBounds:
         )
         p_h = np.zeros(6)
 
+        # TODO need to build some sort of θ_min/θ_max bound
+
         # inertia bounds
         if self.approx_inertia:
             # assume gyration matrix is fixed
@@ -211,9 +257,9 @@ class ObjectBounds:
             P_J = np.zeros((13, 10))
             p_J = np.zeros(13)
 
-            bounding_box = rg.Box(half_extents=self.box_half_extents, center=c)
-            com_box = rg.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
-            H_min, H_max = unit_H_min_max(bounding_box, com_box)
+            # bounding_box = rg.Box(half_extents=self.box_half_extents, center=c)
+            # com_box = rg.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
+            H_min, H_max = unit_H_min_max(self.bounding_box(c), self.com_box(c))
 
             # H diagonal bounds
             # diag(H) >= diag(H)_min
@@ -254,6 +300,9 @@ class ObjectBounds:
         p = np.concatenate((p_m, p_h, p_J))
         return P, p
 
+    def unit_vec2_max(self, m, c, J):
+        return unit_vec2_max(self.bounding_box(c), self.com_box(c))
+
 
 class UncertainObject:
     def __init__(self, obj, bounds=None):
@@ -283,6 +332,22 @@ class UncertainObject:
         if bounds is None:
             bounds = ObjectBounds()
         self.P, self.p = bounds.polytope(m, c, I)
+
+        self.mass_min = m + bounds.mass_lower
+        self.mass_max = m + bounds.mass_upper
+        self.unit_vec2_max = bounds.unit_vec2_max(m, c, I)
+        self.bounding_box = bounds.bounding_box(c)
+        self.com_box = bounds.com_box(c)
+
+        # use a fixed inertia value for approx_inertia case
+        if bounds.approx_inertia:
+            self.unit_vec2_max[-6:] = utils.vech(I)
+
+        # nominal inertial parameter vector
+        if bounds.approx_inertia:
+            self.θ_nom = np.concatenate(([m], m * c, utils.vech(I)))
+        else:
+            self.θ_nom = np.concatenate(([m], m * c, utils.vech(-m * Sc @ Sc)))
 
     def bias(self, V):
         """Compute Coriolis and centrifugal terms."""

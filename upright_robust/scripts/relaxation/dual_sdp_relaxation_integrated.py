@@ -244,102 +244,127 @@ def solve_approx_inertia_sdp_primal(
     nθ = 10
     ny = nv + ng + nθ + nz
 
+    # TODO solve a tiny problem to maximize θ?
+
     # gravity constraints
-    z_normal = np.array([0, 0, 1])
+    # z_normal = np.array([0, 0, 1])
 
     # variables
     A = cp.Variable(nv)
-    G = cp.Variable(ng)  # TODO: unneeded?
+    G = cp.Variable(ng)
     z = cp.Variable(nz)
     θ = cp.Variable(nθ)
 
-    y = cp.hstack((A, G, z, θ))  # TODO: unneeded?
+    y = cp.hstack((A, G, z, θ))
+
+    # y = (A, g, z, θ)
     X = cp.Variable((ny, ny), PSD=True)  # = y @ y.T
     Λ = cp.Variable((nv, nv), PSD=True)  # = V @ V.T
     Π = cp.Variable((4, 4), PSD=True)  # pseudo-inertia matrix
+    m = Π[3, 3]
+    h = Π[:3, 3]
 
     Xa = X[:nv, :nv]  # acceleration block
     Xg = X[nv : nv + ng, nv : nv + ng]  # gravity block
     Xz = X[nv + ng : nv + ng + nz, nv + ng : nv + ng + nz]  # z block
     Xθ = X[-nθ:, -nθ:]  # θ block
+    Xm2 = Xθ[0, 0]  # m^2
+
+    # variables for second object
+    θ2 = cp.Variable(nθ)
+    X2 = cp.Variable((ny, ny), PSD=True)
+    y2 = cp.hstack((A, G, z, θ2))
+
+    X2a = X2[:nv, :nv]  # acceleration block
+    X2g = X2[nv : nv + ng, nv : nv + ng]  # gravity block
+    X2z = X2[nv + ng : nv + ng + nz, nv + ng : nv + ng + nz]  # z block
+    X2θ = X2[-nθ:, -nθ:]  # θ block
+    X2m2 = X2θ[0, 0]  # m^2
+
+    # nominal feasible solution
+    V_nom = np.zeros(nv)
+    A_nom = np.zeros(nv)
+    G_nom = np.array([0, 0, -g])
+    θ_nom = obj1.θ_nom
+    Λ_nom = np.outer(V_nom, V_nom)
+    z_nom = Λ_nom.flatten()
+    y_nom = np.concatenate((A_nom, G_nom, z_nom, θ_nom))
+    X_nom = np.outer(y_nom, y_nom)
+    Xθ_nom = X_nom[-nθ:, -nθ:]
+
+    θ2_nom = obj2.θ_nom
+    y2_nom = np.concatenate((A_nom, G_nom, z_nom, θ2_nom))
+    X2_nom = np.outer(y2_nom, y2_nom)
+    X2θ_nom = X2_nom[-nθ:, -nθ:]
 
     objective = cp.Maximize(0.5 * cp.trace(Q @ X))
 
     # fmt: off
     constraints = [
-        z == cp.vec(Λ),
+        rob.schur(X, y) >> 0,
 
+        # velocity constraints via z
+        z == cp.vec(Λ),
         cp.diag(Λ[:3, :3]) <= v_max**2,
         cp.diag(Λ[3:, 3:]) <= ω_max**2,
 
-        # constraints on X
-        # rob.schur(X, y) >> 0,
+        # TODO there is a problem solving without this
+        cp.diag(Xz) <= max(v_max**2, ω_max**2),
+
+        # acceleration constraints
         cp.diag(Xa[:3, :3]) <= a_max**2,
         cp.diag(Xa[3:, 3:]) <= α_max**2,
-        # cp.diag(Xa) <= np.maximum(A_max**2, A_min**2),
 
-        # TODO apparently we need this one!!
-        # cp.diag(Xθ) <= np.maximum(obj.θ_max**2, obj.θ_min**2),
-        # obj.P @ Xθ @ obj.P.T << np.outer(obj.p, obj.p),
-
+        # gravity constraints
         cp.trace(Xg) == g**2,
         Xg[2, 2] >= (g * np.cos(tilt_angle_max)) ** 2,
 
-        # gravity
-        # cp.norm(G) <= g,
-        # z_normal @ G <= -g * np.cos(tilt_angle_max),
+        Xm2 <= obj1.mass_max**2,
+        Xm2 >= obj1.mass_min**2,
+        cp.diag(Xθ[1:, 1:]) <= Xm2 * obj1.unit_vec2_max[1:],
 
-        # acceleration
-        # cp.norm(A[:3]) <= a_max,
-        # cp.norm(A[3:]) <= α_max,
-        # A[:3] >= -a_max,
-        # A[:3] <= a_max,
-        # A[3:] >= -α_max,
-        # A[3:] <= α_max,
+        # inertial parameter constraints
+        # see also the additional constraints added to the end of the list
+        # obj1.P @ θ <= obj1.p,  # includes S-density realizability
+        # obj1.P[:2, :] @ θ <= obj1.p[:2],
+        m <= obj1.mass_max,
+        m >= obj1.mass_min,
+        Π == rg.pim_must_equal_vec(θ),
 
-        # TODO I need some sort of consistency with θ
-        rob.schur(Xθ, θ) >> 0,
+        # second object is same except for the inertial parameters
+        rob.schur(X2, y2) >> 0,
+        X2[:-nθ, :-nθ] == X[:-nθ, :-nθ],
+        obj2.P @ θ2 <= obj2.p,
 
-        # inertial parameters
-        obj1.P @ θ <= obj1.p,  # includes S-density realizability
-        Π == rg.pim_must_equal_vec(θ),  # physical consistency
-    ]
+        X2m2 <= obj2.mass_max**2,
+        X2m2 >= obj2.mass_min**2,
+        cp.diag(X2θ[1:4, 1:4]) <= X2m2 * obj2.unit_vec2_max[1:4],  # com
+        cp.diag(X2θ[4:, 4:]) == X2m2 * obj2.unit_vec2_max[4:],  # inertia is fixed
+    ] + obj1.bounding_box.must_realize(Π) + obj1.com_box.must_contain(points=h, scale=m)
 
     # approximate constraints
     for i in range(F2.shape[0]):
         fi = F2[i, :]
         Qi = rob.compute_Q_matrix(fi)
-        constraints.append(0.5 * cp.trace(Qi @ X) <= 0)
+        constraints.append(0.5 * cp.trace(Qi @ X2) <= 0)
 
     # off-diagonal blocks of z @ z.T are symmetric, which helps tighten the
     # relaxation
-    # for i in range(0, 5):
-    #     for j in range(i + 1, 5):
-    #         Xz_ij = Xz[i * 6 : (i + 1) * 6, j * 6 : (j + 1) * 6]
-    #
-    #         constraints.append(Xz_ij == Xz_ij.T)
-    #
-    #         # TODO what is going on here? these relationships between Xz and z
-    #         # are necessary for the problem to be bounded but are conservative
-    #         constraints.append(cp.trace(Xz_ij[:3, :3]) == Λ[i, j] * v_max**2)
-    #         constraints.append(cp.trace(Xz_ij[3:, 3:]) == Λ[i, j] * ω_max**2)
-    #         # constraints.append(Xz_ij >> V_max[i] * V_min[j] * Λ)
-    #
-    # for i in range(6):
-    #     Xz_ii = Xz[i * 6 : (i + 1) * 6, i * 6 : (i + 1) * 6]
-    #     constraints.append(cp.trace(Xz_ii[:3, :3]) == Λ[i, i] * v_max**2)
-    #     constraints.append(cp.trace(Xz_ii[3:, 3:]) == Λ[i, i] * ω_max**2)
+    for i in range(0, 5):
+        for j in range(i + 1, 5):
+            Xz_ij = Xz[i * 6 : (i + 1) * 6, j * 6 : (j + 1) * 6]
+            constraints.append(Xz_ij == Xz_ij.T)
 
     problem = cp.Problem(objective, constraints)
     try:
-        problem.solve(solver=cp.MOSEK)
-    except cp.error.SolverError:
+        problem.solve(solver=cp.MOSEK, verbose=False)
+    except cp.error.SolverError as e:
         print("failed to solve relaxed problem")
-    print(problem.status)
-    print(objective.value)
-    import IPython
-    IPython.embed()
-    raise ValueError()
+    print(f"status = {problem.status}")
+    print(f"objective = {objective.value}")
+    # import IPython
+    # IPython.embed()
+    # raise ValueError()
     # print(np.linalg.eigvals(X.value))
     return problem.value
 

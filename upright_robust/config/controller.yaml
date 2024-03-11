@@ -181,21 +181,20 @@ objects:
   tall_block_0:
     mass: 1.0
     com_offset: [0, 0, 0]
-    inertia_diag: [0.064, 0.064, 0.0128]  # 1kg mass spread in corners
-    # inertia_diag: [0.1, 0.1, 0.1]
-    # inertia_diag: [0, 0, 0]
+    # inertia_diag: [0.064, 0.064, 0.0128]  # 1kg mass spread in corners
+    inertia_diag: [0.1, 0.1, 0.1]
     shape: cuboid
     side_lengths: [0.16, 0.16, 0.48]
 
     # bounds are all relative to the nominal values above
     # these are the bounds actually enforced by the QP-based controller
     bounds_approx_inertia:
-      # com_lower: [-0.04, -0.04, -0.2]
-      # com_upper: [0.04, 0.04, 0.2]
-      com_lower: [0, 0, 0]
-      com_upper: [0, 0, 0]
+      com_lower: [-0.07, -0.07, -0.24]
+      com_upper: [0.07, 0.07, 0.24]
       mass_lower: 0
       mass_upper: 0
+      box:
+        half_extents: [0.08, 0.08, 0.24]
 
     # these are the bounds that allow any inertia matrix that is physically
     # realizable
