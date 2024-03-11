@@ -192,7 +192,7 @@ objects:
       com_lower: [-0.07, -0.07, -0.24]
       com_upper: [0.07, 0.07, 0.24]
       mass_lower: 0
-      mass_upper: 0
+      mass_upper: 0.0
       box:
         half_extents: [0.08, 0.08, 0.24]
 

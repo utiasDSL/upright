@@ -104,7 +104,7 @@ def solve_constraint_elimination_sdp(
     return np.min(values)
 
 
-def solve_approx_inertia_sdp(
+def solve_approx_inertia_sdp_dual(
     obj1,
     obj2,
     f,
@@ -244,11 +244,6 @@ def solve_approx_inertia_sdp_primal(
     nθ = 10
     ny = nv + ng + nθ + nz
 
-    # TODO solve a tiny problem to maximize θ?
-
-    # gravity constraints
-    # z_normal = np.array([0, 0, 1])
-
     # variables
     A = cp.Variable(nv)
     G = cp.Variable(ng)
@@ -270,32 +265,16 @@ def solve_approx_inertia_sdp_primal(
     Xθ = X[-nθ:, -nθ:]  # θ block
     Xm2 = Xθ[0, 0]  # m^2
 
-    # variables for second object
-    θ2 = cp.Variable(nθ)
-    X2 = cp.Variable((ny, ny), PSD=True)
-    y2 = cp.hstack((A, G, z, θ2))
-
-    X2a = X2[:nv, :nv]  # acceleration block
-    X2g = X2[nv : nv + ng, nv : nv + ng]  # gravity block
-    X2z = X2[nv + ng : nv + ng + nz, nv + ng : nv + ng + nz]  # z block
-    X2θ = X2[-nθ:, -nθ:]  # θ block
-    X2m2 = X2θ[0, 0]  # m^2
-
-    # nominal feasible solution
-    V_nom = np.zeros(nv)
-    A_nom = np.zeros(nv)
-    G_nom = np.array([0, 0, -g])
-    θ_nom = obj1.θ_nom
-    Λ_nom = np.outer(V_nom, V_nom)
-    z_nom = Λ_nom.flatten()
-    y_nom = np.concatenate((A_nom, G_nom, z_nom, θ_nom))
-    X_nom = np.outer(y_nom, y_nom)
-    Xθ_nom = X_nom[-nθ:, -nθ:]
-
-    θ2_nom = obj2.θ_nom
-    y2_nom = np.concatenate((A_nom, G_nom, z_nom, θ2_nom))
-    X2_nom = np.outer(y2_nom, y2_nom)
-    X2θ_nom = X2_nom[-nθ:, -nθ:]
+    # nominal feasible solution (for debugging)
+    # V_nom = np.zeros(nv)
+    # A_nom = np.zeros(nv)
+    # G_nom = np.array([0, 0, -g])
+    # θ_nom = obj1.θ_nom
+    # Λ_nom = np.outer(V_nom, V_nom)
+    # z_nom = Λ_nom.flatten()
+    # y_nom = np.concatenate((A_nom, G_nom, z_nom, θ_nom))
+    # X_nom = np.outer(y_nom, y_nom)
+    # Xθ_nom = X_nom[-nθ:, -nθ:]
 
     objective = cp.Maximize(0.5 * cp.trace(Q @ X))
 
@@ -315,45 +294,60 @@ def solve_approx_inertia_sdp_primal(
         cp.diag(Xa[:3, :3]) <= a_max**2,
         cp.diag(Xa[3:, 3:]) <= α_max**2,
 
+        A[:3] >= -a_max,
+        A[:3] <= a_max,
+        A[3:] >= -α_max,
+        A[3:] <= α_max,
+
         # gravity constraints
         cp.trace(Xg) == g**2,
         Xg[2, 2] >= (g * np.cos(tilt_angle_max)) ** 2,
 
+        cp.norm(G) <= g,
+        G[2] <= -g * np.cos(tilt_angle_max),
+
+        # inertial parameter constraints
+        # see also the additional constraints added to the end of the list
         Xm2 <= obj1.mass_max**2,
         Xm2 >= obj1.mass_min**2,
         cp.diag(Xθ[1:, 1:]) <= Xm2 * obj1.unit_vec2_max[1:],
 
-        # inertial parameter constraints
-        # see also the additional constraints added to the end of the list
-        # obj1.P @ θ <= obj1.p,  # includes S-density realizability
-        # obj1.P[:2, :] @ θ <= obj1.p[:2],
         m <= obj1.mass_max,
         m >= obj1.mass_min,
         Π == rg.pim_must_equal_vec(θ),
-
-        # second object is same except for the inertial parameters
-        rob.schur(X2, y2) >> 0,
-        X2[:-nθ, :-nθ] == X[:-nθ, :-nθ],
-        obj2.P @ θ2 <= obj2.p,
-
-        X2m2 <= obj2.mass_max**2,
-        X2m2 >= obj2.mass_min**2,
-        cp.diag(X2θ[1:4, 1:4]) <= X2m2 * obj2.unit_vec2_max[1:4],  # com
-        cp.diag(X2θ[4:, 4:]) == X2m2 * obj2.unit_vec2_max[4:],  # inertia is fixed
     ] + obj1.bounding_box.must_realize(Π) + obj1.com_box.must_contain(points=h, scale=m)
 
     # approximate constraints
+    # we have to use the dual form here because we cannot include θ2 in the
+    # optimization problem explicitly: any bounds would just be used to push up
+    # the constraint further, which is not what we want
+    P2_tilde = rob.compute_P_tilde_matrix(obj2.P, obj2.p)
+    R2 = rob.span_to_face_form(P2_tilde.T)
     for i in range(F2.shape[0]):
         fi = F2[i, :]
-        Qi = rob.compute_Q_matrix(fi)
-        constraints.append(0.5 * cp.trace(Qi @ X2) <= 0)
+        Zi = rob.body_regressor_by_vector_velocity_matrix(fi)
+        Di = rob.body_regressor_by_vector_acceleration_matrix(fi)
+        Dgi = -Di[:3, :]
+        constraints.append(R2[:, :-1] @ (Zi.T @ z + Dgi.T @ G + Di.T @ A) <= 0.0)
 
     # off-diagonal blocks of z @ z.T are symmetric, which helps tighten the
     # relaxation
+    # z @ z.T = | v1**2   * V @ V.T, v1 * v2 * V @ V.T, ... |
+    #           | v1 * v2 * V @ V.T, v2**2   * V @ V.T, ... |
+    #           | ...                                   ... |
     for i in range(0, 5):
         for j in range(i + 1, 5):
             Xz_ij = Xz[i * 6 : (i + 1) * 6, j * 6 : (j + 1) * 6]
             constraints.append(Xz_ij == Xz_ij.T)
+
+            constraints.append(Xz_ij[:3, :3] <= Λ[:3, :3] * v_max**2)
+            constraints.append(Xz_ij[3:, 3:] <= Λ[3:, 3:] * ω_max**2)
+
+    # diagonal blocks of z @ z.T
+    for i in range(6):
+        Xz_ii = Xz[i * 6 : (i + 1) * 6, i * 6 : (i + 1) * 6]
+        constraints.append(Xz_ii[:3, :3] <= Λ[:3, :3] * v_max**2)
+        constraints.append(Xz_ii[3:, 3:] <= Λ[3:, 3:] * ω_max**2)
 
     problem = cp.Problem(objective, constraints)
     try:
@@ -362,10 +356,8 @@ def solve_approx_inertia_sdp_primal(
         print("failed to solve relaxed problem")
     print(f"status = {problem.status}")
     print(f"objective = {objective.value}")
-    # import IPython
-    # IPython.embed()
-    # raise ValueError()
     # print(np.linalg.eigvals(X.value))
+    # print(np.linalg.eigvals(Λ.value))
     return problem.value
 
 
@@ -390,10 +382,10 @@ def verify_approx_inertia(ctrl_config):
     for i in range(F.shape[0]):
         print(i + 1)
         f = F[i, :]
-        # relaxed = solve_approx_inertia_sdp(obj, obj_approx, f, F_approx, verbose=True)
-        relaxed = solve_approx_inertia_sdp_primal(
-            obj, obj_approx, f, F_approx, verbose=True
-        )
+        relaxed = solve_approx_inertia_sdp_dual(obj, obj_approx, f, F_approx, verbose=True)
+        # relaxed = solve_approx_inertia_sdp_primal(
+        #     obj, obj_approx, f, F_approx, verbose=True
+        # )
 
 
 def check_elimination(ctrl_config):

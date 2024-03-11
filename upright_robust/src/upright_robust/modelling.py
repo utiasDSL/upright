@@ -345,6 +345,10 @@ class UncertainObject:
 
         # nominal inertial parameter vector
         if bounds.approx_inertia:
+            # c2 = np.array([0, 0, 0.48])  # top center
+            # Sc2 = core.math.skew3(c2)
+            # I2 = obj.body.inertia - m * Sc2 @ Sc2
+            # self.θ_nom = np.concatenate(([m], m * c2, utils.vech(I2)))
             self.θ_nom = np.concatenate(([m], m * c, utils.vech(I)))
         else:
             self.θ_nom = np.concatenate(([m], m * c, utils.vech(-m * Sc @ Sc)))
