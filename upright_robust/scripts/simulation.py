@@ -33,6 +33,7 @@ MAX_EE_LIN_VEL = 2.0
 MAX_EE_ANG_VEL = 1.0
 MAX_EE_LIN_ACC = 1.0
 MAX_EE_ANG_ACC = 1.0
+TILT_ANGLE_MAX = np.deg2rad(15)
 
 EE_LIN_ACC_WEIGHT = 1
 
@@ -95,6 +96,7 @@ def main():
         a_joint_weight=JOINT_ACC_WEIGHT,
         v_joint_weight=JOINT_VEL_WEIGHT,
         j_joint_weight=JOINT_JERK_WEIGHT,
+        tilt_angle_max=TILT_ANGLE_MAX,
     )
     kp, kv = model.kp, model.kv
     controller = model.controller
@@ -214,6 +216,10 @@ def main():
             logger.append("α_ew_ws", α_ew_w)
             logger.append("ω_ew_ws", ω_ew_w)
 
+            # tilt angle
+            z = np.array([0, 0, 1])
+            logger.append("tilt_angles", np.arccos(z @ C_we @ z))
+
             # from the simulation
             # TODO: check this is the same as the model
             r_ew_w, Q_we = env.robot.link_pose()
@@ -238,6 +244,7 @@ def main():
     a_ew_ws = np.array(logger.data["a_ew_ws"])
     a_ew_ws_cmd = np.array(logger.data["a_ew_ws_cmd"])
     a_ew_ws_feas = np.array(logger.data["a_ew_ws_feas"])
+    tilt_angles = np.array(logger.data["tilt_angles"])
 
     ω_ew_ws = np.array(logger.data["ω_ew_ws"])
     α_ew_ws = np.array(logger.data["α_ew_ws"])
@@ -340,6 +347,13 @@ def main():
     plt.xlabel("Time [s]")
     plt.xlabel("Acceleration [rad/s^2]")
     plt.title("EE angular acceleration vs. time")
+
+    plt.figure()
+    plt.plot(ts, tilt_angles)
+    plt.grid()
+    plt.xlabel("Time [s]")
+    plt.xlabel("Tilt angle [rad]")
+    plt.title("Tilt angle vs. time")
 
     plt.show()
 

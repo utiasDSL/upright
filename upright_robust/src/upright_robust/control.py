@@ -82,13 +82,14 @@ class ReactiveBalancingController(abc.ABC):
         a_cart_weight=1,
         α_cart_weight=5,
         a_joint_weight=0.01,
-        v_joint_weight=3,  # TODO tuning
-        j_joint_weight=0,  # 1e-6
+        v_joint_weight=3,
+        j_joint_weight=0,
         slack_weight=10,
         a_cart_max=5,
         α_cart_max=1,
         v_cart_max=1,
         ω_cart_max=1,
+        tilt_angle_max=np.deg2rad(15),
         a_joint_max=5,
         v_joint_max=1,
         use_slack=True,
@@ -143,6 +144,7 @@ class ReactiveBalancingController(abc.ABC):
         self.α_cart_max = α_cart_max
         self.v_cart_max = v_cart_max
         self.ω_cart_max = ω_cart_max
+        self.tilt_angle_max = tilt_angle_max
 
         # joint space
         self.v_joint_max = v_joint_max
@@ -299,6 +301,35 @@ class ReactiveBalancingController(abc.ABC):
 
         return lb, ub
 
+    def _compute_tilt_angle_constraint(self, C_we, V_ew_e):
+        """Compute inequality constraint on the tray's maximum tilt angle.
+
+        Parameters
+        ----------
+        C_we : np.ndarray, shape (3, 3)
+            Rotation matrix representing the tray's orientation w.r.t. the world.
+        V_ew_e : np.ndarray, shape (6,)
+            The body-frame velocity twist of the tray.
+
+        Returns
+        -------
+        : tuple
+            The pair ``(A, b)`` representing the tilt angle constraint as ``Ax <= b``.
+        """
+        z_e = np.array([0, 0, 1])
+        z_w = C_we @ z_e
+
+        ω_ew_e = V_ew_e[3:]
+        ω_ew_w = C_we @ ω_ew_e
+        W = core.math.skew3(ω_ew_w)
+
+        b = z_e @ (np.eye(3) + self.dt * W + 0.5 * self.dt**2 * W @ W) @ z_w - np.cos(
+            self.tilt_angle_max
+        )
+        A = np.zeros(self.nv)
+        A[self.sα] = 0.5 * self.dt**2 * z_e @ core.math.skew3(z_w)
+        return A[None, :], np.array([b])
+
     def _compute_tracking_equalities(self, J, δ):
         """Compute matrix (A, b) such that Ax == b enforces EE acceleration tracking,
         with x the decision variables."""
@@ -311,7 +342,7 @@ class ReactiveBalancingController(abc.ABC):
         return A, b
 
     @abc.abstractmethod
-    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last, **kwargs):
+    def _setup_and_solve_qp(self, C_we, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last, **kwargs):
         pass
 
     def solve(self, q, v, a_ew_w_cmd, u_last, **kwargs):
@@ -336,7 +367,7 @@ class ReactiveBalancingController(abc.ABC):
         G_e = utils.body_gravity6(C_we.T)
 
         return self._setup_and_solve_qp(
-            G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last, **kwargs
+            C_we, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last, **kwargs
         )
 
 
@@ -381,7 +412,7 @@ class NominalReactiveBalancingControllerFlat(ReactiveBalancingController):
         self.lb = np.concatenate((self.lb, -np.inf * np.ones(self.nf)))
         self.ub = np.concatenate((self.ub, np.inf * np.ones(self.nf)))
 
-    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last):
+    def _setup_and_solve_qp(self, C_we, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last):
         x0 = self._initial_guess(a_ew_e_cmd)
 
         # map joint acceleration to EE acceleration
@@ -486,7 +517,7 @@ class NominalReactiveBalancingControllerTrayTilting(ReactiveBalancingController)
         )
         self.lb = -self.ub
 
-    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last):
+    def _setup_and_solve_qp(self, C_we, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last):
         x0 = self._initial_guess(a_ew_e_cmd)
 
         # map joint acceleration to EE acceleration
@@ -766,7 +797,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         self.update_mask = QPUpdateMask(P=False, G=False)
         self.approx_scale_prof = utils.RunningAverage()
 
-    def _setup_and_solve_qp(self, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last):
+    def _setup_and_solve_qp(self, C_we, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last):
         x0 = self._initial_guess(a_ew_e_cmd)
 
         # compute the equality constraints A_eq @ x == b
@@ -839,6 +870,13 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             A_eq = np.vstack((A_eq_track, self.A_eq_bal, self.A_eq_tilt1, A_eq_tilt2))
             b_eq = np.concatenate((b_eq_track, b_eq_bal, b_eq_tilt1, b_eq_tilt2))
 
+        # tilt angle constraint
+        # TODO perhaps could be cleaned up
+        A_ineq_tilt, b_ineq_tilt = self._compute_tilt_angle_constraint(C_we, V_ew_e)
+        A_ineq = np.vstack((self.A_ineq, A_ineq_tilt))
+        b_ineq = np.concatenate((b_ineq, b_ineq_tilt))
+        # A_ineq = self.A_ineq
+
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = self._compute_linear_cost_term(v, a_ew_e_cmd, u_last)
         lb, ub = self._compute_bounds(v, V_ew_e)
@@ -847,7 +885,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             u, A = self._solve_qp_prox(
                 P=self.P,
                 q=q,
-                G=self.A_ineq,
+                G=A_ineq,
                 h=b_ineq,
                 A=A_eq,
                 b=b_eq,
@@ -858,7 +896,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
             u, A = self._solve_qp(
                 P=self.P_sparse,
                 q=q,
-                G=self.A_ineq_sparse,
+                G=sparse.csc_matrix(A_ineq),
                 h=b_ineq,
                 A=sparse.csc_matrix(A_eq),
                 b=b_eq,

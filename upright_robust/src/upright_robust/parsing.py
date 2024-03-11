@@ -57,6 +57,7 @@ class RobustControllerModel:
         a_joint_weight,
         v_joint_weight,
         j_joint_weight,
+        tilt_angle_max,
     ):
         # controller
         model = ctrl.manager.ControllerModel.from_config(ctrl_config)
@@ -88,6 +89,7 @@ class RobustControllerModel:
             a_joint_weight=a_joint_weight,
             v_joint_weight=v_joint_weight,
             j_joint_weight=j_joint_weight,
+            tilt_angle_max=tilt_angle_max,
         )
 
 
@@ -108,6 +110,7 @@ def parse_controller_from_config(
     a_joint_weight,
     v_joint_weight,
     j_joint_weight,
+    tilt_angle_max,
 ):
     """Parse the balancing controller from config."""
     use_balancing_constraints = ctrl_config["balancing"]["enabled"]
@@ -140,6 +143,7 @@ def parse_controller_from_config(
         "a_joint_weight": a_joint_weight,
         "v_joint_weight": v_joint_weight,
         "j_joint_weight": j_joint_weight,
+        "tilt_angle_max": tilt_angle_max,
     }
 
     if tilting_type == "full":

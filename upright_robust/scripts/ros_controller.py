@@ -37,6 +37,7 @@ MAX_EE_LIN_VEL = 2.0
 MAX_EE_ANG_VEL = 1.0
 MAX_EE_LIN_ACC = 1.0
 MAX_EE_ANG_ACC = 1.0
+TILT_ANGLE_MAX = np.deg2rad(15)
 
 EE_LIN_ACC_WEIGHT = 1
 
@@ -85,6 +86,7 @@ def main():
         a_joint_weight=JOINT_ACC_WEIGHT,
         v_joint_weight=JOINT_VEL_WEIGHT,
         j_joint_weight=JOINT_JERK_WEIGHT,
+        tilt_angle_max=TILT_ANGLE_MAX,
     )
     kp, kv = model.kp, model.kv
     controller = model.controller
