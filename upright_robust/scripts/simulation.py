@@ -40,10 +40,12 @@ EE_LIN_ACC_WEIGHT = 1
 # this needs to at least ~5, otherwise the tilting action won't be strong
 # enough against the linear acceleration
 EE_ANG_ACC_WEIGHT = 10
-JOINT_ACC_WEIGHT = 0.01
+# JOINT_ACC_WEIGHT = 0.01
+JOINT_ACC_WEIGHT = 0.01 * np.array([1, 1, 1, 1, 1, 1, 1, 1, 1])
 
 # needs to be high enough to actually converge
-JOINT_VEL_WEIGHT = 3
+# JOINT_VEL_WEIGHT = 3
+JOINT_VEL_WEIGHT = 3.0 * np.array([1, 1, 1, 1, 1, 1, 1, 1, 1])
 JOINT_JERK_WEIGHT = 0
 
 
@@ -169,8 +171,6 @@ def main():
         a_ew_w, α_ew_w = robot.link_classical_acceleration()
 
         # desired EE state
-        # rd, vd, ad = trajectory.sample(t)
-
         rd = r_ew_w_d
         vd = np.zeros(3)
         ad = np.zeros(3)
@@ -181,6 +181,7 @@ def main():
         # compute command
         t0 = time.perf_counter_ns()
         u, A_e = controller.solve(q, v, a_ew_w_cmd, u)
+        # u[:3] = C_we @ u[:3]  # TODO: rotate into world frame?
         t1 = time.perf_counter_ns()
 
         A_w = block_diag(C_we, C_we) @ A_e
@@ -191,9 +192,9 @@ def main():
         # print(f"a_cmd = {a_ew_w_cmd}")
         # print(f"A_w = {A_w}")
 
-        # NOTE: we want to use v_cmd rather than v here because PyBullet
-        # doesn't respond to small velocities well, and it screws up angular
-        # velocity tracking
+        # NOTE: we use v_cmd rather than v here because PyBullet doesn't
+        # respond to small velocities well, and it screws up angular velocity
+        # tracking
         v_cmd = v_cmd + env.timestep * u
         env.robot.command_velocity(v_cmd, bodyframe=False)
         t = env.step(t, step_robot=False)[0]

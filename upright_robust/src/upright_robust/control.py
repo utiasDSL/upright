@@ -27,6 +27,21 @@ USE_DEDICATED_PROXQP_INTERFACE = True
 # resulting from the adaptive tilting law
 EQUALITY_CONSTRAIN_ANGULAR_ACC = True
 
+# constrain the maximum tilt angle to be no more than the specified value
+USE_MAX_TILT_ANGLE_CONSTRAINT = True
+
+
+def _make_matrix_weights(weight, dim):
+    if np.isscalar(weight):
+        return weight * np.eye(dim)
+    if weight.ndim == 1:
+        assert weight.shape == (dim,)
+        return np.diag(weight)
+    elif weight.ndim == 2:
+        assert weight.shape == (dim, dim)
+        return weight
+    raise ValueError(f"Unexpected weight value {weight} with dim {dim}.")
+
 
 class ReactiveBalancingController(abc.ABC):
     """Base class for reactive balancing control.
@@ -114,22 +129,27 @@ class ReactiveBalancingController(abc.ABC):
 
         # default optimization variables are (u, A, s), where s is the optimal
         # slack variables on the EE acceleration kinematics constraint
+
+        # here we are penalizing ||u_k||^2 directly but also ||v_{k+1}||^2 =
+        # ||v_k + dt * u_k||^2
+        # the linear term from the velocity penalty is computed in the
+        # _compute_linear_cost_term method
+        a_joint_weight = _make_matrix_weights(a_joint_weight, dim=self.nu)
+        v_joint_weight = _make_matrix_weights(v_joint_weight, dim=self.nu)
+        j_joint_weight = _make_matrix_weights(j_joint_weight, dim=self.nu)
+
+        self.P_joint = (
+            a_joint_weight + dt**2 * v_joint_weight + j_joint_weight / dt**2
+        )
+        self.P_cart = block_diag(a_cart_weight * np.eye(3), α_cart_weight * np.eye(3))
+        self.P_slack = slack_weight * np.eye(self.ns)
+
         # shared optimization weight
         self.v_joint_weight = v_joint_weight
         self.j_joint_weight = j_joint_weight
         self.a_cart_weight = a_cart_weight
         self.α_cart_weight = α_cart_weight
         self.slack_weight = slack_weight
-
-        # here we are penalizing ||u_k||^2 directly but also ||v_{k+1}||^2 =
-        # ||v_k + dt * u_k||^2
-        # the linear term from the velocity penalty is computed in the
-        # _compute_linear_cost_term method
-        self.P_joint = (
-            a_joint_weight + dt**2 * v_joint_weight + j_joint_weight / dt**2
-        ) * np.eye(9)
-        self.P_cart = block_diag(a_cart_weight * np.eye(3), α_cart_weight * np.eye(3))
-        self.P_slack = slack_weight * np.eye(self.ns)
 
         # slices for decision variables
         self.su = np.s_[: self.nu]
@@ -255,8 +275,8 @@ class ReactiveBalancingController(abc.ABC):
 
         # joint acceleration
         q[self.su] = (
-            self.v_joint_weight * self.dt * v
-            + self.j_joint_weight * u_last / self.dt**2
+            self.dt * self.v_joint_weight @ v
+            + self.j_joint_weight @ u_last / self.dt**2
         )
 
         # EE acceleration
@@ -339,10 +359,20 @@ class ReactiveBalancingController(abc.ABC):
             S = np.zeros((6, self.ns))
         A = np.hstack((-J, S, np.eye(6), np.zeros((6, self.nv - self.nv0))))
         b = δ
+
+        # NOTE: constraint q[-2] to not accelerate
+        # A2 = np.zeros((1, self.nv))
+        # A2[0, self.nu - 2] = 1
+        # b2 = np.array([0])
+        # A = np.vstack((A, A2))
+        # b = np.concatenate((b, b2))
+
         return A, b
 
     @abc.abstractmethod
-    def _setup_and_solve_qp(self, C_we, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last, **kwargs):
+    def _setup_and_solve_qp(
+        self, C_we, G_e, V_ew_e, a_ew_e_cmd, δ, J, v, u_last, **kwargs
+    ):
         pass
 
     def solve(self, q, v, a_ew_w_cmd, u_last, **kwargs):
@@ -872,10 +902,12 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
 
         # tilt angle constraint
         # TODO perhaps could be cleaned up
-        A_ineq_tilt, b_ineq_tilt = self._compute_tilt_angle_constraint(C_we, V_ew_e)
-        A_ineq = np.vstack((self.A_ineq, A_ineq_tilt))
-        b_ineq = np.concatenate((b_ineq, b_ineq_tilt))
-        # A_ineq = self.A_ineq
+        if USE_MAX_TILT_ANGLE_CONSTRAINT:
+            A_ineq_tilt, b_ineq_tilt = self._compute_tilt_angle_constraint(C_we, V_ew_e)
+            A_ineq = np.vstack((self.A_ineq, A_ineq_tilt))
+            b_ineq = np.concatenate((b_ineq, b_ineq_tilt))
+        else:
+            A_ineq = self.A_ineq
 
         # compute the cost: 0.5 * x @ P @ x + q @ x
         q = self._compute_linear_cost_term(v, a_ew_e_cmd, u_last)

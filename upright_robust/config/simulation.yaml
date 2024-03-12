@@ -96,15 +96,26 @@ objects:
   #   side_lengths: [0.1, 0.1, 0.4]
   #   color: [1, 0, 0, 1]
 
+  # tall_block_0:
+  #   mass: 1.0
+  #   # com_offset: [0, 0, 0]
+  #   com_offset: [0, -0.05, 0.16]
+  #   # inertial diagonal about the CoM
+  #   # inertia_diag: [0.0133666667, 0.0141666667, 0.0008666667]
+  #   inertia_diag: [0.0068, 0.0068, 0.0008]
+  #   shape: cuboid
+  #   side_lengths: [0.16, 0.16, 0.48]
+  #   color: [1, 0, 0, 1]
+
   tall_block_0:
     mass: 1.0
     # com_offset: [0, 0, 0]
-    com_offset: [0, -0.05, 0.16]
+    com_offset: [0, -0.03, 0.125]
     # inertial diagonal about the CoM
     # inertia_diag: [0.0133666667, 0.0141666667, 0.0008666667]
     inertia_diag: [0.0068, 0.0068, 0.0008]
     shape: cuboid
-    side_lengths: [0.16, 0.16, 0.48]
+    side_lengths: [0.1, 0.1, 0.25]
     color: [1, 0, 0, 1]
 
   tall_block_0.03:

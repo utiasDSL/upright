@@ -136,6 +136,7 @@ class ObjectBounds:
         com_upper=None,
         ellipsoid_half_extents=None,
         box_half_extents=None,
+        centroid=None,
         approx_inertia=False,
     ):
         """All quantities are *relative to the nominal value*.
@@ -165,6 +166,7 @@ class ObjectBounds:
         # ellipsoid_half_extents can be None
         self.ellipsoid_half_extents = ellipsoid_half_extents
         self.box_half_extents = box_half_extents
+        self.centroid = centroid
 
         self.approx_inertia = approx_inertia
 
@@ -175,13 +177,15 @@ class ObjectBounds:
         com_lower = config.get("com_lower", None)
         com_upper = config.get("com_upper", None)
 
-        # the center of the bounding shapes is the nominal CoM
-        if "ellipsoid" in config:
-            ell_half_extents = np.array(config["ellipsoid"]["half_extents"])
+        centroid = np.array(config["centroid"])  # required
+        if "ellipsoid_half_extents" in config:
+            ell_half_extents = np.array(config["ellipsoid_half_extents"])
+            assert ell_half_extents.shape == (3,)
         else:
             ell_half_extents = None
-        if "box" in config:
-            box_half_extents = np.array(config["box"]["half_extents"])
+        if "box_half_extents" in config:
+            box_half_extents = np.array(config["box_half_extents"])
+            assert box_half_extents.shape == (3,)
         else:
             box_half_extents = None
 
@@ -192,15 +196,20 @@ class ObjectBounds:
             com_upper=com_upper,
             ellipsoid_half_extents=ell_half_extents,
             box_half_extents=box_half_extents,
+            centroid=centroid,
             approx_inertia=approx_inertia,
         )
 
     def bounding_box(self, c):
-        return rg.Box(half_extents=self.box_half_extents, center=c)
+        return rg.Box(half_extents=self.box_half_extents, center=self.centroid)
+
+    def bounding_ellipsoid(self):
+        return rg.Ellipsoid(
+            half_extents=self.ellipsoid_half_extents, center=self.centroid
+        )
 
     def com_box(self, c):
         return rg.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
-
 
     def polytope(self, m, c, J):
         """Build the polytope containing the inertial parameters given the
@@ -283,7 +292,7 @@ class ObjectBounds:
 
             # ellipsoid density realizability
             # tr(ΠQ) >= 0
-            ell = rg.Ellipsoid(half_extents=self.ellipsoid_half_extents, center=c)
+            ell = self.bounding_ellipsoid()
             P_J[12, :] = [-np.trace(A @ ell.Q) for A in utils.pim_sum_vec_matrices()]
 
             # TODO why does this make less constraints negative than the
@@ -308,6 +317,9 @@ class UncertainObject:
     def __init__(self, obj, bounds=None):
         self.object = obj
         self.body = obj.body
+
+        # TODO problem is that we want the box/ellipsoid to be specified around
+        # the centroid, but with the com offset I do not have access to that
 
         # inertial quantities are taken w.r.t./about the EE origin (i.e.,
         # self.body.com is the vector from the EE origin to the CoM of this
