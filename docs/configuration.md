@@ -149,6 +149,15 @@ sqp:
     slacks:                  # slack variable settings
       enabled: bool          # enable slack variables
 
+      # "lower" slacks are associated with lower-bounded inequality
+      # constraints; "upper" slacks with the upper-bounded ones
+      upper_L2_penalty: float, non-negative  # L2 penalty on upper slacks (default: 100)
+      lower_L2_penalty: float, non-negative  # L2 penalty on lower slacks (default: 100)
+      upper_L1_penalty: float, non-negative  # L1 penalty on upper slacks (default: 0)
+      lower_L1_penalty: float, non-negative  # L1 penalty on lower slacks (default: 0)
+      upper_low_bound: float  # lower bound on the upper slacks (default: 0)
+      lower_low_bound: foat  # lower bound on the lower slacks (default: 0)
+
 # settings for the balancing constraints
 balancing:
   enabled: bool  # set `true` to enable the balancing constraints
@@ -182,10 +191,11 @@ inertial_alignment:
 
   # take the angular acceleration of the specified `com` into account when
   # computing alignment
+  # the `com` parameter has no effect if this is `false`
   use_angular_acceleration: bool
 
   # the point around which to compute the acceleration, with respect to the
-  # tray's origin
+  # tray's origin (only has an effect when `use_angular_acceleration` is `true`)
   com: list of float, length 3
 
   # instead of aligning with the acceleration vector, set to `true` to align
