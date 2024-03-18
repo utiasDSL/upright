@@ -18,6 +18,9 @@ import IPython
 
 # TODO inconsistent use of dedicated proxqp interface
 # TODO support different weights on different joints
+# TODO clean up the recent messy implementation of the fact that only x and y
+# components of angular acceleration should be constrained, and z component
+# should be free but weighted
 
 # use a dedicated interface to proxQP rather than going through qpsolvers
 # this enables better warm-starting from timestep to timestep
@@ -28,7 +31,9 @@ USE_DEDICATED_PROXQP_INTERFACE = True
 EQUALITY_CONSTRAIN_ANGULAR_ACC = True
 
 # constrain the maximum tilt angle to be no more than the specified value
-USE_MAX_TILT_ANGLE_CONSTRAINT = True
+USE_MAX_TILT_ANGLE_CONSTRAINT = False
+
+EXTRA_EE_ANG_ACC_WEIGHT = 1.0
 
 
 def _make_matrix_weights(weight, dim):
@@ -203,6 +208,7 @@ class ReactiveBalancingController(abc.ABC):
             n_ineq = G.shape[0] if G is not None else 0
             use_box = lb is not None
             self.qp = proxsuite.proxqp.dense.QP(nv, n_eq, n_ineq, use_box)
+            # self.qp.settings.initial_guess = proxsuite.proxqp.WARM_START_WITH_PREVIOUS_RESULT
             l = -np.infty * np.ones_like(h)
             self.qp.init(P, q, A, b, G, l, h, lb, ub)
         else:
@@ -779,7 +785,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
 
         self.A_ineq_sparse = sparse.csc_matrix(self.A_ineq)
 
-        # equality constraint for linear velocity at object CoMs
+        # equality constraint for linear acceleration at object CoMs
         I3 = np.eye(3)
         self.coms = np.array([o.body.com for o in self.objects.values()])
         self.A_eq_tilt1 = np.hstack(
@@ -804,6 +810,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         P_α_cart[:3, 3:] = np.tile(-I3, self.no)
         P_α_cart[3:, :3] = np.tile(-I3, self.no).T
         P_α_cart = self.α_cart_weight * P_α_cart / self.no
+        P_α_cart[2, 2] += EXTRA_EE_ANG_ACC_WEIGHT
         P_cart = block_diag(
             self.a_cart_weight * I3, P_α_cart, self.a_cart_weight * np.eye(3 * self.no)
         )
@@ -838,6 +845,7 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         A_eq_track, b_eq_track = self._compute_tracking_equalities(J, δ)
 
         # equality constraints for new consistency stuff
+        # eq_tilt1 is for the linear acceleration at the object CoM
         ω_ew_e = V_ew_e[3:]
         b_eq_tilt1 = np.concatenate(
             [np.cross(ω_ew_e, np.cross(ω_ew_e, c)) for c in self.coms]
@@ -848,16 +856,27 @@ class ReactiveBalancingControllerFullTilting(ReactiveBalancingController):
         if self.use_dvdt_scaling:
             scale /= np.linalg.norm(a_ew_e_cmd - g)
 
+        # eq_tilt2 is for angular acceleration
         z = np.array([0, 0, 1])
         A_eq_tilt2 = np.hstack(
             (
-                np.zeros((3 * self.no, self.nv0)),
-                np.eye(3 * self.no),
-                np.kron(np.eye(self.no), -scale * core.math.skew3(z)),
-                np.zeros((3 * self.no, self.nf + self.nλ)),
+                # np.zeros((3 * self.no, self.nv0)),
+                # np.eye(3 * self.no),
+                # np.kron(np.eye(self.no), -scale * core.math.skew3(z)),
+                # np.zeros((3 * self.no, self.nf + self.nλ)),
+                # TODO assumes one object
+                np.zeros((2, self.nv0)),
+                np.eye(2),
+                np.zeros((2, 1)),
+                -scale * core.math.skew3(z)[:2, :],  # \dot{v}_o
+                np.zeros((2, self.nf + self.nλ)),
             )
         )
-        b_eq_tilt2 = np.tile(-self.kω * ω_ew_e - scale * np.cross(z, g), self.no)
+        # b_eq_tilt2 = np.tile(-self.kω * ω_ew_e - scale * np.cross(z, g), self.no)
+        b_eq_tilt2 = -self.kω * ω_ew_e[:2] - scale * np.cross(z, g)[:2]
+        # TODO assumes one object
+        # b_eq_tilt2 = -self.kω * ω_ew_e - scale * np.cross(z, g)
+        # b_eq_tilt2[2] = -self.kω * ω_ew_e[2]
 
         if self.use_robust_constraints:
             if self.use_face_form:

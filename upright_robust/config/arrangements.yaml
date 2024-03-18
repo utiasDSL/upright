@@ -156,6 +156,8 @@ arrangements:
         name: block1
         type: tall_block_0
         parent: ee
+        offset:
+          x: 0.0525
     contacts:
       -
         first: ee

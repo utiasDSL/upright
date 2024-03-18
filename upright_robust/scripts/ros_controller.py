@@ -44,7 +44,7 @@ EE_LIN_ACC_WEIGHT = 1
 # this needs to at least ~5, otherwise the tilting action won't be strong
 # enough against the linear acceleration
 EE_ANG_ACC_WEIGHT = 10
-JOINT_ACC_WEIGHT = 0.01
+JOINT_ACC_WEIGHT = 0.01 * np.array([1, 1, 1, 1, 1, 1, 1, 100, 1])
 
 # needs to be high enough to actually converge
 JOINT_VEL_WEIGHT = 3
@@ -188,6 +188,7 @@ def main():
             ctrl_prof.update(tb - ta)
             rospy.loginfo(f"curr = {(tb - ta) / 1e6} ms")
             rospy.loginfo(f"avg  = {ctrl_prof.average / 1e6} ms")
+            rospy.loginfo(f"max  = {ctrl_prof.max / 1e6} ms")
 
         # integrate acceleration command to get new commanded velocity from the
         # current velocity

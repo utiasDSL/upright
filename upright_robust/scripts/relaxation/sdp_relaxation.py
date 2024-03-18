@@ -24,9 +24,13 @@ g = 9.81
 
 V_MAX = 2.0
 ω_MAX = 1.0
-A_MAX = 1.0
+A_MAX = 2.0
 α_MAX = 1.0
-TILT_ANGLE_MAX = np.deg2rad(15)
+TILT_ANGLE_MAX = np.deg2rad(30)
+
+# can set to None to use the actual config values
+MU_REAL = 0.3
+MU_APPROX = 0.03
 
 
 def solve_constraint_elimination_sdp(
@@ -143,11 +147,11 @@ def solve_approx_inertia_sdp_dual(
 
     P1_tilde = rob.compute_P_tilde_matrix(obj1.P, obj1.p)
     R1 = rob.span_to_face_form(P1_tilde.T)
-    # R1 = R1 / np.max(np.abs(R1))
+    R1 = R1 / np.max(np.abs(R1))  # fixes some scaling issues
 
     P2_tilde = rob.compute_P_tilde_matrix(obj2.P, obj2.p)
     R2 = rob.span_to_face_form(P2_tilde.T)
-    # R2 = R2 / np.max(np.abs(R2))
+    R2 = R2 / np.max(np.abs(R2))
 
     z_normal = np.array([0, 0, 1])
 
@@ -156,11 +160,10 @@ def solve_approx_inertia_sdp_dual(
     z = cp.Variable(nz)
     Λ = cp.Variable((6, 6), PSD=True)  # = V @ V.T
 
-    W = Λ[3:, 3:]
-    c = obj1.body.com
-    vo = A[:3] - core.math.skew3(c) @ A[3:] + (W - cp.trace(W) * np.eye(3)) @ c
-
-    ω = cp.Variable(3)
+    # W = Λ[3:, 3:]
+    # c = obj1.body.com
+    # vo = A[:3] - core.math.skew3(c) @ A[3:] + (W - cp.trace(W) * np.eye(3)) @ c
+    # ω = cp.Variable(3)
 
     values = []
     Vs = []
@@ -182,16 +185,12 @@ def solve_approx_inertia_sdp_dual(
             cp.norm(G) <= g,
             z_normal @ G <= -g * np.cos(tilt_angle_max),
 
-            # aligned approach
-            # (A[:3] - G) @ [1, 0, 0] == 0,
-            # (A[:3] - G) @ [0, 1, 0] == 0,
-
             # adaptive tilting
+            # NOTE this makes a very small difference
             # A[3:] == -2 * ω + 1 * core.math.skew3(z_normal) @ (vo - G),
-            #
             # ω <= ω_max,
             # ω >= -ω_max,
-            # schur(W, ω) >> 0,
+            # rob.schur(W, ω) >> 0,
 
             # acceleration constraints
             A[:3] >= -a_max,
@@ -365,9 +364,9 @@ def solve_approx_inertia_sdp_primal(
 
 
 def verify_approx_inertia(ctrl_config):
-    objects, contacts = rob.parse_objects_and_contacts(ctrl_config)
+    objects, contacts = rob.parse_objects_and_contacts(ctrl_config, mu=MU_REAL)
     objects_approx, contacts_approx = rob.parse_objects_and_contacts(
-        ctrl_config, approx_inertia=True
+        ctrl_config, approx_inertia=True, mu=MU_APPROX,
     )
 
     names = list(objects.keys())

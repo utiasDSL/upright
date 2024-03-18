@@ -245,8 +245,6 @@ class ObjectBounds:
         )
         p_h = np.zeros(6)
 
-        # TODO need to build some sort of θ_min/θ_max bound
-
         # inertia bounds
         if self.approx_inertia:
             # assume gyration matrix is fixed
@@ -314,12 +312,9 @@ class ObjectBounds:
 
 
 class UncertainObject:
-    def __init__(self, obj, bounds=None):
+    def __init__(self, obj, bounds=None, compute_bounds=True):
         self.object = obj
         self.body = obj.body
-
-        # TODO problem is that we want the box/ellipsoid to be specified around
-        # the centroid, but with the com offset I do not have access to that
 
         # inertial quantities are taken w.r.t./about the EE origin (i.e.,
         # self.body.com is the vector from the EE origin to the CoM of this
@@ -327,7 +322,6 @@ class UncertainObject:
         m = self.body.mass
         c = self.body.com
 
-        # c2 = np.array([0, 0, 0.48])  # top center
         Sc = core.math.skew3(c)
         I = obj.body.inertia - m * Sc @ Sc
 
@@ -341,33 +335,48 @@ class UncertainObject:
 
         # polytopic parameter uncertainty: Pθ <= p
         # TODO still may be bugs in the controller since I switched from Pθ >= p
-        if bounds is None:
-            bounds = ObjectBounds()
-        self.P, self.p = bounds.polytope(m, c, I)
+        if compute_bounds:
+            self.P, self.p = bounds.polytope(m, c, I)
 
-        self.mass_min = m + bounds.mass_lower
-        self.mass_max = m + bounds.mass_upper
-        self.unit_vec2_max = bounds.unit_vec2_max(m, c, I)
-        self.bounding_box = bounds.bounding_box(c)
-        self.com_box = bounds.com_box(c)
+            self.mass_min = m + bounds.mass_lower
+            self.mass_max = m + bounds.mass_upper
+            self.bounding_box = bounds.bounding_box(c)
+            self.com_box = bounds.com_box(c)
 
-        # use a fixed inertia value for approx_inertia case
-        if bounds.approx_inertia:
-            self.unit_vec2_max[-6:] = utils.vech(I)
+            # use a fixed inertia value for approx_inertia case
+            # self.unit_vec2_max = bounds.unit_vec2_max(m, c, I)
+            # if bounds.approx_inertia:
+            #     self.unit_vec2_max[-6:] = utils.vech(I)
 
-        # nominal inertial parameter vector
-        if bounds.approx_inertia:
-            # c2 = np.array([0, 0, 0.48])  # top center
-            # Sc2 = core.math.skew3(c2)
-            # I2 = obj.body.inertia - m * Sc2 @ Sc2
-            # self.θ_nom = np.concatenate(([m], m * c2, utils.vech(I2)))
-            self.θ_nom = np.concatenate(([m], m * c, utils.vech(I)))
-        else:
-            self.θ_nom = np.concatenate(([m], m * c, utils.vech(-m * Sc @ Sc)))
+            # nominal inertial parameter vector
+            if bounds.approx_inertia:
+                self.θ_nom = np.concatenate(([m], m * c, utils.vech(I)))
+            else:
+                self.θ_nom = np.concatenate(([m], m * c, utils.vech(-m * Sc @ Sc)))
 
     def bias(self, V):
         """Compute Coriolis and centrifugal terms."""
         return utils.skew6(V) @ self.M @ V
+
+    def wrench(self, A, V):
+        """Compute the body-frame inertial wrench."""
+        return self.M @ A + self.bias(V)
+
+    def inertial_com_wrench(self, C_we, A_ew_w, V_ew_w):
+        # NOTE gravity needs to be included in A_ew_w
+        m = self.body.mass
+        c = self.body.com
+        I = self.body.inertia
+
+        α_ew_e = C_we.T @ A_ew_w[3:]
+        ω_ew_e = C_we.T @ V_ew_w[3:]
+        Sα = core.math.skew3(A_ew_w[3:])
+        Sω = core.math.skew3(V_ew_w[3:])
+        ddC_we = (Sα + Sω @ Sω) @ C_we
+        f = m * C_we.T @ (A_ew_w[:3] + ddC_we @ c)
+        τ = I @ α_ew_e + np.cross(ω_ew_e, I @ ω_ew_e)
+        return np.concatenate((f, τ))
+
 
 
 def compute_object_name_index(names):
@@ -403,6 +412,7 @@ def compute_cwc_face_form(name_index, contacts):
     # computing mapping from face form of contact forces to span form
     S = block_diag(*[c.S for c in contacts])
 
+    # span form of the CWC
     H = W @ S
 
     # convert the whole contact wrench cone to face form

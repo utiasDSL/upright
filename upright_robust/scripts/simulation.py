@@ -41,7 +41,7 @@ EE_LIN_ACC_WEIGHT = 1
 # enough against the linear acceleration
 EE_ANG_ACC_WEIGHT = 10
 # JOINT_ACC_WEIGHT = 0.01
-JOINT_ACC_WEIGHT = 0.01 * np.array([1, 1, 1, 1, 1, 1, 1, 1, 1])
+JOINT_ACC_WEIGHT = 0.01 * np.array([1, 1, 1, 1, 1, 1, 1, 100, 1])
 
 # needs to be high enough to actually converge
 # JOINT_VEL_WEIGHT = 3
@@ -157,7 +157,7 @@ def main():
             estimate = mm.kf.predict_and_correct(estimate, A, Q, B @ u, C, R0, y)
             t1 = time.perf_counter_ns()
             kf_prof.update(t1 - t0)
-            print(f"kf avg = {kf_prof.average / 1e6} ms")
+            # print(f"kf avg = {kf_prof.average / 1e6} ms")
 
             q, v = estimate.x[: env.robot.nq], estimate.x[env.robot.nq :]
         else:
@@ -189,6 +189,7 @@ def main():
         ctrl_prof.update(t1 - t0)
         print(f"curr = {(t1 - t0) / 1e6} ms")
         print(f"avg  = {ctrl_prof.average / 1e6} ms")
+        print(f"max  = {ctrl_prof.max / 1e6} ms")
         # print(f"a_cmd = {a_ew_w_cmd}")
         # print(f"A_w = {A_w}")
 

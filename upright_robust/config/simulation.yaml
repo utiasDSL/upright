@@ -108,14 +108,11 @@ objects:
   #   color: [1, 0, 0, 1]
 
   tall_block_0:
-    mass: 1.0
-    # com_offset: [0, 0, 0]
-    com_offset: [0, -0.03, 0.125]
-    # inertial diagonal about the CoM
-    # inertia_diag: [0.0133666667, 0.0141666667, 0.0008666667]
-    inertia_diag: [0.0068, 0.0068, 0.0008]
+    mass: 0.738
+    com_offset: [0, -0.03, 0.15]  # TODO real could be higher
+    # inertia_diag: [0.01599, 0.0068, 0.00123]  # uniform density
     shape: cuboid
-    side_lengths: [0.1, 0.1, 0.25]
+    side_lengths: [0.105, 0.105, 0.545]
     color: [1, 0, 0, 1]
 
   tall_block_0.03:

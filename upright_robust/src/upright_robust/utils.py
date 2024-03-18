@@ -547,6 +547,7 @@ def compute_desired_axis_angle(a, C_we):
 
 class RunningAverage:
     def __init__(self, size=None):
+        self.max = -np.inf
         self.count = 0
         if size is None:
             self.average = 0
@@ -556,3 +557,4 @@ class RunningAverage:
     def update(self, value):
         self.average = (self.count * self.average + value) / (1 + self.count)
         self.count += 1
+        self.max = max(self.max, value)

@@ -3,7 +3,9 @@ import upright_robust.modelling as mdl
 import upright_robust.control as robctrl
 
 
-def parse_objects_and_contacts(ctrl_config, model=None, approx_inertia=False):
+def parse_objects_and_contacts(
+    ctrl_config, model=None, approx_inertia=False, mu=None, compute_bounds=True
+):
     if model is None:
         model = ctrl.manager.ControllerModel.from_config(ctrl_config)
 
@@ -16,9 +18,14 @@ def parse_objects_and_contacts(ctrl_config, model=None, approx_inertia=False):
         o2 = objects[c.object2_name]
         c.r_co_o2 = c.r_co_o2 + o2.body.com
 
-    contacts = [
-        mdl.RobustContactPoint(c) for c in model.settings.balancing_settings.contacts
-    ]
+    contacts = []
+    for c in model.settings.balancing_settings.contacts:
+        if mu is not None:
+            c.mu = mu
+        contacts.append(mdl.RobustContactPoint(c))
+    # contacts = [
+    #     mdl.RobustContactPoint(c) for c in model.settings.balancing_settings.contacts
+    # ]
 
     if approx_inertia:
         bounds_name = "bounds_approx_inertia"
@@ -32,11 +39,18 @@ def parse_objects_and_contacts(ctrl_config, model=None, approx_inertia=False):
     for conf in arrangement_config["objects"]:
         name = conf["name"]
         type_ = conf["type"]
-        bounds_config = ctrl_config["objects"][type_].get(bounds_name, {})
-        bounds = mdl.ObjectBounds.from_config(
-            bounds_config, approx_inertia=approx_inertia
-        )
-        uncertain_objects[name] = mdl.UncertainObject(objects[name], bounds)
+        if compute_bounds:
+            bounds_config = ctrl_config["objects"][type_].get(bounds_name, {})
+            bounds = mdl.ObjectBounds.from_config(
+                bounds_config, approx_inertia=approx_inertia
+            )
+            uncertain_objects[name] = mdl.UncertainObject(
+                objects[name], bounds, compute_bounds=True
+            )
+        else:
+            uncertain_objects[name] = mdl.UncertainObject(
+                objects[name], compute_bounds=False
+            )
 
     return uncertain_objects, contacts
 
