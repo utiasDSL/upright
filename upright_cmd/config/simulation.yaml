@@ -159,20 +159,6 @@ objects:
     side_lengths: [0.05, 0.05, 0.05]
     color: [0, 0, 1, 1]
 
-  tall_box:
-    shape: cuboid
-    mass: 0.04
-    side_lengths: [0.065, 0.065, 0.13]
-    color: [1, 0, 0, 0.9]
-
-  really_tall_box:
-    shape: cylinder
-    com_offset: [0, 0, 0]
-    mass: 0.5
-    radius: 0.035
-    height: 0.205
-    color: [1, 0, 0, 0.9]
-
   simulation_box:
     shape: cuboid
     side_lengths: [0.06, 0.06, 0.2]
@@ -209,9 +195,17 @@ objects:
     mass: 0.1
     color: [0, 0, 1, 1]
 
-  cardboard_box:
+  white_cardboard_box:
     shape: cuboid
-    side_lengths: [0.16, 0.16, 0.32]
+    side_lengths: [0.11, 0.11, 0.275]
+    # side_lengths: [0.11, 0.11, 0.55]
     com_offset: [0, 0, 0]
-    mass: 0.1  # TODO
-    color: [0, 0, 1, 1]
+    mass: 0.115
+    color: [1, 1, 1, 1]
+
+  brown_cardboard_box:
+    shape: cuboid
+    side_lengths: [0.15, 0.15, 0.275]
+    com_offset: [0, 0, 0]
+    mass: 0.11
+    color: [0.7, 0.53, 0.35, 1]

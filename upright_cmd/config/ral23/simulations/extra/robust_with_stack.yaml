@@ -1,0 +1,19 @@
+include:
+  -
+    package: upright_cmd
+    path: config/ral23/simulations/_base.yaml
+
+simulation:
+  arrangement: tall_box_stack
+
+controller:
+  balancing:
+    enabled: true
+    frictionless: true
+    arrangement: tall_box_multi
+
+  waypoints:
+    -
+      time: 0
+      position: [0.0, -2.0, 0.25]
+      orientation: [0, 0, 0, 1]

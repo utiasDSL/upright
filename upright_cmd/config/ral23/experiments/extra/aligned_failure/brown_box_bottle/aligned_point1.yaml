@@ -8,10 +8,12 @@ include:
 
 
 simulation:
-  arrangement: cardboard_box_bottle
+  arrangement: brown_cardboard_box_bottle
 
 controller:
   balancing:
-    enabled: true
-    frictionless: true
-    arrangement: cardboard_box_bottle
+    enabled: false
+    arrangement: brown_cardboard_box_bottle
+
+  inertial_alignment:
+    constraint_enabled: true

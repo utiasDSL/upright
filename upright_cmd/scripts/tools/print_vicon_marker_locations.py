@@ -8,6 +8,8 @@ import numpy as np
 import rospy
 from vicon_bridge.msg import Markers
 
+# TODO deprecate in favour of the mm_central script
+
 
 # positions to check
 POSITIONS = np.array([[0, 0.25, 1], [1.5, 1, 1], [-0.5, 2, 1]])

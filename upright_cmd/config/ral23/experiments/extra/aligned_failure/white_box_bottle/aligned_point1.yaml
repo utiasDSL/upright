@@ -8,12 +8,12 @@ include:
 
 
 simulation:
-  arrangement: cardboard_box_bottle
+  arrangement: white_cardboard_box_bottle
 
 controller:
   balancing:
     enabled: false
-    arrangement: cardboard_box_bottle
+    arrangement: white_cardboard_box_bottle
 
   inertial_alignment:
     constraint_enabled: true

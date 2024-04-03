@@ -4,16 +4,16 @@ include:
     path: config/ral23/experiments/extra/aligned_failure/_base.yaml
   -
     package: upright_cmd
-    path: config/ral23/experiments/_point3.yaml
+    path: config/ral23/experiments/_point2.yaml
 
 
 simulation:
-  arrangement: cardboard_box_bottle
+  arrangement: white_cardboard_box_bottle
 
 controller:
   balancing:
     enabled: false
-    arrangement: cardboard_box_bottle
+    arrangement: white_cardboard_box_bottle
 
   inertial_alignment:
     constraint_enabled: true

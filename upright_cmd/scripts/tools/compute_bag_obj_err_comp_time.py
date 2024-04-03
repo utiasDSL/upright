@@ -28,8 +28,8 @@ def vicon_object_topics(bag):
             return False
         if (
             topic.endswith("markers")
-            or topic.endswith("ThingBase")
-            or topic.endswith(TRAY_VICON_NAME)
+            or "ThingBase" in topic
+            or TRAY_VICON_NAME in topic
         ):
             return False
         return True
@@ -38,7 +38,7 @@ def vicon_object_topics(bag):
     if len(topics) == 0:
         print("No object topic found!")
     elif len(topics) > 1:
-        print("Multiple object topics found!")
+        raise ValueError("Multiple object topics found!")
     return topics[0]
 
 

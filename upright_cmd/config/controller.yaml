@@ -67,6 +67,10 @@ sqp:
     warm_start: true
     slacks:
       enabled: true
+      # upper_L2_penalty: 10000
+      # lower_L2_penalty: 10000
+      # upper_L1_penalty: 1
+      # lower_L1_penalty: 1
 
 balancing:
   arrangement: nothing
@@ -191,19 +195,6 @@ objects:
     shape: cuboid
     side_lengths: [0.065, 0.065, 0.065]
 
-  tall_box:
-    mass: 0.04
-    com_offset: [0, 0, 0]
-    shape: cuboid
-    side_lengths: [0.065, 0.065, 0.13]
-
-  really_tall_box:
-    mass: 0.5
-    com_offset: [0, 0, 0]
-    shape: cylinder
-    height: 0.205
-    radius: 0.035
-
   wedge:
     mass: 0.09
     com_offset: [0, 0, 0]
@@ -249,8 +240,16 @@ objects:
     com_offset: [0, 0, 0]
     mass: 0.1
 
-  cardboard_box:
+  white_cardboard_box:
     shape: cuboid
-    side_lengths: [0.16, 0.16, 0.32]
+    side_lengths: [0.11, 0.11, 0.275]
+    # side_lengths: [0.11, 0.11, 0.55]
+    # side_lengths: [0.09, 0.09, 0.275]
     com_offset: [0, 0, 0]
-    mass: 0.15
+    mass: 0.115
+
+  brown_cardboard_box:
+    shape: cuboid
+    side_lengths: [0.15, 0.15, 0.275]
+    com_offset: [0, 0, 0]
+    mass: 0.11

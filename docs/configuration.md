@@ -70,7 +70,8 @@ gravity: list of float, length 3    # gravity vector
 # upright uses OCS2's auto-differentiation + code generation to automatically
 # compute gradients of costs and constraints
 # set this to `true` to recompile each time, or `false` to skip this step.
-# Only set to `true` if running the same controller setup repeatedly.
+# Only set to `true` if running the same controller setup repeatedly (i.e.,
+# same object arrangments and constraints; the waypoints can change).
 recompile_libraries: bool
 
 # Enable extra debugging information. Currently, this is used to print and

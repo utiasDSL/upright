@@ -165,20 +165,6 @@ arrangements:
         mu: 0.2
         mu_margin: 0.02
 
-  tall_simulation_box:
-    objects:
-      -
-        name: bottle
-        type: tall_simulation_box
-        parent: ee
-    contacts:
-      -
-        first: ee
-        second: bottle
-        mu: 0.2
-        support_area_inset: 0.005
-        mu_margin: 0.02
-
   wedge:
     objects:
       -
@@ -310,19 +296,21 @@ arrangements:
         second: box
         mu: 0.5
 
-  cardboard_box_bottle:
+  white_cardboard_box_bottle:
     objects:
       -
         name: box
-        type: cardboard_box
+        type: white_cardboard_box
         parent: ee
         offset:
-          x: 0.06
+          x: 0.055
       -
         name: bottle
         type: pink_bottle
         parent: box
     contacts:
+      # NOTE: frictions not actually measured since I am only doing aligned and
+      # robust tests for now
       -
         first: ee
         second: box
@@ -333,5 +321,33 @@ arrangements:
         first: box
         second: bottle
         mu: 0.2  # TODO
+        mu_margin: 0.02
+        support_area_inset: 0.005
+
+  brown_cardboard_box_bottle:
+    objects:
+      -
+        name: box
+        type: brown_cardboard_box
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: bottle
+        type: pink_bottle
+        parent: box
+    contacts:
+      # NOTE: frictions not actually measured since I am only doing aligned and
+      # robust tests for now
+      -
+        first: ee
+        second: box
+        mu: 0.3
+        mu_margin: 0.03
+        support_area_inset: 0.005
+      -
+        first: box
+        second: bottle
+        mu: 0.2
         mu_margin: 0.02
         support_area_inset: 0.005

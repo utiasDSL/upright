@@ -4,10 +4,16 @@ include:
     path: config/ral23/simulations/_base.yaml
 
 simulation:
-  arrangement: tall_simulation_box
+  arrangement: tall_box
 
 controller:
   balancing:
     enabled: true
     frictionless: true
-    arrangement: tall_simulation_box
+    arrangement: tall_box
+
+  waypoints:
+    -
+      time: 0
+      position: [0.0, -2.0, 0.25]
+      orientation: [0, 0, 0, 1]

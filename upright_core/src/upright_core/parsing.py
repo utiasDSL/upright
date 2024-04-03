@@ -53,7 +53,7 @@ def load_config(path, depth=0, max_depth=5):
     includes_dict = {}
     for include in includes:
         path = parse_ros_path(include)
-        include_dict = load_config(path, depth=depth + 1)
+        include_dict = load_config(path, depth=depth + 1, max_depth=max_depth)
 
         # nest the include under `key` if specified
         if "key" in include:
