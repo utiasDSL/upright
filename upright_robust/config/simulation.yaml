@@ -35,3 +35,51 @@ objects:
     shape: cuboid
     side_lengths: [0.105, 0.105, 0.545]
     color: [1, 0, 0, 1]
+
+  tall_box:
+    shape: cuboid
+    mass: 1
+    side_lengths: [0.1, 0.1, 0.5]
+    com_offset: [0, 0.04, 0.25]
+    inertia_diag: [0.0025, 0.0025, 0.005]
+    color: [1, 0, 0, 0.9]
+
+  one_tall_box:
+    shape: cuboid
+    mass: 0.3
+    side_lengths: [0.1, 0.1, 0.2]
+    com_offset: [0, 0, 0]
+    # inertia_diag: [0.0025, 0.0025, 0.005]
+    color: [1, 0, 0, 0.9]
+
+  one_tall_box_heavy:
+    shape: cuboid
+    mass: 0.8
+    side_lengths: [0.1, 0.1, 0.2]
+    com_offset: [0, 0.04, 0]
+    # inertia_diag: [0.0025, 0.0025, 0.005]
+    color: [1, 0, 0, 0.9]
+
+  one_tall_box_light:
+    shape: cuboid
+    mass: 0.1
+    side_lengths: [0.1, 0.1, 0.2]
+    com_offset: [0, 0, 0]
+    # inertia_diag: [0.0025, 0.0025, 0.005]
+    color: [1, 0, 0, 0.9]
+
+  brown_cardboard_box3:
+    mass: 1.1
+    com_offset: [0, 0.06, 0.415]
+    inertia_diag: [0.0025, 0.0025, 0.005]
+    shape: cuboid
+    side_lengths: [0.15, 0.15, 0.83]  # 0.15 is a slight underestimate
+    color: [0.7, 0.53, 0.35, 1]
+
+  brown_cardboard_box2:
+    mass: 0.954
+    com_offset: [0, 0, 0.275]  # assume it is at the top
+    shape: cuboid
+    inertia_diag: [0.0025, 0.0025, 0.005]
+    side_lengths: [0.15, 0.15, 0.55]  # 0.15 is a slight underestimate
+    color: [0.7, 0.53, 0.35, 1]

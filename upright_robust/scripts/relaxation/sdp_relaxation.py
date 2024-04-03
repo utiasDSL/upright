@@ -22,15 +22,15 @@ import IPython
 # gravity constant
 g = 9.81
 
+# found these from simulation data
 V_MAX = 2.0
-ω_MAX = 1.0
-A_MAX = 2.0
-α_MAX = 1.0
-TILT_ANGLE_MAX = np.deg2rad(30)
+ω_MAX = 0.5
+A_MAX = 3.0
+α_MAX = 2.0
+TILT_ANGLE_MAX = np.deg2rad(15)
+MU_MAX = 0.01
 
-# can set to None to use the actual config values
-MU_REAL = 0.3
-MU_APPROX = 0.03
+MU_REAL = None
 
 
 def solve_constraint_elimination_sdp(
@@ -175,15 +175,17 @@ def solve_approx_inertia_sdp_dual(
             z == cp.vec(Λ),
 
             # we constrain z completely through Λ
-            cp.diag(Λ[:3, :3]) <= v_max**2,
-            cp.diag(Λ[3:, 3:]) <= ω_max**2,
+            # cp.diag(Λ[:3, :3]) <= v_max**2,
+            # cp.diag(Λ[3:, 3:]) <= ω_max**2,
+            cp.trace(Λ[:3, :3]) <= v_max**2,
+            cp.trace(Λ[3:, 3:]) <= ω_max**2,
 
-            Λ[:3, 3:] <= v_max * ω_max * np.ones((3, 3)),
+            # Λ[:3, 3:] <= v_max * ω_max * np.ones((3, 3)),
             # Λ[3:, 3:] <= ω_max**2 * np.ones((3, 3)),
 
             # gravity constraints
             cp.norm(G) <= g,
-            z_normal @ G <= -g * np.cos(tilt_angle_max),
+            G[2] <= -g * np.cos(tilt_angle_max),
 
             # adaptive tilting
             # NOTE this makes a very small difference
@@ -193,13 +195,13 @@ def solve_approx_inertia_sdp_dual(
             # rob.schur(W, ω) >> 0,
 
             # acceleration constraints
-            A[:3] >= -a_max,
-            A[:3] <= a_max,
-            A[3:] >= -α_max,
-            A[3:] <= α_max,
+            # A[:3] >= -a_max,
+            # A[:3] <= a_max,
+            # A[3:] >= -α_max,
+            # A[3:] <= α_max,
 
-            # cp.norm(A[:3]) <= a_max,
-            # cp.norm(A[3:]) <= α_max,
+            cp.norm(A[:3]) <= a_max,
+            cp.norm(A[3:]) <= α_max,
         ] + [
             # all of the approximate constraints
             R2[:, :-1] @ (Z.T @ z + Dg.T @ G + D.T @ A) <= 0.0
@@ -366,7 +368,7 @@ def solve_approx_inertia_sdp_primal(
 def verify_approx_inertia(ctrl_config):
     objects, contacts = rob.parse_objects_and_contacts(ctrl_config, mu=MU_REAL)
     objects_approx, contacts_approx = rob.parse_objects_and_contacts(
-        ctrl_config, approx_inertia=True, mu=MU_APPROX,
+        ctrl_config, approx_inertia=True, mu=MU_MAX,
     )
 
     names = list(objects.keys())

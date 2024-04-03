@@ -16,3 +16,237 @@ arrangements:
         second: block1
         mu: 0.2
         support_area_inset: 0.0
+
+  white_cardboard_box3_nominal:
+    objects:
+      -
+        name: box
+        type: white_cardboard_box3
+        parent: ee
+        offset:
+          x: 0.0525
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  brown_cardboard_box3_nominal:
+    objects:
+      -
+        name: box
+        type: brown_cardboard_box3
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  brown_cardboard_box3_robust:
+    objects:
+      -
+        name: box1
+        type: brown_cardboard_box3_1
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box2
+        type: brown_cardboard_box3_2
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box3
+        type: brown_cardboard_box3_3
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box4
+        type: brown_cardboard_box3_4
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.3
+        support_area_inset: 0.005
+      -
+        first: ee
+        second: box2
+        mu: 0.3
+        support_area_inset: 0.005
+      -
+        first: ee
+        second: box3
+        mu: 0.3
+        support_area_inset: 0.005
+      -
+        first: ee
+        second: box4
+        mu: 0.3
+        support_area_inset: 0.005
+
+  brown_cardboard_box2_nominal:
+    objects:
+      -
+        name: box
+        type: brown_cardboard_box2
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  brown_cardboard_box2_robust:
+    objects:
+      -
+        name: box1
+        type: brown_cardboard_box2_1
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box2
+        type: brown_cardboard_box2_2
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box3
+        type: brown_cardboard_box2_3
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box4
+        type: brown_cardboard_box2_4
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.3
+        support_area_inset: 0
+      -
+        first: ee
+        second: box2
+        mu: 0.3
+        support_area_inset: 0
+      -
+        first: ee
+        second: box3
+        mu: 0.3
+        support_area_inset: 0
+      -
+        first: ee
+        second: box4
+        mu: 0.3
+        support_area_inset: 0
+
+  tall_box_nominal:
+    objects:
+      -
+        name: box
+        type: tall_box
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.1
+        support_area_inset: 0.00
+        mu_margin: 0.0
+
+  tall_box_robust:
+    objects:
+      -
+        name: box1
+        type: tall_box1
+        parent: ee
+      -
+        name: box2
+        type: tall_box2
+        parent: ee
+      -
+        name: box3
+        type: tall_box3
+        parent: ee
+      -
+        name: box4
+        type: tall_box4
+        parent: ee
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.3
+        # support_area_inset: 0.005
+        mu_margin: 0.03
+      -
+        first: ee
+        second: box2
+        mu: 0.3
+        # support_area_inset: 0.005
+        mu_margin: 0.03
+      -
+        first: ee
+        second: box3
+        mu: 0.3
+        # support_area_inset: 0.005
+        mu_margin: 0.03
+      -
+        first: ee
+        second: box4
+        mu: 0.3
+        # support_area_inset: 0.005
+        mu_margin: 0.03
+
+  tall_box_stack:
+    objects:
+      -
+        name: box1
+        type: one_tall_box_light
+        parent: ee
+      -
+        name: box2
+        type: one_tall_box_light
+        parent: box1
+      -
+        name: box3
+        type: one_tall_box_heavy
+        parent: box2
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.3
+        # support_area_inset: 0.005
+        mu_margin: 0.03
+      -
+        first: box1
+        second: box2
+        mu: 0.3
+        # support_area_inset: 0.005
+        mu_margin: 0.03
+      -
+        first: box2
+        second: box3
+        mu: 0.3
+        # support_area_inset: 0.005
+        mu_margin: 0.03
+

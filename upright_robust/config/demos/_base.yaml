@@ -51,11 +51,30 @@ controller:
         use_collision: "true"
         transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
 
+  sqp:
+    hpipm:
+      slacks:
+        enabled: true
+        # upper_L2_penalty: 10000
+        # lower_L2_penalty: 10000
+        upper_L1_penalty: 1
+        lower_L1_penalty: 1
+
   balancing:
     enabled: true
+    frictionless: true
+    use_force_constraints: true
+    constraint_type: hard
+    force_weight: 0.001
+
+  # TODO get rid of eventually
+  reactive:
+    tilting: full
+    robust: true
+    face_form: true
 
   waypoints:
     -
       time: 0
-      position: [0, 2, 0]
+      position: [0.0, -2.0, 0.25]  # point 3
       orientation: [0, 0, 0, 1]
