@@ -9,10 +9,25 @@ import upright_robust.utils as utils
 
 
 def unit_H_min_max(bounding_box, com_box):
-    """Compute the element-wise extrema of the unit H matrix.
+    """Compute the element-wise extreme values of the unit H matrix.
 
     The unit H matrix the second moment matrix H normalized to correspond to
     unit mass.
+
+    Parameters
+    ----------
+    bounding_box : rg.Box
+        The bounding box of the entire object.
+    com_box : rg.Box
+        The bounding box for the object's center of mass. This box should be
+        fully contained within the object's bounding box.
+
+    Returns
+    -------
+    :
+        A tuple ``(H_min, H_max)``, where ``H_min`` is a matrix containing the
+        minimum values of the elements of H, and ``H_max`` contains the maximum
+        values.
     """
     J = cp.Variable((4, 4), PSD=True)
     H = J[:3, :3]
@@ -20,7 +35,7 @@ def unit_H_min_max(bounding_box, com_box):
     m = J[3, 3]
 
     constraints = (
-        [m == 1.0]
+        [m == 1.0]  # normalized mass
         + com_box.must_contain(points=h, scale=m)
         + bounding_box.must_realize(J)
     )
@@ -42,13 +57,19 @@ def unit_H_min_max(bounding_box, com_box):
             H_min[j, i] = objective.value
 
     # we know the diagonal must be non-negative, but small numerical errors in
-    # the solvers can cause that to fail, which CDD doesn't like
+    # the solvers can cause that to fail, which CDD doesn't like, so we
+    # manually clamp to zero here
     np.fill_diagonal(H_min, np.maximum(np.diag(H_min), 0))
 
     return H_min, H_max
 
 
 def unit_vec2_max(bounding_box, com_box):
+    """Compute the maximum squared values of the mass-normalized inertial
+    parameter vector.
+
+    Note that the resulting values are always positive since they are squares.
+    """
     J = cp.Variable((4, 4), PSD=True)
     θ = cp.Variable(10)
 
@@ -88,7 +109,7 @@ def unit_vec2_max(bounding_box, com_box):
 class RobustContactPoint:
     def __init__(self, contact):
         # TODO eventually we can merge this functionality into the base
-        # ContactPoint class directly
+        # ContactPoint class from upright directly
         self.contact = contact
         self.normal = contact.normal
         self.span = contact.span
@@ -102,14 +123,13 @@ class RobustContactPoint:
         # (this is the negative of the face form)
         # TODO make negative to be consistent with face form
         # fmt: off
-        P = np.vstack((self.normal, self.span))
         self.F = np.array([
             [1,  0,  0],
             [μ, -1, -1],
             [μ,  1, -1],
             [μ, -1,  1],
             [μ,  1,  1],
-        ]) @ P
+        ]) @ np.vstack((self.normal, self.span))
         # fmt: on
 
         # span (generator) form matrix FC = {Sz | z >= 0}
@@ -210,7 +230,7 @@ class ObjectBounds:
     def com_box(self, c):
         return rg.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
 
-    def polytope(self, m, c, J):
+    def polytope(self, m, c, I):
         """Build the polytope containing the inertial parameters given the
         nominal values.
 
@@ -220,7 +240,7 @@ class ObjectBounds:
             The nominal mass.
         c : np.ndarray, shape (3,)
             The nominal center of mass.
-        J : np.ndarray, shape (3, 3)
+        I : np.ndarray, shape (3, 3)
             The nominal inertia matrix.
 
         Returns
@@ -228,18 +248,19 @@ class ObjectBounds:
         : tuple
             A tuple (P, p) with matrix P and vector p such that Pθ <= p.
         """
-        Jvec = utils.vech(J)
+        Ivec = utils.vech(I)
 
         # mass bounds
+        # TODO can we get rid of these?
         P_m = np.hstack(([[-1], [1]], np.zeros((2, 9))))
         p_m = np.array([-(m + self.mass_lower), m + self.mass_upper])
 
         # CoM bounds
-        I3 = np.eye(3)
+        E3 = np.eye(3)
         P_h = np.block(
             [
-                [(c + self.com_lower)[:, None], -I3, np.zeros((3, 6))],
-                [-(c + self.com_upper)[:, None], I3, np.zeros((3, 6))],
+                [(c + self.com_lower)[:, None], -E3, np.zeros((3, 6))],
+                [-(c + self.com_upper)[:, None], E3, np.zeros((3, 6))],
             ]
         )
         p_h = np.zeros(6)
@@ -247,69 +268,60 @@ class ObjectBounds:
         # inertia bounds
         if self.approx_inertia:
             # assume gyration matrix is fixed
-            Gvec = Jvec / m  # vectorized gyration matrix
+            Gvec = Ivec / m  # vectorized gyration matrix
 
-            P_J = np.zeros((12, 10))
-            p_J = np.zeros(12)
+            P_I = np.zeros((12, 10))
+            p_I = np.zeros(12)
 
             # vech(I) == m * Gvec
-            P_J[:6, 4:] = -np.eye(6)
-            P_J[:6, 0] = Gvec
-            P_J[6:, 4:] = np.eye(6)
-            P_J[6:, 0] = -Gvec
+            P_I[:6, 4:] = -np.eye(6)
+            P_I[:6, 0] = Gvec
+            P_I[6:, 4:] = np.eye(6)
+            P_I[6:, 0] = -Gvec
         else:
             # otherwise we assume no prior knowledge on inertia except object
             # bounding shapes; only constraints required for realizability
-            P_J = np.zeros((13, 10))
-            p_J = np.zeros(13)
+            P_I = np.zeros((13, 10))
+            p_I = np.zeros(13)
 
-            # bounding_box = rg.Box(half_extents=self.box_half_extents, center=c)
-            # com_box = rg.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
             H_min, H_max = unit_H_min_max(self.bounding_box(c), self.com_box(c))
 
             # H diagonal bounds
             # diag(H) >= diag(H)_min
-            P_J[0, :] = [H_min[0, 0], 0, 0, 0, 0.5, 0, 0, -0.5, 0, -0.5]  # -Hxx
-            P_J[1, :] = [H_min[1, 1], 0, 0, 0, -0.5, 0, 0, 0.5, 0, -0.5]  # -Hyy
-            P_J[2, :] = [H_min[2, 2], 0, 0, 0, -0.5, 0, 0, -0.5, 0, 0.5]  # -Hzz
+            P_I[0, :] = [H_min[0, 0], 0, 0, 0, 0.5, 0, 0, -0.5, 0, -0.5]  # -Hxx
+            P_I[1, :] = [H_min[1, 1], 0, 0, 0, -0.5, 0, 0, 0.5, 0, -0.5]  # -Hyy
+            P_I[2, :] = [H_min[2, 2], 0, 0, 0, -0.5, 0, 0, -0.5, 0, 0.5]  # -Hzz
 
             # diag(H) <= diag(H)_max
-            P_J[3, :] = [-H_max[0, 0], 0, 0, 0, -0.5, 0, 0, 0.5, 0, 0.5]  # Hxx
-            P_J[4, :] = [-H_max[1, 1], 0, 0, 0, 0.5, 0, 0, -0.5, 0, 0.5]  # Hyy
-            P_J[5, :] = [-H_max[2, 2], 0, 0, 0, 0.5, 0, 0, 0.5, 0, -0.5]  # Hzz
+            P_I[3, :] = [-H_max[0, 0], 0, 0, 0, -0.5, 0, 0, 0.5, 0, 0.5]  # Hxx
+            P_I[4, :] = [-H_max[1, 1], 0, 0, 0, 0.5, 0, 0, -0.5, 0, 0.5]  # Hyy
+            P_I[5, :] = [-H_max[2, 2], 0, 0, 0, 0.5, 0, 0, 0.5, 0, -0.5]  # Hzz
 
             # off-diagonal H values
-            P_J[6, :] = [H_min[0, 1], 0, 0, 0, 0, 1, 0, 0, 0, 0]  # -Hxy
-            P_J[7, :] = [H_min[0, 2], 0, 0, 0, 0, 0, 1, 0, 0, 0]  # -Hxz
-            P_J[8, :] = [H_min[1, 2], 0, 0, 0, 0, 0, 0, 0, 1, 0]  # -Hyz
+            P_I[6, :] = [H_min[0, 1], 0, 0, 0, 0, 1, 0, 0, 0, 0]  # -Hxy
+            P_I[7, :] = [H_min[0, 2], 0, 0, 0, 0, 0, 1, 0, 0, 0]  # -Hxz
+            P_I[8, :] = [H_min[1, 2], 0, 0, 0, 0, 0, 0, 0, 1, 0]  # -Hyz
 
-            P_J[9, :] = [-H_max[0, 1], 0, 0, 0, 0, -1, 0, 0, 0, 0]  # Hxy
-            P_J[10, :] = [-H_max[0, 2], 0, 0, 0, 0, 0, -1, 0, 0, 0]  # Hxz
-            P_J[11, :] = [-H_max[1, 2], 0, 0, 0, 0, 0, 0, 0, -1, 0]  # Hyz
+            P_I[9, :] = [-H_max[0, 1], 0, 0, 0, 0, -1, 0, 0, 0, 0]  # Hxy
+            P_I[10, :] = [-H_max[0, 2], 0, 0, 0, 0, 0, -1, 0, 0, 0]  # Hxz
+            P_I[11, :] = [-H_max[1, 2], 0, 0, 0, 0, 0, 0, 0, -1, 0]  # Hyz
 
             # ellipsoid density realizability
             # tr(ΠQ) >= 0
             ell = self.bounding_ellipsoid()
-            P_J[12, :] = [-np.trace(A @ ell.Q) for A in utils.pim_sum_vec_matrices()]
-
-            # TODO why does this make less constraints negative than the
-            # ellipsoidal constraint?
-            # box density realizability
-            # As = utils.pim_sum_vec_matrices()
-            # Es = bounding_box._ellipsoids
-            # P_J[12, :] = [-np.trace(A @ Es[0].Q) for A in As]
-            # P_J[13, :] = [-np.trace(A @ Es[1].Q) for A in As]
-            # P_J[14, :] = [-np.trace(A @ Es[2].Q) for A in As]
+            P_I[12, :] = [-np.trace(A @ ell.Q) for A in utils.pim_sum_vec_matrices()]
 
         # combined bounds
-        P = np.vstack((P_m, P_h, P_J))
-        p = np.concatenate((p_m, p_h, p_J))
+        P = np.vstack((P_m, P_h, P_I))
+        p = np.concatenate((p_m, p_h, p_I))
         return P, p
 
-    def unit_vec2_max(self, m, c, J):
+    def unit_vec2_max(self, m, c, I):
         return unit_vec2_max(self.bounding_box(c), self.com_box(c))
 
 
+# TODO in principle this could be a composition of an rg.RigidBody and the
+# inertial parameter bounds?
 class UncertainObject:
     def __init__(self, obj, bounds=None, compute_bounds=True):
         self.object = obj
@@ -333,7 +345,6 @@ class UncertainObject:
         # fmt: on
 
         # polytopic parameter uncertainty: Pθ <= p
-        # TODO still may be bugs in the controller since I switched from Pθ >= p
         if compute_bounds:
             self.P, self.p = bounds.polytope(m, c, I)
 
@@ -343,15 +354,16 @@ class UncertainObject:
             self.com_box = bounds.com_box(c)
 
             # use a fixed inertia value for approx_inertia case
-            # self.unit_vec2_max = bounds.unit_vec2_max(m, c, I)
-            # if bounds.approx_inertia:
-            #     self.unit_vec2_max[-6:] = utils.vech(I)
+            self.unit_vec2_max = bounds.unit_vec2_max(m, c, I)
+            if bounds.approx_inertia:
+                self.unit_vec2_max[-6:] = utils.vech(I)
 
             # nominal inertial parameter vector
-            if bounds.approx_inertia:
-                self.θ_nom = np.concatenate(([m], m * c, utils.vech(I)))
-            else:
-                self.θ_nom = np.concatenate(([m], m * c, utils.vech(-m * Sc @ Sc)))
+            # NOTE: unused, previously part of primal relaxation approach
+            # if bounds.approx_inertia:
+            #     self.θ_nom = np.concatenate(([m], m * c, utils.vech(I)))
+            # else:
+            #     self.θ_nom = np.concatenate(([m], m * c, utils.vech(-m * Sc @ Sc)))
 
     def bias(self, V):
         """Compute Coriolis and centrifugal terms."""
@@ -361,21 +373,20 @@ class UncertainObject:
         """Compute the body-frame inertial wrench."""
         return self.M @ A + self.bias(V)
 
-    def inertial_com_wrench(self, C_we, A_ew_w, V_ew_w):
-        # NOTE gravity needs to be included in A_ew_w
-        m = self.body.mass
-        c = self.body.com
-        I = self.body.inertia
-
-        α_ew_e = C_we.T @ A_ew_w[3:]
-        ω_ew_e = C_we.T @ V_ew_w[3:]
-        Sα = core.math.skew3(A_ew_w[3:])
-        Sω = core.math.skew3(V_ew_w[3:])
-        ddC_we = (Sα + Sω @ Sω) @ C_we
-        f = m * C_we.T @ (A_ew_w[:3] + ddC_we @ c)
-        τ = I @ α_ew_e + np.cross(ω_ew_e, I @ ω_ew_e)
-        return np.concatenate((f, τ))
-
+    # def inertial_com_wrench(self, C_we, A_ew_w, V_ew_w):
+    #     # NOTE gravity needs to be included in A_ew_w
+    #     m = self.body.mass
+    #     c = self.body.com
+    #     I = self.body.inertia
+    #
+    #     α_ew_e = C_we.T @ A_ew_w[3:]
+    #     ω_ew_e = C_we.T @ V_ew_w[3:]
+    #     Sα = core.math.skew3(A_ew_w[3:])
+    #     Sω = core.math.skew3(V_ew_w[3:])
+    #     ddC_we = (Sα + Sω @ Sω) @ C_we
+    #     f = m * C_we.T @ (A_ew_w[:3] + ddC_we @ c)
+    #     τ = I @ α_ew_e + np.cross(ω_ew_e, I @ ω_ew_e)
+    #     return np.concatenate((f, τ))
 
 
 def compute_object_name_index(names):
