@@ -248,7 +248,7 @@ class ObjectBounds:
         : tuple
             A tuple (P, p) with matrix P and vector p such that Pθ <= p.
         """
-        Ivec = utils.vech(I)
+        Ivec = rg.vech(I)
 
         # mass bounds
         # TODO can we get rid of these?
@@ -309,7 +309,7 @@ class ObjectBounds:
             # ellipsoid density realizability
             # tr(ΠQ) >= 0
             ell = self.bounding_ellipsoid()
-            P_I[12, :] = [-np.trace(A @ ell.Q) for A in utils.pim_sum_vec_matrices()]
+            P_I[12, :] = [-np.trace(A @ ell.Q) for A in rg.pim_sum_vec_matrices()]
 
         # combined bounds
         P = np.vstack((P_m, P_h, P_I))
@@ -356,18 +356,18 @@ class UncertainObject:
             # use a fixed inertia value for approx_inertia case
             self.unit_vec2_max = bounds.unit_vec2_max(m, c, I)
             if bounds.approx_inertia:
-                self.unit_vec2_max[-6:] = utils.vech(I)
+                self.unit_vec2_max[-6:] = rg.vech(I)
 
             # nominal inertial parameter vector
             # NOTE: unused, previously part of primal relaxation approach
             # if bounds.approx_inertia:
-            #     self.θ_nom = np.concatenate(([m], m * c, utils.vech(I)))
+            #     self.θ_nom = np.concatenate(([m], m * c, rg.vech(I)))
             # else:
-            #     self.θ_nom = np.concatenate(([m], m * c, utils.vech(-m * Sc @ Sc)))
+            #     self.θ_nom = np.concatenate(([m], m * c, rg.vech(-m * Sc @ Sc)))
 
     def bias(self, V):
         """Compute Coriolis and centrifugal terms."""
-        return utils.skew6(V) @ self.M @ V
+        return rg.skew6(V) @ self.M @ V
 
     def wrench(self, A, V):
         """Compute the body-frame inertial wrench."""
@@ -426,7 +426,7 @@ def compute_cwc_face_form(name_index, contacts):
     H = W @ S
 
     # convert the whole contact wrench cone to face form
-    A = utils.span_to_face_form(H)
+    A = utils.cone_span_to_face_form(H)
 
     # Aw <= 0 implies there exist feasible contact forces to support wrench w
     return A

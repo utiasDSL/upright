@@ -4,6 +4,8 @@ import pytest
 import numpy as np
 import pinocchio
 
+import rigeo as rg
+
 import upright_robust as rob
 
 
@@ -14,7 +16,7 @@ def test_regressor():
     V = np.random.random(6)
     A = np.random.random(6)
 
-    Y = rob.body_regressor(V, A)
+    Y = rg.RigidBody.regressor(V, A)
 
     # compare to pinocchio's implementation
     # pinocchio orders the inertia matrix parameters with I_xz and I_yy swapped
@@ -38,7 +40,7 @@ def test_regressor_decomposition():
     A = np.random.random(6)
     f = np.random.random(6)
 
-    Y = rob.body_regressor(V, A - G)
+    Y = rg.RigidBody.regressor(V, A - G)
     D = rob.body_regressor_A_by_vector(f)
     d = rob.body_regressor_VG_by_vector(V, G, f)
 
@@ -60,7 +62,7 @@ def test_regressor_decomposition_multi():
     f3 = np.random.random(6)
     f = np.concatenate((f1, f2, f3))
 
-    Y = rob.body_regressor(V, A - G)
+    Y = rg.RigidBody.regressor(V, A - G)
     D = rob.body_regressor_A_by_vector(f)
     d = rob.body_regressor_VG_by_vector(V, G, f)
 

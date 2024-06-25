@@ -58,7 +58,7 @@ def solve_constraint_elimination_sdp(
 
     P_tilde = rob.compute_P_tilde_matrix(obj.P, obj.p)
 
-    R = rob.span_to_face_form(P_tilde.T)
+    R = rob.cone_span_to_face_form(P_tilde.T)
 
     z_normal = np.array([0, 0, 1])
 
@@ -150,11 +150,11 @@ def solve_approx_inertia_sdp_dual(
     # IPython.embed()
 
     P1_tilde = rob.compute_P_tilde_matrix(obj1.P, obj1.p)
-    R1 = rob.span_to_face_form(P1_tilde.T)
+    R1 = rob.cone_span_to_face_form(P1_tilde.T)
     R1 = R1 / np.max(np.abs(R1))  # fixes some scaling issues
 
     P2_tilde = rob.compute_P_tilde_matrix(obj2.P, obj2.p)
-    R2 = rob.span_to_face_form(P2_tilde.T)
+    R2 = rob.cone_span_to_face_form(P2_tilde.T)
     R2 = R2 / np.max(np.abs(R2))
 
     z_normal = np.array([0, 0, 1])
@@ -319,7 +319,7 @@ def solve_approx_inertia_sdp_primal(
         Xm2 <= obj1.mass_max**2,
         Xm2 >= obj1.mass_min**2,
 
-        # cp.diag(Xθ[1:, 1:]) <= Xm2 * obj1.unit_vec2_max[1:],
+        cp.diag(Xθ[1:, 1:]) <= Xm2 * obj1.unit_vec2_max[1:],
 
         # TODO what if I don't care about mass?
         m <= obj1.mass_max,
@@ -332,7 +332,7 @@ def solve_approx_inertia_sdp_primal(
     # optimization problem explicitly: any bounds would just be used to push up
     # the constraint further, which is not what we want
     P2_tilde = rob.compute_P_tilde_matrix(obj2.P, obj2.p)
-    R2 = rob.span_to_face_form(P2_tilde.T)
+    R2 = rob.cone_span_to_face_form(P2_tilde.T)
     for i in range(F2.shape[0]):
         fi = F2[i, :]
         Zi = rob.body_regressor_by_vector_velocity_matrix(fi)
@@ -379,8 +379,8 @@ def verify_approx_inertia(ctrl_config):
 
     names = list(objects.keys())
     name_index = rob.compute_object_name_index(names)
-    F = rob.compute_cwc_face_form(name_index, contacts)
-    F_approx = rob.compute_cwc_face_form(name_index, contacts_approx)
+    H = rob.compute_cwc_face_form(name_index, contacts)
+    H_approx = rob.compute_cwc_face_form(name_index, contacts_approx)
 
     # TODO should be reasonably straightforward to extend to multiple objects
     # just need to construct the correct (P, p) polytope data here
@@ -389,13 +389,13 @@ def verify_approx_inertia(ctrl_config):
 
     print("We want all constraints negative.")
 
-    for i in range(F.shape[0]):
+    for i in range(H.shape[0]):
         print(i + 1)
-        f = F[i, :]
-        # relaxed_dual = solve_approx_inertia_sdp_dual(obj, obj_approx, f, F_approx, verbose=True)
-        relaxed_primal = solve_approx_inertia_sdp_primal(
-            obj, obj_approx, f, F_approx, verbose=True
-        )
+        hi = H[i, :]
+        relaxed_dual = solve_approx_inertia_sdp_dual(obj, obj_approx, hi, H_approx, verbose=True)
+        # relaxed_primal = solve_approx_inertia_sdp_primal(
+        #     obj, obj_approx, hi, H_approx, verbose=True
+        # )
 
 
 def check_elimination(ctrl_config):
