@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.10.2)
 project(upright_robust)
 
-add_compile_options(-std=c++14)
-find_package(catkin REQUIRED COMPONENTS pybind11_catkin upright_core)
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+# add_compile_options(-std=c++14)
+# find_package(catkin REQUIRED COMPONENTS pybind11_catkin upright_core)
+# find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 
 ###################################
@@ -15,12 +15,12 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(
-  INCLUDE_DIRS include
-  # LIBRARIES ${PROJECT_NAME}
-  # CATKIN_DEPENDS pybind11_catkin
-  # DEPENDS system_lib
-)
+# catkin_package(
+#   INCLUDE_DIRS include
+#   # LIBRARIES ${PROJECT_NAME}
+#   # CATKIN_DEPENDS pybind11_catkin
+#   # DEPENDS system_lib
+# )
 
 ###########
 ## Build ##
@@ -28,16 +28,16 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(
-  include
-  ${upright_core_INCLUDE_DIRS}
-  ${catkin_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS}
-)
+# include_directories(
+#   include
+#   ${upright_core_INCLUDE_DIRS}
+#   ${catkin_INCLUDE_DIRS}
+#   ${EIGEN3_INCLUDE_DIRS}
+# )
 
-pybind11_add_module(bindings SHARED
-  src/pybindings.cpp
-)
+# pybind11_add_module(bindings SHARED
+#   src/pybindings.cpp
+# )
 
 catkin_python_setup()
 
@@ -45,10 +45,10 @@ catkin_python_setup()
 ## Install ##
 #############
 
-install(TARGETS bindings
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
-)
-set_target_properties(bindings
-    PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
-)
+# install(TARGETS bindings
+#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
+#   LIBRARY DESTINATION ${CATKIN_PACKAGE_PYTHON_DESTINATION}
+# )
+# set_target_properties(bindings
+#     PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
+# )

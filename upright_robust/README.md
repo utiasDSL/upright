@@ -30,12 +30,13 @@ If `reactive.face_form=true`, the face form of the robust constraints is used
 
 To remove all balancing constraints, set `balancing.enabled=false`.
 
-
 ## SDP relaxation
 
 The work on SDP relaxations can be found in `scripts/relaxation`. The
 relaxations integrated with the config files can be found in
-`dual_sdp_relaxation_integrated.py`.
+`sdp_relaxation.py`. Use `--verify` to verify that a single approximate inertia
+value with always hold, or use `--elimination` to detect redundant constraints
+that can be eliminated.
 
 ## Simulation
 

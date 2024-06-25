@@ -57,6 +57,7 @@ def solve_constraint_elimination_sdp(
     nz = Z.shape[0]
 
     P_tilde = rob.compute_P_tilde_matrix(obj.P, obj.p)
+
     R = rob.span_to_face_form(P_tilde.T)
 
     z_normal = np.array([0, 0, 1])
@@ -144,6 +145,9 @@ def solve_approx_inertia_sdp_dual(
     nv = 6
     ng = 3
     nz = Z.shape[0]
+
+    # poly = rg.ConvexPolyhedron.from_halfspaces(A=obj1.P, b=obj1.p, prune=True)
+    # IPython.embed()
 
     P1_tilde = rob.compute_P_tilde_matrix(obj1.P, obj1.p)
     R1 = rob.span_to_face_form(P1_tilde.T)
@@ -314,8 +318,10 @@ def solve_approx_inertia_sdp_primal(
         # see also the additional constraints added to the end of the list
         Xm2 <= obj1.mass_max**2,
         Xm2 >= obj1.mass_min**2,
-        cp.diag(Xθ[1:, 1:]) <= Xm2 * obj1.unit_vec2_max[1:],
 
+        # cp.diag(Xθ[1:, 1:]) <= Xm2 * obj1.unit_vec2_max[1:],
+
+        # TODO what if I don't care about mass?
         m <= obj1.mass_max,
         m >= obj1.mass_min,
         Π == rg.pim_must_equal_vec(θ),
@@ -386,10 +392,10 @@ def verify_approx_inertia(ctrl_config):
     for i in range(F.shape[0]):
         print(i + 1)
         f = F[i, :]
-        relaxed = solve_approx_inertia_sdp_dual(obj, obj_approx, f, F_approx, verbose=True)
-        # relaxed = solve_approx_inertia_sdp_primal(
-        #     obj, obj_approx, f, F_approx, verbose=True
-        # )
+        # relaxed_dual = solve_approx_inertia_sdp_dual(obj, obj_approx, f, F_approx, verbose=True)
+        relaxed_primal = solve_approx_inertia_sdp_primal(
+            obj, obj_approx, f, F_approx, verbose=True
+        )
 
 
 def check_elimination(ctrl_config):

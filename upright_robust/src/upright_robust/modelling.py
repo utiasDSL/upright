@@ -2,7 +2,6 @@ import numpy as np
 import cvxpy as cp
 from scipy.linalg import block_diag
 
-# TODO probably don't want this dependency at the moment
 import rigeo as rg
 
 import upright_core as core

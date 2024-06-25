@@ -1,3 +1,4 @@
+# TODO: clean this up or get rid of it
 import numpy as np
 
 import upright_core as core

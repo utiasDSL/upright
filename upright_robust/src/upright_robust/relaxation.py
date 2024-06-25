@@ -7,6 +7,7 @@ from .utils import (
 )
 
 
+# TODO can I use the implementation from rigeo?
 def schur(X, x):
     y = cp.reshape(x, (x.shape[0], 1))
     return cp.bmat([[X, y], [y.T, [[1]]]])
