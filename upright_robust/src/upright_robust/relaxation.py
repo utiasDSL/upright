@@ -7,13 +7,9 @@ from .utils import (
 )
 
 
-# TODO can I use the implementation from rigeo?
-def schur(X, x):
-    y = cp.reshape(x, (x.shape[0], 1))
-    return cp.bmat([[X, y], [y.T, [[1]]]])
-
-
 def compute_Q_matrix(f):
+    """Compute Q matrix of the primal SDP relaxation, such that the objective
+    is ``minimize 0.5 * tr(Q @ X)``."""
     D = body_regressor_by_vector_acceleration_matrix(f)
     Dg = -D[:3, :]
     Z = body_regressor_by_vector_velocity_matrix(f)

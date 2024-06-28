@@ -64,6 +64,54 @@ def unit_H_min_max(bounding_box, com_box):
     return H_min, H_max
 
 
+def unit_I_min_max(bounding_box, com_box):
+    """Compute the element-wise extreme values of the unit inertia (gyration) matrix.
+
+    Parameters
+    ----------
+    bounding_box : rg.Box
+        The bounding box of the entire object.
+    com_box : rg.Box
+        The bounding box for the object's center of mass. This box should be
+        fully contained within the object's bounding box.
+
+    Returns
+    -------
+    :
+        A tuple ``(I_min, I_max)``, where ``I_min`` is a matrix containing the
+        minimum values of the elements of I, and ``I_max`` contains the maximum
+        values.
+    """
+    J = cp.Variable((4, 4), PSD=True)
+    H = J[:3, :3]
+    h = J[:3, 3]
+    m = J[3, 3]
+    I = cp.trace(H) * np.eye(3) - H
+
+    constraints = (
+        [m == 1.0]  # normalized mass
+        + com_box.must_contain(points=h, scale=m)
+        + bounding_box.must_realize(J)
+    )
+
+    I_min = np.zeros((3, 3))
+    I_max = np.zeros((3, 3))
+    for i in range(3):
+        for j in range(i, 3):
+            objective = cp.Maximize(I[i, j])
+            problem = cp.Problem(objective, constraints)
+            problem.solve(solver=cp.MOSEK)
+            I_max[i, j] = objective.value
+            I_max[j, i] = objective.value
+
+    # we know the diagonal must be non-negative, but small numerical errors in
+    # the solvers can cause that to fail, which CDD doesn't like, so we
+    # manually clamp to zero here
+    np.fill_diagonal(I_min, np.maximum(np.diag(I_min), 0))
+
+    return I_min, I_max
+
+
 def unit_vec2_max(bounding_box, com_box):
     """Compute the maximum squared values of the mass-normalized inertial
     parameter vector.
@@ -283,28 +331,55 @@ class ObjectBounds:
             # bounding shapes; only constraints required for realizability
             P_I = np.zeros((13, 10))
             p_I = np.zeros(13)
+            # P_I = np.zeros((1, 10))
+            # p_I = np.zeros(1)
 
-            H_min, H_max = unit_H_min_max(self.bounding_box(c), self.com_box(c))
+            # using constraints on I is not as tight!
+            USE_I_CONSTRAINTS = False
+            if USE_I_CONSTRAINTS:
+                I_min, I_max = unit_I_min_max(self.bounding_box(c), self.com_box(c))
 
-            # H diagonal bounds
-            # diag(H) >= diag(H)_min
-            P_I[0, :] = [H_min[0, 0], 0, 0, 0, 0.5, 0, 0, -0.5, 0, -0.5]  # -Hxx
-            P_I[1, :] = [H_min[1, 1], 0, 0, 0, -0.5, 0, 0, 0.5, 0, -0.5]  # -Hyy
-            P_I[2, :] = [H_min[2, 2], 0, 0, 0, -0.5, 0, 0, -0.5, 0, 0.5]  # -Hzz
+                # H diagonal bounds
+                # diag(I) >= diag(I)_min
+                P_I[0, :] = [I_min[0, 0], 0, 0, 0, -1, 0, 0, 0, 0, 0]  # -Ixx
+                P_I[1, :] = [I_min[1, 1], 0, 0, 0, 0, 0, 0, -1, 0, 0]  # -Iyy
+                P_I[2, :] = [I_min[2, 2], 0, 0, 0, 0, 0, 0, 0, 0, -1]  # -Izz
 
-            # diag(H) <= diag(H)_max
-            P_I[3, :] = [-H_max[0, 0], 0, 0, 0, -0.5, 0, 0, 0.5, 0, 0.5]  # Hxx
-            P_I[4, :] = [-H_max[1, 1], 0, 0, 0, 0.5, 0, 0, -0.5, 0, 0.5]  # Hyy
-            P_I[5, :] = [-H_max[2, 2], 0, 0, 0, 0.5, 0, 0, 0.5, 0, -0.5]  # Hzz
+                # diag(I) <= diag(I)_max
+                P_I[3, :] = [-I_max[0, 0], 0, 0, 0, 1, 0, 0, 0, 0, 0]  # Ixx
+                P_I[4, :] = [-I_max[1, 1], 0, 0, 0, 0, 0, 0, 1, 0, 0]  # Iyy
+                P_I[5, :] = [-I_max[2, 2], 0, 0, 0, 0, 0, 0, 0, 0, 1]  # Izz
 
-            # off-diagonal H values
-            P_I[6, :] = [H_min[0, 1], 0, 0, 0, 0, 1, 0, 0, 0, 0]  # -Hxy
-            P_I[7, :] = [H_min[0, 2], 0, 0, 0, 0, 0, 1, 0, 0, 0]  # -Hxz
-            P_I[8, :] = [H_min[1, 2], 0, 0, 0, 0, 0, 0, 0, 1, 0]  # -Hyz
+                # off-diagonal I values
+                P_I[6, :] = [I_min[0, 1], 0, 0, 0, 0, -1, 0, 0, 0, 0]  # -Ixy
+                P_I[7, :] = [I_min[0, 2], 0, 0, 0, 0, 0, -1, 0, 0, 0]  # -Ixz
+                P_I[8, :] = [I_min[1, 2], 0, 0, 0, 0, 0, 0, 0, -1, 0]  # -Iyz
 
-            P_I[9, :] = [-H_max[0, 1], 0, 0, 0, 0, -1, 0, 0, 0, 0]  # Hxy
-            P_I[10, :] = [-H_max[0, 2], 0, 0, 0, 0, 0, -1, 0, 0, 0]  # Hxz
-            P_I[11, :] = [-H_max[1, 2], 0, 0, 0, 0, 0, 0, 0, -1, 0]  # Hyz
+                P_I[9, :] = [-I_max[0, 1], 0, 0, 0, 0, 1, 0, 0, 0, 0]  # Ixy
+                P_I[10, :] = [-I_max[0, 2], 0, 0, 0, 0, 0, 1, 0, 0, 0]  # Ixz
+                P_I[11, :] = [-I_max[1, 2], 0, 0, 0, 0, 0, 0, 0, 1, 0]  # Iyz
+            else:
+                H_min, H_max = unit_H_min_max(self.bounding_box(c), self.com_box(c))
+
+                # H diagonal bounds
+                # diag(H) >= diag(H)_min
+                P_I[0, :] = [H_min[0, 0], 0, 0, 0, 0.5, 0, 0, -0.5, 0, -0.5]  # -Hxx
+                P_I[1, :] = [H_min[1, 1], 0, 0, 0, -0.5, 0, 0, 0.5, 0, -0.5]  # -Hyy
+                P_I[2, :] = [H_min[2, 2], 0, 0, 0, -0.5, 0, 0, -0.5, 0, 0.5]  # -Hzz
+
+                # diag(H) <= diag(H)_max
+                P_I[3, :] = [-H_max[0, 0], 0, 0, 0, -0.5, 0, 0, 0.5, 0, 0.5]  # Hxx
+                P_I[4, :] = [-H_max[1, 1], 0, 0, 0, 0.5, 0, 0, -0.5, 0, 0.5]  # Hyy
+                P_I[5, :] = [-H_max[2, 2], 0, 0, 0, 0.5, 0, 0, 0.5, 0, -0.5]  # Hzz
+
+                # off-diagonal H values
+                P_I[6, :] = [H_min[0, 1], 0, 0, 0, 0, 1, 0, 0, 0, 0]  # -Hxy
+                P_I[7, :] = [H_min[0, 2], 0, 0, 0, 0, 0, 1, 0, 0, 0]  # -Hxz
+                P_I[8, :] = [H_min[1, 2], 0, 0, 0, 0, 0, 0, 0, 1, 0]  # -Hyz
+
+                P_I[9, :] = [-H_max[0, 1], 0, 0, 0, 0, -1, 0, 0, 0, 0]  # Hxy
+                P_I[10, :] = [-H_max[0, 2], 0, 0, 0, 0, 0, -1, 0, 0, 0]  # Hxz
+                P_I[11, :] = [-H_max[1, 2], 0, 0, 0, 0, 0, 0, 0, -1, 0]  # Hyz
 
             # ellipsoid density realizability
             # tr(ΠQ) >= 0

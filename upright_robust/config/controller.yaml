@@ -35,7 +35,8 @@ objects:
     side_lengths: [0.105, 0.105, 0.545]
 
     # bounds are all relative to the nominal values above
-    # these are the bounds actually enforced by the QP-based controller
+    # these are the bounds actually enforced by the controller along with fixed
+    # value of the inertia matrix
     bounds_approx_inertia:
       # com_lower: [-0.01, -0.01, 0]
       # com_upper: [0.01, 0.01, 0]
@@ -46,6 +47,7 @@ objects:
       mass_lower: 0
       mass_upper: 0
 
+      # TODO what is this being used for now?
       box_half_extents: [0.0525, 0.0525, 0.2725]
       centroid: [0, 0, 0.2725]
 

@@ -57,15 +57,13 @@ def lift6_matrices():
 #     return As
 
 
-def body_gravito_inertial_wrench(C, V, A, obj):
+def body_gravito_inertial_wrench(C, V, A, obj, g=9.81):
     """Gravito-inertial wrench in the body frame.
 
     The supplied velocity twist V and acceleration A must also be in the body
     frame.
     """
-    # G = np.array([0, 0, -9.81])  # TODO
-    # Ag = np.concatenate((C @ G, np.zeros(3)))
-    G = body_gravity6(C)
+    G = body_gravity6(C, g=g)
     return obj.M @ (A - G) + rg.skew6(V) @ obj.M @ V
 
 
@@ -81,14 +79,6 @@ def body_contact_wrench(forces, contacts):
 def friction_cone_constraints(forces, contacts):
     """Constraints are non-negative if all contact forces are inside their friction cones."""
     return np.concatenate([c.F @ f for c, f in zip(contacts, forces)])
-
-
-# def body_regressor(V, A):
-#     """Compute regressor matrix Y given body frame velocity V and acceleration A.
-#
-#     The regressor maps the inertial parameters to the body inertial wrench: w = Yθ.
-#     """
-#     return rg.RigidBody.regressor(V, A)
 
 
 def body_regressor_A_by_vector(f):

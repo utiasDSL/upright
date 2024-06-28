@@ -164,11 +164,6 @@ def solve_approx_inertia_sdp_dual(
     z = cp.Variable(nz)
     Λ = cp.Variable((6, 6), PSD=True)  # = V @ V.T
 
-    # W = Λ[3:, 3:]
-    # c = obj1.body.com
-    # vo = A[:3] - core.math.skew3(c) @ A[3:] + (W - cp.trace(W) * np.eye(3)) @ c
-    # ω = cp.Variable(3)
-
     values = []
     Vs = []
 
@@ -184,19 +179,9 @@ def solve_approx_inertia_sdp_dual(
             cp.trace(Λ[:3, :3]) <= v_max**2,
             cp.trace(Λ[3:, 3:]) <= ω_max**2,
 
-            # Λ[:3, 3:] <= v_max * ω_max * np.ones((3, 3)),
-            # Λ[3:, 3:] <= ω_max**2 * np.ones((3, 3)),
-
             # gravity constraints
             cp.norm(G) <= g,
             G[2] <= -g * np.cos(tilt_angle_max),
-
-            # adaptive tilting
-            # NOTE this makes a very small difference
-            # A[3:] == -2 * ω + 1 * core.math.skew3(z_normal) @ (vo - G),
-            # ω <= ω_max,
-            # ω >= -ω_max,
-            # rob.schur(W, ω) >> 0,
 
             # acceleration constraints
             # A[:3] >= -a_max,
@@ -288,7 +273,7 @@ def solve_approx_inertia_sdp_primal(
 
     # fmt: off
     constraints = [
-        rob.schur(X, y) >> 0,
+        rg.schur(X, y, 1) >> 0,
 
         # velocity constraints via z
         z == cp.vec(Λ),
