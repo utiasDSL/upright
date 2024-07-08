@@ -1,0 +1,14 @@
+include:
+  -
+    package: upright_robust
+    path: config/demos/_base.yaml
+
+controller:
+  reactive:
+    tilting: full
+    robust: false
+    face_form: true
+    approx_robust: true
+
+  balancing:
+    enabled: true

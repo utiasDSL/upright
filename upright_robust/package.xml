@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>upright_robust</name>
+  <version>0.0.0</version>
+  <description>Robust object balancing.</description>
+  <maintainer email="adam.heins@robotics.utias.utoronto.ca">Adam Heins</maintainer>
+  <license>MIT</license>
+
+  <depend>upright_core</depend>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+
+  </export>
+</package>

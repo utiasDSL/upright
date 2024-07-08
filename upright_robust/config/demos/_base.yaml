@@ -1,0 +1,80 @@
+include:
+  -
+    key: simulation
+    package: upright_robust
+    path: config/simulation.yaml
+  -
+    key: controller
+    package: upright_robust
+    path: config/controller.yaml
+  -
+    package: upright_cmd
+    path: config/robots/thing.yaml
+
+logging:
+  timestep: 0.010
+  log_dir: /media/adam/Data/PhD/Data/upright/robust
+
+simulation:
+  duration: 10.0
+  extra_gui: false
+  robot:
+    urdf:
+      includes:
+        - "$(find mobile_manipulation_central)/urdf/xacro/cartesian_base_joints.urdf.xacro"
+        - "$(find mobile_manipulation_central)/urdf/xacro/thing_no_wheels.urdf.xacro"
+        - "$(find upright_assets)/thing/xacro/end_effectors/gripped_object.urdf.xacro"
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+
+  cameras:
+    camera1:
+      target: [1.04, 2.26, 0.92]
+      distance: 1
+      roll: 0
+      pitch: -17.8
+      yaw: 91.2
+
+  video:
+    save_frames: true
+    dir: /media/adam/Data/PhD/Data/upright/robust/videos
+    timestep: 0.040
+    views:
+      -
+        camera: camera1
+        name: view1
+
+controller:
+  robot:
+    urdf:
+      args:
+        use_collision: "true"
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
+
+  sqp:
+    hpipm:
+      slacks:
+        enabled: true
+        # upper_L2_penalty: 10000
+        # lower_L2_penalty: 10000
+        upper_L1_penalty: 1
+        lower_L1_penalty: 1
+
+  balancing:
+    enabled: true
+    frictionless: true
+    use_force_constraints: true
+    constraint_type: hard
+    force_weight: 0.001
+
+  # TODO get rid of eventually
+  reactive:
+    tilting: full
+    robust: true
+    face_form: true
+
+  waypoints:
+    -
+      time: 0
+      position: [0.0, -2.0, 0.25]  # point 3
+      orientation: [0, 0, 0, 1]
