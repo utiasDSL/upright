@@ -6,22 +6,6 @@ include:
     package: upright_robust
     path: config/arrangements.yaml
 
-reactive:
-  tilting: full  # tray | full | flat
-  robust: false
-  face_form: false
-  approx_robust: false
-  use_slack: true  # true to soften EE acceleration kinematics with slack variables
-  slack_weight: 10
-
-  # rotational control gains
-  k_theta: 1.0  # TODO had to rewrite to stay ascii
-  k_omega: 2.0
-
-  # linear control gains
-  kp: 1.0
-  kv: 2.0
-
 balancing:
   enabled: true
 

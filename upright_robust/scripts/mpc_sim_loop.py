@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Closed-loop upright simulation using Pybullet."""
+import copy
 import datetime
 
 import numpy as np
 import pybullet as pyb
 from pyb_utils.frame import debug_frame_world
 import matplotlib.pyplot as plt
+import rigeo as rg
+import cvxpy as cp
 
 from upright_core.logging import DataLogger, DataPlotter
 import upright_sim as sim
@@ -71,6 +74,12 @@ def run_simulation(config, video, logname):
     logger.add("nv", ctrl_config["robot"]["dims"]["v"])
     logger.add("nx", ctrl_config["robot"]["dims"]["x"])
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
+
+    # log variable quantities in the sim loop
+    logger.add("waypoint", ctrl_config["waypoints"][0]["position"])
+    logger.add("mass", sim_config["objects"]["tall_block_0"]["mass"])
+    logger.add("com_offset", sim_config["objects"]["tall_block_0"]["com_offset"])
+    logger.add("inertia", sim_config["objects"]["tall_block_0"]["inertia"])
 
     # frames for desired waypoints
     if sim_config.get("show_debug_frames", False):
@@ -319,6 +328,32 @@ def run_simulation(config, video, logname):
         plt.show()
 
 
+def box_face_centers(box):
+    x, y, z = box.half_extents
+    return [[x, 0, 0], [-x, 0, 0], [0, y, 0], [0, -y, 0], [0, 0, z], [0, 0, -z]]
+
+
+def max_min_eig_inertia(box, com):
+    """Find the inertia matrix with the maximum smallest eigenvalue."""
+    μ = cp.Variable(8)
+    I = cp.Variable((3, 3))
+    H = cp.Variable((3, 3))
+    λ = cp.Variable(1)
+    objective = cp.Maximize(λ)
+    constraints = [
+        λ * np.eye(3) << I,
+        I == cp.trace(H) * np.eye(3) - H,
+        H == cp.sum([m * np.outer(v, v) for m, v in zip(μ, box.vertices)]),
+        com == cp.sum([m * v for m, v in zip(μ, box.vertices)]),
+        1 == cp.sum(μ),
+        μ >= 0,
+    ]
+    problem = cp.Problem(objective, constraints)
+    problem.solve(cp.MOSEK)
+    assert problem.status == "optimal"
+    return I.value
+
+
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
@@ -334,22 +369,49 @@ def main():
     w3 = [list(w - z) for w in w1]
     waypoints = w1 + w2 + w3
 
-    for i in range(len(waypoints)):
-        config = master_config.copy()
-        config["controller"]["waypoints"] = [
-            {"time": 0, "position": waypoints[i], "orientation": [0, 0, 0, 1]}
-        ]
+    # CoMs
+    obj_config = master_config["simulation"]["objects"]["tall_block_0"]
+    box = rg.Box.from_side_lengths(obj_config["side_lengths"])
+    com_box = rg.Box(half_extents=0.6 * box.half_extents)
+    com_offsets = [[0, 0, 0]] + box_face_centers(com_box) + [list(v) for v in com_box.vertices]
 
-        # no need to recompile each time a waypoint is changed
-        if i > 0:
-            config["controller"]["recompile_libraries"] = False
+    # inertias
+    inertias = [max_min_eig_inertia(box, c) for c in com_offsets]
+    inertia_scales = [1.0, 0.5, 0.1]
 
-        if LOG:
-            name = f"waypoint_{i}"
-        else:
-            name = None
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    dirname = f"robust_sims_{timestamp}"
 
-        run_simulation(config=config, video=None, logname=name)
+    run = 1
+    for com_offset, inertia in zip(com_offsets, inertias):
+        for s in inertia_scales:
+            for i, waypoint in enumerate(waypoints):
+                print(f"run = {run}")
+                config = copy.deepcopy(master_config)
+                config["controller"]["waypoints"] = [
+                    {"time": 0, "position": waypoint, "orientation": [0, 0, 0, 1]}
+                ]
+
+                config["simulation"]["objects"]["tall_block_0"]["mass"] = 1.0
+                config["simulation"]["objects"]["tall_block_0"]["com_offset"] = com_offset
+                config["simulation"]["objects"]["tall_block_0"]["inertia"] = s * inertia
+
+                IPython.embed()
+                return
+
+                # no need to recompile each time a waypoint is changed
+                # (but we do need to recompile for changes to the inertial
+                # parameters, at the moment)
+                if i > 0:
+                    config["controller"]["recompile_libraries"] = False
+
+                if LOG:
+                    name = f"{dirname}/run_{run}"
+                else:
+                    name = None
+
+                run_simulation(config=config, video=None, logname=name)
+                run += 1
 
 
 if __name__ == "__main__":

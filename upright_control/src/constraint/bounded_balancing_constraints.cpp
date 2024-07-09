@@ -62,6 +62,8 @@ NominalBalancingConstraints::NominalBalancingConstraints(
     // }
 
     // compile the CppAD library
+    // TODO make the inertial parameters an actual parameter for CppAD, so we do
+    // not need to recompile each time
     initialize(dims.x(), dims.u(), 0, "upright_nominal_balancing_constraints",
                "/tmp/ocs2", recompileLibraries, true);
 }

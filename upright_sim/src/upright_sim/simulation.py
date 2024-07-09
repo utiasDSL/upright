@@ -546,7 +546,10 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
 class UprightSimulation(BulletSimulation):
     def __init__(self, config, timestamp, video_name=None, extra_gui=False):
         super().__init__(
-            timestep=config["timestep"], gravity=config["gravity"], extra_gui=extra_gui
+            timestep=config["timestep"],
+            gravity=config["gravity"],
+            gui=True,
+            extra_gui=extra_gui,
         )
 
         self.config = config
@@ -662,3 +665,17 @@ class UprightSimulation(BulletSimulation):
         pyb.stepSimulation()
 
         return t + self.timestep, obstacle_reset
+
+    def reset(self):
+        """Reset the simulation to its initial state."""
+        # reset robot to home position
+        self.robot.reset_joint_configuration(self.robot.home)
+
+        # simulate briefly to let the robot settle down after being positioned
+        self.settle(1.0)
+
+        # reset objects to original poses
+        for obj in self.objects.values():
+            obj.reset_pose(position=obj.r0, orientation=obj.q0)
+
+        # TODO does not handle dynamic obstacles at the moment

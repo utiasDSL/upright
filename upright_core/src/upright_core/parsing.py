@@ -478,9 +478,17 @@ def _parse_rigid_body_and_box(obj_type_conf, base_position, quat):
         local_com_offset += np.array([-hx, 0, -hz]) / 3
     com_offset = C @ local_com_offset
 
-    # inertia can be manually specified; otherwise defaults to assuming uniform
-    # density for the given shape
-    if "inertia_diag" in obj_type_conf:
+    # Inertia can be manually specified; otherwise defaults to assuming uniform
+    # density for the given shape. Either the full matrix can be specified or
+    # just the diagonal.
+    if "inertia" in obj_type_conf:
+        local_inertia = np.array(obj_type_conf["inertia"])
+        if local_inertia.shape == (3,):
+            local_inertia = np.diag(local_inertia)
+        elif local_inertia.shape != (3, 3):
+            raise ValueError(f"Object inertia matrix has wrong shape: {local_inertia.shape}")
+    elif "inertia_diag" in obj_type_conf:
+        print("Using 'inertia_diag' is deprecated: use 'inertia' instead.")
         local_inertia = np.diag(obj_type_conf["inertia_diag"])
     else:
         local_inertia = parse_inertia(mass, obj_type_conf)
