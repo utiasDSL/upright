@@ -1,24 +1,21 @@
 #pragma once
 
-#include <ostream>
-
 #include <ocs2_core/reference/TargetTrajectories.h>
-#include <ocs2_sqp/MultipleShootingSettings.h>
 #include <ocs2_mpc/MPC_Settings.h>
 #include <ocs2_oc/rollout/RolloutSettings.h>
-
-#include <upright_control/inertial_alignment.h>
-#include <upright_control/dynamics/base_type.h>
-#include <upright_control/dimensions.h>
+#include <ocs2_sqp/MultipleShootingSettings.h>
+#include <upright_control/constraint/balancing_constraints.h>
 #include <upright_control/constraint/constraint_type.h>
-#include <upright_control/constraint/bounded_balancing_constraints.h>
 #include <upright_control/constraint/obstacle_constraint.h>
+#include <upright_control/dimensions.h>
+#include <upright_control/dynamics/base_type.h>
+#include <upright_control/inertial_alignment.h>
+
+#include <ostream>
 
 namespace upright {
 
-
 struct TrackingSettings {
-
     // Frequency for tracking controller [Hz].
     ocs2::scalar_t rate = 125;
 
@@ -123,7 +120,7 @@ struct ControllerSettings {
     RobotBaseType robot_base_type = RobotBaseType::Fixed;
     OptimizationDimensions dims;
     std::string end_effector_link_name;
-    Vec3d base_pose; // optional, only affects the fixed base configuration
+    Vec3d base_pose;  // optional, only affects the fixed base configuration
     std::map<std::string, ocs2::scalar_t> locked_joints;
 
     // Additional settings for constraints

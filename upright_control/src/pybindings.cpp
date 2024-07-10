@@ -11,7 +11,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 #include <upright_control/balancing_constraint_wrapper.h>
-#include <upright_control/constraint/bounded_balancing_constraints.h>
+#include <upright_control/constraint/balancing_constraints.h>
 #include <upright_control/constraint/constraint_type.h>
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/controller_python_interface.h>
@@ -74,9 +74,7 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("arrangement_name", &BalancingSettings::arrangement_name)
         .def_readwrite("use_force_constraints",
                        &BalancingSettings::use_force_constraints)
-        .def_readwrite("constraints_enabled",
-                       &BalancingSettings::constraints_enabled)
-        .def_readwrite("objects", &BalancingSettings::objects)
+        .def_readwrite("bodies", &BalancingSettings::bodies)
         .def_readwrite("contacts", &BalancingSettings::contacts)
         .def_readwrite("force_weight", &BalancingSettings::force_weight)
         .def_readwrite("constraint_type", &BalancingSettings::constraint_type)

@@ -183,9 +183,9 @@ def main():
 
             model.update(x, u)
             logger.append("ddC_we_norm", model.ddC_we_norm())
-            logger.append("sa_dists", model.support_area_distances())
+            # logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
-            logger.append("balancing_constraints", model.balancing_constraints())
+            # logger.append("balancing_constraints", model.balancing_constraints())
 
             if model.settings.inertial_alignment_settings.constraint_enabled:
                 alignment_constraints = (
@@ -251,10 +251,10 @@ def main():
 
     take_photos(sim_config, env, when="end")
 
-    try:
-        print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")
-    except:
-        pass
+    # try:
+    #     print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")
+    # except:
+    #     pass
 
     logger.add("replanning_times", ctrl_manager.replanning_times)
     logger.add("replanning_durations", ctrl_manager.replanning_durations)

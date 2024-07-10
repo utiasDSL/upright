@@ -2,12 +2,10 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "upright_core/bounded.h"
-#include "upright_core/bounded_constraints.h"
 #include "upright_core/contact.h"
 #include "upright_core/contact_constraints.h"
-#include "upright_core/nominal.h"
-#include "upright_core/support_area.h"
+// #include "upright_core/nominal.h"
+#include "upright_core/rigid_body.h"
 #include "upright_core/types.h"
 
 using namespace pybind11::literals;
@@ -24,33 +22,17 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("inertia", &RigidBody<Scalar>::inertia)
         .def_readwrite("com", &RigidBody<Scalar>::com);
 
-    pybind11::class_<BalancedObject<Scalar>>(m, "BalancedObject")
-        .def(
-            pybind11::init<const RigidBody<Scalar>&, Scalar,
-                           const PolygonSupportArea<Scalar>&, Scalar, Scalar>(),
-            "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
-        .def_readonly("body", &BalancedObject<Scalar>::body)
-        .def_readonly("com_height", &BalancedObject<Scalar>::com_height)
-        .def_readonly("support_area", &BalancedObject<Scalar>::support_area)
-        .def_readonly("r_tau", &BalancedObject<Scalar>::r_tau)
-        .def_readonly("mu", &BalancedObject<Scalar>::mu)
-        .def_static("compose", &BalancedObject<Scalar>::compose, "objects"_a);
-
-    pybind11::class_<BalanceConstraintsEnabled>(m, "BalanceConstraintsEnabled")
-        .def(pybind11::init<>())
-        .def_readwrite("normal", &BalanceConstraintsEnabled::normal)
-        .def_readwrite("friction", &BalanceConstraintsEnabled::friction)
-        .def_readwrite("zmp", &BalanceConstraintsEnabled::zmp);
-
-    pybind11::class_<PolygonSupportArea<Scalar>>(m, "PolygonSupportArea")
-        .def(pybind11::init<const std::vector<Vec2<Scalar>>&,
-                            const Vec3<Scalar>&, const Mat23<Scalar>&>(),
-             "vertices"_a, "normal"_a, "span"_a)
-        .def("offset", &PolygonSupportArea<Scalar>::offset, "offset"_a)
-        .def("vertices", &PolygonSupportArea<Scalar>::vertices)
-        .def("normal", &PolygonSupportArea<Scalar>::normal)
-        .def("span", &PolygonSupportArea<Scalar>::span)
-        .def("distance", &PolygonSupportArea<Scalar>::distance, "point"_a);
+    // pybind11::class_<BalancedObject<Scalar>>(m, "BalancedObject")
+    //     .def(
+    //         pybind11::init<const RigidBody<Scalar>&, Scalar,
+    //                        const PolygonSupportArea<Scalar>&, Scalar, Scalar>(),
+    //         "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
+    //     .def_readonly("body", &BalancedObject<Scalar>::body)
+    //     // .def_readonly("com_height", &BalancedObject<Scalar>::com_height)
+    //     // .def_readonly("support_area", &BalancedObject<Scalar>::support_area)
+    //     // .def_readonly("r_tau", &BalancedObject<Scalar>::r_tau)
+    //     .def_readonly("mu", &BalancedObject<Scalar>::mu)
+    //     .def_static("compose", &BalancedObject<Scalar>::compose, "objects"_a);
 
     pybind11::class_<ContactPoint<Scalar>>(m, "ContactPoint")
         .def(pybind11::init<>())
@@ -81,14 +63,15 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("acceleration", &RigidBodyState<Scalar>::acceleration)
         .def("Zero", &RigidBodyState<Scalar>::Zero);
 
-    pybind11::class_<BalancedObjectArrangement<Scalar>>(
-        m, "BalancedObjectArrangement")
-        .def(
-            pybind11::init<const std::map<std::string, BalancedObject<Scalar>>&,
-                           const Vec3<Scalar>&>())
-        .def("balancing_constraints",
-             &BalancedObjectArrangement<Scalar>::balancing_constraints,
-             "state"_a);
+    // // TODO is this used?
+    // pybind11::class_<BalancedObjectArrangement<Scalar>>(
+    //     m, "BalancedObjectArrangement")
+    //     .def(
+    //         pybind11::init<const std::map<std::string, BalancedObject<Scalar>>&,
+    //                        const Vec3<Scalar>&>())
+    //     .def("balancing_constraints",
+    //          &BalancedObjectArrangement<Scalar>::balancing_constraints,
+    //          "state"_a);
 
     m.def("compute_object_dynamics_constraints",
           &compute_object_dynamics_constraints<Scalar>);

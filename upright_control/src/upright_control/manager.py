@@ -16,10 +16,10 @@ class ControllerModel:
 
     def __init__(self, settings):
         self.settings = settings
-        self.objects = list(settings.objects.values())
-        self.arrangement = core.bindings.BalancedObjectArrangement(
-            settings.objects, settings.gravity
-        )
+        # self.bodies = list(settings.bodies.values())
+        # self.arrangement = core.bindings.BalancedObjectArrangement(
+        #     settings.objects, settings.gravity
+        # )
         self.robot, self.geom = build_robot_interfaces(settings)
 
     @classmethod
@@ -35,35 +35,35 @@ class ControllerModel:
         b = self.settings.balancing_settings
         return b.enabled and b.use_force_constraints
 
-    def balancing_constraints(self):
-        """Evaluate the balancing constraints at time t and state x."""
-        _, Q_we = self.robot.link_pose()
-        _, ω_ew_w = self.robot.link_velocity()
-        a_ew_w, α_ew_w = self.robot.link_classical_acceleration()
-        C_we = core.math.quat_to_rot(Q_we)
+    # def balancing_constraints(self):
+    #     """Evaluate the balancing constraints at time t and state x."""
+    #     _, Q_we = self.robot.link_pose()
+    #     _, ω_ew_w = self.robot.link_velocity()
+    #     a_ew_w, α_ew_w = self.robot.link_classical_acceleration()
+    #     C_we = core.math.quat_to_rot(Q_we)
+    #
+    #     X = core.bindings.RigidBodyState()
+    #     X.pose.orientation = C_we
+    #     X.velocity.angular = ω_ew_w
+    #     X.acceleration.linear = a_ew_w
+    #     X.acceleration.angular = α_ew_w
+    #
+    #     return self.arrangement.balancing_constraints(X)
 
-        X = core.bindings.RigidBodyState()
-        X.pose.orientation = C_we
-        X.velocity.angular = ω_ew_w
-        X.acceleration.linear = a_ew_w
-        X.acceleration.angular = α_ew_w
-
-        return self.arrangement.balancing_constraints(X)
-
-    def support_area_distances(self):
-        """Compute shortest distance of intersection of gravity vector with
-        support plane from support area for each object.
-
-        A negative distance indicates that the intersection is inside the
-        support area.
-
-        `update` must have been called first.
-        """
-        _, Q_we = self.robot.link_pose()
-        dists = []
-        for obj in self.objects:
-            dists.append(core.util.support_area_distance(obj, Q_we))
-        return np.array(dists)
+    # def support_area_distances(self):
+    #     """Compute shortest distance of intersection of gravity vector with
+    #     support plane from support area for each object.
+    #
+    #     A negative distance indicates that the intersection is inside the
+    #     support area.
+    #
+    #     `update` must have been called first.
+    #     """
+    #     _, Q_we = self.robot.link_pose()
+    #     dists = []
+    #     for obj in self.objects:
+    #         dists.append(core.util.support_area_distance(obj, Q_we))
+    #     return np.array(dists)
 
     def angle_between_acc_and_normal(self):
         """Compute the angle between the total acceleration vector and EE normal vector.

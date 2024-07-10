@@ -78,19 +78,6 @@ class ControllerInterface final : public ocs2::RobotInterface {
     std::unique_ptr<ocs2::StateInputCost>
     get_soft_joint_state_input_limit_constraint();
 
-    // Hard balancing inequality constraints.
-    std::unique_ptr<ocs2::StateInputConstraint> get_balancing_constraint(
-        const ocs2::PinocchioEndEffectorKinematicsCppAd&
-            end_effector_kinematics,
-        bool recompileLibraries);
-
-    // Soft version of the balancing constraints (i.e. formulated as a cost via
-    // penalty functions).
-    std::unique_ptr<ocs2::StateInputCost> get_soft_balancing_constraint(
-        const ocs2::PinocchioEndEffectorKinematicsCppAd&
-            end_effector_kinematics,
-        bool recompileLibraries);
-
     std::unique_ptr<ocs2::StateInputConstraint> get_object_dynamics_constraint(
         const ocs2::PinocchioEndEffectorKinematicsCppAd&
             end_effector_kinematics,

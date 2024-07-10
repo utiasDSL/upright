@@ -90,7 +90,7 @@ link_directories(
 add_library(${PROJECT_NAME}
   src/inertial_alignment.cpp
   src/controller_interface.cpp
-  src/constraint/bounded_balancing_constraints.cpp
+  src/constraint/balancing_constraints.cpp
 )
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}

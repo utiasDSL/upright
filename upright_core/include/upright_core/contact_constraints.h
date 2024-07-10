@@ -2,8 +2,7 @@
 
 #include <Eigen/Eigen>
 
-#include "upright_core/nominal.h"
-#include "upright_core/bounded.h"
+#include "upright_core/rigid_body.h"
 #include "upright_core/contact.h"
 #include "upright_core/types.h"
 #include "upright_core/util.h"
@@ -155,7 +154,7 @@ std::map<std::string, Wrench<Scalar>> compute_object_wrenches(
 // and corresponding vector of contact forces.
 template <typename Scalar>
 VecX<Scalar> compute_object_dynamics_constraints(
-    const std::map<std::string, BalancedObject<Scalar>>& objects,
+    const std::map<std::string, RigidBody<Scalar>>& bodies,
     const std::vector<ContactPoint<Scalar>>& contacts,
     const VecX<Scalar>& forces, const RigidBodyState<Scalar>& state,
     const Vec3<Scalar>& gravity) {
@@ -163,16 +162,16 @@ VecX<Scalar> compute_object_dynamics_constraints(
         compute_object_wrenches(contacts, forces);
 
     VecX<Scalar> constraints(NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT *
-                             objects.size());
+                             bodies.size());
 
     // Scale force by square root of number of contacts so that L2-penalized
     // soft constraint is invariant to number of contacts
     const Scalar force_scale(1. / sqrt(contacts.size()));
 
     size_t i = 0;
-    for (const auto& kv : objects) {
+    for (const auto& kv : bodies) {
         auto& name = kv.first;
-        auto& body = kv.second.body;
+        auto& body = kv.second;
 
         Wrench<Scalar> wrench = object_wrenches[name];
         Wrench<Scalar> constraint =

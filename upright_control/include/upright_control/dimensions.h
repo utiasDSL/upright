@@ -25,6 +25,9 @@ struct OptimizationDimensions {
     // Number of contact points
     size_t c = 0;
 
+    // Number of rigid bodies being balanced.
+    size_t b = 0;
+
     // Dimension of each contact force variable. In general this is three, but
     // if we assume that friction coefficient is zero we can set this to one.
     size_t nf = 3;

@@ -308,16 +308,16 @@ class ControllerSettings(bindings.ControllerSettings):
         self.balancing_settings.constraint_type = bindings.constraint_type_from_string(
             config["balancing"]["constraint_type"]
         )
-        self.balancing_settings.mu = core.parsing.parse_number(
-            config["balancing"]["mu"]
-        )
-        self.balancing_settings.delta = core.parsing.parse_number(
-            config["balancing"]["delta"]
-        )
+        # self.balancing_settings.mu = core.parsing.parse_number(
+        #     config["balancing"]["mu"]
+        # )
+        # self.balancing_settings.delta = core.parsing.parse_number(
+        #     config["balancing"]["delta"]
+        # )
 
         self.balancing_settings.force_weight = config["balancing"]["force_weight"]
-        ctrl_objects, contacts = core.parsing.parse_control_objects(config)
-        self.balancing_settings.objects = ctrl_objects
+        bodies, contacts = core.parsing.parse_control_objects(config)
+        self.balancing_settings.bodies = bodies
         self.balancing_settings.contacts = contacts
 
         if self.balancing_settings.enabled:
@@ -332,15 +332,15 @@ class ControllerSettings(bindings.ControllerSettings):
             self.dims.c = 0
             self.dims.nf = 0
 
-        self.balancing_settings.constraints_enabled.normal = config["balancing"][
-            "enable_normal_constraint"
-        ]
-        self.balancing_settings.constraints_enabled.friction = config["balancing"][
-            "enable_friction_constraint"
-        ]
-        self.balancing_settings.constraints_enabled.zmp = config["balancing"][
-            "enable_zmp_constraint"
-        ]
+        # self.balancing_settings.constraints_enabled.normal = config["balancing"][
+        #     "enable_normal_constraint"
+        # ]
+        # self.balancing_settings.constraints_enabled.friction = config["balancing"][
+        #     "enable_friction_constraint"
+        # ]
+        # self.balancing_settings.constraints_enabled.zmp = config["balancing"][
+        #     "enable_zmp_constraint"
+        # ]
 
         # alternative inertial alignment objective
         # tries to keep tray/EE normal aligned with the negative acceleration
@@ -435,10 +435,10 @@ class ControllerSettings(bindings.ControllerSettings):
         ctrl_config = config["controller"]
         return cls(ctrl_config)
 
-    def get_num_balance_constraints(self):
-        if self.balancing_settings.bounded:
-            return self.balancing_settings.objects.num_constraints()
-        return self.balancing_settings.config.num_constraints()
+    # def get_num_balance_constraints(self):
+    #     if self.balancing_settings.bounded:
+    #         return self.balancing_settings.objects.num_constraints()
+    #     return self.balancing_settings.config.num_constraints()
 
     def get_num_collision_avoidance_constraints(self):
         if self.static_obstacle_settings.enabled:
@@ -449,7 +449,7 @@ class ControllerSettings(bindings.ControllerSettings):
         if self.dynamic_obstacle_settings.enabled:
             return len(self.dynamic_obstacle_settings.collision_spheres)
         return 0
-
-    @property
-    def objects(self):
-        return self.balancing_settings.objects
+    #
+    # @property
+    # def objects(self):
+    #     return self.balancing_settings.objects

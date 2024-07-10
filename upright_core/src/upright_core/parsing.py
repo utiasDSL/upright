@@ -8,12 +8,7 @@ from scipy.spatial import ConvexHull
 from xacrodoc import XacroDoc
 
 import mobile_manipulation_central as mm
-from upright_core.bindings import (
-    RigidBody,
-    BalancedObject,
-    PolygonSupportArea,
-    ContactPoint,
-)
+from upright_core.bindings import RigidBody, ContactPoint
 from upright_core import math, polyhedron
 
 import IPython
@@ -223,111 +218,112 @@ def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-7):
 
             contact_points.append(contact_point)
 
-    # Wrap in balanced objects: not fundamentally necessary for the
-    # constraints, but useful for (1) homogeneity of the settings API and (2)
-    # allows some additional analysis on e.g. distance from support area
-    mus = parse_mu_dict(contact_conf, apply_margin=True)
-    balanced_objects = {}
-    for name, wrapper in wrappers.items():
-        if wrapper.fixture:  # includes the EE
-            continue
-        body = wrapper.body
-        box = wrapper.box
-        com_offset = body.com - box.position
+    # # Wrap in balanced objects: not fundamentally necessary for the
+    # # constraints, but useful for (1) homogeneity of the settings API and (2)
+    # # allows some additional analysis on e.g. distance from support area
+    # mus = parse_mu_dict(contact_conf, apply_margin=True)
+    # balanced_objects = {}
+    # for name, wrapper in wrappers.items():
+    #     if wrapper.fixture:  # includes the EE
+    #         continue
+    #     body = wrapper.body
+    #     box = wrapper.box
+    #     com_offset = body.com - box.position
+    #
+    #     # height of the CoM is in the local object frame
+    #     z = np.array([0, 0, 1])
+    #     com_height = box.distance_from_centroid_to_boundary(
+    #         -box.rotation @ z, offset=com_offset
+    #     )
+    #
+    #     # find the convex hull of support points to get support area
+    #     # assume support area is in the plane with normal aligned with object's
+    #     # z-axis
+    #     support_normal = box.rotation @ [0, 0, 1]
+    #     support_span = math.plane_span(support_normal)
+    #     support_points = []
+    #     for contact_point in contact_points:
+    #         # we are assuming that the object being supported is always the
+    #         # second one listed in the contact point
+    #         if contact_point.object2_name == name:
+    #             p = contact_point.r_co_o2
+    #         else:
+    #             continue
+    #
+    #         # normal is pointing downward out of this object, but we want
+    #         # it pointing upward into it
+    #         normal = -contact_point.normal
+    #
+    #         # reject points misaligned with the normal
+    #         if (np.abs(support_normal - normal) > tol).any():
+    #             continue
+    #
+    #         # reject points without height equal to the CoM height
+    #         if np.abs(-normal @ p - com_height) > tol:
+    #             continue
+    #
+    #         support_points.append(support_span @ p)
+    #
+    #     # take the convex hull of the support points
+    #     support_points = np.array(support_points)
+    #     hull = ConvexHull(support_points)
+    #     support_points = support_points[hull.vertices, :]
+    #
+    #     support_area = PolygonSupportArea(
+    #         list(support_points), support_normal, support_span
+    #     )
+    #
+    #     mu = mus[wrapper.parent_name][name]
+    #     r_tau = 0.1  # placeholder/dummy value
+    #
+    #     # contact force constraints don't use r_tau or mu, so we don't care
+    #     # about them
+    #     balanced_objects[name] = BalancedObject(
+    #         body, com_height, support_area, r_tau, mu
+    #     )
 
-        # height of the CoM is in the local object frame
-        z = np.array([0, 0, 1])
-        com_height = box.distance_from_centroid_to_boundary(
-            -box.rotation @ z, offset=com_offset
-        )
-
-        # find the convex hull of support points to get support area
-        # assume support area is in the plane with normal aligned with object's
-        # z-axis
-        support_normal = box.rotation @ [0, 0, 1]
-        support_span = math.plane_span(support_normal)
-        support_points = []
-        for contact_point in contact_points:
-            # we are assuming that the object being supported is always the
-            # second one listed in the contact point
-            if contact_point.object2_name == name:
-                p = contact_point.r_co_o2
-            else:
-                continue
-
-            # normal is pointing downward out of this object, but we want
-            # it pointing upward into it
-            normal = -contact_point.normal
-
-            # reject points misaligned with the normal
-            if (np.abs(support_normal - normal) > tol).any():
-                continue
-
-            # reject points without height equal to the CoM height
-            if np.abs(-normal @ p - com_height) > tol:
-                continue
-
-            support_points.append(support_span @ p)
-
-        # take the convex hull of the support points
-        support_points = np.array(support_points)
-        hull = ConvexHull(support_points)
-        support_points = support_points[hull.vertices, :]
-
-        support_area = PolygonSupportArea(
-            list(support_points), support_normal, support_span
-        )
-
-        mu = mus[wrapper.parent_name][name]
-        r_tau = 0.1  # placeholder/dummy value
-
-        # contact force constraints don't use r_tau or mu, so we don't care
-        # about them
-        balanced_objects[name] = BalancedObject(
-            body, com_height, support_area, r_tau, mu
-        )
-
-    return balanced_objects, contact_points
+    # return balanced_objects, contact_points
+    return contact_points
 
 
-def _parse_composite_objects(wrappers, contact_conf):
-    # coefficients of friction between contacting objects
-    mus = parse_mu_dict(contact_conf, apply_margin=True)
-    insets = parse_inset_dict(contact_conf)
-
-    # build the balanced objects
-    descendants = {}
-    for name, wrapper in wrappers.items():
-        if wrapper.fixture:
-            continue
-        body = wrapper.body
-        parent_name = wrapper.parent_name
-        mu = mus[parent_name][name]
-
-        box = wrapper.box
-        com_offset = body.com - box.position
-        z = np.array([0, 0, 1])
-        com_height = box.distance_from_centroid_to_boundary(
-            -box.rotation @ z, offset=com_offset
-        )
-
-        parent_box = wrappers[parent_name].box
-        inset = insets[parent_name][name]
-        support_area, r_tau = compute_support_area(box, parent_box, com_offset, inset)
-
-        obj = BalancedObject(body, com_height, support_area, r_tau, mu)
-
-        descendants[name] = [(name, obj)]
-        if parent_name != "ee":
-            descendants[parent_name].append((name, obj))
-
-    # compose objects together
-    composites = {}
-    for children in descendants.values():
-        composite_name = "_".join([name for name, _ in children])
-        composite = BalancedObject.compose([obj for _, obj in children])
-        composites[composite_name] = composite
-    return composites
+# def _parse_composite_objects(wrappers, contact_conf):
+#     # coefficients of friction between contacting objects
+#     mus = parse_mu_dict(contact_conf, apply_margin=True)
+#     insets = parse_inset_dict(contact_conf)
+#
+#     # build the balanced objects
+#     descendants = {}
+#     for name, wrapper in wrappers.items():
+#         if wrapper.fixture:
+#             continue
+#         body = wrapper.body
+#         parent_name = wrapper.parent_name
+#         mu = mus[parent_name][name]
+#
+#         box = wrapper.box
+#         com_offset = body.com - box.position
+#         z = np.array([0, 0, 1])
+#         com_height = box.distance_from_centroid_to_boundary(
+#             -box.rotation @ z, offset=com_offset
+#         )
+#
+#         parent_box = wrappers[parent_name].box
+#         inset = insets[parent_name][name]
+#         support_area, r_tau = compute_support_area(box, parent_box, com_offset, inset)
+#
+#         obj = BalancedObject(body, com_height, support_area, r_tau, mu)
+#
+#         descendants[name] = [(name, obj)]
+#         if parent_name != "ee":
+#             descendants[parent_name].append((name, obj))
+#
+#     # compose objects together
+#     composites = {}
+#     for children in descendants.values():
+#         composite_name = "_".join([name for name, _ in children])
+#         composite = BalancedObject.compose([obj for _, obj in children])
+#         composites[composite_name] = composite
+#     return composites
 
 
 def parse_local_half_extents(obj_type_conf):
@@ -486,7 +482,9 @@ def _parse_rigid_body_and_box(obj_type_conf, base_position, quat):
         if local_inertia.shape == (3,):
             local_inertia = np.diag(local_inertia)
         elif local_inertia.shape != (3, 3):
-            raise ValueError(f"Object inertia matrix has wrong shape: {local_inertia.shape}")
+            raise ValueError(
+                f"Object inertia matrix has wrong shape: {local_inertia.shape}"
+            )
     elif "inertia_diag" in obj_type_conf:
         print("Using 'inertia_diag' is deprecated: use 'inertia' instead.")
         local_inertia = np.diag(obj_type_conf["inertia_diag"])
@@ -555,8 +553,11 @@ def parse_control_objects(ctrl_conf):
         body, box = _parse_rigid_body_and_box(obj_type_conf, position, quat)
         wrappers[obj_name] = _BalancedObjectWrapper(body, box, parent_name, fixture)
 
-    if ctrl_conf["balancing"]["use_force_constraints"]:
-        return _parse_objects_with_contacts(wrappers, contact_conf)
-    else:
-        composites = _parse_composite_objects(wrappers, contact_conf)
-        return composites, []
+    contact_points = _parse_objects_with_contacts(wrappers, contact_conf)
+    bodies = {name: w.body for name, w in wrappers.items()}
+    return bodies, contact_points
+    # if ctrl_conf["balancing"]["use_force_constraints"]:
+    #     return _parse_objects_with_contacts(wrappers, contact_conf)
+    # else:
+    #     composites = _parse_composite_objects(wrappers, contact_conf)
+    #     return composites, []

@@ -42,7 +42,7 @@ class ConvexPolyhedron:
 
     @classmethod
     def box(cls, half_extents, position=None, rotation=None):
-        """Create a box: three pairs of parellel sides."""
+        """Create a box: three pairs of parallel sides."""
         half_extents = np.array(half_extents)
         assert (half_extents > 0).all(), "Half extents must be positive."
         x, y, z = half_extents

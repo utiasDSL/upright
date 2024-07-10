@@ -6,12 +6,6 @@ namespace upright {
 
 const double NEAR_ZERO = 1e-8;
 
-struct BalanceConstraintsEnabled {
-    bool normal = true;
-    bool friction = true;
-    bool zmp = true;
-};
-
 template <typename Scalar>
 using VecX = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 

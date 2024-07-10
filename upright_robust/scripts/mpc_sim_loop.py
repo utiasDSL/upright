@@ -174,9 +174,9 @@ def run_simulation(config, video, logname):
 
             model.update(x, u)
             logger.append("ddC_we_norm", model.ddC_we_norm())
-            logger.append("sa_dists", model.support_area_distances())
+            # logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
-            logger.append("balancing_constraints", model.balancing_constraints())
+            # logger.append("balancing_constraints", model.balancing_constraints())
 
             if model.settings.inertial_alignment_settings.constraint_enabled:
                 alignment_constraints = (
@@ -240,10 +240,10 @@ def run_simulation(config, video, logname):
 
         t = env.step(t, step_robot=False)[0]
 
-    try:
-        print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")
-    except:
-        pass
+    # try:
+    #     print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")
+    # except:
+    #     pass
 
     logger.add("replanning_times", ctrl_manager.replanning_times)
     logger.add("replanning_durations", ctrl_manager.replanning_durations)
@@ -395,9 +395,6 @@ def main():
                 config["simulation"]["objects"]["tall_block_0"]["mass"] = 1.0
                 config["simulation"]["objects"]["tall_block_0"]["com_offset"] = com_offset
                 config["simulation"]["objects"]["tall_block_0"]["inertia"] = s * inertia
-
-                IPython.embed()
-                return
 
                 # no need to recompile each time a waypoint is changed
                 # (but we do need to recompile for changes to the inertial

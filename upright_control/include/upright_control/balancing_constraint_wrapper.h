@@ -2,7 +2,7 @@
 
 #include <ocs2_core/PreComputation.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
-#include <upright_control/constraint/bounded_balancing_constraints.h>
+#include <upright_control/constraint/balancing_constraints.h>
 #include <upright_control/controller_settings.h>
 #include <upright_control/dynamics/system_pinocchio_mapping.h>
 #include <upright_control/types.h>
