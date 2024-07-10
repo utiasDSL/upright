@@ -67,14 +67,9 @@ controller:
     constraint_type: hard
     force_weight: 0.001
 
-  # TODO get rid of eventually
-  reactive:
-    tilting: full
-    robust: true
-    face_form: true
-
   waypoints:
     -
       time: 0
-      position: [0.0, -2.0, 0.25]  # point 3
+      # position: [0.0, -2.0, 0.25]  # point 3
+      position: [0.0, -3.0, 0]
       orientation: [0, 0, 0, 1]

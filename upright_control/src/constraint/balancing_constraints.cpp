@@ -29,46 +29,6 @@ RigidBodyState<ocs2::ad_scalar_t> get_rigid_body_state(
     return X;
 }
 
-// NominalBalancingConstraints::NominalBalancingConstraints(
-//     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
-//     const BalancingSettings& settings, const Vec3d& gravity,
-//     const OptimizationDimensions& dims, bool recompileLibraries)
-//     : ocs2::StateInputConstraintCppAd(ocs2::ConstraintOrder::Linear),
-//       pinocchioEEKinPtr_(pinocchioEEKinematics.clone()),
-//       gravity_(gravity),
-//       settings_(settings),
-//       arrangement_(settings.objects, settings.constraints_enabled, gravity),
-//       dims_(dims) {
-//     if (pinocchioEEKinematics.getIds().size() != 1) {
-//         throw std::runtime_error(
-//             "[TrayBalanaceConstraint] endEffectorKinematics has wrong "
-//             "number of end effector IDs.");
-//     }
-//
-//     // NOTE: workaround for CppADCodeGen slow compilation for single objects
-//     // if (arrangement_.objects.size() == 1) {
-//     //     auto it = arrangement_.objects.begin();
-//     //     arrangement_.objects.emplace("foo", it->second);
-//     // }
-//
-//     // compile the CppAD library
-//     // TODO make the inertial parameters an actual parameter for CppAD, so we do
-//     // not need to recompile each time
-//     initialize(dims.x(), dims.u(), 0, "upright_nominal_balancing_constraints",
-//                "/tmp/ocs2", recompileLibraries, true);
-// }
-//
-// VecXad NominalBalancingConstraints::constraintFunction(
-//     ocs2::ad_scalar_t time, const VecXad& state, const VecXad& input,
-//     const VecXad& parameters) const {
-//     RigidBodyState<ocs2::ad_scalar_t> X =
-//         get_rigid_body_state(pinocchioEEKinPtr_, state, input);
-//
-//     BalancedObjectArrangement<ocs2::ad_scalar_t> ad_arrangement =
-//         arrangement_.cast<ocs2::ad_scalar_t>();
-//     return ad_arrangement.balancing_constraints(X);
-// }
-
 ContactForceBalancingConstraints::ContactForceBalancingConstraints(
     const ocs2::PinocchioEndEffectorKinematicsCppAd& pinocchioEEKinematics,
     const BalancingSettings& settings, const Vec3d& gravity,
@@ -96,8 +56,8 @@ ContactForceBalancingConstraints::ContactForceBalancingConstraints(
 
     // compile the CppAD library
     const std::string lib_name = "upright_contact_force_constraints";
-    initialize(dims.x(), dims.u(), 0, lib_name, "/tmp/ocs2", recompileLibraries,
-               true);
+    initialize(dims.x(), dims.u(), 0, lib_name, "/tmp/ocs2",
+               recompileLibraries, true);
 }
 
 VecXad ContactForceBalancingConstraints::constraintFunction(
@@ -134,10 +94,39 @@ ObjectDynamicsConstraints::ObjectDynamicsConstraints(
     num_constraints_ =
         settings_.bodies.size() * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT;
 
+    const size_t num_params = settings_.bodies.size() * 10;  // TODO unhardcode
+                                                             //
+    size_t i = 0;
+    VecXd parameters(num_params);
+    for (const auto& kv : settings_.bodies) {
+        auto& body = kv.second;
+        parameters.segment(i, 10) = body.get_parameters();
+        i += body.num_parameters();
+    }
+    parameters_ = parameters;
+
     // compile the CppAD library
     const std::string lib_name = "upright_object_dynamics_constraints";
-    initialize(dims.x(), dims.u(), 0, lib_name, "/tmp/ocs2", recompileLibraries,
-               true);
+    initialize(dims.x(), dims.u(), num_params, lib_name, "/tmp/ocs2",
+               recompileLibraries, true);
+}
+
+VecXd ObjectDynamicsConstraints::getParameters(ocs2::scalar_t time) const {
+    return parameters_;
+    // // Parameters are constant for now
+    // // TODO this should be built once once and returned each time
+    // size_t i = 0;
+    // VecXd parameters(settings_.bodies.size() * 10);
+    // for (const auto& kv : settings_.bodies) {
+    //     auto& body = kv.second;
+    //     parameters.segment(i, 10) = body.get_parameters();
+    //     // auto ad_body = kv.second.template cast<ocs2::ad_scalar_t>();
+    //     // auto ad_body = RigidBody<ocs2::ad_scalar_t>::from_parameters(parameters, i);
+    //     // ad_bodies.emplace(kv.first, ad_body);
+    //     i += body.num_parameters();
+    // }
+    // return parameters;
+    // // return VecXd(0);
 }
 
 VecXad ObjectDynamicsConstraints::constraintFunction(
@@ -156,10 +145,14 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     }
 
     // Convert bodies to AD type
+    // TODO I want to build the bodies out of the parameters now
+    size_t i = 0;
     std::map<std::string, RigidBody<ocs2::ad_scalar_t>> ad_bodies;
     for (const auto& kv : settings_.bodies) {
-        auto ad_body = kv.second.template cast<ocs2::ad_scalar_t>();
+        // auto ad_body = kv.second.template cast<ocs2::ad_scalar_t>();
+        auto ad_body = RigidBody<ocs2::ad_scalar_t>::from_parameters(parameters, i);
         ad_bodies.emplace(kv.first, ad_body);
+        i += ad_body.num_parameters();
     }
 
     Vec3ad ad_gravity = gravity_.template cast<ocs2::ad_scalar_t>();
@@ -169,7 +162,8 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     // TODO
     ocs2::ad_scalar_t n(sqrt(6 * ad_bodies.size()));
     return compute_object_dynamics_constraints(ad_bodies, ad_contacts, forces,
-                                               X, ad_gravity) / n;
+                                               X, ad_gravity) /
+           n;
 }
 
 }  // namespace upright

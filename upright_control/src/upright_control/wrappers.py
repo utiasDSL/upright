@@ -81,11 +81,6 @@ class ControllerSettings(bindings.ControllerSettings):
     def __init__(self, config, x0=None, operating_trajectory=None):
         super().__init__()
 
-        # only SQP supported now
-        self.solver_method = bindings.ControllerSettings.solver_method_from_string(
-            config["solver_method"].lower()
-        )
-
         # MPC settings
         self.mpc.time_horizon = core.parsing.parse_number(config["mpc"]["time_horizon"])
         self.mpc.debug_print = config["mpc"]["debug_print"]
@@ -218,9 +213,6 @@ class ControllerSettings(bindings.ControllerSettings):
         assert self.end_effector_weight.shape == (6, 6)
 
         # input limits
-        self.limit_constraint_type = bindings.constraint_type_from_string(
-            config["limits"]["constraint_type"]
-        )
         self.input_limit_lower = core.parsing.parse_array(
             config["limits"]["input"]["lower"]
         )
@@ -302,18 +294,6 @@ class ControllerSettings(bindings.ControllerSettings):
         # tray balance settings
         self.balancing_settings.enabled = config["balancing"]["enabled"]
         self.balancing_settings.arrangement_name = config["balancing"]["arrangement"]
-        self.balancing_settings.use_force_constraints = config["balancing"][
-            "use_force_constraints"
-        ]
-        self.balancing_settings.constraint_type = bindings.constraint_type_from_string(
-            config["balancing"]["constraint_type"]
-        )
-        # self.balancing_settings.mu = core.parsing.parse_number(
-        #     config["balancing"]["mu"]
-        # )
-        # self.balancing_settings.delta = core.parsing.parse_number(
-        #     config["balancing"]["delta"]
-        # )
 
         self.balancing_settings.force_weight = config["balancing"]["force_weight"]
         bodies, contacts = core.parsing.parse_control_objects(config)
@@ -364,23 +344,12 @@ class ControllerSettings(bindings.ControllerSettings):
         x0_obs = []
         self.obstacle_settings.enabled = config["obstacles"]["enabled"]
         if self.obstacle_settings.enabled:
-            self.obstacle_settings.constraint_type = (
-                bindings.constraint_type_from_string(
-                    config["obstacles"]["constraint_type"]
-                )
-            )
             if config["obstacles"]["collision_pairs"] is not None:
                 for pair in config["obstacles"]["collision_pairs"]:
                     self.obstacle_settings.collision_link_pairs.push_back(tuple(pair))
             self.obstacle_settings.minimum_distance = config["obstacles"][
                 "minimum_distance"
             ]
-            self.obstacle_settings.mu = core.parsing.parse_number(
-                config["obstacles"]["mu"]
-            )
-            self.obstacle_settings.delta = core.parsing.parse_number(
-                config["obstacles"]["delta"]
-            )
 
             if "urdf" in config["obstacles"]:
                 self.obstacle_settings.obstacle_urdf_path = (

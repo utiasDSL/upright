@@ -32,35 +32,11 @@ struct RigidBody {
               const Vec3<Scalar>& com)
         : mass(mass), inertia(inertia), com(com) {}
 
-    // Compose multiple rigid bodies into one.
-    // TODO is this actually used?
-    static RigidBody<Scalar> compose(
-        const std::vector<RigidBody<Scalar>>& bodies) {
-        // Compute new mass and center of mass.
-        Scalar mass = Scalar(0);
-        Vec3<Scalar> com = Vec3<Scalar>::Zero();
-        for (int i = 0; i < bodies.size(); ++i) {
-            mass += bodies[i].mass;
-            com += bodies[i].mass * bodies[i].com;
-        }
-        com = com / mass;
-
-        // Parallel axis theorem to compute new moment of inertia.
-        Mat3<Scalar> inertia = Mat3<Scalar>::Zero();
-        for (int i = 0; i < bodies.size(); ++i) {
-            Vec3<Scalar> r = bodies[i].com - com;
-            Mat3<Scalar> R = skew3(r);
-            inertia += bodies[i].inertia - bodies[i].mass * R * R;
-        }
-
-        return RigidBody<Scalar>(mass, inertia, com);
-    }
-
     // Create a RigidBody from a parameter vector
     static RigidBody<Scalar> from_parameters(const VecX<Scalar>& parameters,
                                              const size_t index = 0) {
         Scalar mass(parameters(index));
-        Vec3<Scalar> com(parameters.template segment<3>(index + 1));
+        Vec3<Scalar> com(parameters.template segment<3>(index + 1) / mass);
         VecX<Scalar> I_vec(parameters.template segment<6>(index + 4));
         Mat3<Scalar> inertia = unvech(I_vec);
         return RigidBody(mass, inertia, com);
@@ -69,9 +45,8 @@ struct RigidBody {
     size_t num_parameters() const { return 10; }
 
     VecX<Scalar> get_parameters() const {
-        // TODO probably should make this mass * com
         VecX<Scalar> p(num_parameters());
-        p << mass, com, vech(inertia);
+        p << mass, mass * com, vech(inertia);
         return p;
     }
 

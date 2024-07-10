@@ -19,9 +19,6 @@ class BalancingConstraintWrapper {
         if (!settings.balancing_settings.enabled) {
             throw std::runtime_error("Balancing settings not enabled.");
         }
-        if (!settings.balancing_settings.use_force_constraints) {
-            throw std::runtime_error("Contact force constraints not enabled.");
-        }
 
         ocs2::PinocchioInterface interface(build_pinocchio_interface(
             settings.robot_urdf_path, settings.robot_base_type,

@@ -4,7 +4,6 @@
 
 #include "upright_core/contact.h"
 #include "upright_core/contact_constraints.h"
-// #include "upright_core/nominal.h"
 #include "upright_core/rigid_body.h"
 #include "upright_core/types.h"
 
@@ -21,18 +20,6 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("mass", &RigidBody<Scalar>::mass)
         .def_readwrite("inertia", &RigidBody<Scalar>::inertia)
         .def_readwrite("com", &RigidBody<Scalar>::com);
-
-    // pybind11::class_<BalancedObject<Scalar>>(m, "BalancedObject")
-    //     .def(
-    //         pybind11::init<const RigidBody<Scalar>&, Scalar,
-    //                        const PolygonSupportArea<Scalar>&, Scalar, Scalar>(),
-    //         "body"_a, "com_height"_a, "support_area"_a, "r_tau"_a, "mu"_a)
-    //     .def_readonly("body", &BalancedObject<Scalar>::body)
-    //     // .def_readonly("com_height", &BalancedObject<Scalar>::com_height)
-    //     // .def_readonly("support_area", &BalancedObject<Scalar>::support_area)
-    //     // .def_readonly("r_tau", &BalancedObject<Scalar>::r_tau)
-    //     .def_readonly("mu", &BalancedObject<Scalar>::mu)
-    //     .def_static("compose", &BalancedObject<Scalar>::compose, "objects"_a);
 
     pybind11::class_<ContactPoint<Scalar>>(m, "ContactPoint")
         .def(pybind11::init<>())
@@ -62,16 +49,6 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("velocity", &RigidBodyState<Scalar>::velocity)
         .def_readwrite("acceleration", &RigidBodyState<Scalar>::acceleration)
         .def("Zero", &RigidBodyState<Scalar>::Zero);
-
-    // // TODO is this used?
-    // pybind11::class_<BalancedObjectArrangement<Scalar>>(
-    //     m, "BalancedObjectArrangement")
-    //     .def(
-    //         pybind11::init<const std::map<std::string, BalancedObject<Scalar>>&,
-    //                        const Vec3<Scalar>&>())
-    //     .def("balancing_constraints",
-    //          &BalancedObjectArrangement<Scalar>::balancing_constraints,
-    //          "state"_a);
 
     m.def("compute_object_dynamics_constraints",
           &compute_object_dynamics_constraints<Scalar>);

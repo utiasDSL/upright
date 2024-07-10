@@ -5,7 +5,6 @@
 #include <ocs2_oc/rollout/RolloutSettings.h>
 #include <ocs2_sqp/MultipleShootingSettings.h>
 #include <upright_control/constraint/balancing_constraints.h>
-#include <upright_control/constraint/constraint_type.h>
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/dimensions.h>
 #include <upright_control/dynamics/base_type.h>
@@ -48,11 +47,6 @@ struct EstimationSettings {
 struct ControllerSettings {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    enum class SolverMethod {
-        DDP,
-        SQP,
-    };
-
     VecXd initial_state;
     Vec3d gravity;
 
@@ -63,7 +57,7 @@ struct ControllerSettings {
     // off for higher performance.
     bool debug = false;
 
-    SolverMethod solver_method = SolverMethod::SQP;
+    // SolverMethod solver_method = SolverMethod::SQP;
     ocs2::mpc::Settings mpc;
     ocs2::multiple_shooting::Settings sqp;
     ocs2::rollout::Settings rollout;
@@ -76,16 +70,11 @@ struct ControllerSettings {
     MatXd end_effector_weight;
 
     // Limits
-    ConstraintType limit_constraint_type = ConstraintType::Soft;
     VecXd input_limit_lower;
     VecXd input_limit_upper;
-    ocs2::scalar_t input_limit_mu = 1e-2;
-    ocs2::scalar_t input_limit_delta = 1e-3;
 
     VecXd state_limit_lower;
     VecXd state_limit_upper;
-    ocs2::scalar_t state_limit_mu = 1e-2;
-    ocs2::scalar_t state_limit_delta = 1e-3;
 
     // End effector position box constraint
     bool end_effector_box_constraint_enabled = false;
@@ -127,25 +116,6 @@ struct ControllerSettings {
     BalancingSettings balancing_settings;
     InertialAlignmentSettings inertial_alignment_settings;
     ObstacleSettings obstacle_settings;
-
-    static ControllerSettings::SolverMethod solver_method_from_string(
-        const std::string& s) {
-        if (s == "ddp") {
-            return ControllerSettings::SolverMethod::DDP;
-        } else if (s == "sqp") {
-            return ControllerSettings::SolverMethod::SQP;
-        }
-        throw std::runtime_error("Cannot parse SolverMethod from string.");
-    }
-
-    static std::string solver_method_to_string(
-        const ControllerSettings::SolverMethod& method) {
-        if (method == ControllerSettings::SolverMethod::DDP) {
-            return "ddp";
-        } else {
-            return "sqp";
-        }
-    }
 };
 
 std::ostream& operator<<(std::ostream& out,
@@ -159,14 +129,10 @@ std::ostream& operator<<(std::ostream& out,
         << std::endl
         << "input_limit_upper = " << settings.input_limit_upper.transpose()
         << std::endl
-        << "input_limit_mu = " << settings.input_limit_mu << std::endl
-        << "input_limit_delta = " << settings.input_limit_delta << std::endl
         << "state_limit_lower = " << settings.state_limit_lower.transpose()
         << std::endl
         << "state_limit_upper = " << settings.state_limit_upper.transpose()
         << std::endl
-        << "state_limit_mu = " << settings.state_limit_mu << std::endl
-        << "state_limit_delta = " << settings.state_limit_delta << std::endl
         << "use_operating_points = " << settings.use_operating_points
         << std::endl
         << "robot_urdf_path = " << settings.robot_urdf_path << std::endl

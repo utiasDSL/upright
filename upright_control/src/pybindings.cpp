@@ -12,7 +12,6 @@
 #include <pybind11/stl_bind.h>
 #include <upright_control/balancing_constraint_wrapper.h>
 #include <upright_control/constraint/balancing_constraints.h>
-#include <upright_control/constraint/constraint_type.h>
 #include <upright_control/constraint/obstacle_constraint.h>
 #include <upright_control/controller_python_interface.h>
 #include <upright_control/controller_settings.h>
@@ -29,14 +28,12 @@ PYBIND11_MAKE_OPAQUE(ocs2::scalar_array_t)
 PYBIND11_MAKE_OPAQUE(ocs2::vector_array_t)
 PYBIND11_MAKE_OPAQUE(ocs2::matrix_array_t)
 
-using CollisionSphereVector = std::vector<CollisionSphere<scalar_t>>;
 using StringPairVector = std::vector<std::pair<std::string, std::string>>;
 
 using SystemMapping =
     SystemPinocchioMapping<TripleIntegratorPinocchioMapping<ocs2::scalar_t>,
                            ocs2::scalar_t>;
 
-PYBIND11_MAKE_OPAQUE(CollisionSphereVector)
 PYBIND11_MAKE_OPAQUE(StringPairVector)
 PYBIND11_MAKE_OPAQUE(std::vector<DynamicObstacle>)
 PYBIND11_MAKE_OPAQUE(std::vector<DynamicObstacleMode>)
@@ -49,7 +46,6 @@ PYBIND11_MODULE(bindings, m) {
     VECTOR_TYPE_BINDING(ocs2::vector_array_t, "vector_array")
     VECTOR_TYPE_BINDING(ocs2::matrix_array_t, "matrix_array")
 
-    VECTOR_TYPE_BINDING(CollisionSphereVector, "CollisionSphereVector")
     VECTOR_TYPE_BINDING(StringPairVector, "StringPairVector")
     VECTOR_TYPE_BINDING(std::vector<DynamicObstacle>, "DynamicObstacleVector")
     VECTOR_TYPE_BINDING(std::vector<DynamicObstacleMode>,
@@ -72,32 +68,9 @@ PYBIND11_MODULE(bindings, m) {
         .def(pybind11::init<>())
         .def_readwrite("enabled", &BalancingSettings::enabled)
         .def_readwrite("arrangement_name", &BalancingSettings::arrangement_name)
-        .def_readwrite("use_force_constraints",
-                       &BalancingSettings::use_force_constraints)
         .def_readwrite("bodies", &BalancingSettings::bodies)
         .def_readwrite("contacts", &BalancingSettings::contacts)
-        .def_readwrite("force_weight", &BalancingSettings::force_weight)
-        .def_readwrite("constraint_type", &BalancingSettings::constraint_type)
-        .def_readwrite("mu", &BalancingSettings::mu)
-        .def_readwrite("delta", &BalancingSettings::delta);
-
-    /// Other stuff
-    pybind11::enum_<ConstraintType>(m, "ConstraintType")
-        .value("Soft", ConstraintType::Soft)
-        .value("Hard", ConstraintType::Hard);
-    m.def("constraint_type_from_string", &constraint_type_from_string);
-    m.def("constraint_type_to_string", &constraint_type_to_string);
-
-    pybind11::class_<CollisionSphere<scalar_t>>(m, "CollisionSphere")
-        .def(pybind11::init<const std::string &, const std::string &,
-                            const Eigen::Matrix<scalar_t, 3, 1> &,
-                            const scalar_t>(),
-             "name"_a, "parent_frame_name"_a, "offset"_a, "radius"_a)
-        .def_readwrite("name", &CollisionSphere<scalar_t>::name)
-        .def_readwrite("parent_frame_name",
-                       &CollisionSphere<scalar_t>::parent_frame_name)
-        .def_readwrite("offset", &CollisionSphere<scalar_t>::offset)
-        .def_readwrite("radius", &CollisionSphere<scalar_t>::radius);
+        .def_readwrite("force_weight", &BalancingSettings::force_weight);
 
     pybind11::class_<DynamicObstacleMode>(m, "DynamicObstacleMode")
         .def(pybind11::init<>())
@@ -118,14 +91,10 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("collision_link_pairs",
                        &ObstacleSettings::collision_link_pairs)
         .def_readwrite("minimum_distance", &ObstacleSettings::minimum_distance)
-        .def_readwrite("constraint_type", &ObstacleSettings::constraint_type)
-        .def_readwrite("mu", &ObstacleSettings::mu)
-        .def_readwrite("delta", &ObstacleSettings::delta)
         .def_readwrite("obstacle_urdf_path",
                        &ObstacleSettings::obstacle_urdf_path)
         .def_readwrite("dynamic_obstacles",
-                       &ObstacleSettings::dynamic_obstacles)
-        .def_readwrite("extra_spheres", &ObstacleSettings::extra_spheres);
+                       &ObstacleSettings::dynamic_obstacles);
 
     pybind11::class_<RobotDimensions>(m, "RobotDimensions")
         .def(pybind11::init<>())
@@ -271,7 +240,6 @@ PYBIND11_MODULE(bindings, m) {
     pybind11::class_<ControllerSettings> ctrl_settings(m, "ControllerSettings");
     ctrl_settings.def(pybind11::init<>())
         .def_readwrite("gravity", &ControllerSettings::gravity)
-        .def_readwrite("solver_method", &ControllerSettings::solver_method)
         .def_readwrite("recompile_libraries",
                        &ControllerSettings::recompile_libraries)
         .def_readwrite("debug", &ControllerSettings::debug)
@@ -289,22 +257,14 @@ PYBIND11_MODULE(bindings, m) {
         .def_readwrite("state_weight", &ControllerSettings::state_weight)
         .def_readwrite("end_effector_weight",
                        &ControllerSettings::end_effector_weight)
-        .def_readwrite("limit_constraint_type",
-                       &ControllerSettings::limit_constraint_type)
         .def_readwrite("input_limit_lower",
                        &ControllerSettings::input_limit_lower)
         .def_readwrite("input_limit_upper",
                        &ControllerSettings::input_limit_upper)
-        .def_readwrite("input_limit_mu", &ControllerSettings::input_limit_mu)
-        .def_readwrite("input_limit_delta",
-                       &ControllerSettings::input_limit_delta)
         .def_readwrite("state_limit_lower",
                        &ControllerSettings::state_limit_lower)
         .def_readwrite("state_limit_upper",
                        &ControllerSettings::state_limit_upper)
-        .def_readwrite("state_limit_mu", &ControllerSettings::state_limit_mu)
-        .def_readwrite("state_limit_delta",
-                       &ControllerSettings::state_limit_delta)
         .def_readwrite("end_effector_box_constraint_enabled",
                        &ControllerSettings::end_effector_box_constraint_enabled)
         .def_readwrite("xyz_lower", &ControllerSettings::xyz_lower)
@@ -334,16 +294,7 @@ PYBIND11_MODULE(bindings, m) {
                        &ControllerSettings::operating_inputs)
         .def_readwrite("inertial_alignment_settings",
                        &ControllerSettings::inertial_alignment_settings)
-        .def_readwrite("xd", &ControllerSettings::xd)
-        .def("solver_method_from_string",
-             &ControllerSettings::solver_method_from_string)
-        .def("solver_method_to_string",
-             &ControllerSettings::solver_method_to_string);
-
-    pybind11::enum_<ControllerSettings::SolverMethod>(ctrl_settings,
-                                                      "SolverMethod")
-        .value("DDP", ControllerSettings::SolverMethod::DDP)
-        .value("SQP", ControllerSettings::SolverMethod::SQP);
+        .def_readwrite("xd", &ControllerSettings::xd);
 
     /* bind approximation classes */
     pybind11::class_<ocs2::VectorFunctionLinearApproximation>(
@@ -459,15 +410,8 @@ PYBIND11_MODULE(bindings, m) {
         .def("getStateInputInequalityConstraintValue",
              &ControllerPythonInterface::getStateInputInequalityConstraintValue,
              "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
-        .def("getSoftStateInputInequalityConstraintValue",
-             &ControllerPythonInterface::
-                 getSoftStateInputInequalityConstraintValue,
-             "name"_a, "t"_a, "x"_a.noconvert(), "u"_a.noconvert())
         .def("getStateInequalityConstraintValue",
              &ControllerPythonInterface::getStateInequalityConstraintValue,
-             "name"_a, "t"_a, "x"_a.noconvert())
-        .def("getSoftStateInequalityConstraintValue",
-             &ControllerPythonInterface::getSoftStateInequalityConstraintValue,
              "name"_a, "t"_a, "x"_a.noconvert())
         .def("getCostValue", &ControllerPythonInterface::getCostValue, "name"_a,
              "t"_a, "x"_a.noconvert(), "u"_a.noconvert())

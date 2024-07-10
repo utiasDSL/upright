@@ -19,7 +19,7 @@ import upright_cmd as cmd
 import IPython
 
 
-LOG = True
+LOG = False
 PLOT = False
 
 
@@ -48,8 +48,6 @@ def run_simulation(config, video, logname):
     x_obs = env.dynamic_obstacle_state()
     x = np.concatenate((q, v, a, x_obs))
     u = np.zeros(env.robot.nu)
-
-    print("starting controller")
 
     # controller
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
@@ -89,17 +87,7 @@ def run_simulation(config, video, logname):
     v_cmd = np.zeros_like(v)
     a_est = np.zeros_like(a)
 
-    T = model.settings.tracking
-    Kx = np.hstack(
-        (
-            T.kp * np.eye(dims.robot.q),
-            T.kv * np.eye(dims.robot.v),
-            T.ka * np.eye(dims.robot.v),
-        )
-    )
-
     print("Ready to start.")
-    # IPython.embed()
 
     # simulation loop
     while t <= env.duration:
@@ -136,12 +124,12 @@ def run_simulation(config, video, logname):
             IPython.embed()
             break
 
-        u_cmd = Kx @ (xd - x)[: dims.robot.x] + u_robot
 
         # integrate the command
         # it appears to be desirable to open-loop integrate velocity like this
         # to avoid PyBullet not handling velocity commands accurately at very
         # small values
+        u_cmd = u_robot
         v_cmd = v_cmd + env.timestep * a_est + 0.5 * env.timestep**2 * u_cmd
         a_est = a_est + env.timestep * u_cmd
 
@@ -212,7 +200,7 @@ def run_simulation(config, video, logname):
 
             # TODO eventually it would be nice to also compute this directly
             # via the core library
-            if model.is_using_force_constraints():
+            if model.settings.balancing_settings.enabled:
                 object_dynamics_constraints = (
                     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
                         "object_dynamics", t, x, u
@@ -374,8 +362,9 @@ def main():
     box = rg.Box.from_side_lengths(obj_config["side_lengths"])
     com_box = rg.Box(half_extents=0.6 * box.half_extents)
     com_offsets = [[0, 0, 0]] + box_face_centers(com_box) + [list(v) for v in com_box.vertices]
+    # com_offsets = [list(v) for v in com_box.vertices]
 
-    # inertias
+    # mass-normalized inertias
     inertias = [max_min_eig_inertia(box, c) for c in com_offsets]
     inertia_scales = [1.0, 0.5, 0.1]
 
@@ -392,14 +381,16 @@ def main():
                     {"time": 0, "position": waypoint, "orientation": [0, 0, 0, 1]}
                 ]
 
+                # always have controller think mass = 1.0
+                config["controller"]["objects"]["tall_block_0"]["mass"] = 1.0
+
+                # use mass = 1.0 for now; otherwise inertia would have to be re-scaled
                 config["simulation"]["objects"]["tall_block_0"]["mass"] = 1.0
                 config["simulation"]["objects"]["tall_block_0"]["com_offset"] = com_offset
                 config["simulation"]["objects"]["tall_block_0"]["inertia"] = s * inertia
 
-                # no need to recompile each time a waypoint is changed
-                # (but we do need to recompile for changes to the inertial
-                # parameters, at the moment)
-                if i > 0:
+                # only compile at most once
+                if run > 1:
                     config["controller"]["recompile_libraries"] = False
 
                 if LOG:

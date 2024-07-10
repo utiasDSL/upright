@@ -30,7 +30,7 @@ objects:
 
   tall_block_0:
     mass: 0.738
-    com_offset: [0, -0.03, 0.15]  # TODO real could be higher
+    com_offset: [0, 0.03, 0.2725]  # TODO real could be higher
     # inertia_diag: [0.01599, 0.0068, 0.00123]  # uniform density
     shape: cuboid
     side_lengths: [0.105, 0.105, 0.545]

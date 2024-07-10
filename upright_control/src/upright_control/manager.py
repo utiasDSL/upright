@@ -31,10 +31,6 @@ class ControllerModel:
         """Update model with state x and input u. Required before calling other methods."""
         self.robot.forward_xu(x, u)
 
-    def is_using_force_constraints(self):
-        b = self.settings.balancing_settings
-        return b.enabled and b.use_force_constraints
-
     # def balancing_constraints(self):
     #     """Evaluate the balancing constraints at time t and state x."""
     #     _, Q_we = self.robot.link_pose()
