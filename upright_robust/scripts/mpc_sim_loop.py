@@ -23,6 +23,7 @@ import IPython
 OBJECT_NAME = "nominal_sim_block"
 ARRANGEMENT_NAME = "nominal_sim"
 PLOT = False
+MU = 0.2
 
 
 def run_simulation(config, video, logname, use_gui=True):
@@ -344,6 +345,33 @@ def max_min_eig_inertia(box, com):
     return I.value
 
 
+def make_arrangement_config(object_names, x_offset, mu):
+    """Generate the config the arrangement of objects."""
+    objects_config = [
+        {
+            "name": name,
+            "type": name,
+            "parent": "ee",
+            "offset": {"x": x_offset},
+        }
+        for name in object_names
+    ]
+    contacts_config = [
+        {
+            "first": "ee",
+            "second": name,
+            "mu": mu,
+            "support_area_inset": 0.0,
+        }
+        for name in object_names
+    ]
+
+    return {
+        "objects": objects_config,
+        "contacts": contacts_config,
+    }
+
+
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
@@ -385,13 +413,9 @@ def main():
     # waypoints from the original paper
     waypoints = [[-2.0, 1.0, 0], [2.0, 0, -0.25], [0.0, -2.0, 0.25]]
 
-    # CoMs
     # obj_config = master_config["simulation"]["objects"][OBJECT_NAME]
     # box = rg.Box.from_side_lengths(obj_config["side_lengths"])
     # com_box = rg.Box(half_extents=0.6 * box.half_extents)
-
-    # TODO I want to try two different CoM locations: middle and top of the CoM box
-    # tempted to do all of this programmatically
     box = rg.Box(half_extents=[0.05, 0.05, 0.4])
     com_box = rg.Box(half_extents=[0.03, 0.03, 0.3])
 
@@ -411,34 +435,30 @@ def main():
         "color": [1, 0, 0, 1],
     }
 
-    arrangement_config = {
-        "objects": [
-            {
-                "name": "block1",
-                "type": OBJECT_NAME,
-                "parent": "ee",
-                "offset": {"x": box.half_extents[0]},
-            }
-        ],
-        "contacts": [
-            {
-                "first": "ee",
-                "second": "block1",
-                "mu": 0.2,
-                "support_area_inset": 0.0,
-            }
-        ],
-    }
-
     # place the CoM for the controller
-    if args.com == "center":
-        ctrl_obj_config["com_offset"] = [0, 0, 0]
-    elif args.com == "top":
-        ctrl_obj_config["com_offset"] = [0, 0, com_box.half_extents[2]]
-    else:
-        raise ValueError(f"Unknown CoM option: {args.com}")
+    if args.robust:
+        # make a config for each CoM we care about
+        x, y, z = com_box.half_extents
+        ctrl_com_offsets = [[x, y, z], [-x, y, z], [-x, -y, z], [x, -y, z]]
 
-    master_config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
+        object_names = [OBJECT_NAME + f"_{i+1}" for i in range(len(ctrl_com_offsets))]
+
+        # add to the main config
+        for name, com in zip(object_names, ctrl_com_offsets):
+            config = ctrl_obj_config.copy()
+            config["com_offset"] = com
+            master_config["controller"]["objects"][name] = config
+
+        arrangement_config = make_arrangement_config(object_names, x_offset=x, mu=MU)
+    else:
+        if args.com == "center":
+            ctrl_obj_config["com_offset"] = [0, 0, 0]
+        elif args.com == "top":
+            ctrl_obj_config["com_offset"] = [0, 0, com_box.half_extents[2]]
+        else:
+            raise ValueError(f"Unknown CoM option: {args.com}")
+        master_config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
+        arrangement_config = make_arrangement_config([OBJECT_NAME], x_offset=x, mu=MU)
 
     master_config["controller"]["arrangements"][ARRANGEMENT_NAME] = arrangement_config
     master_config["simulation"]["arrangements"][ARRANGEMENT_NAME] = arrangement_config
