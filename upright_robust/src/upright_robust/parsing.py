@@ -9,13 +9,13 @@ def parse_objects_and_contacts(
         model = ctrl.manager.ControllerModel.from_config(ctrl_config)
 
     # make EE origin the reference point for all contacts
-    objects = model.settings.balancing_settings.objects
+    bodies = model.settings.balancing_settings.bodies
     for c in model.settings.balancing_settings.contacts:
         if c.object1_name != "ee":
-            o1 = objects[c.object1_name]
-            c.r_co_o1 = c.r_co_o1 + o1.body.com
-        o2 = objects[c.object2_name]
-        c.r_co_o2 = c.r_co_o2 + o2.body.com
+            b1 = bodies[c.object1_name]
+            c.r_co_o1 = c.r_co_o1 + b1.com
+        b2 = bodies[c.object2_name]
+        c.r_co_o2 = c.r_co_o2 + b2.com
 
     contacts = []
     for c in model.settings.balancing_settings.contacts:
@@ -44,11 +44,11 @@ def parse_objects_and_contacts(
                 bounds_config, approx_inertia=approx_inertia
             )
             uncertain_objects[name] = mdl.UncertainObject(
-                objects[name], bounds, compute_bounds=True
+                bodies[name], bounds, compute_bounds=True
             )
         else:
             uncertain_objects[name] = mdl.UncertainObject(
-                objects[name], compute_bounds=False
+                bodies[name], compute_bounds=False
             )
 
     return uncertain_objects, contacts

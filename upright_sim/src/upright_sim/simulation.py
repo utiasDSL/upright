@@ -544,11 +544,11 @@ def balanced_object_setup(r_ew_w, Q_we, config, robot):
 
 
 class UprightSimulation(BulletSimulation):
-    def __init__(self, config, timestamp, video_name=None, extra_gui=False):
+    def __init__(self, config, timestamp, video_name=None, gui=True, extra_gui=False):
         super().__init__(
             timestep=config["timestep"],
             gravity=config["gravity"],
-            gui=True,
+            gui=gui,
             extra_gui=extra_gui,
         )
 

@@ -1,6 +1,5 @@
 simulation:
   robot:
-    # home: [0, 0, 0, 0.5pi, -0.75pi, -0.5pi, -0.25pi, -0.5pi, 0.5pi]  # upright
     home: [-1, 1, 0, 0.5pi, -0.25pi, 0.5pi, -0.25pi, 0.5pi, 0.417pi]  # standard
     dims:
       q: 9  # generalized position

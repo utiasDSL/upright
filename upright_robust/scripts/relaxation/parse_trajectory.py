@@ -3,6 +3,7 @@ bounds for relaxed problem."""
 import argparse
 from pathlib import Path
 import glob
+import os
 
 import numpy as np
 import cvxpy as cp
@@ -16,11 +17,66 @@ import upright_robust as rob
 import IPython
 
 
-MU_BOUND = 0.01
+# We do *not* compute the minimum friction coefficient required to satisfy the
+# constraints at all times. Instead, we specify a (maximum) friction
+# coefficient a priori and then *verify* that the constraints are satisfied
+# given this much friction.
+MU_BOUND = 0.05
 
 
-def parse_npz_dir(directory):
-    """Parse npz and config path from a data directory.
+class Results:
+    """Summary of maximum values from the run(s)."""
+    def __init__(
+        self,
+        max_linear_acc=0,
+        max_angular_acc=0,
+        max_linear_vel=0,
+        max_angular_vel=0,
+        max_tilt_angle=0,
+    ):
+        self.max_linear_acc = max_linear_acc
+        self.max_angular_acc = max_angular_acc
+        self.max_linear_vel = max_linear_vel
+        self.max_angular_vel = max_angular_vel
+        self.max_tilt_angle = max_tilt_angle
+        self.mu_bound = MU_BOUND
+
+    def as_dict(self):
+        return {
+            "max_linear_acc": self.max_linear_acc,
+            "max_angular_acc": self.max_angular_acc,
+            "max_linear_vel": self.max_linear_vel,
+            "max_angular_vel": self.max_angular_vel,
+            "max_tilt_angle": self.max_tilt_angle,
+            "mu_bound": self.mu_bound,
+        }
+
+    def update(
+        self,
+        linear_acc=0,
+        angular_acc=0,
+        linear_vel=0,
+        angular_vel=0,
+        tilt_angle=0,
+    ):
+        # we can update directly or from another Results object
+        if isinstance(linear_acc, Results):
+            other = linear_acc
+            self.max_linear_acc = max(self.max_linear_acc, other.max_linear_acc)
+            self.max_angular_acc = max(self.max_angular_acc, other.max_angular_acc)
+            self.max_linear_vel = max(self.max_linear_vel, other.max_linear_vel)
+            self.max_angular_vel = max(self.max_angular_vel, other.max_angular_vel)
+            self.max_tilt_angle = max(self.max_tilt_angle, other.max_tilt_angle)
+        else:
+            self.max_linear_acc = max(self.max_linear_acc, linear_acc)
+            self.max_angular_acc = max(self.max_angular_acc, angular_acc)
+            self.max_linear_vel = max(self.max_linear_vel, linear_vel)
+            self.max_angular_vel = max(self.max_angular_vel, angular_vel)
+            self.max_tilt_angle = max(self.max_tilt_angle, tilt_angle)
+
+
+def parse_run_dir(directory):
+    """Parse npz and config path from a data directory of a single run.
 
     Returns (config_path, npz_path), as strings."""
     dir_path = Path(directory)
@@ -36,14 +92,9 @@ def parse_npz_dir(directory):
     return config_path, npz_path
 
 
-def main():
-    np.set_printoptions(precision=5, suppress=True)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("directory", help="Directory containing config and npz file.")
-    args = parser.parse_args()
-
-    config_path, npz_path = parse_npz_dir(args.directory)
+def compute_run_bounds(directory):
+    """Compute the bounds for a single run."""
+    config_path, npz_path = parse_run_dir(directory)
     config = core.parsing.load_config(config_path)
     ctrl_config = config["controller"]
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
@@ -56,15 +107,16 @@ def main():
     name_index = rob.compute_object_name_index(names)
 
     # face form of the CWC: {w | F @ w <= 0}
+    # TODO may be intractable for the robust case
     F = rob.compute_cwc_face_form(name_index, contacts)
 
     # mixed form of the CWC: {w = W @ f | A @ f >= 0}
-    W = rob.compute_contact_force_to_wrench_map(name_index, contacts)
-    nf = 3 * len(contacts)
-    A = block_diag(*[c.F for c in contacts])
-    f = cp.Variable(nf)
+    # W = rob.compute_contact_force_to_wrench_map(name_index, contacts)
+    # nf = 3 * len(contacts)
+    # A = block_diag(*[c.F for c in contacts])
+    # f = cp.Variable(nf)
 
-    objective = cp.Minimize([0])
+    # objective = cp.Minimize([0])
 
     data = np.load(npz_path)
     ts = data["ts"]
@@ -74,14 +126,9 @@ def main():
     z = np.array([0, 0, 1])
 
     max_constraint_value = -np.infty
-    max_linear_acc = -np.infty
-    max_angular_acc = -np.infty
-    max_linear_vel = -np.infty
-    max_angular_vel = -np.infty
-    max_tilt_angle = -np.infty
+    results = Results()
 
     for t, x in zip(ts, xs):
-        # print(f"t = {t}")
         robot.forward_xu(x=x)
 
         C_we = robot.link_pose(rotation_matrix=True)[1]
@@ -89,13 +136,13 @@ def main():
         G_e = rob.body_gravity6(C_ew=C_we.T)
         A_e = np.concatenate(robot.link_spatial_acceleration(frame="local"))
 
-        tilt_angle = np.arccos(z @ C_we @ z)
-        max_tilt_angle = max(max_tilt_angle, tilt_angle)
-
-        max_linear_acc = max(max_linear_acc, np.linalg.norm(A_e[:3]))
-        max_angular_acc = max(max_angular_acc, np.linalg.norm(A_e[3:]))
-        max_linear_vel = max(max_linear_vel, np.linalg.norm(V_e[:3]))
-        max_angular_vel = max(max_angular_vel, np.linalg.norm(V_e[3:]))
+        results.update(
+            linear_acc=np.linalg.norm(A_e[:3]),
+            angular_acc=np.linalg.norm(A_e[3:]),
+            linear_vel=np.linalg.norm(V_e[:3]),
+            angular_vel=np.linalg.norm(V_e[3:]),
+            tilt_angle=np.arccos(z @ C_we @ z),
+        )
 
         # V_ew_w = np.concatenate(robot.link_velocity(frame="local_world_aligned"))
         # g_w = np.array([0, 0, -9.81])
@@ -113,16 +160,16 @@ def main():
         # )
 
         # body wrench about the EE origin
-        w = np.concatenate(
-            [obj.wrench(A=A_e - G_e, V=V_e) for obj in objects.values()]
-        )
+        w = np.concatenate([obj.wrench(A=A_e - G_e, V=V_e) for obj in objects.values()])
 
         constraints = F @ w
-        max_constraint_value = max(max_constraint_value, np.max(constraints))
+        # max_constraint_value = max(max_constraint_value, np.max(constraints))
         if np.max(constraints) > 0:
-            print(f"face violation = {np.max(F @ w)}")
+            print(f"face violation = {np.max(constraints)}")
+            raise ValueError(f"μ = {MU_BOUND} not large enough!")
 
         # NOTE: alternatively we can solve a feasibility problem
+        # TODO this may be necessary for more complex CWCs
         # constraints = [w == W @ f, A @ f >= 0]
         # problem = cp.Problem(objective, constraints)
         # problem.solve(solver=cp.MOSEK)
@@ -132,15 +179,26 @@ def main():
         # else:
         #     print(problem.status.upper())
 
-    print(f"Max face violation = {max_constraint_value}")
-    if max_constraint_value <= 0:
-        print(f"We used less than μ = {MU_BOUND}")
+    return results
 
-    print(f"max linear acc  = {max_linear_acc}")
-    print(f"max angular acc = {max_angular_acc}")
-    print(f"max linear vel  = {max_linear_vel}")
-    print(f"max angular vel = {max_angular_vel}")
-    print(f"max tilt angle  = {max_tilt_angle} rad ({np.rad2deg(max_tilt_angle)} deg)")
+
+def main():
+    np.set_printoptions(precision=5, suppress=True)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("directory", help="Directory containing config and npz file.")
+    args = parser.parse_args()
+
+    # iterate through all directories
+    dirs = glob.glob(args.directory + "/*/")
+    results = Results()
+    for d in dirs:
+        run_results = compute_run_bounds(d)
+        results.update(run_results)
+
+    with open(out, "w") as f:
+        yaml.dump(f, results.as_dict())
+    print(f"Dumped results to {out}")
 
 
 if __name__ == "__main__":

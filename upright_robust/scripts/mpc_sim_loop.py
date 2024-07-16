@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Closed-loop upright simulation using Pybullet."""
+import argparse
 import copy
 import datetime
 
@@ -19,11 +20,12 @@ import upright_cmd as cmd
 import IPython
 
 
-LOG = False
+OBJECT_NAME = "nominal_sim_block"
+ARRANGEMENT_NAME = "nominal_sim"
 PLOT = False
 
 
-def run_simulation(config, video, logname):
+def run_simulation(config, video, logname, use_gui=True):
     sim_config = config["simulation"]
     ctrl_config = config["controller"]
 
@@ -34,6 +36,7 @@ def run_simulation(config, video, logname):
         config=sim_config,
         timestamp=timestamp,
         video_name=video,
+        gui=use_gui,
         extra_gui=sim_config.get("extra_gui", False),
     )
 
@@ -75,9 +78,9 @@ def run_simulation(config, video, logname):
 
     # log variable quantities in the sim loop
     logger.add("waypoint", ctrl_config["waypoints"][0]["position"])
-    logger.add("mass", sim_config["objects"]["tall_block_0"]["mass"])
-    logger.add("com_offset", sim_config["objects"]["tall_block_0"]["com_offset"])
-    logger.add("inertia", sim_config["objects"]["tall_block_0"]["inertia"])
+    logger.add("mass", sim_config["objects"][OBJECT_NAME]["mass"])
+    logger.add("com_offset", sim_config["objects"][OBJECT_NAME]["com_offset"])
+    logger.add("inertia", sim_config["objects"][OBJECT_NAME]["inertia"])
 
     # frames for desired waypoints
     if sim_config.get("show_debug_frames", False):
@@ -123,7 +126,6 @@ def run_simulation(config, video, logname):
             print("NaN value in input!")
             IPython.embed()
             break
-
 
         # integrate the command
         # it appears to be desirable to open-loop integrate velocity like this
@@ -345,23 +347,105 @@ def max_min_eig_inertia(box, com):
 def main():
     np.set_printoptions(precision=3, suppress=True)
 
-    cli_args = cmd.cli.sim_arg_parser().parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True, help="Path to configuration file.")
+    parser.add_argument(
+        "--log",
+        action="store_true",
+        help="Log data. Optionally specify prefix for log directoy.",
+    )
+    parser.add_argument(
+        "--gui",
+        action="store_true",
+        help="Use PyBullet GUI. Otherwise, use DIRECT interface.",
+    )
+    parser.add_argument(
+        "--robust",
+        action="store_true",
+        help="Use robust constraints.",
+    )
+    parser.add_argument(
+        "--com",
+        choices=["center", "top"],
+        required=True,
+        help="Where the controller should put the CoM.",
+    )
+    args = parser.parse_args()
 
     # load configuration
-    master_config = core.parsing.load_config(cli_args.config)
+    master_config = core.parsing.load_config(args.config)
 
     # waypoints
-    z = np.array([0, 0, 0.4])
-    w1 = [[0, -2, 0], [1.5, -1.5, 0], [2, 0, 0], [1.5, 1.5, 0], [0, 2, 0]]
-    w2 = [list(w + z) for w in w1]
-    w3 = [list(w - z) for w in w1]
-    waypoints = w1 + w2 + w3
+    # z = np.array([0, 0, 0.4])
+    # w1 = [[0, -2, 0], [1.5, -1.5, 0], [2, 0, 0], [1.5, 1.5, 0], [0, 2, 0]]
+    # w2 = [list(w + z) for w in w1]
+    # w3 = [list(w - z) for w in w1]
+    # waypoints = w1 + w2 + w3
+
+    # waypoints from the original paper
+    waypoints = [[-2.0, 1.0, 0], [2.0, 0, -0.25], [0.0, -2.0, 0.25]]
 
     # CoMs
-    obj_config = master_config["simulation"]["objects"]["tall_block_0"]
-    box = rg.Box.from_side_lengths(obj_config["side_lengths"])
-    com_box = rg.Box(half_extents=0.6 * box.half_extents)
-    com_offsets = [[0, 0, 0]] + box_face_centers(com_box) + [list(v) for v in com_box.vertices]
+    # obj_config = master_config["simulation"]["objects"][OBJECT_NAME]
+    # box = rg.Box.from_side_lengths(obj_config["side_lengths"])
+    # com_box = rg.Box(half_extents=0.6 * box.half_extents)
+
+    # TODO I want to try two different CoM locations: middle and top of the CoM box
+    # tempted to do all of this programmatically
+    box = rg.Box(half_extents=[0.05, 0.05, 0.4])
+    com_box = rg.Box(half_extents=[0.03, 0.03, 0.3])
+
+    # no inertia specified means that we just assume uniform density
+    ctrl_obj_config = {
+        "mass": 1.0,
+        "shape": "cuboid",
+        "side_lengths": box.side_lengths.tolist(),
+        "color": [1, 0, 0, 1],
+    }
+
+    # use mass = 1.0 for now; otherwise inertia would have to be re-scaled
+    sim_obj_config = {
+        "mass": 1.0,
+        "shape": "cuboid",
+        "side_lengths": box.side_lengths.tolist(),
+        "color": [1, 0, 0, 1],
+    }
+
+    arrangement_config = {
+        "objects": [
+            {
+                "name": "block1",
+                "type": OBJECT_NAME,
+                "parent": "ee",
+                "offset": {"x": box.half_extents[0]},
+            }
+        ],
+        "contacts": [
+            {
+                "first": "ee",
+                "second": "block1",
+                "mu": 0.2,
+                "support_area_inset": 0.0,
+            }
+        ],
+    }
+
+    # place the CoM for the controller
+    if args.com == "center":
+        ctrl_obj_config["com_offset"] = [0, 0, 0]
+    elif args.com == "top":
+        ctrl_obj_config["com_offset"] = [0, 0, com_box.half_extents[2]]
+    else:
+        raise ValueError(f"Unknown CoM option: {args.com}")
+
+    master_config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
+
+    master_config["controller"]["arrangements"][ARRANGEMENT_NAME] = arrangement_config
+    master_config["simulation"]["arrangements"][ARRANGEMENT_NAME] = arrangement_config
+
+    com_offsets = (
+        [[0, 0, 0]] + box_face_centers(com_box) + [list(v) for v in com_box.vertices]
+    )
     # com_offsets = [list(v) for v in com_box.vertices]
 
     # mass-normalized inertias
@@ -369,7 +453,11 @@ def main():
     inertia_scales = [1.0, 0.5, 0.1]
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    dirname = f"robust_sims_{timestamp}"
+
+    if args.robust:
+        dirname = f"robust_com_{args.com}_{timestamp}"
+    else:
+        dirname = f"nominal_com_{args.com}_{timestamp}"
 
     run = 1
     for com_offset, inertia in zip(com_offsets, inertias):
@@ -381,24 +469,22 @@ def main():
                     {"time": 0, "position": waypoint, "orientation": [0, 0, 0, 1]}
                 ]
 
-                # always have controller think mass = 1.0
-                config["controller"]["objects"]["tall_block_0"]["mass"] = 1.0
-
-                # use mass = 1.0 for now; otherwise inertia would have to be re-scaled
-                config["simulation"]["objects"]["tall_block_0"]["mass"] = 1.0
-                config["simulation"]["objects"]["tall_block_0"]["com_offset"] = com_offset
-                config["simulation"]["objects"]["tall_block_0"]["inertia"] = s * inertia
+                sim_obj_config["com_offset"] = com_offset
+                sim_obj_config["inertia"] = (s * inertia).tolist()
+                config["simulation"]["objects"][OBJECT_NAME] = sim_obj_config
 
                 # only compile at most once
                 if run > 1:
                     config["controller"]["recompile_libraries"] = False
 
-                if LOG:
+                if args.log:
                     name = f"{dirname}/run_{run}"
                 else:
                     name = None
 
-                run_simulation(config=config, video=None, logname=name)
+                run_simulation(
+                    config=config, video=None, logname=name, use_gui=args.gui
+                )
                 run += 1
 
 

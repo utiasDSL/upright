@@ -398,9 +398,8 @@ class ObjectBounds:
 # TODO in principle this could be a composition of an rg.RigidBody and the
 # inertial parameter bounds?
 class UncertainObject:
-    def __init__(self, obj, bounds=None, compute_bounds=True):
-        self.object = obj
-        self.body = obj.body
+    def __init__(self, body, bounds=None, compute_bounds=True):
+        self.body = body
 
         # inertial quantities are taken w.r.t./about the EE origin (i.e.,
         # self.body.com is the vector from the EE origin to the CoM of this
@@ -409,7 +408,7 @@ class UncertainObject:
         c = self.body.com
 
         Sc = core.math.skew3(c)
-        I = obj.body.inertia - m * Sc @ Sc
+        I = self.body.inertia - m * Sc @ Sc
 
         # spatial mass matrix
         # fmt: off

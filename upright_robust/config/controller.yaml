@@ -11,12 +11,10 @@ balancing:
 
 objects:
   tall_block_0:
-    mass: 0.738
-    com_offset: [0, 0, 0.2725]  # nominal top
-    # com_offset: [0, 0, 0]  # robust
-    # inertia_diag: [0.01599, 0.0068, 0.00123]  # uniform density
+    mass: 1.0
+    com_offset: [0, 0, 0]  # nominal top
     shape: cuboid
-    side_lengths: [0.105, 0.105, 0.545]
+    side_lengths: [0.1, 0.1, 0.8]
 
     # bounds are all relative to the nominal values above
     # these are the bounds actually enforced by the controller along with fixed
