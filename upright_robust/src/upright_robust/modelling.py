@@ -193,90 +193,29 @@ class RobustContactPoint:
 
 
 class ObjectBounds:
-    """Bounds on the inertial parameters of a rigid body."""
+    """Bounds on the inertial parameters of a rigid body.
+
+    Parameters
+    ----------
+    bounding_box : rg.Box
+        The bounding box for the entire object.
+    com_box : rg.Box
+        The box which the CoM is known to lie within.
+    approx_inertia : bool
+        True to approximate inertia as a fixed value, False to use any
+        physically realizable value.
+    """
 
     def __init__(
         self,
-        mass_lower=None,
-        mass_upper=None,
-        com_lower=None,
-        com_upper=None,
-        ellipsoid_half_extents=None,
-        box_half_extents=None,
-        centroid=None,
+        bounding_box,
+        com_box=None,
         approx_inertia=False,
     ):
-        """All quantities are *relative to the nominal value*.
-
-        For example, we want:
-            mass_actual >= mass_nominal + mass_lower
-            mass_actual <= mass_nominal + mass_upper
-        """
-        if mass_lower is None:
-            mass_lower = 0
-        self.mass_lower = mass_lower
-        assert self.mass_lower <= 0
-
-        if mass_upper is None:
-            mass_upper = 0
-        self.mass_upper = mass_upper
-        assert self.mass_upper >= 0
-
-        if com_lower is None:
-            com_lower = np.zeros(3)
-        self.com_lower = np.array(com_lower)
-
-        if com_upper is None:
-            com_upper = np.zeros(3)
-        self.com_upper = np.array(com_upper)
-
-        # ellipsoid_half_extents can be None
-        self.ellipsoid_half_extents = ellipsoid_half_extents
-        self.box_half_extents = box_half_extents
-        self.centroid = centroid
-
+        self.bounding_box = bounding_box
+        self.bounding_ellipsoid = bounding_box.mbe()
+        self.com_box = com_box
         self.approx_inertia = approx_inertia
-
-    @classmethod
-    def from_config(cls, config, approx_inertia=False):
-        mass_lower = config.get("mass_lower", None)
-        mass_upper = config.get("mass_upper", None)
-        com_lower = config.get("com_lower", None)
-        com_upper = config.get("com_upper", None)
-
-        centroid = np.array(config["centroid"])  # required
-        if "ellipsoid_half_extents" in config:
-            ell_half_extents = np.array(config["ellipsoid_half_extents"])
-            assert ell_half_extents.shape == (3,)
-        else:
-            ell_half_extents = None
-        if "box_half_extents" in config:
-            box_half_extents = np.array(config["box_half_extents"])
-            assert box_half_extents.shape == (3,)
-        else:
-            box_half_extents = None
-
-        return cls(
-            mass_lower=mass_lower,
-            mass_upper=mass_upper,
-            com_lower=com_lower,
-            com_upper=com_upper,
-            ellipsoid_half_extents=ell_half_extents,
-            box_half_extents=box_half_extents,
-            centroid=centroid,
-            approx_inertia=approx_inertia,
-        )
-
-    def bounding_box(self, c):
-        return rg.Box(half_extents=self.box_half_extents, center=self.centroid)
-
-    def bounding_ellipsoid(self):
-        return rg.Ellipsoid(
-            half_extents=self.ellipsoid_half_extents, center=self.centroid
-        )
-
-    def com_box(self, c):
-        return rg.Box.from_two_vertices(c + self.com_lower, c + self.com_upper)
 
     def polytope(self, m, c, I):
         """Build the polytope containing the inertial parameters given the
@@ -298,17 +237,18 @@ class ObjectBounds:
         """
         Ivec = rg.vech(I)
 
-        # mass bounds
-        # TODO can we get rid of these?
+        # mass is always assumed to be exact
         P_m = np.hstack(([[-1], [1]], np.zeros((2, 9))))
-        p_m = np.array([-(m + self.mass_lower), m + self.mass_upper])
+        p_m = np.array([-m, m])
 
         # CoM bounds
         E3 = np.eye(3)
+        com_lower = self.com_box.center - self.com_box.half_extents
+        com_upper = self.com_box.center + self.com_box.half_extents
         P_h = np.block(
             [
-                [(c + self.com_lower)[:, None], -E3, np.zeros((3, 6))],
-                [-(c + self.com_upper)[:, None], E3, np.zeros((3, 6))],
+                [com_lower[:, None], -E3, np.zeros((3, 6))],
+                [-com_upper[:, None], E3, np.zeros((3, 6))],
             ]
         )
         p_h = np.zeros(6)
@@ -331,13 +271,11 @@ class ObjectBounds:
             # bounding shapes; only constraints required for realizability
             P_I = np.zeros((13, 10))
             p_I = np.zeros(13)
-            # P_I = np.zeros((1, 10))
-            # p_I = np.zeros(1)
 
             # using constraints on I is not as tight!
             USE_I_CONSTRAINTS = False
             if USE_I_CONSTRAINTS:
-                I_min, I_max = unit_I_min_max(self.bounding_box(c), self.com_box(c))
+                I_min, I_max = unit_I_min_max(self.bounding_box, self.com_box)
 
                 # H diagonal bounds
                 # diag(I) >= diag(I)_min
@@ -359,7 +297,7 @@ class ObjectBounds:
                 P_I[10, :] = [-I_max[0, 2], 0, 0, 0, 0, 0, 1, 0, 0, 0]  # Ixz
                 P_I[11, :] = [-I_max[1, 2], 0, 0, 0, 0, 0, 0, 0, 1, 0]  # Iyz
             else:
-                H_min, H_max = unit_H_min_max(self.bounding_box(c), self.com_box(c))
+                H_min, H_max = unit_H_min_max(self.bounding_box, self.com_box)
 
                 # H diagonal bounds
                 # diag(H) >= diag(H)_min
@@ -383,7 +321,7 @@ class ObjectBounds:
 
             # ellipsoid density realizability
             # tr(ΠQ) >= 0
-            ell = self.bounding_ellipsoid()
+            ell = self.bounding_ellipsoid
             P_I[12, :] = [-np.trace(A @ ell.Q) for A in rg.pim_sum_vec_matrices()]
 
         # combined bounds
@@ -392,13 +330,11 @@ class ObjectBounds:
         return P, p
 
     def unit_vec2_max(self, m, c, I):
-        return unit_vec2_max(self.bounding_box(c), self.com_box(c))
+        return unit_vec2_max(self.bounding_box, self.com_box)
 
 
-# TODO in principle this could be a composition of an rg.RigidBody and the
-# inertial parameter bounds?
 class UncertainObject:
-    def __init__(self, body, bounds=None, compute_bounds=True):
+    def __init__(self, body, bounds=None):
         self.body = body
 
         # inertial quantities are taken w.r.t./about the EE origin (i.e.,
@@ -419,25 +355,15 @@ class UncertainObject:
         # fmt: on
 
         # polytopic parameter uncertainty: Pθ <= p
-        if compute_bounds:
+        if bounds is not None:
             self.P, self.p = bounds.polytope(m, c, I)
-
-            self.mass_min = m + bounds.mass_lower
-            self.mass_max = m + bounds.mass_upper
-            self.bounding_box = bounds.bounding_box(c)
-            self.com_box = bounds.com_box(c)
+            self.bounding_box = bounds.bounding_box
+            self.com_box = bounds.com_box
 
             # use a fixed inertia value for approx_inertia case
             self.unit_vec2_max = bounds.unit_vec2_max(m, c, I)
             if bounds.approx_inertia:
                 self.unit_vec2_max[-6:] = rg.vech(I)
-
-            # nominal inertial parameter vector
-            # NOTE: unused, previously part of primal relaxation approach
-            # if bounds.approx_inertia:
-            #     self.θ_nom = np.concatenate(([m], m * c, rg.vech(I)))
-            # else:
-            #     self.θ_nom = np.concatenate(([m], m * c, rg.vech(-m * Sc @ Sc)))
 
     def bias(self, V):
         """Compute Coriolis and centrifugal terms."""
@@ -446,21 +372,6 @@ class UncertainObject:
     def wrench(self, A, V):
         """Compute the body-frame inertial wrench."""
         return self.M @ A + self.bias(V)
-
-    # def inertial_com_wrench(self, C_we, A_ew_w, V_ew_w):
-    #     # NOTE gravity needs to be included in A_ew_w
-    #     m = self.body.mass
-    #     c = self.body.com
-    #     I = self.body.inertia
-    #
-    #     α_ew_e = C_we.T @ A_ew_w[3:]
-    #     ω_ew_e = C_we.T @ V_ew_w[3:]
-    #     Sα = core.math.skew3(A_ew_w[3:])
-    #     Sω = core.math.skew3(V_ew_w[3:])
-    #     ddC_we = (Sα + Sω @ Sω) @ C_we
-    #     f = m * C_we.T @ (A_ew_w[:3] + ddC_we @ c)
-    #     τ = I @ α_ew_e + np.cross(ω_ew_e, I @ ω_ew_e)
-    #     return np.concatenate((f, τ))
 
 
 def compute_object_name_index(names):

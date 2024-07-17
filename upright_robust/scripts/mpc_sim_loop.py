@@ -413,11 +413,15 @@ def main():
     # waypoints from the original paper
     waypoints = [[-2.0, 1.0, 0], [2.0, 0, -0.25], [0.0, -2.0, 0.25]]
 
-    # obj_config = master_config["simulation"]["objects"][OBJECT_NAME]
-    # box = rg.Box.from_side_lengths(obj_config["side_lengths"])
-    # com_box = rg.Box(half_extents=0.6 * box.half_extents)
-    box = rg.Box(half_extents=[0.05, 0.05, 0.4])
-    com_box = rg.Box(half_extents=[0.03, 0.03, 0.3])
+    obj_config = master_config["controller"]["objects"][OBJECT_NAME]
+    box = rg.Box.from_side_lengths(obj_config["side_lengths"])
+
+    com_lower = obj_config["bounds"]["realizable"]["com_lower"]
+    com_upper = obj_config["bounds"]["realizable"]["com_upper"]
+    com_box = rg.Box.from_two_vertices(com_lower, com_upper)
+
+    IPython.embed()
+    return
 
     # no inertia specified means that we just assume uniform density
     ctrl_obj_config = {

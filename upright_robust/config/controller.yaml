@@ -10,40 +10,20 @@ balancing:
   enabled: true
 
 objects:
-  tall_block_0:
+  nominal_sim_block:
     mass: 1.0
-    com_offset: [0, 0, 0]  # nominal top
+    com_offset: [0, 0, 0]
     shape: cuboid
     side_lengths: [0.1, 0.1, 0.8]
 
-    # bounds are all relative to the nominal values above
-    # these are the bounds actually enforced by the controller along with fixed
-    # value of the inertia matrix
-    bounds_approx_inertia:
-      # com_lower: [-0.01, -0.01, 0]
-      # com_upper: [0.01, 0.01, 0]
-      com_lower: [-0.04, -0.04, -0.5]
-      com_upper: [0.04, 0.04, 0]
-      # com_lower: [-0.04, -0.04, 0]
-      # com_upper: [0.04, 0.04, 0]
-      mass_lower: 0
-      mass_upper: 0
-
-      # TODO what is this being used for now?
-      box_half_extents: [0.0525, 0.0525, 0.2725]
-      centroid: [0, 0, 0.2725]
-
-    # these are the bounds that allow any inertia matrix that is physically
-    # realizable
-    bounds_realizable:
-      com_lower: [-0.03, -0.03, -0.5]
-      com_upper: [0.03, 0.03, 0]
-      mass_lower: 0
-      mass_upper: 0
-
-      ellipsoid_half_extents: [0.09093267, 0.09093267, 0.47198385] # bounding
-      box_half_extents: [0.0525, 0.0525, 0.2725]
-      centroid: [0, 0, 0.2725]
+    # these are relative to the nominal CoM value above
+    bounds:
+      approx:  # actually enforced by controller (fixed value of inertia matrix)
+        com_lower: [-0.04, -0.04, -0.4]
+        com_upper: [0.04, 0.04, 0.4]
+      realizable:  # physically possible values
+        com_lower: [-0.03, -0.03, -0.3]
+        com_upper: [0.03, 0.03, 0.3]
 
   # three white cardboard boxes attached together
   white_cardboard_box3:

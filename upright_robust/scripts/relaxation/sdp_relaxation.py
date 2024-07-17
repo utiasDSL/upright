@@ -199,6 +199,7 @@ def solve_approx_inertia_sdp_dual(
         # fmt: on
         problem = cp.Problem(objective, constraints)
         problem.solve(solver=cp.MOSEK)
+        assert problem.status == "optimal"
         values.append(problem.value)
         if objective.value > 0:
             print(f"index = {i}")
