@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """SDP relaxations for robust balancing constraints.
 
 We want to find determine the worst-case values of the balancing constraints

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Parse simulated trajectory data from an npz file to determine appropriate
 bounds for relaxed problem."""
 import argparse
@@ -33,12 +34,14 @@ class Results:
         max_linear_vel=0,
         max_angular_vel=0,
         max_tilt_angle=0,
+        max_obj_dist=0,
     ):
         self.max_linear_acc = max_linear_acc
         self.max_angular_acc = max_angular_acc
         self.max_linear_vel = max_linear_vel
         self.max_angular_vel = max_angular_vel
         self.max_tilt_angle = max_tilt_angle
+        self.max_obj_dist = max_obj_dist
         self.mu_bound = MU_BOUND
 
     def as_dict(self):
@@ -48,6 +51,7 @@ class Results:
             "max_linear_vel": self.max_linear_vel,
             "max_angular_vel": self.max_angular_vel,
             "max_tilt_angle": self.max_tilt_angle,
+            "max_obj_dist": self.max_obj_dist,
             "mu_bound": self.mu_bound,
         }
 
@@ -58,6 +62,7 @@ class Results:
         linear_vel=0,
         angular_vel=0,
         tilt_angle=0,
+        obj_dist=0,
     ):
         # we can update directly or from another Results object
         if isinstance(linear_acc, Results):
@@ -67,12 +72,14 @@ class Results:
             self.max_linear_vel = max(self.max_linear_vel, other.max_linear_vel)
             self.max_angular_vel = max(self.max_angular_vel, other.max_angular_vel)
             self.max_tilt_angle = max(self.max_tilt_angle, other.max_tilt_angle)
+            self.max_obj_dist = max(self.max_tilt_angle, other.max_obj_dist)
         else:
             self.max_linear_acc = max(self.max_linear_acc, linear_acc)
             self.max_angular_acc = max(self.max_angular_acc, angular_acc)
             self.max_linear_vel = max(self.max_linear_vel, linear_vel)
             self.max_angular_vel = max(self.max_angular_vel, angular_vel)
             self.max_tilt_angle = max(self.max_tilt_angle, tilt_angle)
+            self.max_obj_dist = max(self.max_obj_dist, obj_dist)
 
 
 def parse_run_dir(directory):
@@ -123,12 +130,18 @@ def compute_run_bounds(directory):
     xs = data["xs"]
     xds = data["xds"]
 
+    r_ew_ws = data["r_ew_ws"]
+    Q_wes = data["Q_wes"]
+    r_ow_ws = data["r_ow_ws"]
+    r_oe_es = []
+
     z = np.array([0, 0, 1])
 
     max_constraint_value = -np.infty
     results = Results()
 
-    for t, x in zip(ts, xs):
+    for i in range(ts.shape[0]):
+        x = xs[i, :]
         robot.forward_xu(x=x)
 
         C_we = robot.link_pose(rotation_matrix=True)[1]
@@ -144,20 +157,10 @@ def compute_run_bounds(directory):
             tilt_angle=np.arccos(z @ C_we @ z),
         )
 
-        # V_ew_w = np.concatenate(robot.link_velocity(frame="local_world_aligned"))
-        # g_w = np.array([0, 0, -9.81])
-        # A_ew_w = np.concatenate(
-        #     robot.link_classical_acceleration(frame="local_world_aligned")
-        # )
-        # A_ew_w[:3] -= g_w
-        # # inertial wrench about the CoM
-        # # result has already been rotated into the EE frame
-        # w_in = np.concatenate(
-        #     [
-        #         obj.inertial_com_wrench(C_we=C_we, A_ew_w=A_ew_w, V_ew_w=V_ew_w)
-        #         for obj in objects.values()
-        #     ]
-        # )
+        # compute object position w.r.t. EE
+        C_we = core.math.quat_to_rot(Q_wes[i, :])
+        r_oe_e = C_we.T @ (r_ow_ws[i, 0, :] - r_ew_ws[i, :])
+        r_oe_es.append(r_oe_e)
 
         # body wrench about the EE origin
         w = np.concatenate([obj.wrench(A=A_e - G_e, V=V_e) for obj in objects.values()])
@@ -179,6 +182,12 @@ def compute_run_bounds(directory):
         # else:
         #     print(problem.status.upper())
 
+    # compute maximum *change* from initial object position w.r.t. to EE
+    r_oe_es = np.array(r_oe_es)
+    r_oe_e_err = r_oe_es - r_oe_es[0, :]
+    distances = np.linalg.norm(r_oe_e_err, axis=1)
+    results.update(obj_dist=np.max(distances))
+
     return results
 
 
@@ -196,9 +205,10 @@ def main():
         run_results = compute_run_bounds(d)
         results.update(run_results)
 
-    with open(out, "w") as f:
+    outfile = "results.yaml"
+    with open(outfile, "w") as f:
         yaml.dump(f, results.as_dict())
-    print(f"Dumped results to {out}")
+    print(f"Dumped results to {outfile}")
 
 
 if __name__ == "__main__":
