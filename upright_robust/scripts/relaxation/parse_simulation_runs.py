@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 import glob
 import os
+import yaml
 
 import numpy as np
 import cvxpy as cp
@@ -15,6 +16,10 @@ import upright_core as core
 import upright_cmd as cmd
 import upright_robust as rob
 
+# this catches some numerical issues which are just issued as warnings by default
+import warnings
+warnings.filterwarnings("error")
+
 import IPython
 
 
@@ -24,9 +29,12 @@ import IPython
 # given this much friction.
 MU_BOUND = 0.05
 
+FAILURE_DIST_THRESHOLD = 0.5  # meters
 
-class Results:
+
+class RunResults:
     """Summary of maximum values from the run(s)."""
+
     def __init__(
         self,
         max_linear_acc=0,
@@ -46,13 +54,13 @@ class Results:
 
     def as_dict(self):
         return {
-            "max_linear_acc": self.max_linear_acc,
-            "max_angular_acc": self.max_angular_acc,
-            "max_linear_vel": self.max_linear_vel,
-            "max_angular_vel": self.max_angular_vel,
-            "max_tilt_angle": self.max_tilt_angle,
-            "max_obj_dist": self.max_obj_dist,
-            "mu_bound": self.mu_bound,
+            "max_linear_acc": float(self.max_linear_acc),
+            "max_angular_acc": float(self.max_angular_acc),
+            "max_linear_vel": float(self.max_linear_vel),
+            "max_angular_vel": float(self.max_angular_vel),
+            "max_tilt_angle": float(self.max_tilt_angle),
+            "max_obj_dist": float(self.max_obj_dist),
+            "mu_bound": float(self.mu_bound),
         }
 
     def update(
@@ -64,8 +72,8 @@ class Results:
         tilt_angle=0,
         obj_dist=0,
     ):
-        # we can update directly or from another Results object
-        if isinstance(linear_acc, Results):
+        # we can update directly or from another RunResults object
+        if isinstance(linear_acc, RunResults):
             other = linear_acc
             self.max_linear_acc = max(self.max_linear_acc, other.max_linear_acc)
             self.max_angular_acc = max(self.max_angular_acc, other.max_angular_acc)
@@ -99,7 +107,7 @@ def parse_run_dir(directory):
     return config_path, npz_path
 
 
-def compute_run_bounds(directory):
+def compute_run_bounds(directory, check_constraints=True):
     """Compute the bounds for a single run."""
     config_path, npz_path = parse_run_dir(directory)
     config = core.parsing.load_config(config_path)
@@ -138,7 +146,7 @@ def compute_run_bounds(directory):
     z = np.array([0, 0, 1])
 
     max_constraint_value = -np.infty
-    results = Results()
+    results = RunResults()
 
     for i in range(ts.shape[0]):
         x = xs[i, :]
@@ -149,12 +157,18 @@ def compute_run_bounds(directory):
         G_e = rob.body_gravity6(C_ew=C_we.T)
         A_e = np.concatenate(robot.link_spatial_acceleration(frame="local"))
 
+        # when there is essentially no tilting, the value can be just over 1.0
+        # due to numerical errors, which arccos does not like
+        zCz = z @ C_we @ z
+        if zCz > 1.0 and np.isclose(zCz, 1.0):
+            zCz = 1.0
+
         results.update(
             linear_acc=np.linalg.norm(A_e[:3]),
             angular_acc=np.linalg.norm(A_e[3:]),
             linear_vel=np.linalg.norm(V_e[:3]),
             angular_vel=np.linalg.norm(V_e[3:]),
-            tilt_angle=np.arccos(z @ C_we @ z),
+            tilt_angle=np.arccos(zCz),
         )
 
         # compute object position w.r.t. EE
@@ -167,8 +181,9 @@ def compute_run_bounds(directory):
 
         constraints = F @ w
         # max_constraint_value = max(max_constraint_value, np.max(constraints))
-        if np.max(constraints) > 0:
+        if check_constraints and np.max(constraints) > 0:
             print(f"face violation = {np.max(constraints)}")
+            IPython.embed()
             raise ValueError(f"μ = {MU_BOUND} not large enough!")
 
         # NOTE: alternatively we can solve a feasibility problem
@@ -191,23 +206,40 @@ def compute_run_bounds(directory):
     return results
 
 
+def sort_dir_key(d):
+    name = Path(d).name
+    return int(name.split("_")[1])
+
 def main():
     np.set_printoptions(precision=5, suppress=True)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("directory", help="Directory containing config and npz file.")
+    parser.add_argument(
+        "--check-constraints",
+        action="store_true",
+        help="Fail if the constraints are violated with the bounded friction coefficient.",
+    )
     args = parser.parse_args()
 
     # iterate through all directories
     dirs = glob.glob(args.directory + "/*/")
-    results = Results()
+    dirs.sort(key=sort_dir_key)
+
+    results = RunResults()
+    num_failures = 0
     for d in dirs:
-        run_results = compute_run_bounds(d)
+        run_results = compute_run_bounds(d, check_constraints=args.check_constraints)
+        if run_results.max_obj_dist >= FAILURE_DIST_THRESHOLD:
+            print(f"{Path(d).name} failed!")
+            num_failures += 1
         results.update(run_results)
 
     outfile = "results.yaml"
+    d = results.as_dict()
+    d["num_failures"] = num_failures
     with open(outfile, "w") as f:
-        yaml.dump(f, results.as_dict())
+        yaml.dump(data=d, stream=f)
     print(f"Dumped results to {outfile}")
 
 
