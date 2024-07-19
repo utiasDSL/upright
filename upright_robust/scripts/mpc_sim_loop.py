@@ -416,12 +416,14 @@ def main():
     obj_config = master_config["controller"]["objects"][OBJECT_NAME]
     box = rg.Box.from_side_lengths(obj_config["side_lengths"])
 
-    com_lower = obj_config["bounds"]["realizable"]["com_lower"]
-    com_upper = obj_config["bounds"]["realizable"]["com_upper"]
-    com_box = rg.Box.from_two_vertices(com_lower, com_upper)
-
-    IPython.embed()
-    return
+    sim_com_box = rg.Box.from_two_vertices(
+        obj_config["bounds"]["realizable"]["com_lower"],
+        obj_config["bounds"]["realizable"]["com_upper"],
+    )
+    ctrl_com_box = rg.Box.from_two_vertices(
+        obj_config["bounds"]["approx"]["com_lower"],
+        obj_config["bounds"]["approx"]["com_upper"],
+    )
 
     # no inertia specified means that we just assume uniform density
     ctrl_obj_config = {
@@ -440,9 +442,10 @@ def main():
     }
 
     # place the CoM for the controller
+    x_offset = float(box.half_extents[0])
     if args.robust:
         # make a config for each CoM we care about
-        x, y, z = com_box.half_extents
+        x, y, z = ctrl_com_box.half_extents.tolist()
         ctrl_com_offsets = [[x, y, z], [-x, y, z], [-x, -y, z], [x, -y, z]]
 
         object_names = [OBJECT_NAME + f"_{i+1}" for i in range(len(ctrl_com_offsets))]
@@ -453,22 +456,35 @@ def main():
             config["com_offset"] = com
             master_config["controller"]["objects"][name] = config
 
-        arrangement_config = make_arrangement_config(object_names, x_offset=x, mu=MU)
+        ctrl_arrangement_config = make_arrangement_config(
+            object_names, x_offset=x_offset, mu=MU
+        )
     else:
         if args.com == "center":
             ctrl_obj_config["com_offset"] = [0, 0, 0]
         elif args.com == "top":
-            ctrl_obj_config["com_offset"] = [0, 0, com_box.half_extents[2]]
+            ctrl_obj_config["com_offset"] = [0, 0, float(ctrl_com_box.half_extents[2])]
         else:
             raise ValueError(f"Unknown CoM option: {args.com}")
         master_config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
-        arrangement_config = make_arrangement_config([OBJECT_NAME], x_offset=x, mu=MU)
 
-    master_config["controller"]["arrangements"][ARRANGEMENT_NAME] = arrangement_config
-    master_config["simulation"]["arrangements"][ARRANGEMENT_NAME] = arrangement_config
+        ctrl_arrangement_config = make_arrangement_config(
+            [OBJECT_NAME], x_offset=x_offset, mu=MU
+        )
+
+    master_config["controller"]["arrangements"][
+        ARRANGEMENT_NAME
+    ] = ctrl_arrangement_config
+
+    sim_arrangement_config = make_arrangement_config(
+        [OBJECT_NAME], x_offset=x_offset, mu=MU
+    )
+    master_config["simulation"]["arrangements"][
+        ARRANGEMENT_NAME
+    ] = sim_arrangement_config
 
     com_offsets = (
-        [[0, 0, 0]] + box_face_centers(com_box) + [list(v) for v in com_box.vertices]
+        [[0, 0, 0]] + box_face_centers(sim_com_box) + [list(v) for v in sim_com_box.vertices]
     )
     # com_offsets = [list(v) for v in com_box.vertices]
 
@@ -479,7 +495,7 @@ def main():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     if args.robust:
-        dirname = f"robust_com_{args.com}_{timestamp}"
+        dirname = f"robust_{timestamp}"
     else:
         dirname = f"nominal_com_{args.com}_{timestamp}"
 
@@ -493,7 +509,8 @@ def main():
                     {"time": 0, "position": waypoint, "orientation": [0, 0, 0, 1]}
                 ]
 
-                sim_obj_config["com_offset"] = com_offset
+                sim_obj_config["mass"] = 0.5
+                sim_obj_config["com_offset"] = np.array(com_offset).tolist()
                 sim_obj_config["inertia"] = (s * inertia).tolist()
                 config["simulation"]["objects"][OBJECT_NAME] = sim_obj_config
 
@@ -505,6 +522,11 @@ def main():
                     name = f"{dirname}/run_{run}"
                 else:
                     name = None
+
+                # if run < 118:
+                #     run += 1
+                #     continue
+                # IPython.embed()
 
                 run_simulation(
                     config=config, video=None, logname=name, use_gui=args.gui

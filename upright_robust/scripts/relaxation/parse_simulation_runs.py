@@ -27,7 +27,7 @@ import IPython
 # constraints at all times. Instead, we specify a (maximum) friction
 # coefficient a priori and then *verify* that the constraints are satisfied
 # given this much friction.
-MU_BOUND = 0.05
+MU_BOUND = 0.1
 
 FAILURE_DIST_THRESHOLD = 0.5  # meters
 
@@ -80,7 +80,7 @@ class RunResults:
             self.max_linear_vel = max(self.max_linear_vel, other.max_linear_vel)
             self.max_angular_vel = max(self.max_angular_vel, other.max_angular_vel)
             self.max_tilt_angle = max(self.max_tilt_angle, other.max_tilt_angle)
-            self.max_obj_dist = max(self.max_tilt_angle, other.max_obj_dist)
+            self.max_obj_dist = max(self.max_obj_dist, other.max_obj_dist)
         else:
             self.max_linear_acc = max(self.max_linear_acc, linear_acc)
             self.max_angular_acc = max(self.max_angular_acc, angular_acc)
@@ -230,12 +230,13 @@ def main():
     num_failures = 0
     for d in dirs:
         run_results = compute_run_bounds(d, check_constraints=args.check_constraints)
+        # print(Path(d).name)
         if run_results.max_obj_dist >= FAILURE_DIST_THRESHOLD:
             print(f"{Path(d).name} failed!")
             num_failures += 1
         results.update(run_results)
 
-    outfile = "results.yaml"
+    outfile = Path(args.directory) / "results.yaml"
     d = results.as_dict()
     d["num_failures"] = num_failures
     with open(outfile, "w") as f:
