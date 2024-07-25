@@ -163,7 +163,7 @@ class RobustContactPoint:
         self.span = contact.span
         μ = contact.mu
 
-        # matrix to convert contact force into body contact wrench
+        # grasp matrix: convert contact force into body contact wrench
         self.W1 = np.vstack((np.eye(3), core.math.skew3(contact.r_co_o1)))
         self.W2 = np.vstack((np.eye(3), core.math.skew3(contact.r_co_o2)))
 
@@ -379,6 +379,7 @@ def compute_object_name_index(names):
     return {name: idx for idx, name in enumerate(names)}
 
 
+# TODO rename to compute_grasp_matrix
 def compute_contact_force_to_wrench_map(name_index, contacts):
     """Compute mapping W from contact forces (f_1, ..., f_nc) to object wrenches
     (w_1, ..., w_no)"""
@@ -391,24 +392,45 @@ def compute_contact_force_to_wrench_map(name_index, contacts):
             r = name_index[c.contact.object1_name]
             W[r * 6 : (r + 1) * 6, i * 3 : (i + 1) * 3] = c.W1
 
-        # second object is negative
+        # second object is negative because a positive force on the first
+        # object = negative force on the second object
         r = name_index[c.contact.object2_name]
         W[r * 6 : (r + 1) * 6, i * 3 : (i + 1) * 3] = -c.W2
     return W
 
 
+def compute_cwc_span_form(name_index, contacts):
+    no = len(name_index)
+    nc = len(contacts)
+    H = np.zeros((no * 6, nc * 4))
+    for i, c in enumerate(contacts):
+        # ignore EE object
+        if c.contact.object1_name != "ee":
+            r = name_index[c.contact.object1_name]
+            H[r * 6 : (r + 1) * 6, i * 4 : (i + 1) * 4] = c.W1 @ c.S
+
+        # second object is negative because a positive force on the first
+        # object = negative force on the second object
+        r = name_index[c.contact.object2_name]
+        H[r * 6 : (r + 1) * 6, i * 4 : (i + 1) * 4] = -c.W2 @ c.S
+    return H
+
+
 def compute_cwc_face_form(name_index, contacts):
     """Build the (face form of the) contact wrench cone from contact points of an object."""
 
-    # compute mapping W from contact forces (f_1, ..., f_nc) to object wrenches
-    # (w_1, ..., w_no)
-    W = compute_contact_force_to_wrench_map(name_index, contacts)
+    # # compute mapping W from contact forces (f_1, ..., f_nc) to object wrenches
+    # # (w_1, ..., w_no)
+    # W = compute_contact_force_to_wrench_map(name_index, contacts)
+    #
+    # # computing mapping from face form of contact forces to span form
+    # # TODO this should use the name index
+    # S = block_diag(*[c.S for c in contacts])
+    #
+    # # span form of the CWC
+    # H = W @ S
 
-    # computing mapping from face form of contact forces to span form
-    S = block_diag(*[c.S for c in contacts])
-
-    # span form of the CWC
-    H = W @ S
+    H = compute_cwc_span_form(name_index, contacts)
 
     # convert the whole contact wrench cone to face form
     A = utils.cone_span_to_face_form(H)

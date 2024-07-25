@@ -18,16 +18,20 @@ import upright_robust as rob
 
 # this catches some numerical issues which are just issued as warnings by default
 import warnings
+
 warnings.filterwarnings("error")
 
 import IPython
 
+# True to use the face form of the CWC to check the constraints, otherwise use
+# the fixed form in a feasible problem
+USE_FACE_FORM_CONSTRAINTS = True
 
 # We do *not* compute the minimum friction coefficient required to satisfy the
 # constraints at all times. Instead, we specify a (maximum) friction
 # coefficient a priori and then *verify* that the constraints are satisfied
 # given this much friction.
-MU_BOUND = 0.1
+MU_BOUND = 0
 
 FAILURE_DIST_THRESHOLD = 0.5  # meters
 
@@ -52,6 +56,8 @@ class RunResults:
         self.max_obj_dist = max_obj_dist
         self.mu_bound = MU_BOUND
 
+        self.max_cwc_violation = None
+
     def as_dict(self):
         return {
             "max_linear_acc": float(self.max_linear_acc),
@@ -61,6 +67,7 @@ class RunResults:
             "max_tilt_angle": float(self.max_tilt_angle),
             "max_obj_dist": float(self.max_obj_dist),
             "mu_bound": float(self.mu_bound),
+            "max_cwc_violation": self.max_cwc_violation.tolist(),
         }
 
     def update(
@@ -71,23 +78,45 @@ class RunResults:
         angular_vel=0,
         tilt_angle=0,
         obj_dist=0,
+        cwc_violation=None,
     ):
         # we can update directly or from another RunResults object
         if isinstance(linear_acc, RunResults):
             other = linear_acc
-            self.max_linear_acc = max(self.max_linear_acc, other.max_linear_acc)
-            self.max_angular_acc = max(self.max_angular_acc, other.max_angular_acc)
-            self.max_linear_vel = max(self.max_linear_vel, other.max_linear_vel)
-            self.max_angular_vel = max(self.max_angular_vel, other.max_angular_vel)
-            self.max_tilt_angle = max(self.max_tilt_angle, other.max_tilt_angle)
-            self.max_obj_dist = max(self.max_obj_dist, other.max_obj_dist)
-        else:
-            self.max_linear_acc = max(self.max_linear_acc, linear_acc)
-            self.max_angular_acc = max(self.max_angular_acc, angular_acc)
-            self.max_linear_vel = max(self.max_linear_vel, linear_vel)
-            self.max_angular_vel = max(self.max_angular_vel, angular_vel)
-            self.max_tilt_angle = max(self.max_tilt_angle, tilt_angle)
-            self.max_obj_dist = max(self.max_obj_dist, obj_dist)
+
+            linear_acc = other.max_linear_acc
+            angular_acc = other.max_angular_acc
+            linear_vel = other.max_linear_vel
+            angular_vel = other.max_angular_vel
+            tilt_angle = other.max_tilt_angle
+            obj_dist = other.max_obj_dist
+            cwc_violation = other.max_cwc_violation
+
+        #     self.max_linear_acc = max(self.max_linear_acc, other.max_linear_acc)
+        #     self.max_angular_acc = max(self.max_angular_acc, other.max_angular_acc)
+        #     self.max_linear_vel = max(self.max_linear_vel, other.max_linear_vel)
+        #     self.max_angular_vel = max(self.max_angular_vel, other.max_angular_vel)
+        #     self.max_tilt_angle = max(self.max_tilt_angle, other.max_tilt_angle)
+        #     self.max_obj_dist = max(self.max_obj_dist, other.max_obj_dist)
+        # else:
+        #     self.max_linear_acc = max(self.max_linear_acc, linear_acc)
+        #     self.max_angular_acc = max(self.max_angular_acc, angular_acc)
+        #     self.max_linear_vel = max(self.max_linear_vel, linear_vel)
+        #     self.max_angular_vel = max(self.max_angular_vel, angular_vel)
+        #     self.max_tilt_angle = max(self.max_tilt_angle, tilt_angle)
+        #     self.max_obj_dist = max(self.max_obj_dist, obj_dist)
+
+        self.max_linear_acc = max(self.max_linear_acc, linear_acc)
+        self.max_angular_acc = max(self.max_angular_acc, angular_acc)
+        self.max_linear_vel = max(self.max_linear_vel, linear_vel)
+        self.max_angular_vel = max(self.max_angular_vel, angular_vel)
+        self.max_tilt_angle = max(self.max_tilt_angle, tilt_angle)
+        self.max_obj_dist = max(self.max_obj_dist, obj_dist)
+
+        if cwc_violation is not None:
+            if self.max_cwc_violation is None:
+                self.max_cwc_violation = np.zeros_like(cwc_violation)
+            self.max_cwc_violation = np.maximum(self.max_cwc_violation, cwc_violation)
 
 
 def parse_run_dir(directory):
@@ -121,21 +150,26 @@ def compute_run_bounds(directory, check_constraints=True):
     names = list(objects.keys())
     name_index = rob.compute_object_name_index(names)
 
-    # face form of the CWC: {w | F @ w <= 0}
-    # TODO may be intractable for the robust case
-    F = rob.compute_cwc_face_form(name_index, contacts)
+    if USE_FACE_FORM_CONSTRAINTS:
+        # face form of the CWC: {w | H @ w <= 0}
+        H = rob.compute_cwc_face_form(name_index, contacts)
 
-    # mixed form of the CWC: {w = W @ f | A @ f >= 0}
-    # W = rob.compute_contact_force_to_wrench_map(name_index, contacts)
-    # nf = 3 * len(contacts)
-    # A = block_diag(*[c.F for c in contacts])
-    # f = cp.Variable(nf)
-
-    # objective = cp.Minimize([0])
+        Δw = cp.Variable(len(objects) * 6)
+        b = cp.Variable(len(objects) * 6)
+        objective = cp.Minimize(cp.norm(b, 1))
+    else:
+        # mixed form of the CWC: {w = G @ f | F @ f >= 0}
+        G = rob.compute_contact_force_to_wrench_map(name_index, contacts)
+        nf = 3 * len(contacts)
+        F = block_diag(*[c.F for c in contacts])
+        f = cp.Variable(nf)
+        objective = cp.Minimize([0])
 
     data = np.load(npz_path)
     ts = data["ts"]
     xs = data["xs"]
+    fs = data["contact_forces"]
+    odcs = data["object_dynamics_constraints"]
     xds = data["xds"]
 
     r_ew_ws = data["r_ew_ws"]
@@ -163,14 +197,6 @@ def compute_run_bounds(directory, check_constraints=True):
         if zCz > 1.0 and np.isclose(zCz, 1.0):
             zCz = 1.0
 
-        results.update(
-            linear_acc=np.linalg.norm(A_e[:3]),
-            angular_acc=np.linalg.norm(A_e[3:]),
-            linear_vel=np.linalg.norm(V_e[:3]),
-            angular_vel=np.linalg.norm(V_e[3:]),
-            tilt_angle=np.arccos(zCz),
-        )
-
         # compute object position w.r.t. EE
         C_we = core.math.quat_to_rot(Q_wes[i, :])
         r_oe_e = C_we.T @ (r_ow_ws[i, 0, :] - r_ew_ws[i, :])
@@ -179,23 +205,43 @@ def compute_run_bounds(directory, check_constraints=True):
         # body wrench about the EE origin
         w = np.concatenate([obj.wrench(A=A_e - G_e, V=V_e) for obj in objects.values()])
 
-        constraints = F @ w
-        # max_constraint_value = max(max_constraint_value, np.max(constraints))
-        if check_constraints and np.max(constraints) > 0:
-            print(f"face violation = {np.max(constraints)}")
-            IPython.embed()
-            raise ValueError(f"μ = {MU_BOUND} not large enough!")
+        results.update(
+            linear_acc=np.linalg.norm(A_e[:3]),
+            angular_acc=np.linalg.norm(A_e[3:]),
+            linear_vel=np.linalg.norm(V_e[:3]),
+            angular_vel=np.linalg.norm(V_e[3:]),
+            tilt_angle=np.arccos(zCz),
+            cwc_violation=H @ w,
+        )
 
-        # NOTE: alternatively we can solve a feasibility problem
-        # TODO this may be necessary for more complex CWCs
-        # constraints = [w == W @ f, A @ f >= 0]
-        # problem = cp.Problem(objective, constraints)
-        # problem.solve(solver=cp.MOSEK)
-        # if problem.status == "optimal":
-        #     # print(f"span violation = {np.min(A @ f.value)}")
-        #     pass
+        # if USE_FACE_FORM_CONSTRAINTS:
+        #     # constraints = H @ w
+        #     # if check_constraints and np.max(constraints) > 0:
+        #     #     print(f"face violation = {np.max(constraints)}")
+        #     #     IPython.embed()
+        #     #     raise ValueError(f"μ = {MU_BOUND} not large enough!")
+        #
+        #     # solve for minimal extra wrench needed to satisfy the constraints
+        #     constraints = [H @ (w + Δw) <= 0, -b <= Δw, Δw <= b]
+        #     problem = cp.Problem(objective, constraints)
+        #     problem.solve(solver=cp.MOSEK)
+        #     if problem.status != "optimal":
+        #         print("failed to solve!")
         # else:
-        #     print(problem.status.upper())
+        #     # actual value of the contact forces
+        #     f_act = np.concatenate([fi * c.contact.normal for fi, c in zip(fs[i, :], contacts)])
+        #
+        #     # alternatively we can solve a feasibility problem
+        #     constraints = [w == G @ f, F @ f >= 0]
+        #     problem = cp.Problem(objective, constraints)
+        #     problem.solve(solver=cp.MOSEK)
+        #     if problem.status == "optimal":
+        #         # print(f"span violation = {np.min(A @ f.value)}")
+        #         pass
+        #     else:
+        #         print(problem.status.upper())
+        #         IPython.embed()
+        #         raise ValueError(f"μ = {MU_BOUND} not large enough!")
 
     # compute maximum *change* from initial object position w.r.t. to EE
     r_oe_es = np.array(r_oe_es)
@@ -209,6 +255,7 @@ def compute_run_bounds(directory, check_constraints=True):
 def sort_dir_key(d):
     name = Path(d).name
     return int(name.split("_")[1])
+
 
 def main():
     np.set_printoptions(precision=5, suppress=True)

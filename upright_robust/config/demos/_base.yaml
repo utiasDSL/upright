@@ -57,16 +57,15 @@ controller:
     hpipm:
       slacks:
         enabled: true
-        # upper_L2_penalty: 10000
-        # lower_L2_penalty: 10000
+        input_box: false
+        upper_L2_penalty: 100
+        lower_L2_penalty: 100
         upper_L1_penalty: 1
         lower_L1_penalty: 1
 
   balancing:
     enabled: true
     frictionless: true
-    use_force_constraints: true
-    constraint_type: hard
     force_weight: 0.001
 
   waypoints:

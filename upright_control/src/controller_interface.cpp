@@ -16,8 +16,8 @@
 #include <ocs2_core/penalties/penalties/SquaredHingePenalty.h>
 #include <ocs2_core/soft_constraint/StateInputSoftConstraint.h>
 #include <ocs2_core/soft_constraint/StateSoftConstraint.h>
-#include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_oc/rollout/TimeTriggeredRollout.h>
+#include <ocs2_oc/synchronized_module/ReferenceManager.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematics.h>
 #include <ocs2_pinocchio_interface/PinocchioEndEffectorKinematicsCppAd.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
@@ -197,10 +197,9 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
 
         // Get the usual state constraint
         std::unique_ptr<ocs2::StateConstraint> obstacle_constraint =
-            get_obstacle_constraint(
-                *pinocchio_interface_ptr, geom_interface,
-                settings_.obstacle_settings, settings_.lib_folder,
-                recompile_libraries);
+            get_obstacle_constraint(*pinocchio_interface_ptr, geom_interface,
+                                    settings_.obstacle_settings,
+                                    settings_.lib_folder, recompile_libraries);
 
         // Map it to a state-input constraint so it works with the current
         // implementation of the hard inequality constraints
@@ -296,7 +295,6 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         std::cout << "Inertial alignment constraint enabled." << std::endl;
     }
 
-    // TODO we're getting too nested here
     if (settings_.balancing_settings.enabled) {
         problem_.equalityConstraintPtr->add(
             "object_dynamics",
@@ -312,12 +310,19 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                 .setConstant(1e6);
             // indicate that all inputs are now box constrained (real
             // inputs and contact forces)
-            problem_.boundConstraintPtr->setInputIndices(
-                0, settings_.dims.u());
+            problem_.boundConstraintPtr->setInputIndices(0, settings_.dims.u());
 
-            std::cout << problem_.boundConstraintPtr->input_lb_.transpose()
+            std::cout << "input bound idx = ";
+            for (auto i : problem_.boundConstraintPtr->input_idx_) {
+                std::cout << i << " ";
+            }
+            std::cout << std::endl;
+
+            std::cout << "input lb = "
+                      << problem_.boundConstraintPtr->input_lb_.transpose()
                       << std::endl;
-            std::cout << problem_.boundConstraintPtr->input_ub_.transpose()
+            std::cout << "input ub = "
+                      << problem_.boundConstraintPtr->input_ub_.transpose()
                       << std::endl;
         } else {
             problem_.inequalityConstraintPtr->add(
@@ -398,7 +403,6 @@ ControllerInterface::get_obstacle_constraint(
     ocs2::PinocchioGeometryInterface& geom_interface,
     const ObstacleSettings& settings, const std::string& library_folder,
     bool recompile_libraries) {
-
     const auto& geom_model = geom_interface.getGeometryModel();
     for (int i = 0; i < geom_model.ngeoms; ++i) {
         std::cout << geom_model.geometryObjects[i].name << std::endl;

@@ -161,6 +161,12 @@ PYBIND11_MODULE(bindings, m) {
         .def(pybind11::init<>())
         .def_readwrite("enabled",
                        &ocs2::hpipm_interface::SlackSettings::enabled)
+        .def_readwrite("input_box",
+                       &ocs2::hpipm_interface::SlackSettings::input_box)
+        .def_readwrite("state_box",
+                       &ocs2::hpipm_interface::SlackSettings::state_box)
+        .def_readwrite("poly_ineq",
+                       &ocs2::hpipm_interface::SlackSettings::poly_ineq)
         .def_readwrite("upper_L2_penalty",
                        &ocs2::hpipm_interface::SlackSettings::upper_L2_penalty)
         .def_readwrite("lower_L2_penalty",

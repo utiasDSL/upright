@@ -67,6 +67,9 @@ sqp:
     warm_start: true
     slacks:
       enabled: true
+      input_box: true  # slacks on input box constraints
+      state_box: true  # slacks on state box constraints
+      poly_ineq: true  # slacks on general polytopic inequality constraints
       # upper_L2_penalty: 10000
       # lower_L2_penalty: 10000
       # upper_L1_penalty: 1

@@ -446,14 +446,15 @@ def main():
     if args.robust:
         # make a config for each CoM we care about
         x, y, z = ctrl_com_box.half_extents.tolist()
-        ctrl_com_offsets = [[x, y, z], [-x, y, z], [-x, -y, z], [x, -y, z]]
+        # ctrl_com_offsets = [[x, y, z], [-x, y, z], [-x, -y, z], [x, -y, z]]
+        ctrl_com_offsets = ctrl_com_box.vertices
 
         object_names = [OBJECT_NAME + f"_{i+1}" for i in range(len(ctrl_com_offsets))]
 
         # add to the main config
         for name, com in zip(object_names, ctrl_com_offsets):
             config = ctrl_obj_config.copy()
-            config["com_offset"] = com
+            config["com_offset"] = com.tolist()
             master_config["controller"]["objects"][name] = config
 
         ctrl_arrangement_config = make_arrangement_config(
