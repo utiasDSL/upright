@@ -21,9 +21,8 @@ import IPython
 
 
 OBJECT_NAME = "nominal_sim_block"
-ARRANGEMENT_NAME = "nominal_sim"
 PLOT = False
-MU = 0.2
+MU = 0.5
 
 
 def run_simulation(config, video, logname, use_gui=True):
@@ -121,12 +120,17 @@ def run_simulation(config, video, logname, use_gui=True):
             print(e)
             print("Exit the interpreter to proceed to plots.")
             IPython.embed()
-            break
+            return
 
         if np.isnan(u).any():
             print("NaN value in input!")
             IPython.embed()
-            break
+            return
+
+        # if t >= 0.05:
+        #     print("t = 0.05s")
+        #     IPython.embed()
+        #     return
 
         # integrate the command
         # it appears to be desirable to open-loop integrate velocity like this
@@ -204,30 +208,30 @@ def run_simulation(config, video, logname, use_gui=True):
             # TODO eventually it would be nice to also compute this directly
             # via the core library
             if model.settings.balancing_settings.enabled:
-                object_dynamics_constraints = (
-                    ctrl_manager.mpc.getStateInputEqualityConstraintValue(
-                        "object_dynamics", t, x, u
-                    )
-                )
+                # object_dynamics_constraints = (
+                #     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
+                #         "object_dynamics", t, x, u
+                #     )
+                # )
                 logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
 
                 # if not frictionless, get the constraint values
                 # if we are frictionless, then the forces just all need to be
                 # non-negative
-                if dims.nf == 3:
-                    contact_force_constraints = (
-                        ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                            "contact_forces", t, x, u
-                        )
-                    )
-                    logger.append(
-                        "contact_force_constraints", contact_force_constraints
-                    )
+                # if dims.nf == 3:
+                #     contact_force_constraints = (
+                #         ctrl_manager.mpc.getStateInputInequalityConstraintValue(
+                #             "contact_forces", t, x, u
+                #         )
+                #     )
+                #     logger.append(
+                #         "contact_force_constraints", contact_force_constraints
+                #     )
 
                 logger.append("contact_forces", f)
-                logger.append(
-                    "object_dynamics_constraints", object_dynamics_constraints
-                )
+                # logger.append(
+                #     "object_dynamics_constraints", object_dynamics_constraints
+                # )
 
         t = env.step(t, step_robot=False)[0]
 
@@ -324,8 +328,11 @@ def box_face_centers(box):
     return [[x, 0, 0], [-x, 0, 0], [0, y, 0], [0, -y, 0], [0, 0, z], [0, 0, -z]]
 
 
-def max_min_eig_inertia(box, com):
-    """Find the inertia matrix with the maximum smallest eigenvalue."""
+def max_min_eig_inertia(box, com, about_com=True):
+    """Find the inertia matrix with the maximum smallest eigenvalue.
+
+    The masses are places at the vertices of the box.
+    """
     μ = cp.Variable(8)
     I = cp.Variable((3, 3))
     H = cp.Variable((3, 3))
@@ -342,6 +349,10 @@ def max_min_eig_inertia(box, com):
     problem = cp.Problem(objective, constraints)
     problem.solve(cp.MOSEK)
     assert problem.status == "optimal"
+
+    if about_com:
+        params = rg.InertialParameters(mass=1.0, com=np.array(com), H=H.value)
+        return params.Ic
     return I.value
 
 
@@ -394,7 +405,7 @@ def main():
     )
     parser.add_argument(
         "--com",
-        choices=["center", "top"],
+        choices=["center", "top", "bottom"],
         required=True,
         help="Where the controller should put the CoM.",
     )
@@ -411,27 +422,29 @@ def main():
     # waypoints = w1 + w2 + w3
 
     # waypoints from the original paper
-    waypoints = [[-2.0, 1.0, 0], [2.0, 0, -0.25], [0.0, -2.0, 0.25]]
+    # waypoints = [[-2.0, 1.0, 0], [2.0, 0, -0.25], [0.0, -2.0, 0.25]]
+    waypoints = [[0, 0.0, 0]]
 
-    obj_config = master_config["controller"]["objects"][OBJECT_NAME]
-    box = rg.Box.from_side_lengths(obj_config["side_lengths"])
+    ctrl_obj_config = master_config["controller"]["objects"][OBJECT_NAME]
+    box = rg.Box.from_side_lengths(ctrl_obj_config["side_lengths"])
 
     sim_com_box = rg.Box.from_two_vertices(
-        obj_config["bounds"]["realizable"]["com_lower"],
-        obj_config["bounds"]["realizable"]["com_upper"],
+        ctrl_obj_config["bounds"]["realizable"]["com_lower"],
+        ctrl_obj_config["bounds"]["realizable"]["com_upper"],
     )
     ctrl_com_box = rg.Box.from_two_vertices(
-        obj_config["bounds"]["approx"]["com_lower"],
-        obj_config["bounds"]["approx"]["com_upper"],
+        ctrl_obj_config["bounds"]["approx"]["com_lower"],
+        ctrl_obj_config["bounds"]["approx"]["com_upper"],
     )
 
     # no inertia specified means that we just assume uniform density
-    ctrl_obj_config = {
-        "mass": 1.0,
-        "shape": "cuboid",
-        "side_lengths": box.side_lengths.tolist(),
-        "color": [1, 0, 0, 1],
-    }
+    # ctrl_obj_config = {
+    #     "mass": 1.0,
+    #     "shape": "cuboid",
+    #     "side_lengths": box.side_lengths.tolist(),
+    #     "inertia": obj_config["inertia"],
+    # }
+    # ctrl_obj_config = obj_config
 
     # use mass = 1.0 for now; otherwise inertia would have to be re-scaled
     sim_obj_config = {
@@ -442,11 +455,14 @@ def main():
     }
 
     # place the CoM for the controller
-    x_offset = float(box.half_extents[0])
+    # x_offset = float(box.half_extents[0])
+    x_offset = 0
     if args.robust:
         # make a config for each CoM we care about
         x, y, z = ctrl_com_box.half_extents.tolist()
-        # ctrl_com_offsets = [[x, y, z], [-x, y, z], [-x, -y, z], [x, -y, z]]
+        # ctrl_com_offsets = np.array([[x, y, z], [-x, y, z], [-x, -y, z], [x, -y, z]])
+        # ctrl_com_offsets = np.array([[0, 0, z], [0, 0, z], [0, 0, z], [0, 0, z]])
+        # ctrl_com_offsets = np.array([[0, 0, z], [0, 0, z], [0, 0, z], [0, 0, z]])
         ctrl_com_offsets = ctrl_com_box.vertices
 
         object_names = [OBJECT_NAME + f"_{i+1}" for i in range(len(ctrl_com_offsets))]
@@ -463,6 +479,8 @@ def main():
     else:
         if args.com == "center":
             ctrl_obj_config["com_offset"] = [0, 0, 0]
+        elif args.com == "bottom":
+            ctrl_obj_config["com_offset"] = [0, 0, -float(ctrl_com_box.half_extents[2])]
         elif args.com == "top":
             ctrl_obj_config["com_offset"] = [0, 0, float(ctrl_com_box.half_extents[2])]
         else:
@@ -473,23 +491,29 @@ def main():
             [OBJECT_NAME], x_offset=x_offset, mu=MU
         )
 
+    # control arrangement
+    ctrl_arrangement_name = "robust" if args.robust else "nominal"
     master_config["controller"]["arrangements"][
-        ARRANGEMENT_NAME
+        ctrl_arrangement_name
     ] = ctrl_arrangement_config
+    master_config["controller"]["balancing"]["arrangement"] = ctrl_arrangement_name
 
+    # simulation arrangement
+    sim_arrangement_name = "nominal"
     sim_arrangement_config = make_arrangement_config(
         [OBJECT_NAME], x_offset=x_offset, mu=MU
     )
     master_config["simulation"]["arrangements"][
-        ARRANGEMENT_NAME
+        sim_arrangement_name
     ] = sim_arrangement_config
+    master_config["simulation"]["arrangement"] = sim_arrangement_name
 
     com_offsets = (
         [[0, 0, 0]] + box_face_centers(sim_com_box) + [list(v) for v in sim_com_box.vertices]
     )
     # com_offsets = [list(v) for v in com_box.vertices]
 
-    # mass-normalized inertias
+    # mass-normalized inertias (about the CoM)
     inertias = [max_min_eig_inertia(box, c) for c in com_offsets]
     inertia_scales = [1.0, 0.5, 0.1]
 

@@ -140,8 +140,14 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         mapping(settings_.dims);
 
     /* Constraints */
-    problem_.boundConstraintPtr->setZero(settings_.dims.x(),
-                                         settings_.dims.u());
+    const bool frictionless = (settings_.dims.nf == 1);
+    // if (frictionless) {
+        problem_.boundConstraintPtr->setZero(settings_.dims.x(),
+                                             settings_.dims.u());
+    // } else {
+    //     problem_.boundConstraintPtr->setZero(settings_.dims.x(),
+    //                                          settings_.dims.robot.u);
+    // }
     problem_.boundConstraintPtr->state_lb_.head(settings_.dims.robot.x) =
         settings_.state_limit_lower;
     problem_.boundConstraintPtr->state_ub_.head(settings_.dims.robot.x) =
@@ -302,21 +308,14 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                                            recompile_libraries));
 
         // Inequalities for the friction cones
-        const bool frictionless = (settings_.dims.nf == 1);
         if (frictionless) {
             // lower bounds are already zero, make the upper ones
             // arbitrary high values
             problem_.boundConstraintPtr->input_ub_.tail(settings_.dims.f())
-                .setConstant(1e6);
+                .setConstant(1e2);
             // indicate that all inputs are now box constrained (real
             // inputs and contact forces)
             problem_.boundConstraintPtr->setInputIndices(0, settings_.dims.u());
-
-            std::cout << "input bound idx = ";
-            for (auto i : problem_.boundConstraintPtr->input_idx_) {
-                std::cout << i << " ";
-            }
-            std::cout << std::endl;
 
             std::cout << "input lb = "
                       << problem_.boundConstraintPtr->input_lb_.transpose()
@@ -329,10 +328,30 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
                 "contact_forces",
                 get_contact_force_constraint(end_effector_kinematics,
                                              recompile_libraries));
+
+            // TODO try to keep the bounds but make them large
+            problem_.boundConstraintPtr->setInputIndices(0, settings_.dims.u());
+            problem_.boundConstraintPtr->input_ub_.tail(settings_.dims.f())
+                .setConstant(1e2);
+            problem_.boundConstraintPtr->input_lb_.tail(settings_.dims.f())
+                .setConstant(-1e2);
         }
+
+        std::cout << "input bound idx = ";
+        for (auto i : problem_.boundConstraintPtr->input_idx_) {
+            std::cout << i << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "input bound ub = " << problem_.boundConstraintPtr->input_ub_.transpose() << std::endl;
+        std::cout << "input bound lb = " << problem_.boundConstraintPtr->input_lb_.transpose() << std::endl;
+
     } else {
         std::cerr << "Balancing constraints disabled." << std::endl;
     }
+
+    // TODO: disable bound constraints
+    problem_.boundConstraintPtr->state_idx_.resize(0);
+    problem_.boundConstraintPtr->input_idx_.resize(0);
 
     // Initialization state
     if (settings_.use_operating_points) {

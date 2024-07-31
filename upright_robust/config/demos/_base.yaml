@@ -53,24 +53,43 @@ controller:
         # transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_real.yaml"
         transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_sim.yaml"
 
+  mpc:
+    time_horizon: 0.2
+
   sqp:
+    sqp_iteration: 1
+    init_sqp_iteration: 1
     hpipm:
+      iter_max: 30
+      warm_start: 1  # NOTE
       slacks:
-        enabled: true
+        enabled: false
         input_box: false
-        upper_L2_penalty: 100
-        lower_L2_penalty: 100
-        upper_L1_penalty: 1
-        lower_L1_penalty: 1
+        state_box: false
+        poly_ineq: false
+        # upper_L2_penalty: 0
+        # lower_L2_penalty: 0
+        # upper_L1_penalty: 1
+        # lower_L1_penalty: 1
 
   balancing:
     enabled: true
-    frictionless: true
+    frictionless: false
     force_weight: 0.001
+
+  weights:
+    input:
+      scale: 0.001
+      diag: [1rep9]
+    state:
+      scale: 0.01
+      diag: [0rep9, 10rep9, 1rep9]
+    end_effector:
+      scale: 1
+      diag: [1, 1, 1, 0, 0, 0]
 
   waypoints:
     -
       time: 0
-      # position: [0.0, -2.0, 0.25]  # point 3
       position: [0.0, -2.0, 0]
       orientation: [0, 0, 0, 1]

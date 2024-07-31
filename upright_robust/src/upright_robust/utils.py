@@ -170,14 +170,6 @@ def cwc(contacts):
     return A
 
 
-# def body_regressor_by_vector_matrix(C, V, z):
-#     """Compute a matrix D such that d0 + D @ A == Y.T @ z for some vector z."""
-#     Y0, Ys = body_regressor_components(C, V)
-#     d0 = Y0.T @ z
-#     D = np.vstack([Y.T @ z for Y in Ys]).T
-#     return d0, D
-
-
 def body_regressor_by_vector_acceleration_matrix(x):
     """Compute a matrix D such that x.T @ Y(0, A) == A.T @ D for some vector x."""
     Ls = lift6_matrices()

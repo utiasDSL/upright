@@ -64,16 +64,12 @@ sqp:
   print_line_search: true
   hpipm:
     iter_max: 30
-    warm_start: true
+    warm_start: 1  # 0 = no warm start, 1 = primal warm start, 2 = primal and dual warm start
     slacks:
-      enabled: true
+      enabled: false
       input_box: true  # slacks on input box constraints
       state_box: true  # slacks on state box constraints
       poly_ineq: true  # slacks on general polytopic inequality constraints
-      # upper_L2_penalty: 10000
-      # lower_L2_penalty: 10000
-      # upper_L1_penalty: 1
-      # lower_L1_penalty: 1
 
 balancing:
   enabled: false

@@ -9,7 +9,7 @@ arrangements:
         type: nominal_sim_block
         parent: ee
         offset:
-          x: 0.05
+          x: 0.0
     contacts:
       -
         first: ee

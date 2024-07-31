@@ -40,24 +40,20 @@ ContactForceBalancingConstraints::ContactForceBalancingConstraints(
       dims_(dims) {
     if (pinocchioEEKinematics.getIds().size() != 1) {
         throw std::runtime_error(
-            "[TrayBalanaceConstraint] endEffectorKinematics has wrong "
+            "[ContactForceBalancingConstraints] endEffectorKinematics has "
+            "wrong "
             "number of end effector IDs.");
     }
 
     // Important: this needs to come before the call to initialize, because it
     // is used in the constraintFunction which is called therein
-    const bool frictionless = (dims.nf == 1);
-    if (frictionless) {
-        num_constraints_ = settings_.contacts.size();
-    } else {
-        num_constraints_ = settings_.contacts.size() *
-                           NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT;
-    }
+    num_constraints_ = settings_.contacts.size() *
+                       NUM_LINEARIZED_FRICTION_CONSTRAINTS_PER_CONTACT;
 
     // compile the CppAD library
     const std::string lib_name = "upright_contact_force_constraints";
-    initialize(dims.x(), dims.u(), 0, lib_name, "/tmp/ocs2",
-               recompileLibraries, true);
+    initialize(dims.x(), dims.u(), 0, lib_name, "/tmp/ocs2", recompileLibraries,
+               true);
 }
 
 VecXad ContactForceBalancingConstraints::constraintFunction(
@@ -71,7 +67,6 @@ VecXad ContactForceBalancingConstraints::constraintFunction(
         ad_contacts.push_back(contact.template cast<ocs2::ad_scalar_t>());
     }
 
-    ocs2::ad_scalar_t n(ad_contacts.size());
     return compute_contact_force_constraints_linearized(ad_contacts, forces);
 }
 
@@ -113,20 +108,6 @@ ObjectDynamicsConstraints::ObjectDynamicsConstraints(
 
 VecXd ObjectDynamicsConstraints::getParameters(ocs2::scalar_t time) const {
     return parameters_;
-    // // Parameters are constant for now
-    // // TODO this should be built once once and returned each time
-    // size_t i = 0;
-    // VecXd parameters(settings_.bodies.size() * 10);
-    // for (const auto& kv : settings_.bodies) {
-    //     auto& body = kv.second;
-    //     parameters.segment(i, 10) = body.get_parameters();
-    //     // auto ad_body = kv.second.template cast<ocs2::ad_scalar_t>();
-    //     // auto ad_body = RigidBody<ocs2::ad_scalar_t>::from_parameters(parameters, i);
-    //     // ad_bodies.emplace(kv.first, ad_body);
-    //     i += body.num_parameters();
-    // }
-    // return parameters;
-    // // return VecXd(0);
 }
 
 VecXad ObjectDynamicsConstraints::constraintFunction(
@@ -145,12 +126,11 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     }
 
     // Convert bodies to AD type
-    // TODO I want to build the bodies out of the parameters now
     size_t i = 0;
     std::map<std::string, RigidBody<ocs2::ad_scalar_t>> ad_bodies;
     for (const auto& kv : settings_.bodies) {
-        // auto ad_body = kv.second.template cast<ocs2::ad_scalar_t>();
-        auto ad_body = RigidBody<ocs2::ad_scalar_t>::from_parameters(parameters, i);
+        auto ad_body =
+            RigidBody<ocs2::ad_scalar_t>::from_parameters(parameters, i);
         ad_bodies.emplace(kv.first, ad_body);
         i += ad_body.num_parameters();
     }
@@ -160,10 +140,14 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     // Normalizing by the number of constraints appears to improve the
     // convergence of the controller (cost landscape is better behaved)
     // TODO
-    ocs2::ad_scalar_t n(sqrt(6 * ad_bodies.size()));
+    // ocs2::ad_scalar_t n(sqrt(6 * ad_bodies.size()));
+    // ocs2::ad_scalar_t n(ad_bodies.size());
+    // ocs2::ad_scalar_t n(sqrt(ad_bodies.size()));
+    // return compute_object_dynamics_constraints(ad_bodies, ad_contacts, forces,
+    //                                            X, ad_gravity) /
+    //        n;
     return compute_object_dynamics_constraints(ad_bodies, ad_contacts, forces,
-                                               X, ad_gravity) /
-           n;
+                                               X, ad_gravity);
 }
 
 }  // namespace upright
