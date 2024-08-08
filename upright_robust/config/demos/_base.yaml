@@ -54,7 +54,7 @@ controller:
         transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_sim.yaml"
 
   mpc:
-    time_horizon: 0.2
+    time_horizon: 3.0
 
   sqp:
     sqp_iteration: 1
@@ -63,18 +63,18 @@ controller:
       iter_max: 30
       warm_start: 1  # NOTE
       slacks:
-        enabled: false
+        enabled: true
         input_box: false
-        state_box: false
-        poly_ineq: false
-        # upper_L2_penalty: 0
-        # lower_L2_penalty: 0
+        state_box: true
+        poly_ineq: true
+        # upper_L2_penalty: 1
+        # lower_L2_penalty: 1
         # upper_L1_penalty: 1
         # lower_L1_penalty: 1
 
   balancing:
     enabled: true
-    frictionless: false
+    frictionless: true
     force_weight: 0.001
 
   weights:

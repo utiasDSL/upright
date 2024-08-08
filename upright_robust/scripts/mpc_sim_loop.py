@@ -20,9 +20,9 @@ import upright_cmd as cmd
 import IPython
 
 
-OBJECT_NAME = "nominal_sim_block"
+OBJECT_NAME = "sim_block"
 PLOT = False
-MU = 0.5
+MU = 0.2
 
 
 def run_simulation(config, video, logname, use_gui=True):
@@ -75,12 +75,6 @@ def run_simulation(config, video, logname, use_gui=True):
     logger.add("nv", ctrl_config["robot"]["dims"]["v"])
     logger.add("nx", ctrl_config["robot"]["dims"]["x"])
     logger.add("nu", ctrl_config["robot"]["dims"]["u"])
-
-    # log variable quantities in the sim loop
-    logger.add("waypoint", ctrl_config["waypoints"][0]["position"])
-    logger.add("mass", sim_config["objects"][OBJECT_NAME]["mass"])
-    logger.add("com_offset", sim_config["objects"][OBJECT_NAME]["com_offset"])
-    logger.add("inertia", sim_config["objects"][OBJECT_NAME]["inertia"])
 
     # frames for desired waypoints
     if sim_config.get("show_debug_frames", False):
@@ -328,18 +322,61 @@ def box_face_centers(box):
     return [[x, 0, 0], [-x, 0, 0], [0, y, 0], [0, -y, 0], [0, 0, z], [0, 0, -z]]
 
 
-def max_min_eig_inertia(box, com, about_com=True):
-    """Find the inertia matrix with the maximum smallest eigenvalue.
+def max_min_eig_inertia(box, com, diag=True):
+    """Find the inertia matrix about the CoM with the maximum smallest eigenvalue.
+
+    The masses are places at the vertices of the box.
+    """
+    μ = cp.Variable(8)
+    # J = cp.Variable((4, 4), PSD=True)
+    # H = J[:3, :3]
+    H = cp.Variable((3, 3), PSD=True)
+    Hc = H - np.outer(com, com)  # Hc is about the CoM
+    λ = cp.Variable(1)
+    objective = cp.Maximize(λ)
+    drip_constraints = [
+        H << cp.sum([m * np.outer(v, v) for m, v in zip(μ, box.vertices)]),
+        com == cp.sum([m * v for m, v in zip(μ, box.vertices)]),
+        # J[3, 3] == 1,
+        # J[:3, 3] == com,
+        Hc >> 0,
+        1 == cp.sum(μ),
+        μ >= 0,
+        λ >= 0,
+    ]
+
+    # if diag=True, only optimize over the diagonal of I
+    if diag:
+        Ic = cp.Variable(3)
+        constraints = [
+            λ * np.ones(3) <= Ic,
+            cp.diag(Ic) == cp.trace(Hc) * np.eye(3) - Hc,
+        ] + drip_constraints
+    else:
+        Ic = cp.Variable((3, 3))
+        constraints = [
+            λ * np.eye(3) << Ic,
+            Ic == cp.trace(Hc) * np.eye(3) - Hc,
+        ] + drip_constraints
+
+    problem = cp.Problem(objective, constraints)
+    problem.solve(cp.MOSEK)
+    # print(Ic.value)
+    # print(problem.value)
+
+    return Ic.value
+
+
+def max_trace_inertia(box, com, about_com=True):
+    """Find the inertia matrix with the maximum trace.
 
     The masses are places at the vertices of the box.
     """
     μ = cp.Variable(8)
     I = cp.Variable((3, 3))
     H = cp.Variable((3, 3))
-    λ = cp.Variable(1)
-    objective = cp.Maximize(λ)
+    objective = cp.Maximize(cp.trace(I))
     constraints = [
-        λ * np.eye(3) << I,
         I == cp.trace(H) * np.eye(3) - H,
         H == cp.sum([m * np.outer(v, v) for m, v in zip(μ, box.vertices)]),
         com == cp.sum([m * v for m, v in zip(μ, box.vertices)]),
@@ -384,7 +421,7 @@ def make_arrangement_config(object_names, x_offset, mu):
 
 
 def main():
-    np.set_printoptions(precision=3, suppress=True)
+    np.set_printoptions(precision=5, suppress=True)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True, help="Path to configuration file.")
@@ -405,29 +442,57 @@ def main():
     )
     parser.add_argument(
         "--com",
-        choices=["center", "top", "bottom"],
+        choices=["center", "top", "bottom", "exact"],
         required=True,
         help="Where the controller should put the CoM.",
     )
+    parser.add_argument(
+        "--height",
+        required=True,
+        type=int,
+        help="Height of the balanced object, in centimeters.",
+    )
     args = parser.parse_args()
+
+    if args.robust:
+        assert args.com != "exact", "cannot use exact CoM with robust constraints"
 
     # load configuration
     master_config = core.parsing.load_config(args.config)
 
-    # waypoints
-    # z = np.array([0, 0, 0.4])
-    # w1 = [[0, -2, 0], [1.5, -1.5, 0], [2, 0, 0], [1.5, 1.5, 0], [0, 2, 0]]
-    # w2 = [list(w + z) for w in w1]
-    # w3 = [list(w - z) for w in w1]
-    # waypoints = w1 + w2 + w3
-
     # waypoints from the original paper
-    # waypoints = [[-2.0, 1.0, 0], [2.0, 0, -0.25], [0.0, -2.0, 0.25]]
-    waypoints = [[0, 0.0, 0]]
+    waypoints = [[-2.0, 1.0, 0], [2.0, 0, -0.25], [0.0, -2.0, 0.25]]
 
-    ctrl_obj_config = master_config["controller"]["objects"][OBJECT_NAME]
+    # ctrl_obj_config = master_config["controller"]["objects"][OBJECT_NAME]
+    h_cm = args.height
+    h_m = args.height / 100
+    h2_m = 0.5 * h_m
+
+    ctrl_obj_config = {
+        "mass": 1.0,
+        "shape": "cuboid",
+        "side_lengths": [0.1, 0.1, h_m],
+        "color": [1, 0, 0, 1],
+        "bounds": {
+            "approx": {
+                "com_lower": [-0.04, -0.04, -h2_m],
+                "com_upper": [0.04, 0.04, h2_m],
+            },
+            "realizable": {
+                "com_lower": [-0.04, -0.04, -h2_m],
+                "com_upper": [0.04, 0.04, h2_m],
+            },
+        },
+    }
+
+    sim_obj_config = {
+        "mass": 0.5,
+        "shape": "cuboid",
+        "side_lengths": ctrl_obj_config["side_lengths"],
+        "color": [1, 0, 0, 1],
+    }
+
     box = rg.Box.from_side_lengths(ctrl_obj_config["side_lengths"])
-
     sim_com_box = rg.Box.from_two_vertices(
         ctrl_obj_config["bounds"]["realizable"]["com_lower"],
         ctrl_obj_config["bounds"]["realizable"]["com_upper"],
@@ -437,23 +502,6 @@ def main():
         ctrl_obj_config["bounds"]["approx"]["com_upper"],
     )
 
-    # no inertia specified means that we just assume uniform density
-    # ctrl_obj_config = {
-    #     "mass": 1.0,
-    #     "shape": "cuboid",
-    #     "side_lengths": box.side_lengths.tolist(),
-    #     "inertia": obj_config["inertia"],
-    # }
-    # ctrl_obj_config = obj_config
-
-    # use mass = 1.0 for now; otherwise inertia would have to be re-scaled
-    sim_obj_config = {
-        "mass": 1.0,
-        "shape": "cuboid",
-        "side_lengths": box.side_lengths.tolist(),
-        "color": [1, 0, 0, 1],
-    }
-
     # place the CoM for the controller
     # x_offset = float(box.half_extents[0])
     x_offset = 0
@@ -461,8 +509,6 @@ def main():
         # make a config for each CoM we care about
         x, y, z = ctrl_com_box.half_extents.tolist()
         # ctrl_com_offsets = np.array([[x, y, z], [-x, y, z], [-x, -y, z], [x, -y, z]])
-        # ctrl_com_offsets = np.array([[0, 0, z], [0, 0, z], [0, 0, z], [0, 0, z]])
-        # ctrl_com_offsets = np.array([[0, 0, z], [0, 0, z], [0, 0, z], [0, 0, z]])
         ctrl_com_offsets = ctrl_com_box.vertices
 
         object_names = [OBJECT_NAME + f"_{i+1}" for i in range(len(ctrl_com_offsets))]
@@ -483,8 +529,6 @@ def main():
             ctrl_obj_config["com_offset"] = [0, 0, -float(ctrl_com_box.half_extents[2])]
         elif args.com == "top":
             ctrl_obj_config["com_offset"] = [0, 0, float(ctrl_com_box.half_extents[2])]
-        else:
-            raise ValueError(f"Unknown CoM option: {args.com}")
         master_config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
 
         ctrl_arrangement_config = make_arrangement_config(
@@ -508,25 +552,28 @@ def main():
     ] = sim_arrangement_config
     master_config["simulation"]["arrangement"] = sim_arrangement_name
 
-    com_offsets = (
-        [[0, 0, 0]] + box_face_centers(sim_com_box) + [list(v) for v in sim_com_box.vertices]
+    sim_com_offsets = (
+        [[0, 0, 0]]
+        + box_face_centers(sim_com_box)
+        + [list(v) for v in sim_com_box.vertices]
     )
-    # com_offsets = [list(v) for v in com_box.vertices]
+    max_com_z_offset = np.max(sim_com_offsets, axis=0)[2]
 
     # mass-normalized inertias (about the CoM)
-    inertias = [max_min_eig_inertia(box, c) for c in com_offsets]
-    inertia_scales = [1.0, 0.5, 0.1]
+    # NOTE: 0.5 to match the mass
+    sim_inertias_diag = [0.5 * max_min_eig_inertia(box, c, diag=True) for c in sim_com_offsets]
+    sim_inertia_scales = [1.0, 0.5, 0.1]
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     if args.robust:
-        dirname = f"robust_{timestamp}"
+        dirname = f"robust_h{h_cm}_{timestamp}"
     else:
-        dirname = f"nominal_com_{args.com}_{timestamp}"
+        dirname = f"nominal_h{h_cm}_com_{args.com}_{timestamp}"
 
     run = 1
-    for com_offset, inertia in zip(com_offsets, inertias):
-        for s in inertia_scales:
+    for com_offset, inertia_diag in zip(sim_com_offsets, sim_inertias_diag):
+        for s in sim_inertia_scales:
             for i, waypoint in enumerate(waypoints):
                 print(f"run = {run}")
                 config = copy.deepcopy(master_config)
@@ -534,10 +581,19 @@ def main():
                     {"time": 0, "position": waypoint, "orientation": [0, 0, 0, 1]}
                 ]
 
-                sim_obj_config["mass"] = 0.5
                 sim_obj_config["com_offset"] = np.array(com_offset).tolist()
-                sim_obj_config["inertia"] = (s * inertia).tolist()
+                sim_obj_config["inertia_diag"] = (s * inertia_diag).tolist()
                 config["simulation"]["objects"][OBJECT_NAME] = sim_obj_config
+
+                # in the exact case, we match the simulated CoM exactly
+                if args.com == "exact":
+                    ctrl_obj_config["inertia"] = max_trace_inertia(
+                        box, com_offset
+                    ).tolist()
+                    ctrl_com_offset = com_offset.copy()
+                    ctrl_com_offset[2] = max_com_z_offset
+                    ctrl_obj_config["com_offset"] = np.array(ctrl_com_offset).tolist()
+                    config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
 
                 # only compile at most once
                 if run > 1:
@@ -547,11 +603,6 @@ def main():
                     name = f"{dirname}/run_{run}"
                 else:
                     name = None
-
-                # if run < 118:
-                #     run += 1
-                #     continue
-                # IPython.embed()
 
                 run_simulation(
                     config=config, video=None, logname=name, use_gui=args.gui

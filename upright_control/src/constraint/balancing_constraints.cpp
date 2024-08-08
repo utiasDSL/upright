@@ -140,14 +140,15 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     // Normalizing by the number of constraints appears to improve the
     // convergence of the controller (cost landscape is better behaved)
     // TODO
-    // ocs2::ad_scalar_t n(sqrt(6 * ad_bodies.size()));
+    ocs2::ad_scalar_t n(sqrt(6 * ad_bodies.size()));
     // ocs2::ad_scalar_t n(ad_bodies.size());
     // ocs2::ad_scalar_t n(sqrt(ad_bodies.size()));
-    // return compute_object_dynamics_constraints(ad_bodies, ad_contacts, forces,
-    //                                            X, ad_gravity) /
-    //        n;
+    // ocs2::ad_scalar_t n(sqrt(6 * 8));
     return compute_object_dynamics_constraints(ad_bodies, ad_contacts, forces,
-                                               X, ad_gravity);
+                                               X, ad_gravity) /
+           n;
+    // return compute_object_dynamics_constraints(ad_bodies, ad_contacts, forces,
+    //                                            X, ad_gravity);
 }
 
 }  // namespace upright

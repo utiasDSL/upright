@@ -13,6 +13,7 @@ import numpy as np
 import cvxpy as cp
 from scipy.linalg import block_diag
 import rigeo as rg
+import tqdm
 
 import upright_control as ctrl
 import upright_core as core
@@ -21,19 +22,9 @@ import upright_robust as rob
 
 import IPython
 
-# True to use the face form of the CWC to check the constraints, otherwise use
-# the fixed form in a feasible problem
-USE_FACE_FORM_CONSTRAINTS = True
-
-# We do *not* compute the minimum friction coefficient required to satisfy the
-# constraints at all times. Instead, we specify a (maximum) friction
-# coefficient a priori and then *verify* that the constraints are satisfied
-# given this much friction.
-MU_BOUND = 0
-
 FAILURE_DIST_THRESHOLD = 0.5  # meters
 
-OBJECT_NAME = "nominal_sim_block"
+OBJECT_NAME = "block1"
 ARRANGEMENT_NAME = "nominal_sim"
 MU = 0.2
 
@@ -56,9 +47,6 @@ class RunResults:
         self.max_angular_vel = max_angular_vel
         self.max_tilt_angle = max_tilt_angle
         self.max_obj_dist = max_obj_dist
-        self.mu_bound = MU_BOUND
-
-        self.max_cwc_violation = None
 
     def as_dict(self):
         return {
@@ -68,8 +56,6 @@ class RunResults:
             "max_angular_vel": float(self.max_angular_vel),
             "max_tilt_angle": float(self.max_tilt_angle),
             "max_obj_dist": float(self.max_obj_dist),
-            "mu_bound": float(self.mu_bound),
-            # "max_cwc_violation": self.max_cwc_violation.tolist(),
         }
 
     def update(
@@ -80,7 +66,6 @@ class RunResults:
         angular_vel=0,
         tilt_angle=0,
         obj_dist=0,
-        cwc_violation=None,
     ):
         # we can update directly or from another RunResults object
         if isinstance(linear_acc, RunResults):
@@ -92,7 +77,6 @@ class RunResults:
             angular_vel = other.max_angular_vel
             tilt_angle = other.max_tilt_angle
             obj_dist = other.max_obj_dist
-            cwc_violation = other.max_cwc_violation
 
         self.max_linear_acc = max(self.max_linear_acc, linear_acc)
         self.max_angular_acc = max(self.max_angular_acc, angular_acc)
@@ -100,11 +84,6 @@ class RunResults:
         self.max_angular_vel = max(self.max_angular_vel, angular_vel)
         self.max_tilt_angle = max(self.max_tilt_angle, tilt_angle)
         self.max_obj_dist = max(self.max_obj_dist, obj_dist)
-
-        if cwc_violation is not None:
-            if self.max_cwc_violation is None:
-                self.max_cwc_violation = np.zeros_like(cwc_violation)
-            self.max_cwc_violation = np.maximum(self.max_cwc_violation, cwc_violation)
 
 
 def parse_run_dir(directory):
@@ -124,13 +103,13 @@ def parse_run_dir(directory):
     return config_path, npz_path
 
 
-def compute_run_bounds(directory, check_constraints=True):
+def compute_run_bounds(directory, check_constraints=True, exact_com=False):
     """Compute the bounds for a single run."""
     config_path, npz_path = parse_run_dir(directory)
     config = core.parsing.load_config(config_path)
 
     ctrl_config = config["controller"]
-    ctrl_config2 = copy.deepcopy(ctrl_config)
+    # ctrl_config2 = copy.deepcopy(ctrl_config)
     ctrl_config["balancing"]["arrangement"] = ARRANGEMENT_NAME
 
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
@@ -142,47 +121,33 @@ def compute_run_bounds(directory, check_constraints=True):
         ctrl_config, model=model, compute_bounds=True, approx_inertia=False
     )
 
-    objects2, contacts2 = rob.parse_objects_and_contacts(
-        ctrl_config2, compute_bounds=True, approx_inertia=False
-    )
+    # objects2, contacts2 = rob.parse_objects_and_contacts(
+    #     ctrl_config2, compute_bounds=True, approx_inertia=False
+    # )
 
-    # TODO how do I deal with the large set of wrenches? I am just optimizing
-    # θ, so Yθ is a single wrench value... but what about H? recall H does not
-    # depend on θ, since we are using the EE origin as the reference point
-    # does this mean I need only to parse a single object?
-    # TODO should pull out the info like I do in the sim
-    obj0 = list(objects.values())[0]
-    mass = obj0.body.mass
-    com_box = obj0.com_box
-    bounding_box = obj0.bounding_box
+    if check_constraints:
+        obj0 = list(objects.values())[0]
+        mass = obj0.body.mass
+        com_box = obj0.com_box
+        bounding_box = obj0.bounding_box
 
-    names = list(objects.keys())
-    name_index = rob.compute_object_name_index(names)
-    H = rob.compute_cwc_face_form(name_index, contacts)
+        com = obj0.body.com
 
-    G = rob.compute_contact_force_to_wrench_map(name_index, contacts)
-    F = block_diag(*[c.F for c in contacts])
+        params0 = rg.InertialParameters(
+            mass=mass, com=com, I=obj0.body.inertia, translate_from_com=True
+        )
 
-    # if USE_FACE_FORM_CONSTRAINTS:
-    #     # face form of the CWC: {w | H @ w <= 0}
-    #     H = rob.compute_cwc_face_form(name_index, contacts)
-    #
-    #     Δw = cp.Variable(len(objects) * 6)
-    #     b = cp.Variable(len(objects) * 6)
-    #     objective = cp.Minimize(cp.norm(b, 1))
-    # else:
-    #     # mixed form of the CWC: {w = G @ f | F @ f >= 0}
-    #     G = rob.compute_contact_force_to_wrench_map(name_index, contacts)
-    #     nf = 3 * len(contacts)
-    #     F = block_diag(*[c.F for c in contacts])
-    #     f = cp.Variable(nf)
-    #     objective = cp.Minimize([0])
+        names = list(objects.keys())
+        name_index = rob.compute_object_name_index(names)
+        H = rob.compute_cwc_face_form(name_index, contacts)
+        G = rob.compute_contact_force_to_wrench_map(name_index, contacts)
+        F = block_diag(*[c.F for c in contacts])
 
     data = np.load(npz_path)
     ts = data["ts"]
     xs = data["xs"]
     fs = data["contact_forces"]
-    odcs = data["object_dynamics_constraints"]
+    # odcs = data["object_dynamics_constraints"]
     xds = data["xds"]
 
     r_ew_ws = data["r_ew_ws"]
@@ -192,35 +157,27 @@ def compute_run_bounds(directory, check_constraints=True):
 
     z = np.array([0, 0, 1])
 
-    results = RunResults()
+    # compute desired goal position
+    robot.forward_xu(x=model.settings.initial_state)
+    r0 = robot.link_pose()[0]
+    waypoint = np.array(ctrl_config["waypoints"][0]["position"])
+    assert len(ctrl_config["waypoints"]) == 1
+    rd = r0 + waypoint
 
-    for i in range(ts.shape[0]):
-        print(f"i = {i}")
+    results = RunResults()
+    goal_dists = []
+
+    for i in tqdm.trange(ts.shape[0]):
         x = xs[i, :]
         robot.forward_xu(x=x)
 
-        C_we = robot.link_pose(rotation_matrix=True)[1]
+        r_ew_w, C_we = robot.link_pose(rotation_matrix=True)
         V_e = np.concatenate(robot.link_velocity(frame="local"))
         G_e = rob.body_gravity6(C_ew=C_we.T)
         A_e = np.concatenate(robot.link_spatial_acceleration(frame="local"))
 
-        # when there is essentially no tilting, the value can be just over 1.0
-        # due to numerical errors, which arccos does not like
-        # zCz = z @ C_we @ z
-        # if zCz > 1.0 and np.isclose(zCz, 1.0):
-        #     zCz = 1.0
-
-        # body wrench about the EE origin
-        # w = np.concatenate([obj.wrench(A=A_e - G_e, V=V_e) for obj in objects.values()])
-        #
-        # results.update(
-        #     linear_acc=np.linalg.norm(A_e[:3]),
-        #     angular_acc=np.linalg.norm(A_e[3:]),
-        #     linear_vel=np.linalg.norm(V_e[:3]),
-        #     angular_vel=np.linalg.norm(V_e[3:]),
-        #     tilt_angle=np.arccos(zCz),
-        #     cwc_violation=H @ w,
-        # )
+        # compute distance to goal
+        goal_dists.append(np.linalg.norm(rd - r_ew_w))
 
         if check_constraints:
             Y = rg.RigidBody.regressor(V=V_e, A=A_e - G_e)
@@ -230,12 +187,11 @@ def compute_run_bounds(directory, check_constraints=True):
             m = J[3, 3]  # mass
             for h in H:
                 objective = cp.Maximize(h @ Y @ θ)
-                constraints = (
-                    rg.pim_psd(J)
-                    + com_box.must_contain(c)
-                    + bounding_box.must_realize(J)
-                    + [m == mass]
-                )
+                constraints = rg.pim_psd(J) + bounding_box.must_realize(J) + [m == mass]
+                if exact_com:
+                    constraints.append(c == com)
+                else:
+                    constraints.extend(com_box.must_contain(c))
                 problem = cp.Problem(objective, constraints)
                 problem.solve(solver=cp.MOSEK)
 
@@ -257,35 +213,6 @@ def compute_run_bounds(directory, check_constraints=True):
 
                     IPython.embed()
 
-        # if USE_FACE_FORM_CONSTRAINTS:
-        #     # constraints = H @ w
-        #     # if check_constraints and np.max(constraints) > 0:
-        #     #     print(f"face violation = {np.max(constraints)}")
-        #     #     IPython.embed()
-        #     #     raise ValueError(f"μ = {MU_BOUND} not large enough!")
-        #
-        #     # solve for minimal extra wrench needed to satisfy the constraints
-        #     constraints = [H @ (w + Δw) <= 0, -b <= Δw, Δw <= b]
-        #     problem = cp.Problem(objective, constraints)
-        #     problem.solve(solver=cp.MOSEK)
-        #     if problem.status != "optimal":
-        #         print("failed to solve!")
-        # else:
-        #     # actual value of the contact forces
-        #     f_act = np.concatenate([fi * c.contact.normal for fi, c in zip(fs[i, :], contacts)])
-        #
-        #     # alternatively we can solve a feasibility problem
-        #     constraints = [w == G @ f, F @ f >= 0]
-        #     problem = cp.Problem(objective, constraints)
-        #     problem.solve(solver=cp.MOSEK)
-        #     if problem.status == "optimal":
-        #         # print(f"span violation = {np.min(A @ f.value)}")
-        #         pass
-        #     else:
-        #         print(problem.status.upper())
-        #         IPython.embed()
-        #         raise ValueError(f"μ = {MU_BOUND} not large enough!")
-
         # compute object position w.r.t. EE
         C_we = core.math.quat_to_rot(Q_wes[i, :])
         r_oe_e = C_we.T @ (r_ow_ws[i, 0, :] - r_ew_ws[i, :])
@@ -297,7 +224,7 @@ def compute_run_bounds(directory, check_constraints=True):
     distances = np.linalg.norm(r_oe_e_err, axis=1)
     results.update(obj_dist=np.max(distances))
 
-    return results
+    return results, ts, goal_dists
 
 
 def sort_dir_key(d):
@@ -318,6 +245,11 @@ def main():
         action="store_true",
         help="Fail if the constraints are violated with the bounded friction coefficient.",
     )
+    parser.add_argument(
+        "--exact-com",
+        action="store_true",
+        help="Assume no uncertainty in the CoM.",
+    )
     args = parser.parse_args()
 
     # iterate through all directories
@@ -326,9 +258,15 @@ def main():
 
     results = RunResults()
     num_failures = 0
-    for d in dirs[:3]:
+    all_goal_dists = []
+    all_times = []
+    for d in dirs:
         print(Path(d).name)
-        run_results = compute_run_bounds(d, check_constraints=args.check_constraints)
+        run_results, times, goal_dists = compute_run_bounds(
+            d, check_constraints=args.check_constraints, exact_com=args.exact_com
+        )
+        all_times.append(times)
+        all_goal_dists.append(goal_dists)
         if run_results.max_obj_dist >= FAILURE_DIST_THRESHOLD:
             print(f"{Path(d).name} failed!")
             num_failures += 1
@@ -340,6 +278,10 @@ def main():
     with open(outfile, "w") as f:
         yaml.dump(data=d, stream=f)
     print(f"Dumped results to {outfile}")
+
+    outfile = Path(args.directory) / "data.npz"
+    np.savez(outfile, times=np.array(all_times), goal_dists=np.array(all_goal_dists))
+    print(f"Dumped data to {outfile}")
 
 
 if __name__ == "__main__":

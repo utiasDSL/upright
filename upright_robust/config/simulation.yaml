@@ -7,13 +7,6 @@ include:
     path: config/arrangements.yaml
 
 objects:
-  nominal_sim_block:
-    mass: 1.0
-    com_offset: [0, 0, 0]
-    shape: cuboid
-    side_lengths: [0.15, 0.15, 0.8]
-    color: [1, 0, 0, 1]
-
   tall_box:
     shape: cuboid
     mass: 1

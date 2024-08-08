@@ -10,28 +10,34 @@ balancing:
   enabled: true
 
 objects:
-  nominal_sim_block:
+  sim_block_h10:
     mass: 1.0
     com_offset: [0, 0, 0]
     shape: cuboid
-    # side_lengths: [0.15, 0.15, 0.8]
+    side_lengths: [0.1, 0.1, 0.1]
+
+    bounds:
+      approx:
+        com_lower: [-0.04, -0.04, -0.05]
+        com_upper: [0.04, 0.04, 0.05]
+      realizable:
+        com_lower: [-0.04, -0.04, -0.05]
+        com_upper: [0.04, 0.04, 0.05]
+
+  sim_block_h60:
+    mass: 1.0
+    com_offset: [0, 0, 0]
+    shape: cuboid
     side_lengths: [0.1, 0.1, 0.6]
-    # inertia: [0.16563, 0.16563, 0.01125]  # mass distributed at vertices
-    # inertia: [0.07562, 0.07562, 0.01125]
-    # inertia: [0.2, 0.2, 0.02]
 
     # these are relative to the nominal CoM value above
     bounds:
       approx:  # actually enforced by controller (fixed value of inertia matrix)
-        # com_lower: [-0.065, -0.065, -0.4]
-        # com_upper: [0.065, 0.065, 0.4]
-        com_lower: [-0.03, -0.03, -0.3]
-        com_upper: [0.03, 0.03, 0.3]
+        com_lower: [-0.04, -0.04, -0.3]
+        com_upper: [0.04, 0.04, 0.3]
       realizable:  # physically possible values
-        # com_lower: [-0.04, -0.04, -0.3]
-        # com_upper: [0.04, 0.04, 0.3]
-        com_lower: [-0.03, -0.03, -0.3]
-        com_upper: [0.03, 0.03, 0.3]
+        com_lower: [-0.04, -0.04, -0.3]
+        com_upper: [0.04, 0.04, 0.3]
 
   # three white cardboard boxes attached together
   white_cardboard_box3:

@@ -2,11 +2,26 @@ arrangements:
   nothing:
     objects: []
 
-  nominal_sim:
+  sim_h10:
     objects:
       -
         name: block1
-        type: nominal_sim_block
+        type: sim_block_h10
+        parent: ee
+        offset:
+          x: 0.0
+    contacts:
+      -
+        first: ee
+        second: block1
+        mu: 0.2
+        support_area_inset: 0.0
+
+  sim_h60:
+    objects:
+      -
+        name: block1
+        type: sim_block_h60
         parent: ee
         offset:
           x: 0.0

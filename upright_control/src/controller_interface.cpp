@@ -301,6 +301,12 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
         std::cout << "Inertial alignment constraint enabled." << std::endl;
     }
 
+    // settings_.sqp.hpipmSettings.mu0 = 1e4;
+    // settings_.sqp.hpipmSettings.tol_stat = 1e-4;
+    // settings_.sqp.hpipmSettings.tol_comp = 1e-3;
+    // settings_.sqp.hpipmSettings.tol_eq = 1e-3;
+    // settings_.sqp.hpipmSettings.tol_ineq = 1e-6;
+
     if (settings_.balancing_settings.enabled) {
         problem_.equalityConstraintPtr->add(
             "object_dynamics",
@@ -350,8 +356,8 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     }
 
     // TODO: disable bound constraints
-    problem_.boundConstraintPtr->state_idx_.resize(0);
-    problem_.boundConstraintPtr->input_idx_.resize(0);
+    // problem_.boundConstraintPtr->state_idx_.resize(0);
+    // problem_.boundConstraintPtr->input_idx_.resize(0);
 
     // Initialization state
     if (settings_.use_operating_points) {

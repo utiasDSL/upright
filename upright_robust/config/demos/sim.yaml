@@ -1,0 +1,4 @@
+include:
+  -
+    package: upright_robust
+    path: config/demos/_base.yaml

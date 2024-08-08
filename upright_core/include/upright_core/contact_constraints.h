@@ -161,8 +161,8 @@ VecX<Scalar> compute_object_dynamics_constraints(
 
     // Scale force by square root of number of contacts so that L2-penalized
     // soft constraint is invariant to number of contacts
-    const Scalar force_scale(1. / sqrt(contacts.size()));
-    // const Scalar force_scale(1.0);
+    // const Scalar force_scale(1. / sqrt(contacts.size()));
+    const Scalar force_scale(1.0);
     // const Scalar force_scale(1. / contacts.size());
 
     size_t i = 0;
