@@ -121,11 +121,6 @@ def run_simulation(config, video, logname, use_gui=True):
             IPython.embed()
             return
 
-        # if t >= 0.05:
-        #     print("t = 0.05s")
-        #     IPython.embed()
-        #     return
-
         # integrate the command
         # it appears to be desirable to open-loop integrate velocity like this
         # to avoid PyBullet not handling velocity commands accurately at very
@@ -161,12 +156,9 @@ def run_simulation(config, video, logname, use_gui=True):
             logger.append("r_ew_w_ds", r_ew_w_d)
             logger.append("Q_we_ds", Q_we_d)
 
-            model.update(x, u)
-            logger.append("ddC_we_norm", model.ddC_we_norm())
-            # logger.append("sa_dists", model.support_area_distances())
-            logger.append("orn_err", model.angle_between_acc_and_normal())
-            # logger.append("balancing_constraints", model.balancing_constraints())
+            logger.append("solve_times", ctrl_manager.mpc.getLastSolveTime())
 
+            model.update(x, u)
             if model.settings.inertial_alignment_settings.constraint_enabled:
                 alignment_constraints = (
                     ctrl_manager.mpc.getStateInputInequalityConstraintValue(
@@ -199,40 +191,19 @@ def run_simulation(config, video, logname, use_gui=True):
                     )
                 logger.append("collision_pair_distances", obs_constraints)
 
-            # TODO eventually it would be nice to also compute this directly
-            # via the core library
             if model.settings.balancing_settings.enabled:
-                # object_dynamics_constraints = (
-                #     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
-                #         "object_dynamics", t, x, u
-                #     )
-                # )
+                logger.append("contact_forces", f)
+                object_dynamics_constraints = (
+                    ctrl_manager.mpc.getStateInputEqualityConstraintValue(
+                        "object_dynamics", t, x, u
+                    )
+                )
+                logger.append(
+                    "object_dynamics_constraints", object_dynamics_constraints
+                )
                 logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
 
-                # if not frictionless, get the constraint values
-                # if we are frictionless, then the forces just all need to be
-                # non-negative
-                # if dims.nf == 3:
-                #     contact_force_constraints = (
-                #         ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                #             "contact_forces", t, x, u
-                #         )
-                #     )
-                #     logger.append(
-                #         "contact_force_constraints", contact_force_constraints
-                #     )
-
-                logger.append("contact_forces", f)
-                # logger.append(
-                #     "object_dynamics_constraints", object_dynamics_constraints
-                # )
-
         t = env.step(t, step_robot=False)[0]
-
-    # try:
-    #     print(f"Min constraint value = {np.min(logger.data['balancing_constraints'])}")
-    # except:
-    #     pass
 
     logger.add("replanning_times", ctrl_manager.replanning_times)
     logger.add("replanning_durations", ctrl_manager.replanning_durations)
@@ -463,7 +434,6 @@ def main():
     # waypoints from the original paper
     waypoints = [[-2.0, 1.0, 0], [2.0, 0, -0.25], [0.0, -2.0, 0.25]]
 
-    # ctrl_obj_config = master_config["controller"]["objects"][OBJECT_NAME]
     h_cm = args.height
     h_m = args.height / 100
     h2_m = 0.5 * h_m

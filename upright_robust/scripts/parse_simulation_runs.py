@@ -2,11 +2,8 @@
 """Parse simulated trajectory data from an npz file to determine appropriate
 bounds for relaxed problem."""
 import argparse
-import copy
-from pathlib import Path
 import glob
-import os
-import warnings
+from pathlib import Path
 import yaml
 
 import numpy as np
@@ -17,73 +14,21 @@ import tqdm
 
 import upright_control as ctrl
 import upright_core as core
-import upright_cmd as cmd
 import upright_robust as rob
 
 import IPython
 
 FAILURE_DIST_THRESHOLD = 0.5  # meters
 
-OBJECT_NAME = "block1"
-ARRANGEMENT_NAME = "nominal_sim"
-MU = 0.2
 
+class RunData:
+    """Summary of a single run."""
 
-class RunResults:
-    """Summary of maximum values from the run(s)."""
-
-    def __init__(
-        self,
-        max_linear_acc=0,
-        max_angular_acc=0,
-        max_linear_vel=0,
-        max_angular_vel=0,
-        max_tilt_angle=0,
-        max_obj_dist=0,
-    ):
-        self.max_linear_acc = max_linear_acc
-        self.max_angular_acc = max_angular_acc
-        self.max_linear_vel = max_linear_vel
-        self.max_angular_vel = max_angular_vel
-        self.max_tilt_angle = max_tilt_angle
-        self.max_obj_dist = max_obj_dist
-
-    def as_dict(self):
-        return {
-            "max_linear_acc": float(self.max_linear_acc),
-            "max_angular_acc": float(self.max_angular_acc),
-            "max_linear_vel": float(self.max_linear_vel),
-            "max_angular_vel": float(self.max_angular_vel),
-            "max_tilt_angle": float(self.max_tilt_angle),
-            "max_obj_dist": float(self.max_obj_dist),
-        }
-
-    def update(
-        self,
-        linear_acc=0,
-        angular_acc=0,
-        linear_vel=0,
-        angular_vel=0,
-        tilt_angle=0,
-        obj_dist=0,
-    ):
-        # we can update directly or from another RunResults object
-        if isinstance(linear_acc, RunResults):
-            other = linear_acc
-
-            linear_acc = other.max_linear_acc
-            angular_acc = other.max_angular_acc
-            linear_vel = other.max_linear_vel
-            angular_vel = other.max_angular_vel
-            tilt_angle = other.max_tilt_angle
-            obj_dist = other.max_obj_dist
-
-        self.max_linear_acc = max(self.max_linear_acc, linear_acc)
-        self.max_angular_acc = max(self.max_angular_acc, angular_acc)
-        self.max_linear_vel = max(self.max_linear_vel, linear_vel)
-        self.max_angular_vel = max(self.max_angular_vel, angular_vel)
-        self.max_tilt_angle = max(self.max_tilt_angle, tilt_angle)
-        self.max_obj_dist = max(self.max_obj_dist, obj_dist)
+    def __init__(self):
+        self.max_obj_dist = 0
+        self.times = []
+        self.dists = []
+        self.solve_times = []
 
 
 def parse_run_dir(directory):
@@ -103,27 +48,19 @@ def parse_run_dir(directory):
     return config_path, npz_path
 
 
-def compute_run_bounds(directory, check_constraints=True, exact_com=False):
+def compute_run_data(directory, check_constraints=True, exact_com=False):
     """Compute the bounds for a single run."""
     config_path, npz_path = parse_run_dir(directory)
     config = core.parsing.load_config(config_path)
 
     ctrl_config = config["controller"]
-    # ctrl_config2 = copy.deepcopy(ctrl_config)
-    ctrl_config["balancing"]["arrangement"] = ARRANGEMENT_NAME
-
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
     robot = model.robot
 
-    # TODO note this is using the mu values from the controller
     # no approx_inertia because we want the actual realizable bounds
     objects, contacts = rob.parse_objects_and_contacts(
         ctrl_config, model=model, compute_bounds=True, approx_inertia=False
     )
-
-    # objects2, contacts2 = rob.parse_objects_and_contacts(
-    #     ctrl_config2, compute_bounds=True, approx_inertia=False
-    # )
 
     if check_constraints:
         obj0 = list(objects.values())[0]
@@ -164,8 +101,7 @@ def compute_run_bounds(directory, check_constraints=True, exact_com=False):
     assert len(ctrl_config["waypoints"]) == 1
     rd = r0 + waypoint
 
-    results = RunResults()
-    goal_dists = []
+    run_data = RunData()
 
     for i in tqdm.trange(ts.shape[0]):
         x = xs[i, :]
@@ -177,7 +113,7 @@ def compute_run_bounds(directory, check_constraints=True, exact_com=False):
         A_e = np.concatenate(robot.link_spatial_acceleration(frame="local"))
 
         # compute distance to goal
-        goal_dists.append(np.linalg.norm(rd - r_ew_w))
+        run_data.dists.append(np.linalg.norm(rd - r_ew_w))
 
         if check_constraints:
             Y = rg.RigidBody.regressor(V=V_e, A=A_e - G_e)
@@ -222,9 +158,11 @@ def compute_run_bounds(directory, check_constraints=True, exact_com=False):
     r_oe_es = np.array(r_oe_es)
     r_oe_e_err = r_oe_es - r_oe_es[0, :]
     distances = np.linalg.norm(r_oe_e_err, axis=1)
-    results.update(obj_dist=np.max(distances))
+    run_data.max_obj_dist = np.max(distances)
+    run_data.times = ts
+    run_data.solve_times = data["solve_times"]  # these are in millseconds
 
-    return results, ts, goal_dists
+    return run_data
 
 
 def sort_dir_key(d):
@@ -233,9 +171,6 @@ def sort_dir_key(d):
 
 
 def main():
-    # this catches some numerical issues which are just issued as warnings by default
-    warnings.filterwarnings("error")
-
     np.set_printoptions(precision=5, suppress=True)
 
     parser = argparse.ArgumentParser()
@@ -256,31 +191,40 @@ def main():
     dirs = glob.glob(args.directory + "/*/")
     dirs.sort(key=sort_dir_key)
 
-    results = RunResults()
     num_failures = 0
-    all_goal_dists = []
-    all_times = []
+    data = RunData()
+
     for d in dirs:
         print(Path(d).name)
-        run_results, times, goal_dists = compute_run_bounds(
+        run_data = compute_run_data(
             d, check_constraints=args.check_constraints, exact_com=args.exact_com
         )
-        all_times.append(times)
-        all_goal_dists.append(goal_dists)
-        if run_results.max_obj_dist >= FAILURE_DIST_THRESHOLD:
+        data.times.append(run_data.times)
+        data.dists.append(run_data.dists)
+        data.solve_times.append(run_data.solve_times)
+        data.max_obj_dist = max(data.max_obj_dist, run_data.max_obj_dist)
+        if run_data.max_obj_dist >= FAILURE_DIST_THRESHOLD:
             print(f"{Path(d).name} failed!")
             num_failures += 1
-        results.update(run_results)
 
     outfile = Path(args.directory) / "results.yaml"
-    d = results.as_dict()
-    d["num_failures"] = num_failures
     with open(outfile, "w") as f:
-        yaml.dump(data=d, stream=f)
+        yaml.dump(
+            data={
+                "num_failures": num_failures,
+                "max_obj_dist": float(data.max_obj_dist),
+            },
+            stream=f,
+        )
     print(f"Dumped results to {outfile}")
 
     outfile = Path(args.directory) / "data.npz"
-    np.savez(outfile, times=np.array(all_times), goal_dists=np.array(all_goal_dists))
+    np.savez(
+        outfile,
+        times=np.array(data.times),
+        dists=np.array(data.dists),
+        solve_times=np.array(data.solve_times),
+    )
     print(f"Dumped data to {outfile}")
 
 

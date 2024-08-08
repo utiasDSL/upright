@@ -363,6 +363,7 @@ PYBIND11_MODULE(bindings, m) {
     /* bind the actual mpc interface */
     pybind11::class_<ControllerPythonInterface>(m, "ControllerInterface")
         .def(pybind11::init<const ControllerSettings &>(), "settings"_a)
+        .def("getLastSolveTime", &ControllerPythonInterface::getLastSolveTime)
         .def("getStateDim", &ControllerPythonInterface::getStateDim)
         .def("getInputDim", &ControllerPythonInterface::getInputDim)
         .def("setObservation", &ControllerPythonInterface::setObservation,

@@ -24,6 +24,10 @@ class ControllerPythonInterface final : public ocs2::PythonInterface {
         ocs2::PythonInterface::init(control_interface_, std::move(mpc_ptr));
     }
 
+    ocs2::scalar_t getLastSolveTime() const {
+        return mpcMrtInterface_->getLastSolveTime();
+    }
+
     // Get the value of the constraint underlying a soft state-input inequality
     // constraint by name
     VecXd getSoftStateInputInequalityConstraintValue(
