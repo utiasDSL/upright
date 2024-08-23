@@ -44,6 +44,26 @@ def run_simulation(config, video, logname, use_gui=True):
     env.settle(5.0)
     env.fixture_objects()
 
+    # drive back to home position
+    # q = env.robot.joint_states(add_noise=False)[0]
+    # err = env.robot.home - q
+    # step = 0
+    # while np.linalg.norm(err) > 1e-4:
+    for _ in range(10000):
+        q = env.robot.joint_states(add_noise=False)[0]
+        err = env.robot.home - q
+        v_cmd = 10 * err
+        env.robot.command_velocity(v_cmd, bodyframe=False)
+        env.step(0, step_robot=False)
+        # step += 1
+        # if step > 1e4:
+        #     print(f"Failed to converge to home after {1e4} steps.")
+        #     IPython.embed()
+        #     return
+
+    # brake the robot
+    env.robot.command_velocity(np.zeros(env.robot.nv), bodyframe=False)
+
     # initial time, state, input
     t = 0.0
     q, v = env.robot.joint_states()
@@ -58,10 +78,11 @@ def run_simulation(config, video, logname, use_gui=True):
     dims = model.settings.dims
     ref = ctrl_manager.ref
 
-    # r_pyb, Q_pyb = env.robot.link_pose()
-    # r_pin, Q_pin = model.robot.link_pose()
-    # IPython.embed()
-    # return
+    # make sure PyBullet (simulation) and Pinocchio (controller) models agree
+    r_pyb, Q_pyb = env.robot.link_pose()
+    r_pin, Q_pin = model.robot.link_pose()
+    assert np.allclose(r_pyb, r_pin)
+    assert np.allclose(Q_pyb, Q_pin)
 
     # data logging
     logger = DataLogger(config)
@@ -87,6 +108,7 @@ def run_simulation(config, video, logname, use_gui=True):
     print("Ready to start.")
 
     # simulation loop
+    step = 0
     while t <= env.duration:
         # get the true robot feedback
         # instead of a proper estimator (e.g. Kalman filter) we're being lazy
@@ -102,6 +124,7 @@ def run_simulation(config, video, logname, use_gui=True):
 
         # compute policy - MPC is re-optimized automatically when the internal
         # MPC timestep has been exceeded
+        # TODO this is still not computed using the step increment
         try:
             xd, u = ctrl_manager.step(t, x_noisy)
             xd_robot = xd[: dims.robot.x]
@@ -133,7 +156,8 @@ def run_simulation(config, video, logname, use_gui=True):
         env.robot.command_velocity(v_cmd, bodyframe=False)
 
         # TODO more logger reforms to come
-        if logger.ready(t):
+        # if logger.ready(t):
+        if step % 10 == 0:
             # log sim stuff
             r_ew_w, Q_we = env.robot.link_pose()
             v_ew_w, ω_ew_w = env.robot.link_velocity()
@@ -203,7 +227,10 @@ def run_simulation(config, video, logname, use_gui=True):
                 )
                 logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
 
-        t = env.step(t, step_robot=False)[0]
+        # NOTE I am now manually incrementing time for more accuracy
+        env.step(t, step_robot=False)
+        step += 1
+        t = step * env.timestep
 
     logger.add("replanning_times", ctrl_manager.replanning_times)
     logger.add("replanning_durations", ctrl_manager.replanning_durations)
@@ -407,13 +434,8 @@ def main():
         help="Use PyBullet GUI. Otherwise, use DIRECT interface.",
     )
     parser.add_argument(
-        "--robust",
-        action="store_true",
-        help="Use robust constraints.",
-    )
-    parser.add_argument(
         "--com",
-        choices=["center", "top", "bottom", "exact"],
+        choices=["center", "top", "bottom", "exact", "robust"],
         required=True,
         help="Where the controller should put the CoM.",
     )
@@ -425,7 +447,9 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.robust:
+    use_robust = args.com == "robust"
+
+    if use_robust:
         assert args.com != "exact", "cannot use exact CoM with robust constraints"
 
     # load configuration
@@ -457,6 +481,7 @@ def main():
 
     sim_obj_config = {
         "mass": 0.5,
+        # "mass": 1.0,
         "shape": "cuboid",
         "side_lengths": ctrl_obj_config["side_lengths"],
         "color": [1, 0, 0, 1],
@@ -472,10 +497,24 @@ def main():
         ctrl_obj_config["bounds"]["approx"]["com_upper"],
     )
 
-    # place the CoM for the controller
-    # x_offset = float(box.half_extents[0])
+    # build the nominal arrangement
+    # this is even built in the robust case for later post-processing
     x_offset = 0
-    if args.robust:
+    nom_ctrl_obj_config = ctrl_obj_config.copy()
+    if args.com == "center" or use_robust:
+        nom_ctrl_obj_config["com_offset"] = [0, 0, 0]
+    elif args.com == "bottom":
+        nom_ctrl_obj_config["com_offset"] = [0, 0, -float(ctrl_com_box.half_extents[2])]
+    elif args.com == "top":
+        nom_ctrl_obj_config["com_offset"] = [0, 0, float(ctrl_com_box.half_extents[2])]
+    master_config["controller"]["objects"][OBJECT_NAME] = nom_ctrl_obj_config
+
+    nom_ctrl_arrangement_config = make_arrangement_config(
+        [OBJECT_NAME], x_offset=x_offset, mu=MU
+    )
+    master_config["controller"]["arrangements"]["nominal"] = nom_ctrl_arrangement_config
+
+    if use_robust:
         # make a config for each CoM we care about
         x, y, z = ctrl_com_box.half_extents.tolist()
         # ctrl_com_offsets = np.array([[x, y, z], [-x, y, z], [-x, -y, z], [x, -y, z]])
@@ -489,28 +528,20 @@ def main():
             config["com_offset"] = com.tolist()
             master_config["controller"]["objects"][name] = config
 
-        ctrl_arrangement_config = make_arrangement_config(
+        rob_ctrl_arrangement_config = make_arrangement_config(
             object_names, x_offset=x_offset, mu=MU
         )
+        master_config["controller"]["arrangements"]["robust"] = rob_ctrl_arrangement_config
+        master_config["controller"]["balancing"]["arrangement"] = "robust"
     else:
-        if args.com == "center":
-            ctrl_obj_config["com_offset"] = [0, 0, 0]
-        elif args.com == "bottom":
-            ctrl_obj_config["com_offset"] = [0, 0, -float(ctrl_com_box.half_extents[2])]
-        elif args.com == "top":
-            ctrl_obj_config["com_offset"] = [0, 0, float(ctrl_com_box.half_extents[2])]
-        master_config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
-
-        ctrl_arrangement_config = make_arrangement_config(
-            [OBJECT_NAME], x_offset=x_offset, mu=MU
-        )
+        master_config["controller"]["balancing"]["arrangement"] = "nominal"
 
     # control arrangement
-    ctrl_arrangement_name = "robust" if args.robust else "nominal"
-    master_config["controller"]["arrangements"][
-        ctrl_arrangement_name
-    ] = ctrl_arrangement_config
-    master_config["controller"]["balancing"]["arrangement"] = ctrl_arrangement_name
+    # ctrl_arrangement_name = "robust" if use_robust else "nominal"
+    # master_config["controller"]["arrangements"][
+    #     ctrl_arrangement_name
+    # ] = ctrl_arrangement_config
+    # master_config["controller"]["balancing"]["arrangement"] = ctrl_arrangement_name
 
     # simulation arrangement
     sim_arrangement_name = "nominal"
@@ -532,11 +563,12 @@ def main():
     # mass-normalized inertias (about the CoM)
     # NOTE: 0.5 to match the mass
     sim_inertias_diag = [0.5 * max_min_eig_inertia(box, c, diag=True) for c in sim_com_offsets]
+    # sim_inertias_diag = [1.0 * max_min_eig_inertia(box, c, diag=True) for c in sim_com_offsets]
     sim_inertia_scales = [1.0, 0.5, 0.1]
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    if args.robust:
+    if use_robust:
         dirname = f"robust_h{h_cm}_{timestamp}"
     else:
         dirname = f"nominal_h{h_cm}_com_{args.com}_{timestamp}"
@@ -553,17 +585,23 @@ def main():
 
                 sim_obj_config["com_offset"] = np.array(com_offset).tolist()
                 sim_obj_config["inertia_diag"] = (s * inertia_diag).tolist()
+                # sim_obj_config["inertia_diag"] = inertia_diag.tolist()
                 config["simulation"]["objects"][OBJECT_NAME] = sim_obj_config
 
                 # in the exact case, we match the simulated CoM exactly
-                if args.com == "exact":
-                    ctrl_obj_config["inertia"] = max_trace_inertia(
-                        box, com_offset
-                    ).tolist()
-                    ctrl_com_offset = com_offset.copy()
-                    ctrl_com_offset[2] = max_com_z_offset
-                    ctrl_obj_config["com_offset"] = np.array(ctrl_com_offset).tolist()
-                    config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
+                # if args.com == "exact":
+                #     ctrl_obj_config["inertia"] = max_trace_inertia(
+                #         box, com_offset
+                #     ).tolist()
+                #     ctrl_com_offset = com_offset.copy()
+                #     ctrl_com_offset[2] = max_com_z_offset
+                #     ctrl_obj_config["com_offset"] = np.array(ctrl_com_offset).tolist()
+                #     config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
+
+                # if run != 107:
+                #     run += 1
+                #     continue
+                # IPython.embed()
 
                 # only compile at most once
                 if run > 1:

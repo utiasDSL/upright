@@ -13,10 +13,10 @@ include:
 
 logging:
   timestep: 0.010
-  log_dir: /media/adam/Data/PhD/Data/upright/robust
+  log_dir: /media/adam/Data/PhD/Data/upright/robust/heins-ral24/simulations
 
 simulation:
-  duration: 10.0
+  duration: 12.0
   extra_gui: false
   robot:
     urdf:
