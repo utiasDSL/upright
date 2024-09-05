@@ -134,6 +134,16 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     // Regularization cost
     problem_.costPtr->add("state_input_cost", get_quadratic_state_input_cost());
 
+    // Final cost
+    // MatXd Q = MatXd::Zero(settings_.dims.x(), settings_.dims.x());
+    // Q.topLeftCorner(settings_.dims.robot.x, settings_.dims.robot.x) =
+    //     10 * settings_.state_weight;
+    // Q.topLeftCorner(settings_.dims.robot.q, settings_.dims.robot.q) =
+    //     0.001 * MatXd::Identity(settings_.dims.robot.q, settings_.dims.robot.q);
+    // std::unique_ptr<ocs2::StateCost> final_state_cost(
+    //     new ocs2::QuadraticStateCost(Q));
+    // problem_.finalCostPtr->add("final_state_cost", std::move(final_state_cost));
+
     // Build the end effector kinematics
     SystemPinocchioMapping<TripleIntegratorPinocchioMapping<ocs2::ad_scalar_t>,
                            ocs2::ad_scalar_t>
@@ -141,13 +151,8 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
 
     /* Constraints */
     const bool frictionless = (settings_.dims.nf == 1);
-    // if (frictionless) {
-        problem_.boundConstraintPtr->setZero(settings_.dims.x(),
-                                             settings_.dims.u());
-    // } else {
-    //     problem_.boundConstraintPtr->setZero(settings_.dims.x(),
-    //                                          settings_.dims.robot.u);
-    // }
+    problem_.boundConstraintPtr->setZero(settings_.dims.x(),
+                                         settings_.dims.u());
     problem_.boundConstraintPtr->state_lb_.head(settings_.dims.robot.x) =
         settings_.state_limit_lower;
     problem_.boundConstraintPtr->state_ub_.head(settings_.dims.robot.x) =
@@ -348,8 +353,12 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
             std::cout << i << " ";
         }
         std::cout << std::endl;
-        std::cout << "input bound ub = " << problem_.boundConstraintPtr->input_ub_.transpose() << std::endl;
-        std::cout << "input bound lb = " << problem_.boundConstraintPtr->input_lb_.transpose() << std::endl;
+        std::cout << "input bound ub = "
+                  << problem_.boundConstraintPtr->input_ub_.transpose()
+                  << std::endl;
+        std::cout << "input bound lb = "
+                  << problem_.boundConstraintPtr->input_lb_.transpose()
+                  << std::endl;
 
     } else {
         std::cerr << "Balancing constraints disabled." << std::endl;

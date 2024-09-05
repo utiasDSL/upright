@@ -560,7 +560,7 @@ class UprightSimulation(BulletSimulation):
         self.robot.reset_joint_configuration(self.robot.home)
 
         # simulate briefly to let the robot settle down after being positioned
-        self.settle(1.0)
+        # self.settle(1.0)
 
         # setup obstacles
         if config["static_obstacles"]["enabled"]:
@@ -632,13 +632,15 @@ class UprightSimulation(BulletSimulation):
             xs.append(x)
         return np.concatenate(xs)
 
-    def fixture_objects(self):
+    def fixture_objects(self, do_all=False):
         # rigidly attach fixtured objects to the tray
         r_ew_w, _ = self.robot.link_pose()
+        self.fixtures = {}
         for name, obj in self.objects.items():
             print(f"{name}.fixture = {obj.fixture}")
-            if obj.fixture:
-                pyb.createConstraint(
+            if obj.fixture or do_all:
+                r_ow_w, _ = obj.get_pose()
+                constraint_uid = pyb.createConstraint(
                     self.robot.uid,
                     self.robot.tool_idx,
                     obj.uid,
@@ -646,8 +648,9 @@ class UprightSimulation(BulletSimulation):
                     pyb.JOINT_FIXED,
                     jointAxis=[0, 0, 1],  # doesn't matter
                     parentFramePosition=[0, 0, 0],
-                    childFramePosition=list(r_ew_w - obj.r0),
+                    childFramePosition=list(r_ew_w - r_ow_w),
                 )
+                self.fixtures[name] = constraint_uid
 
     def step(self, t, step_robot=True):
         """Step the simulation forward one timestep."""

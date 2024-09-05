@@ -41,25 +41,29 @@ def run_simulation(config, video, logname, use_gui=True):
     )
 
     # settle sim to make sure everything is touching comfortably
-    env.settle(5.0)
-    env.fixture_objects()
+    # env.settle(5.0)
+
+    # fixture all objects
+    env.fixture_objects(do_all=False)
+
+    # env.robot.reset_joint_configuration(env.robot.home)
 
     # drive back to home position
+    # for _ in range(10000):
+    #     q = env.robot.joint_states(add_noise=False)[0]
+    #     err = env.robot.home - q
+    #     v_cmd = 10 * err
+    #     env.robot.command_velocity(v_cmd, bodyframe=False)
+    #     env.step(0, step_robot=False)
+
     # q = env.robot.joint_states(add_noise=False)[0]
     # err = env.robot.home - q
-    # step = 0
-    # while np.linalg.norm(err) > 1e-4:
-    for _ in range(10000):
-        q = env.robot.joint_states(add_noise=False)[0]
-        err = env.robot.home - q
-        v_cmd = 10 * err
-        env.robot.command_velocity(v_cmd, bodyframe=False)
-        env.step(0, step_robot=False)
-        # step += 1
-        # if step > 1e4:
-        #     print(f"Failed to converge to home after {1e4} steps.")
-        #     IPython.embed()
-        #     return
+    # IPython.embed()
+
+    # now unfixture the ones that should be unconstrained
+    # for name, uid in env.fixtures.items():
+    #     if not env.objects[name].fixture:
+    #         pyb.removeConstraint(uid)
 
     # brake the robot
     env.robot.command_velocity(np.zeros(env.robot.nv), bodyframe=False)
@@ -117,6 +121,12 @@ def run_simulation(config, video, logname, use_gui=True):
         q, v = env.robot.joint_states(add_noise=False)
         x_obs = env.dynamic_obstacle_state()
         x = np.concatenate((q, v, a_est, x_obs))
+
+        # ensure constraint is no longer active
+        # if t > 1:
+        #     for obj in env.objects.values():
+        #         pyb.applyExternalForce(obj.uid, -1, [1, 0, 0], [0, 0, 0], pyb.LINK_FRAME)
+        #     print("applying force!")
 
         # now get the noisy version for use in the controller
         q_noisy, v_noisy = env.robot.joint_states(add_noise=True)
@@ -462,6 +472,7 @@ def main():
     h_m = args.height / 100
     h2_m = 0.5 * h_m
 
+    # TODO make inertia large?
     ctrl_obj_config = {
         "mass": 1.0,
         "shape": "cuboid",
@@ -585,7 +596,6 @@ def main():
 
                 sim_obj_config["com_offset"] = np.array(com_offset).tolist()
                 sim_obj_config["inertia_diag"] = (s * inertia_diag).tolist()
-                # sim_obj_config["inertia_diag"] = inertia_diag.tolist()
                 config["simulation"]["objects"][OBJECT_NAME] = sim_obj_config
 
                 # in the exact case, we match the simulated CoM exactly
@@ -598,10 +608,10 @@ def main():
                 #     ctrl_obj_config["com_offset"] = np.array(ctrl_com_offset).tolist()
                 #     config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
 
-                # if run != 107:
-                #     run += 1
-                #     continue
-                # IPython.embed()
+                if run != 82:
+                    run += 1
+                    continue
+                IPython.embed()
 
                 # only compile at most once
                 if run > 1:

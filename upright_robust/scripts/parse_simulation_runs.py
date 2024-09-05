@@ -248,7 +248,7 @@ def main():
     data = RunData()
 
     results_file_name = f"results_mu{args.mu}.yaml" if args.mu else "results.yaml"
-    data_file_name = f"data_mu{args.mu}.pkl" if args.mu else "data.pkl"
+    data_file_name = f"data_mu{args.mu}.npz" if args.mu else "data.npz"
 
     for i, d in enumerate(dirs):
         print(Path(d).name)
@@ -291,6 +291,7 @@ def main():
         if run_data.max_obj_dist >= FAILURE_DIST_THRESHOLD:
             print(f"{Path(d).name} failed!")
             num_failures += 1
+            return
 
     outfile = Path(args.directory) / results_file_name
     with open(outfile, "w") as f:
