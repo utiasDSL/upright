@@ -2,11 +2,41 @@ arrangements:
   nothing:
     objects: []
 
-  brown_cardboard_box3_nominal:
+  brown_cardboard_box3_actual:
     objects:
       -
         name: box
-        type: brown_cardboard_box3
+        type: brown_cardboard_box3_actual
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  brown_cardboard_box3_center:
+    objects:
+      -
+        name: box
+        type: brown_cardboard_box3_center
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  brown_cardboard_box3_top:
+    objects:
+      -
+        name: box
+        type: brown_cardboard_box3_top
         parent: ee
         offset:
           x: 0.065
@@ -43,27 +73,71 @@ arrangements:
         parent: ee
         offset:
           x: 0.065
+      -
+        name: box5
+        type: brown_cardboard_box3_5
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box6
+        type: brown_cardboard_box3_6
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box7
+        type: brown_cardboard_box3_7
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box8
+        type: brown_cardboard_box3_8
+        parent: ee
+        offset:
+          x: 0.065
     contacts:
       -
         first: ee
         second: box1
-        mu: 0.3
-        support_area_inset: 0.005
+        mu: 0.2
+        support_area_inset: 0.0
       -
         first: ee
         second: box2
-        mu: 0.3
-        support_area_inset: 0.005
+        mu: 0.2
+        support_area_inset: 0.0
       -
         first: ee
         second: box3
-        mu: 0.3
-        support_area_inset: 0.005
+        mu: 0.2
+        support_area_inset: 0.0
       -
         first: ee
         second: box4
-        mu: 0.3
-        support_area_inset: 0.005
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box5
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box6
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box7
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box8
+        mu: 0.2
+        support_area_inset: 0.0
 
   brown_cardboard_box2_nominal:
     objects:

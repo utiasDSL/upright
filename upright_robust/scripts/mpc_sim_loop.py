@@ -473,6 +473,7 @@ def main():
     h2_m = 0.5 * h_m
 
     # TODO make inertia large?
+    # TODO need to compute inertia to properly account for CoM offset
     ctrl_obj_config = {
         "mass": 1.0,
         "shape": "cuboid",
@@ -546,13 +547,6 @@ def main():
         master_config["controller"]["balancing"]["arrangement"] = "robust"
     else:
         master_config["controller"]["balancing"]["arrangement"] = "nominal"
-
-    # control arrangement
-    # ctrl_arrangement_name = "robust" if use_robust else "nominal"
-    # master_config["controller"]["arrangements"][
-    #     ctrl_arrangement_name
-    # ] = ctrl_arrangement_config
-    # master_config["controller"]["balancing"]["arrangement"] = ctrl_arrangement_name
 
     # simulation arrangement
     sim_arrangement_name = "nominal"

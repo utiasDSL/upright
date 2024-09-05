@@ -10,124 +10,66 @@ balancing:
   enabled: true
 
 objects:
-  sim_block_h10:
-    mass: 1.0
+  # TODO need to fix these inertia values
+  brown_cardboard_box3_center:
+    mass: 1
     com_offset: [0, 0, 0]
     shape: cuboid
-    side_lengths: [0.1, 0.1, 0.1]
+    side_lengths: [0.155, 0.155, 0.84]
 
-    bounds:
-      approx:
-        com_lower: [-0.04, -0.04, -0.05]
-        com_upper: [0.04, 0.04, 0.05]
-      realizable:
-        com_lower: [-0.04, -0.04, -0.05]
-        com_upper: [0.04, 0.04, 0.05]
-
-  sim_block_h60:
-    mass: 1.0
-    com_offset: [0, 0, 0]
+  brown_cardboard_box3_top:
+    mass: 1
+    com_offset: [0, 0, 0.42]
     shape: cuboid
-    side_lengths: [0.1, 0.1, 0.6]
-
-    # these are relative to the nominal CoM value above
-    bounds:
-      approx:  # actually enforced by controller (fixed value of inertia matrix)
-        com_lower: [-0.04, -0.04, -0.3]
-        com_upper: [0.04, 0.04, 0.3]
-      realizable:  # physically possible values
-        com_lower: [-0.04, -0.04, -0.3]
-        com_upper: [0.04, 0.04, 0.3]
-
-  # three white cardboard boxes attached together
-  white_cardboard_box3:
-    mass: 1.0
-    com_offset: [0, 0, 0.4]
-    shape: cuboid
-    side_lengths: [0.105, 0.105, 0.8]
-
-    # bounds are all relative to the nominal values above
-    # these are the bounds actually enforced by the QP-based controller
-    bounds_approx_inertia:
-      com_lower: [-0.04, -0.04, -0.7]
-      com_upper: [0.04, 0.04, 0]
-      mass_lower: 0
-      mass_upper: 0
-
-      box_half_extents: [0.0525, 0.0525, 0.4]
-      centroid: [0, 0, 0.4]
-
-    # these are the bounds that allow any inertia matrix that is physically
-    # realizable
-    bounds_realizable:
-      com_lower: [-0.03, -0.03, -0.7]
-      com_upper: [0.03, 0.03, 0]
-      mass_lower: 0
-      mass_upper: 0
-
-      ellipsoid_half_extents: [0.09093267, 0.09093267, 0.69282032] # bounding
-      box_half_extents: [0.0525, 0.0525, 0.4]
-      centroid: [0, 0, 0.4]
-
-  # three brown cardboard boxes attached together
-  brown_cardboard_box3:
-    mass: 1.1
-    com_offset: [0, 0, 0.415]  # assume it is at the top
-    shape: cuboid
-    inertia_diag: [0.0025, 0.0025, 0.005]
-    side_lengths: [0.15, 0.15, 0.83]  # 0.15 is a slight underestimate
-
-    # bounds are all relative to the nominal values above
-    # these are the bounds actually enforced by the QP-based controller
-    # TODO these are not correct; not updated yet
-    bounds_approx_inertia:
-      com_lower: [-0.04, -0.04, -0.7]
-      com_upper: [0.04, 0.04, 0]
-      mass_lower: 0
-      mass_upper: 0
-
-      box_half_extents: [0.0525, 0.0525, 0.4]
-      centroid: [0, 0, 0.4]
-
-    # these are the bounds that allow any inertia matrix that is physically
-    # realizable
-    bounds_realizable:
-      com_lower: [-0.03, -0.03, -0.7]
-      com_upper: [0.03, 0.03, 0]
-      mass_lower: 0
-      mass_upper: 0
-
-      ellipsoid_half_extents: [0.09093267, 0.09093267, 0.69282032] # bounding
-      box_half_extents: [0.0525, 0.0525, 0.4]
-      centroid: [0, 0, 0.4]
+    side_lengths: [0.155, 0.155, 0.84]
 
   brown_cardboard_box3_1:
-    mass: 1.1
-    com_offset: [0.05, 0.05, 0.415]
-    inertia_diag: [0, 0, 0]
+    mass: 1
+    com_offset: [0.05, 0.05, 0.42]
     shape: cuboid
-    side_lengths: [0.15, 0.15, 0.83]
+    side_lengths: [0.155, 0.155, 0.84]
 
   brown_cardboard_box3_2:
-    mass: 1.1
-    com_offset: [0.05, -0.05, 0.415]
-    inertia_diag: [0, 0, 0]
+    mass: 1
+    com_offset: [0.05, -0.05, 0.42]
     shape: cuboid
-    side_lengths: [0.15, 0.15, 0.83]
+    side_lengths: [0.155, 0.155, 0.84]
 
   brown_cardboard_box3_3:
-    mass: 1.1
-    com_offset: [-0.05, 0.05, 0.415]
-    inertia_diag: [0, 0, 0]
+    mass: 1
+    com_offset: [-0.05, 0.05, 0.42]
     shape: cuboid
-    side_lengths: [0.15, 0.15, 0.83]
+    side_lengths: [0.155, 0.155, 0.84]
 
   brown_cardboard_box3_4:
-    mass: 1.1
-    com_offset: [-0.05, -0.05, 0.415]
-    inertia_diag: [0, 0, 0]
+    mass: 1
+    com_offset: [-0.05, -0.05, 0.42]
     shape: cuboid
-    side_lengths: [0.15, 0.15, 0.83]
+    side_lengths: [0.155, 0.155, 0.84]
+
+  brown_cardboard_box3_5:
+    mass: 1
+    com_offset: [0.05, 0.05, -0.42]
+    shape: cuboid
+    side_lengths: [0.155, 0.155, 0.84]
+
+  brown_cardboard_box3_6:
+    mass: 1
+    com_offset: [0.05, -0.05, -0.42]
+    shape: cuboid
+    side_lengths: [0.155, 0.155, 0.84]
+
+  brown_cardboard_box3_7:
+    mass: 1
+    com_offset: [-0.05, 0.05, -0.42]
+    shape: cuboid
+    side_lengths: [0.155, 0.155, 0.84]
+
+  brown_cardboard_box3_8:
+    mass: 1
+    com_offset: [-0.05, -0.05, -0.42]
+    shape: cuboid
+    side_lengths: [0.155, 0.155, 0.84]
 
   # two brown cardboard boxes attached together
   brown_cardboard_box2:
@@ -164,40 +106,4 @@ objects:
     shape: cuboid
     inertia_diag: [0.0025, 0.0025, 0.005]
     side_lengths: [0.15, 0.15, 0.55]
-
-  tall_box:
-    mass: 1
-    com_offset: [0, 0.0, 0.25]
-    inertia_diag: [0.0025, 0.0025, 0.005]
-    shape: cuboid
-    side_lengths: [0.1, 0.1, 0.5]
-    # side_lengths: [0.02, 0.02, 0.5]  # pull in SA instead of broaden out CoM?
-
-  tall_box1:
-    mass: 1
-    com_offset: [0.04, 0.04, 0.25]
-    inertia_diag: [0, 0, 0]
-    shape: cuboid
-    side_lengths: [0.1, 0.1, 0.5]
-
-  tall_box2:
-    mass: 1
-    com_offset: [0.04, -0.04, 0.25]
-    inertia_diag: [0, 0, 0]
-    shape: cuboid
-    side_lengths: [0.1, 0.1, 0.5]
-
-  tall_box3:
-    mass: 1
-    com_offset: [-0.04, -0.04, 0.25]
-    inertia_diag: [0, 0, 0]
-    shape: cuboid
-    side_lengths: [0.1, 0.1, 0.5]
-
-  tall_box4:
-    mass: 1
-    com_offset: [-0.04, 0.04, 0.25]
-    inertia_diag: [0, 0, 0]
-    shape: cuboid
-    side_lengths: [0.1, 0.1, 0.5]
 
