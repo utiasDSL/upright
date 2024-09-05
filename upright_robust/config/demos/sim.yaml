@@ -2,3 +2,15 @@ include:
   -
     package: upright_robust
     path: config/demos/_base.yaml
+
+simulation:
+  robot:
+    urdf:
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_sim.yaml"
+
+controller:
+  robot:
+    urdf:
+      args:
+        transform_params: "$(find upright_cmd)/config/robots/calibration/tray_transforms_sim.yaml"
