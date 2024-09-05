@@ -7,17 +7,17 @@ include:
     path: config/arrangements.yaml
 
 objects:
-  brown_cardboard_box3_actual:
+  box3_actual:
     mass: 1.067
     # we are assuming the CoM is located at the center of the bottle
-    com_offset: [0.04, 0.04, 0.24]
+    com_offset: [0.04, -0.04, 0.24]
     # assume only the bottle contributes to inertia
     inertia_diag: [0.00393178, 0.00393178, 0.00075023]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
     color: [0.7, 0.53, 0.35, 1]
 
-  brown_cardboard_box2_actual:
+  box2_actual:
     mass: 0.952
     com_offset: [0.04, 0.04, 0.1]
     shape: cuboid

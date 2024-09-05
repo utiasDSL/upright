@@ -48,7 +48,7 @@ def main():
     )
 
     # settle sim to make sure everything is touching comfortably
-    env.settle(5.0)
+    # env.settle(5.0)
     env.launch_dynamic_obstacles()
     env.fixture_objects()
 

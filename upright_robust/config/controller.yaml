@@ -11,96 +11,96 @@ balancing:
 
 objects:
   # TODO need to fix these inertia values
-  brown_cardboard_box3_center:
+  box3_center:
     mass: 1
     com_offset: [0, 0, 0]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
 
-  brown_cardboard_box3_top:
+  box3_top:
     mass: 1
     com_offset: [0, 0, 0.42]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
 
-  brown_cardboard_box3_1:
+  box3_1:
     mass: 1
     com_offset: [0.05, 0.05, 0.42]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
 
-  brown_cardboard_box3_2:
+  box3_2:
     mass: 1
     com_offset: [0.05, -0.05, 0.42]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
 
-  brown_cardboard_box3_3:
+  box3_3:
     mass: 1
     com_offset: [-0.05, 0.05, 0.42]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
 
-  brown_cardboard_box3_4:
+  box3_4:
     mass: 1
     com_offset: [-0.05, -0.05, 0.42]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
 
-  brown_cardboard_box3_5:
+  box3_5:
     mass: 1
     com_offset: [0.05, 0.05, -0.42]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
 
-  brown_cardboard_box3_6:
+  box3_6:
     mass: 1
     com_offset: [0.05, -0.05, -0.42]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
 
-  brown_cardboard_box3_7:
+  box3_7:
     mass: 1
     com_offset: [-0.05, 0.05, -0.42]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
 
-  brown_cardboard_box3_8:
+  box3_8:
     mass: 1
     com_offset: [-0.05, -0.05, -0.42]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
 
   # two brown cardboard boxes attached together
-  brown_cardboard_box2:
+  box2:
     mass: 0.954
     com_offset: [0, 0, 0.275]  # assume it is at the top
     shape: cuboid
     inertia_diag: [0.0025, 0.0025, 0.005]
     side_lengths: [0.15, 0.15, 0.55]  # 0.15 is a slight underestimate
 
-  brown_cardboard_box2_1:
+  box2_1:
     mass: 0.954
     com_offset: [0.05, 0.05, 0.275]
     shape: cuboid
     inertia_diag: [0.0025, 0.0025, 0.005]
     side_lengths: [0.15, 0.15, 0.55]
 
-  brown_cardboard_box2_2:
+  box2_2:
     mass: 0.954
     com_offset: [0.05, -0.05, 0.275]
     shape: cuboid
     inertia_diag: [0.0025, 0.0025, 0.005]
     side_lengths: [0.15, 0.15, 0.55]
 
-  brown_cardboard_box2_3:
+  box2_3:
     mass: 0.954
     com_offset: [-0.05, 0.05, 0.275]
     shape: cuboid
     inertia_diag: [0.0025, 0.0025, 0.005]
     side_lengths: [0.15, 0.15, 0.55]
 
-  brown_cardboard_box2_4:
+  box2_4:
     mass: 0.954
     com_offset: [-0.05, -0.05, 0.275]
     shape: cuboid

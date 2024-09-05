@@ -2,11 +2,11 @@ arrangements:
   nothing:
     objects: []
 
-  brown_cardboard_box3_actual:
+  box3_actual:
     objects:
       -
         name: box
-        type: brown_cardboard_box3_actual
+        type: box3_actual
         parent: ee
         offset:
           x: 0.065
@@ -17,11 +17,11 @@ arrangements:
         mu: 0.2
         support_area_inset: 0.0
 
-  brown_cardboard_box3_center:
+  box3_center:
     objects:
       -
         name: box
-        type: brown_cardboard_box3_center
+        type: box3_center
         parent: ee
         offset:
           x: 0.065
@@ -32,11 +32,11 @@ arrangements:
         mu: 0.2
         support_area_inset: 0.0
 
-  brown_cardboard_box3_top:
+  box3_top:
     objects:
       -
         name: box
-        type: brown_cardboard_box3_top
+        type: box3_top
         parent: ee
         offset:
           x: 0.065
@@ -47,53 +47,53 @@ arrangements:
         mu: 0.2
         support_area_inset: 0.0
 
-  brown_cardboard_box3_robust:
+  box3_robust:
     objects:
       -
         name: box1
-        type: brown_cardboard_box3_1
+        type: box3_1
         parent: ee
         offset:
           x: 0.065
       -
         name: box2
-        type: brown_cardboard_box3_2
+        type: box3_2
         parent: ee
         offset:
           x: 0.065
       -
         name: box3
-        type: brown_cardboard_box3_3
+        type: box3_3
         parent: ee
         offset:
           x: 0.065
       -
         name: box4
-        type: brown_cardboard_box3_4
+        type: box3_4
         parent: ee
         offset:
           x: 0.065
       -
         name: box5
-        type: brown_cardboard_box3_5
+        type: box3_5
         parent: ee
         offset:
           x: 0.065
       -
         name: box6
-        type: brown_cardboard_box3_6
+        type: box3_6
         parent: ee
         offset:
           x: 0.065
       -
         name: box7
-        type: brown_cardboard_box3_7
+        type: box3_7
         parent: ee
         offset:
           x: 0.065
       -
         name: box8
-        type: brown_cardboard_box3_8
+        type: box3_8
         parent: ee
         offset:
           x: 0.065
@@ -139,11 +139,11 @@ arrangements:
         mu: 0.2
         support_area_inset: 0.0
 
-  brown_cardboard_box2_nominal:
+  box2_nominal:
     objects:
       -
         name: box
-        type: brown_cardboard_box2
+        type: box2
         parent: ee
         offset:
           x: 0.065
@@ -154,29 +154,29 @@ arrangements:
         mu: 0.2
         support_area_inset: 0.0
 
-  brown_cardboard_box2_robust:
+  box2_robust:
     objects:
       -
         name: box1
-        type: brown_cardboard_box2_1
+        type: box2_1
         parent: ee
         offset:
           x: 0.065
       -
         name: box2
-        type: brown_cardboard_box2_2
+        type: box2_2
         parent: ee
         offset:
           x: 0.065
       -
         name: box3
-        type: brown_cardboard_box2_3
+        type: box2_3
         parent: ee
         offset:
           x: 0.065
       -
         name: box4
-        type: brown_cardboard_box2_4
+        type: box2_4
         parent: ee
         offset:
           x: 0.065

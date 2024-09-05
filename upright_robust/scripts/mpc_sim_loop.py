@@ -534,8 +534,14 @@ def main():
 
         object_names = [OBJECT_NAME + f"_{i+1}" for i in range(len(ctrl_com_offsets))]
 
+        params_center = box.uniform_density_params(mass=1)
+
         # add to the main config
         for name, com in zip(object_names, ctrl_com_offsets):
+            # params_com = params_center.transform(translation=com)
+            # IPython.embed()
+            # return
+
             config = ctrl_obj_config.copy()
             config["com_offset"] = com.tolist()
             master_config["controller"]["objects"][name] = config
