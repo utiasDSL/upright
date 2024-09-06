@@ -10,7 +10,6 @@ balancing:
   enabled: true
 
 objects:
-  # TODO need to fix these inertia values
   box3_center:
     mass: 1
     com_offset: [0, 0, 0]
@@ -70,40 +69,4 @@ objects:
     com_offset: [-0.05, -0.05, -0.42]
     shape: cuboid
     side_lengths: [0.155, 0.155, 0.84]
-
-  # two brown cardboard boxes attached together
-  box2:
-    mass: 0.954
-    com_offset: [0, 0, 0.275]  # assume it is at the top
-    shape: cuboid
-    inertia_diag: [0.0025, 0.0025, 0.005]
-    side_lengths: [0.15, 0.15, 0.55]  # 0.15 is a slight underestimate
-
-  box2_1:
-    mass: 0.954
-    com_offset: [0.05, 0.05, 0.275]
-    shape: cuboid
-    inertia_diag: [0.0025, 0.0025, 0.005]
-    side_lengths: [0.15, 0.15, 0.55]
-
-  box2_2:
-    mass: 0.954
-    com_offset: [0.05, -0.05, 0.275]
-    shape: cuboid
-    inertia_diag: [0.0025, 0.0025, 0.005]
-    side_lengths: [0.15, 0.15, 0.55]
-
-  box2_3:
-    mass: 0.954
-    com_offset: [-0.05, 0.05, 0.275]
-    shape: cuboid
-    inertia_diag: [0.0025, 0.0025, 0.005]
-    side_lengths: [0.15, 0.15, 0.55]
-
-  box2_4:
-    mass: 0.954
-    com_offset: [-0.05, -0.05, 0.275]
-    shape: cuboid
-    inertia_diag: [0.0025, 0.0025, 0.005]
-    side_lengths: [0.15, 0.15, 0.55]
 

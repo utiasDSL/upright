@@ -1,7 +1,8 @@
 # this is the config file for the home.py script in mobile_manipulation_central
 
 # home for all experiments except for projectile avoidance
-default: [-1.0, 1.0, 0, 1.5708, -0.7854,  1.5708, -0.7854,  1.5708, 1.3100]
+# default: [-1.0, 1.0, 0, 1.5708, -0.7854,  1.5708, -0.7854,  1.5708, 1.3100]
+default: [0, 1.0, 0, 1.5708, -0.7854,  1.5708, -0.7854,  1.5708, 1.3100]
 
 # configuration used for projectile experiments
 projectile: [-1.5, 2.5, -1.5708, 1.5708, -0.7854,  1.5708, -0.7854,  1.5708, 1.3100]

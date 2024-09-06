@@ -608,10 +608,10 @@ def main():
                 #     ctrl_obj_config["com_offset"] = np.array(ctrl_com_offset).tolist()
                 #     config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
 
-                if run != 82:
-                    run += 1
-                    continue
-                IPython.embed()
+                # if run != 82:
+                #     run += 1
+                #     continue
+                # IPython.embed()
 
                 # only compile at most once
                 if run > 1:
