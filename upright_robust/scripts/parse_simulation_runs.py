@@ -108,21 +108,21 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
         problem_poly = cp.Problem(objective_poly, constraints_poly)
 
         # ellipsoid problem
-        θ_ell = cp.Variable(10)
-        J_ell = rg.pim_must_equal_vec(θ_ell)
-        c_ell = J_ell[:3, 3] / mass  # CoM
-        m_ell = J_ell[3, 3]  # mass
-
-        constraints_ell = (
-            rg.pim_psd(J_ell)
-            + bounding_ell.must_realize(J_ell)  # only difference from poly problem
-            + com_box.must_contain(c_ell)
-            + [m_ell == mass]
-        )
-        hY_ell = cp.Parameter(10)
-
-        objective_ell = cp.Maximize(hY_ell @ θ_ell)
-        problem_ell = cp.Problem(objective_ell, constraints_ell)
+        # θ_ell = cp.Variable(10)
+        # J_ell = rg.pim_must_equal_vec(θ_ell)
+        # c_ell = J_ell[:3, 3] / mass  # CoM
+        # m_ell = J_ell[3, 3]  # mass
+        #
+        # constraints_ell = (
+        #     rg.pim_psd(J_ell)
+        #     + bounding_ell.must_realize(J_ell)  # only difference from poly problem
+        #     + com_box.must_contain(c_ell)
+        #     + [m_ell == mass]
+        # )
+        # hY_ell = cp.Parameter(10)
+        #
+        # objective_ell = cp.Maximize(hY_ell @ θ_ell)
+        # problem_ell = cp.Problem(objective_ell, constraints_ell)
 
     data = np.load(npz_path)
     ts = data["ts"]
@@ -152,15 +152,18 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
         robot.forward_xu(x=x)
 
         r_ew_w, C_we = robot.link_pose(rotation_matrix=True)
-        V_e = np.concatenate(robot.link_velocity(frame="local"))
-        G_e = rob.body_gravity6(C_ew=C_we.T)
-        A_e = np.concatenate(robot.link_spatial_acceleration(frame="local"))
 
         # compute distance to goal
         run_data.dists.append(np.linalg.norm(rd - r_ew_w))
 
         if check_constraints:
-            Y = rg.RigidBody.regressor(V=V_e, A=A_e - G_e)
+            V_e = np.concatenate(robot.link_velocity(frame="local"))
+            G_e = rob.body_gravity6(C_ew=C_we.T)
+            A_e = np.concatenate(robot.link_spatial_acceleration(frame="local"))
+
+            V = rg.SV(linear=V_e[:3], angular=V_e[3:])
+            A = rg.SV(linear=A_e[:3] - G_e[:3], angular=A_e[3:] - G_e[3:])
+            Y = rg.RigidBody.regressor(V=V, A=A)
 
             for h in H:
                 hY_poly.value = h @ Y
@@ -174,17 +177,17 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
                         objective_poly.value, run_data.max_constraint_violation_poly
                     )
 
-            for h in H:
-                hY_ell.value = h @ Y
-                problem_ell.solve(solver=cp.MOSEK)
-                assert problem_ell.status == "optimal"
-
-                if run_data.max_constraint_violation_ell is None:
-                    run_data.max_constraint_violation_ell = objective_ell.value
-                else:
-                    run_data.max_constraint_violation_ell = max(
-                        objective_ell.value, run_data.max_constraint_violation_ell
-                    )
+            # for h in H:
+            #     hY_ell.value = h @ Y
+            #     problem_ell.solve(solver=cp.MOSEK)
+            #     assert problem_ell.status == "optimal"
+            #
+            #     if run_data.max_constraint_violation_ell is None:
+            #         run_data.max_constraint_violation_ell = objective_ell.value
+            #     else:
+            #         run_data.max_constraint_violation_ell = max(
+            #             objective_ell.value, run_data.max_constraint_violation_ell
+            #         )
             # print(f"poly = {run_data.max_constraint_violation_poly}")
             # print(f"ell = {run_data.max_constraint_violation_ell}")
 

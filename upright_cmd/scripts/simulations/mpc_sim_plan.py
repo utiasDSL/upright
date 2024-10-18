@@ -51,8 +51,6 @@ def main():
     xd = np.zeros_like(x)
 
     # controller
-    integrator = ctrl.trajectory.DoubleIntegrator(v.shape[0])
-
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
     mpc = ctrl_manager.mpc
     model = ctrl_manager.model

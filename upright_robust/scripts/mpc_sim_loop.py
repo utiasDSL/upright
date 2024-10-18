@@ -75,9 +75,11 @@ def run_simulation(config, video, logname, use_gui=True):
     x_obs = env.dynamic_obstacle_state()
     x = np.concatenate((q, v, a, x_obs))
     u = np.zeros(env.robot.nu)
+    xd = np.zeros_like(x)
 
     # controller
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
+    mpc = ctrl_manager.mpc
     model = ctrl_manager.model
     dims = model.settings.dims
     ref = ctrl_manager.ref
@@ -109,6 +111,9 @@ def run_simulation(config, video, logname, use_gui=True):
     v_cmd = np.zeros_like(v)
     a_est = np.zeros_like(a)
 
+    # make the plan
+    mpc.setObservation(t, x, u)
+    mpc.advanceMpc()
     print("Ready to start.")
 
     # simulation loop
@@ -122,45 +127,32 @@ def run_simulation(config, video, logname, use_gui=True):
         x_obs = env.dynamic_obstacle_state()
         x = np.concatenate((q, v, a_est, x_obs))
 
-        # ensure constraint is no longer active
-        # if t > 1:
-        #     for obj in env.objects.values():
-        #         pyb.applyExternalForce(obj.uid, -1, [1, 0, 0], [0, 0, 0], pyb.LINK_FRAME)
-        #     print("applying force!")
-
         # now get the noisy version for use in the controller
         q_noisy, v_noisy = env.robot.joint_states(add_noise=True)
         x_noisy = np.concatenate((q_noisy, v_noisy, a_est, x_obs))
 
-        # compute policy - MPC is re-optimized automatically when the internal
-        # MPC timestep has been exceeded
-        # TODO this is still not computed using the step increment
-        try:
-            xd, u = ctrl_manager.step(t, x_noisy)
+        if t <= model.settings.mpc.time_horizon:
+            mpc.evaluateMpcSolution(t, x_noisy, xd, u)
             xd_robot = xd[: dims.robot.x]
-            u_robot = u[: dims.robot.u]
+            u_cmd = u[: dims.robot.u]
             f = u[-dims.f() :]
 
-            # check out the gain matrix if desired
-            # K = ctrl_manager.mpc.getLinearFeedbackGain(t)
-        except RuntimeError as e:
-            print(e)
-            print("Exit the interpreter to proceed to plots.")
-            IPython.embed()
-            return
+            if np.isnan(u).any():
+                print("NaN value in input!")
+                IPython.embed()
+                break
 
-        if np.isnan(u).any():
-            print("NaN value in input!")
-            IPython.embed()
-            return
-
-        # integrate the command
-        # it appears to be desirable to open-loop integrate velocity like this
-        # to avoid PyBullet not handling velocity commands accurately at very
-        # small values
-        u_cmd = u_robot
-        v_cmd = v_cmd + env.timestep * a_est + 0.5 * env.timestep**2 * u_cmd
-        a_est = a_est + env.timestep * u_cmd
+            # integrate the command
+            # it appears to be desirable to open-loop integrate velocity like this
+            # to avoid PyBullet not handling velocity commands accurately at very
+            # small values
+            v_cmd = v_cmd + env.timestep * a_est + 0.5 * env.timestep**2 * u_cmd
+            a_est = a_est + env.timestep * u_cmd
+        else:
+            # TODO could just make this some local controller that tries to
+            # achieve a particular pose...
+            v_cmd = np.zeros(dims.robot.u)
+            # v_cmd = 0.5 * v_cmd
 
         # generated velocity is in the world frame
         env.robot.command_velocity(v_cmd, bodyframe=False)
@@ -192,40 +184,8 @@ def run_simulation(config, video, logname, use_gui=True):
 
             logger.append("solve_times", ctrl_manager.mpc.getLastSolveTime())
 
-            model.update(x, u)
-            if model.settings.inertial_alignment_settings.constraint_enabled:
-                alignment_constraints = (
-                    ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                        "inertial_alignment_constraint", t, x, u
-                    )
-                )
-                logger.append("alignment_constraints", alignment_constraints)
-
-            if model.settings.inertial_alignment_settings.cost_enabled:
-                alignment_constraints = ctrl_manager.mpc.getCostValue(
-                    "inertial_alignment_cost", t, x, u
-                )
-                logger.append("alignment_cost", alignment_constraints)
-
-            if model.settings.obstacle_settings.enabled:
-                if (
-                    model.settings.obstacle_settings.constraint_type
-                    == ctrl.bindings.ConstraintType.Soft
-                ):
-                    obs_constraints = (
-                        ctrl_manager.mpc.getSoftStateInequalityConstraintValue(
-                            "obstacle_avoidance", t, x
-                        )
-                    )
-                else:
-                    obs_constraints = (
-                        ctrl_manager.mpc.getStateInputInequalityConstraintValue(
-                            "obstacle_avoidance", t, x, u
-                        )
-                    )
-                logger.append("collision_pair_distances", obs_constraints)
-
             if model.settings.balancing_settings.enabled:
+                model.update(x, u)
                 logger.append("contact_forces", f)
                 object_dynamics_constraints = (
                     ctrl_manager.mpc.getStateInputEqualityConstraintValue(
@@ -242,8 +202,8 @@ def run_simulation(config, video, logname, use_gui=True):
         step += 1
         t = step * env.timestep
 
-    logger.add("replanning_times", ctrl_manager.replanning_times)
-    logger.add("replanning_durations", ctrl_manager.replanning_durations)
+    # logger.add("replanning_times", ctrl_manager.replanning_times)
+    # logger.add("replanning_durations", ctrl_manager.replanning_durations)
 
     # save logged data
     if logname is not None:
