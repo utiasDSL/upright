@@ -73,5 +73,10 @@ target_link_libraries(mrt_node
   ${catkin_LIBRARIES}
 )
 
+add_executable(track_plan_node src/track_plan_node.cpp)
+target_link_libraries(track_plan_node
+  ${catkin_LIBRARIES}
+)
+
 add_executable(python_cpp src/python_cpp.cpp)
 target_link_libraries(python_cpp ${PYTHON_LIBRARIES} ${upright_control_LIBRARIES})

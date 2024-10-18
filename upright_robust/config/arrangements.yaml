@@ -138,3 +138,376 @@ arrangements:
         second: box8
         mu: 0.2
         support_area_inset: 0.0
+
+  box3_top_robust:
+    objects:
+      -
+        name: box1
+        type: box3_1
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box2
+        type: box3_2
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box3
+        type: box3_3
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box4
+        type: box3_4
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box2
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box3
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box4
+        mu: 0.2
+        support_area_inset: 0.0
+
+  # NOTE: testing purposes only, so we just use the center configuration
+  box2_actual:
+    objects:
+      -
+        name: box
+        type: box2_center
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  box2_center:
+    objects:
+      -
+        name: box
+        type: box2_center
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  box2_top:
+    objects:
+      -
+        name: box
+        type: box2_top
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  box2_robust:
+    objects:
+      -
+        name: box1
+        type: box2_1
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box2
+        type: box2_2
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box3
+        type: box2_3
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box4
+        type: box2_4
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box5
+        type: box2_5
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box6
+        type: box2_6
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box7
+        type: box2_7
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box8
+        type: box2_8
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box2
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box3
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box4
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box5
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box6
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box7
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box8
+        mu: 0.2
+        support_area_inset: 0.0
+
+  # only use the objects at the top of the box
+  box2_top_robust:
+    objects:
+      -
+        name: box1
+        type: box2_1
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box2
+        type: box2_2
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box3
+        type: box2_3
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box4
+        type: box2_4
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box2
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box3
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box4
+        mu: 0.2
+        support_area_inset: 0.0
+
+  # NOTE: testing purposes only, so we just use the center configuration
+  box1_actual:
+    objects:
+      -
+        name: box
+        type: box1_center
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  box1_center:
+    objects:
+      -
+        name: box
+        type: box1_center
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  box1_top:
+    objects:
+      -
+        name: box
+        type: box1_top
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
+  box1_robust:
+    objects:
+      -
+        name: box1
+        type: box1_1
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box2
+        type: box1_2
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box3
+        type: box1_3
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box4
+        type: box1_4
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box5
+        type: box1_5
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box6
+        type: box1_6
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box7
+        type: box1_7
+        parent: ee
+        offset:
+          x: 0.065
+      -
+        name: box8
+        type: box1_8
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box1
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box2
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box3
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box4
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box5
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box6
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box7
+        mu: 0.2
+        support_area_inset: 0.0
+      -
+        first: ee
+        second: box8
+        mu: 0.2
+        support_area_inset: 0.0

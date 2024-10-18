@@ -31,6 +31,7 @@
 #include <upright_control/constraint/projectile_path_constraint.h>
 #include <upright_control/constraint/projectile_plane_constraint.h>
 #include <upright_control/constraint/state_to_state_input_constraint.h>
+#include <upright_control/constraint/stationary_desired_position_constraint.h>
 #include <upright_control/cost/end_effector_cost.h>
 #include <upright_control/cost/quadratic_joint_state_input_cost.h>
 #include <upright_control/dynamics/base_type.h>
@@ -139,10 +140,12 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     // Q.topLeftCorner(settings_.dims.robot.x, settings_.dims.robot.x) =
     //     10 * settings_.state_weight;
     // Q.topLeftCorner(settings_.dims.robot.q, settings_.dims.robot.q) =
-    //     0.001 * MatXd::Identity(settings_.dims.robot.q, settings_.dims.robot.q);
+    //     0.001 * MatXd::Identity(settings_.dims.robot.q,
+    //     settings_.dims.robot.q);
     // std::unique_ptr<ocs2::StateCost> final_state_cost(
     //     new ocs2::QuadraticStateCost(Q));
-    // problem_.finalCostPtr->add("final_state_cost", std::move(final_state_cost));
+    // problem_.finalCostPtr->add("final_state_cost",
+    // std::move(final_state_cost));
 
     // Build the end effector kinematics
     SystemPinocchioMapping<TripleIntegratorPinocchioMapping<ocs2::ad_scalar_t>,
@@ -245,6 +248,11 @@ ControllerInterface::ControllerInterface(const ControllerSettings& settings)
     //     settings_.dims, recompile_libraries));
     // problem_.stateCostPtr->add("end_effector_cost",
     //                            std::move(end_effector_cost));
+
+    // Final position/state
+    problem_.finalEqualityConstraintPtr->add(
+        "stationary_desired_position_constraint",
+        get_stationary_desired_position_constraint(end_effector_kinematics));
 
     // End effector position box constraint
     if (settings_.end_effector_box_constraint_enabled) {
@@ -429,6 +437,14 @@ ControllerInterface::get_contact_force_constraint(
         new ContactForceBalancingConstraints(
             end_effector_kinematics, settings_.balancing_settings,
             settings_.gravity, settings_.dims, recompile_libraries));
+}
+
+std::unique_ptr<ocs2::StateConstraint>
+ControllerInterface::get_stationary_desired_position_constraint(
+    const ocs2::PinocchioEndEffectorKinematicsCppAd& end_effector_kinematics) {
+    return std::unique_ptr<ocs2::StateConstraint>(
+        new StationaryDesiredPositionConstraint(
+            end_effector_kinematics, *reference_manager_ptr_, settings_.dims));
 }
 
 std::unique_ptr<ocs2::StateConstraint>

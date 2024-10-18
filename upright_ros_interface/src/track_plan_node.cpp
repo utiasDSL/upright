@@ -20,15 +20,6 @@
 
 using namespace upright;
 
-enum class ProjectileState {
-    Preflight,
-    Flight,
-    Postflight,
-};
-
-const double PROJECTILE_ACTIVATION_HEIGHT = 1.0;  // meters
-const double PROJECTILE_DEACTIVATION_HEIGHT = 0.2;
-
 // Robot is a global variable so we can send it a brake command in the SIGINT
 // handler
 std::unique_ptr<mm::RobotROSInterface> robot_ptr;
@@ -93,15 +84,6 @@ int main(int argc, char** argv) {
     // (this is why we set it up after the robot is initialized)
     signal(SIGINT, sigint_handler);
 
-    // Initialize interface to dynamic obstacle estimator if we are using
-    // dynamic obstacles
-    mm::ProjectileROSInterface projectile;
-    // if (settings.dims.o > 0) {  TODO after experiments
-    projectile.init(nh);
-    // }
-    // bool avoid_dynamic_obstacle = false;
-    ProjectileState projectile_state = ProjectileState::Preflight;
-
     ros::Rate rate(settings.tracking.rate);
 
     // Wait until we get feedback from the robot to do remaining setup.
@@ -132,23 +114,6 @@ int main(int argc, char** argv) {
     observation.state = x0;
     observation.input = u;
 
-    // Obstacle setup.
-    const bool using_projectile =
-        settings.dims.o > 0 && settings.tracking.use_projectile;
-    const bool using_stationary =
-        settings.dims.o > 0 && !settings.tracking.use_projectile;
-
-    DynamicObstacle* obstacle;
-    if (settings.dims.o > 0) {
-        obstacle = &settings.obstacle_settings.dynamic_obstacles[0];
-        const size_t num_modes = obstacle->modes.size();
-        if ((using_projectile && num_modes != 1) ||
-            (using_stationary && num_modes > 2)) {
-            throw std::runtime_error(
-                "Dynamic obstacle has wrong number of modes.");
-        }
-    }
-
     ros::Duration policy_update_delay(settings.tracking.min_policy_update_time);
     const ocs2::scalar_t dt0 = 1 / settings.tracking.rate;
     const ocs2::scalar_t dt_warn = 1.5 / settings.tracking.rate;
@@ -173,11 +138,6 @@ int main(int argc, char** argv) {
     // Commands
     VecXd v_cmd = VecXd::Zero(r.v);
     VecXd u_cmd = VecXd::Zero(r.u);
-
-    // Manual state feedback gain
-    MatXd Kx(r.u, r.x);
-    Kx << settings.tracking.kp * I, settings.tracking.kv * I,
-        settings.tracking.ka * I;
 
     const VecXd original_target_state = target.stateTrajectory[0];
 
@@ -236,61 +196,10 @@ int main(int argc, char** argv) {
         estimate = mm::kf::correct(estimate, C, R0, q);
         x.head(r.x) = estimate.x;
 
-        // Dynamic obstacles
-        if (using_projectile && projectile.ready()) {
-            Vec3d q_obs = projectile.q();
-
-            if (projectile_state == ProjectileState::Preflight &&
-                q_obs(2) > PROJECTILE_ACTIVATION_HEIGHT) {
-                // Ball is detected: avoid the ball
-                ocs2::vector_array_t new_target_states = target.stateTrajectory;
-                new_target_states[0].tail(1) << 1.0;
-                ocs2::TargetTrajectories new_target(target.timeTrajectory,
-                                                    new_target_states,
-                                                    target.inputTrajectory);
-                mrt.resetTarget(new_target);
-
-                projectile_state = ProjectileState::Flight;
-            } else if (projectile_state == ProjectileState::Flight &&
-                       q_obs(2) < PROJECTILE_DEACTIVATION_HEIGHT) {
-                // Ball has passed: go back to the original trajectory
-                ocs2::vector_array_t new_target_states = target.stateTrajectory;
-                new_target_states[0] = original_target_state;
-                ocs2::TargetTrajectories new_target(target.timeTrajectory,
-                                                    new_target_states,
-                                                    target.inputTrajectory);
-                mrt.resetTarget(new_target);
-
-                projectile_state = ProjectileState::Postflight;
-            }
-
-            // Always update state once we're past preflight
-            if (projectile_state != ProjectileState::Preflight) {
-                Vec3d v_obs = projectile.v();
-                Vec3d a_obs = obstacle->modes[0].acceleration;
-                x.tail(9) << q_obs, v_obs, a_obs;
-            }
-
-            // TODO we could have the MPC reset if the projectile was inside
-            // the "awareness zone" but then leaves, such that the robot is
-            // ready for the next throw
-        } else if (using_stationary && obstacle->modes.size() > 1) {
-            if (t - t0 <= obstacle->modes[1].time) {
-                x.tail(9) = obstacle->modes[0].state();
-            } else {
-                x.tail(9) = obstacle->modes[1].state();
-            }
-        }
-
         // Compute optimal state and input using current policy
         mrt.evaluatePolicy(t, x, xd, u, mode);
 
         if (settings.debug) {
-            if (using_projectile) {
-                std::cout << "x_obs = " << x.tail(9).transpose() << std::endl;
-                std::cout << "xd_obs = " << xd.tail(9).transpose() << std::endl;
-            }
-
             // Publish planned state and input
             if (mpc_plan_pub.trylock()) {
                 VecX<float> xf = xd.cast<float>();
@@ -334,12 +243,6 @@ int main(int argc, char** argv) {
             break;
         }
 
-        // State feedback
-        // This should only be used when an optimal feedback policy is not
-        // computed internally by the MPC
-        u_cmd = Kx * (xd - x).head(r.x) + u.head(r.u);
-        u.head(r.u) = u_cmd;
-
         // Double integrate the commanded jerk to get commanded velocity
         v_cmd = x.segment(r.q, r.v) + dt * x.segment(r.q + r.v, r.v) +
                 0.5 * dt * dt * u_cmd;
@@ -356,11 +259,11 @@ int main(int argc, char** argv) {
         ros::spinOnce();
 
         // Get new policy messages and update the policy if available
-        mrt.spinMRT();
-        if (now - last_policy_update_time >= policy_update_delay) {
-            mrt.updatePolicy();
-            last_policy_update_time = now;
-        }
+        // mrt.spinMRT();
+        // if (now - last_policy_update_time >= policy_update_delay) {
+        //     mrt.updatePolicy();
+        //     last_policy_update_time = now;
+        // }
 
         rate.sleep();
     }

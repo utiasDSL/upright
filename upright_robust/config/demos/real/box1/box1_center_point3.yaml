@@ -1,0 +1,14 @@
+include:
+  -
+    package: upright_robust
+    path: config/demos/_base.yaml
+  -
+    package: upright_cmd
+    path: config/ral23/experiments/_point3.yaml
+
+simulation:
+  arrangement: box1_actual
+
+controller:
+  balancing:
+    arrangement: box1_center

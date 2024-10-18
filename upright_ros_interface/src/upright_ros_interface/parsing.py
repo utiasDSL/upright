@@ -30,6 +30,7 @@ def sort_list_by(ts, values):
     if not (idx == np.arange(len(ts))).all():
         print("Time not monotonic!")
         ts = ts[idx]
+        # NOTE: this only works on numpy arrays, not actual lists
         values = values[idx]
     return ts, values
 
