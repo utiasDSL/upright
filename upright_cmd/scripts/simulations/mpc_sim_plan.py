@@ -37,18 +37,15 @@ def main():
     )
 
     # settle sim to make sure everything is touching comfortably
-    # env.settle(5.0)
     env.launch_dynamic_obstacles()
     env.fixture_objects()
 
-    # initial time, state, input
+    # initial time and state
     t = 0.0
     q, v = env.robot.joint_states()
     a = np.zeros(env.robot.nv)
     x_obs = env.dynamic_obstacle_state()
     x = np.concatenate((q, v, a, x_obs))
-    u = np.zeros(env.robot.nu)
-    xd = np.zeros_like(x)
 
     # controller
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
@@ -56,8 +53,12 @@ def main():
     model = ctrl_manager.model
     dims = model.settings.dims
     ref = ctrl_manager.ref
-    mapping = ctrl.trajectory.StateInputMapping(model.settings.dims.robot)
+    mapping = ctrl.trajectory.StateInputMapping(dims.robot)
     gravity = model.settings.gravity
+
+    # input and optimal desired state
+    u = np.zeros(dims.u())
+    xd = np.zeros_like(x)
 
     # data logging
     logger = DataLogger(config)
@@ -119,10 +120,7 @@ def main():
             v_cmd = v_cmd + env.timestep * a_est + 0.5 * env.timestep**2 * u_cmd
             a_est = a_est + env.timestep * u_cmd
         else:
-            # TODO could just make this some local controller that tries to
-            # achieve a particular pose...
             v_cmd = np.zeros(dims.robot.u)
-            # v_cmd = 0.5 * v_cmd
 
         # generated velocity is in the world frame
         env.robot.command_velocity(v_cmd, bodyframe=False)
@@ -153,9 +151,7 @@ def main():
 
             model.update(x, u)
             logger.append("ddC_we_norm", model.ddC_we_norm())
-            # logger.append("sa_dists", model.support_area_distances())
             logger.append("orn_err", model.angle_between_acc_and_normal())
-            # logger.append("balancing_constraints", model.balancing_constraints())
 
             if model.settings.inertial_alignment_settings.constraint_enabled:
                 alignment_constraints = (
