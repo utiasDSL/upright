@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+
+<launch>
+  <arg name="config"/>
+  <arg name="use_sim_time" default="false"/>
+
+  <!-- use simulation time -->
+  <param name="/use_sim_time" value="$(arg use_sim_time)" type="bool"/>
+
+  <!-- MPC -->
+  <node pkg="upright_ros_interface" type="mpc_node" name="mpc_node" output="screen" required="True" args="$(arg config)" />
+
+  <!-- MRT -->
+  <node pkg="upright_ros_interface" type="track_plan_node" name="track_plan_node" output="screen" required="True" args="$(arg config)" />
+
+  <!-- Kalman filter estimator. -->
+  <!-- <include file="$(find upright_ros_interface)/launch/projectile_estimator.launch"></include> -->
+</launch>

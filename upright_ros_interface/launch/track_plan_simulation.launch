@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Launches the ROS-based simulation, which uses the real MPC and MRT nodes talking to a PyBullet sim environment. -->
+
+<launch>
+  <arg name="config"/>
+
+  <!-- use simulation time -->
+  <param name="/use_sim_time" value="true" type="bool"/>
+
+  <!-- MPC + MRT -->
+  <include file="$(find upright_ros_interface)/launch/track_plan.launch" >
+    <arg name="config" value="$(arg config)"/>
+    <arg name="use_sim_time" value="true"/>
+  </include>
+
+  <!-- Simulation -->
+  <node pkg="upright_cmd" type="mpc_sim_ros.py" name="mpc_sim_ros" output="screen" required="true" args="--config $(arg config)" />
+</launch>

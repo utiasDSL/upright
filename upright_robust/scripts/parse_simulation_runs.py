@@ -89,6 +89,11 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
         G = rob.compute_contact_force_to_wrench_map(name_index, contacts0)
         F = block_diag(*[c.F for c in contacts0])
 
+        # TODO swapped angular and linear components
+        H2 = H.copy()
+        H[:, :3] = H2[:, 3:]
+        H[:, 3:] = H2[:, :3]
+
         # setup the constant parts of the optimization problems
         # polyhedron problem
         θ_poly = cp.Variable(10)
@@ -106,6 +111,23 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
 
         objective_poly = cp.Maximize(hY_poly @ θ_poly)
         problem_poly = cp.Problem(objective_poly, constraints_poly)
+
+        # my custom constraints, for comparison
+        θ_orig = cp.Variable(10)
+        J_orig = rg.pim_must_equal_vec(θ_orig)
+        c_orig = J_orig[:3, 3] / mass  # CoM
+        m_orig = J_orig[3, 3]  # mass
+
+        constraints_orig = (
+            rg.pim_psd(J_orig)
+            + bounding_box.must_realize_custom(J_orig)
+            + com_box.must_contain(c_orig)
+            + [m_orig == mass]
+        )
+        hY_orig = cp.Parameter(10)
+
+        objective_orig = cp.Maximize(hY_orig @ θ_orig)
+        problem_orig = cp.Problem(objective_orig, constraints_orig)
 
         # ellipsoid problem
         # θ_ell = cp.Variable(10)
@@ -176,6 +198,17 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
                     run_data.max_constraint_violation_poly = max(
                         objective_poly.value, run_data.max_constraint_violation_poly
                     )
+
+                # hY_orig.value = h @ Y
+                # problem_orig.solve(solver=cp.MOSEK)
+                # assert problem_orig.status == "optimal"
+                # diff = problem_orig.value - problem_poly.value
+                # print(f"diff = {diff}")
+                # if diff >= 1e-3:
+                #     print("problem poly not tight!")
+                # if problem_poly.value > 0:
+                #     print("constraint violated!")
+                #     IPython.embed()
 
             # for h in H:
             #     hY_ell.value = h @ Y

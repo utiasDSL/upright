@@ -11,4 +11,4 @@ simulation:
 
 controller:
   balancing:
-    arrangement: box2_top_robust
+    arrangement: box2_robust

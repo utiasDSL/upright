@@ -1,5 +1,4 @@
 #include <mobile_manipulation_central/kalman_filter.h>
-#include <mobile_manipulation_central/projectile.h>
 #include <mobile_manipulation_central/robot_interfaces.h>
 #include <ocs2_mpc/SystemObservation.h>
 #include <ocs2_msgs/mpc_observation.h>
@@ -142,7 +141,9 @@ int main(int argc, char** argv) {
     const VecXd original_target_state = target.stateTrajectory[0];
 
     // Let MPC generate the initial plan
-    observation.time = ros::Time::now().toSec();
+    // TODO: problem: this now starts from the original time but we actually
+    // want to update t0 later on
+    observation.time = 0;
     mrt.setCurrentObservation(observation);
     while (ros::ok()) {
         mrt.spinMRT();
@@ -196,8 +197,20 @@ int main(int argc, char** argv) {
         estimate = mm::kf::correct(estimate, C, R0, q);
         x.head(r.x) = estimate.x;
 
-        // Compute optimal state and input using current policy
-        mrt.evaluatePolicy(t, x, xd, u, mode);
+        // Compute optimal state and input using current policy.
+        // Note that we evaluate w.r.t. t = 0.
+        if (t - t0 <= settings.mpc.timeHorizon_) {
+            mrt.evaluatePolicy(t - t0, x, xd, u, mode);
+
+            // Double integrate the commanded jerk to get commanded velocity
+            u_cmd = u.head(r.u);
+            v_cmd = x.segment(r.q, r.v) + dt * x.segment(r.q + r.v, r.v) +
+                    0.5 * dt * dt * u_cmd;
+        } else {
+            // After the plan expires, we just send zero commands.
+            std::cout << "outside plan horizon" << std::endl;
+            v_cmd = VecXd::Zero(r.v);
+        }
 
         if (settings.debug) {
             // Publish planned state and input
@@ -243,18 +256,14 @@ int main(int argc, char** argv) {
             break;
         }
 
-        // Double integrate the commanded jerk to get commanded velocity
-        v_cmd = x.segment(r.q, r.v) + dt * x.segment(r.q + r.v, r.v) +
-                0.5 * dt * dt * u_cmd;
-
         // TODO probably should be a real-time publisher
         robot_ptr->publish_cmd_vel(v_cmd, /* bodyframe = */ false);
 
         // Send observation to MPC
-        observation.time = t;
-        observation.state = x;
-        observation.input = u;
-        mrt.setCurrentObservation(observation);
+        // observation.time = t;
+        // observation.state = x;
+        // observation.input = u;
+        // mrt.setCurrentObservation(observation);
 
         ros::spinOnce();
 

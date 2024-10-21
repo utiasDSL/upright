@@ -238,10 +238,10 @@ def main():
             label=f"vd_{i}",
             linestyle="--",
         )
-    for i in range(env.robot.nv):
-        plt.plot(
-            mpc_obs_ts, mpc_obs_xs[:, env.robot.nq + i], label=f"v_{i}", color=colors[i]
-        )
+    # for i in range(env.robot.nv):
+    #     plt.plot(
+    #         mpc_obs_ts, mpc_obs_xs[:, env.robot.nq + i], label=f"v_{i}", color=colors[i]
+    #     )
     for i in range(env.robot.nv):
         plt.plot(
             cmd_ts,
