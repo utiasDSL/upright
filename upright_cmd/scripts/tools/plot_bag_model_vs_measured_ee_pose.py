@@ -28,7 +28,9 @@ def main():
     cmd.cli.add_bag_dir_arguments(parser)
     config_path, bag_path = cmd.cli.parse_bag_dir_args(parser.parse_args())
 
-    model = parse_control_model(config_path)
+    config = core.parsing.load_config(config_path)
+    ctrl_config = config["controller"]
+    model = ctrl.manager.ControllerModel.from_config(ctrl_config)
     robot = model.robot
 
     bag = rosbag.Bag(bag_path)
@@ -54,34 +56,35 @@ def main():
     # rarely a message may be received out of order
     ts, tray_poses = sort_list_by(ts, tray_poses)
 
-    # ur10_ts, ur10_qs, _ = ros_utils.parse_ur10_joint_state_msgs(
-    #     ur10_msgs, normalize_time=False
-    # )
-    # rb_ts, rb_qs, _ = ros_utils.parse_ridgeback_joint_state_msgs(
-    #     ridgeback_msgs, normalize_time=False
-    # )
-    #
-    # ur10_qs_aligned = ros_utils.interpolate_list(ts, ur10_ts, ur10_qs)
-    # rb_qs_aligned = ros_utils.interpolate_list(ts, rb_ts, rb_qs)
-    # qs = np.hstack((rb_qs_aligned, ur10_qs_aligned))
-    # n = qs.shape[0]
+    ur10_ts, ur10_qs, _ = ros_utils.parse_ur10_joint_state_msgs(
+        ur10_msgs, normalize_time=False
+    )
+    rb_ts, rb_qs, _ = ros_utils.parse_ridgeback_joint_state_msgs(
+        ridgeback_msgs, normalize_time=False
+    )
+
+    ur10_qs_aligned = ros_utils.interpolate_list(ts, ur10_ts, ur10_qs)
+    rb_qs_aligned = ros_utils.interpolate_list(ts, rb_ts, rb_qs)
+    qs = np.hstack((rb_qs_aligned, ur10_qs_aligned))
+    n = qs.shape[0]
 
     # prepend default obstacle positions, which we don't care about
     # qs = np.hstack((np.zeros((n, 3)), qs))
+
     first_policy_time -= ts[0]
     ts -= ts[0]
-    ts2 -= ts2[0]
-
-    dt = ts[1:] - ts[:-1]
-    dt2 = ts2[1:] - ts2[:-1]
-    plt.scatter(ts[1:], dt)
-    plt.axvline(first_policy_time, color="r")
-    plt.grid()
-    plt.show()
-    # print(np.max(dt))
-    # print(np.max(dt2))
-    return
-
+    # ts2 -= ts2[0]
+    #
+    # dt = ts[1:] - ts[:-1]
+    # dt2 = ts2[1:] - ts2[:-1]
+    # plt.scatter(ts[1:], dt)
+    # plt.axvline(first_policy_time, color="r")
+    # plt.grid()
+    # plt.show()
+    # # print(np.max(dt))
+    # # print(np.max(dt2))
+    # return
+    #
     # just for comparison
     # q_home = model.settings.initial_state[:9]
     # q_home = np.concatenate((np.zeros(3), q_home))
@@ -100,6 +103,9 @@ def main():
 
         # angle from the upright direction
         ee_angles[i] = np.arccos(z @ R @ z)
+
+    # reference position is relative to the initial position
+    r_d = ctrl_config["waypoints"][0]["position"] + ee_positions[0, :]
 
     # compute measured tray poses
     tray_positions = tray_poses[:, :3]
@@ -121,12 +127,26 @@ def main():
 
     # EE (model) position vs. time
     plt.figure()
-    plt.plot(ts, ee_positions[:, 0], label="x")
-    plt.plot(ts, ee_positions[:, 1], label="y")
-    plt.plot(ts, ee_positions[:, 2], label="z")
+    lx, = plt.plot(ts, ee_positions[:, 0], label="x")
+    ly, = plt.plot(ts, ee_positions[:, 1], label="y")
+    lz, = plt.plot(ts, ee_positions[:, 2], label="z")
+    plt.axhline(r_d[0], label="xd", linestyle="--", color=lx.get_color())
+    plt.axhline(r_d[1], label="yd", linestyle="--", color=ly.get_color())
+    plt.axhline(r_d[2], label="zd", linestyle="--", color=lz.get_color())
     plt.xlabel("Time (s)")
     plt.ylabel("EE position (m)")
     plt.title(f"EE position vs. time")
+    plt.legend()
+    plt.grid()
+
+    ## EE error
+    plt.figure()
+    plt.plot(ts, r_d[0] - ee_positions[:, 0], label="x")
+    plt.plot(ts, r_d[1] - ee_positions[:, 1], label="y")
+    plt.plot(ts, r_d[2] - ee_positions[:, 2], label="z")
+    plt.xlabel("Time (s)")
+    plt.ylabel("EE error (m)")
+    plt.title(f"EE error vs. time")
     plt.legend()
     plt.grid()
 

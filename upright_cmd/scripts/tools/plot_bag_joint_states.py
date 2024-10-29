@@ -55,10 +55,6 @@ def main():
     qas = qas[start_idx:, :]
     vas = vas[start_idx:, :]
 
-    # import IPython
-    # IPython.embed()
-    # return
-
     # align base messages with the arm messages
     qbs_aligned = ros_utils.interpolate_list(ts, tbs, qbs)
     vbs_aligned = ros_utils.interpolate_list(ts, tbs, vbs)

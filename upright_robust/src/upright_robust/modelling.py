@@ -37,7 +37,7 @@ def unit_H_min_max(bounding_box, com_box):
     constraints = (
         [m == 1.0]  # normalized mass
         + com_box.must_contain(points=h, scale=m)
-        + bounding_box.must_realize(J)
+        + bounding_box.moment_sdp_constraints(J)
     )
 
     H_min = np.zeros((3, 3))
@@ -91,7 +91,7 @@ def unit_I_min_max(bounding_box, com_box):
     constraints = (
         [m == 1.0]  # normalized mass
         + com_box.must_contain(points=h, scale=m)
-        + bounding_box.must_realize(J)
+        + bounding_box.moment_sdp_constraints(J)
     )
 
     I_min = np.zeros((3, 3))
@@ -130,7 +130,7 @@ def unit_vec2_max(bounding_box, com_box):
     constraints = (
         [m == 1.0, J == rg.pim_must_equal_vec(θ)]
         + com_box.must_contain(points=h, scale=m)
-        + bounding_box.must_realize(J)
+        + bounding_box.moment_sdp_constraints(J)
     )
 
     θ2_max = np.zeros(10)

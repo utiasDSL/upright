@@ -4,7 +4,7 @@ include:
     path: config/arrangements.yaml
 
 gravity: [0, 0, -9.81]
-recompile_libraries: false
+recompile_libraries: true
 debug: true
 solver_method: SQP  # only SQP is supported now
 
