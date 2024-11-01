@@ -15,182 +15,182 @@ objects:
     mass: 1
     com_offset: [0, 0, 0]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.28]
+    side_lengths: [0.15, 0.15, 0.28]
 
   box1_top:
     mass: 1
     com_offset: [0, 0, 0.14]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.28]
+    side_lengths: [0.15, 0.15, 0.28]
 
   box1_1:
     mass: 1
-    com_offset: [0.05, 0.05, 0.14]
+    com_offset: [0.06, 0.06, 0.14]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.28]
+    side_lengths: [0.15, 0.15, 0.28]
 
   box1_2:
     mass: 1
-    com_offset: [0.05, -0.05, 0.14]
+    com_offset: [0.06, -0.06, 0.14]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.28]
+    side_lengths: [0.15, 0.15, 0.28]
 
   box1_3:
     mass: 1
-    com_offset: [-0.05, 0.05, 0.14]
+    com_offset: [-0.06, 0.06, 0.14]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.28]
+    side_lengths: [0.15, 0.15, 0.28]
 
   box1_4:
     mass: 1
-    com_offset: [-0.05, -0.05, 0.14]
+    com_offset: [-0.06, -0.06, 0.14]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.28]
+    side_lengths: [0.15, 0.15, 0.28]
 
   box1_5:
     mass: 1
-    com_offset: [0.05, 0.05, -0.14]
+    com_offset: [0.06, 0.06, -0.14]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.28]
+    side_lengths: [0.15, 0.15, 0.28]
 
   box1_6:
     mass: 1
-    com_offset: [0.05, -0.05, -0.14]
+    com_offset: [0.06, -0.06, -0.14]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.28]
+    side_lengths: [0.15, 0.15, 0.28]
 
   box1_7:
     mass: 1
-    com_offset: [-0.05, 0.05, -0.14]
+    com_offset: [-0.06, 0.06, -0.14]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.28]
+    side_lengths: [0.15, 0.15, 0.28]
 
   box1_8:
     mass: 1
-    com_offset: [-0.05, -0.05, -0.14]
+    com_offset: [-0.06, -0.06, -0.14]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.28]
+    side_lengths: [0.15, 0.15, 0.28]
 
   # box2
   box2_center:
     mass: 1
     com_offset: [0, 0, 0]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.56]
+    side_lengths: [0.15, 0.15, 0.56]
 
   box2_top:
     mass: 1
     com_offset: [0, 0, 0.28]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.56]
+    side_lengths: [0.15, 0.15, 0.56]
 
   box2_1:
     mass: 1
-    com_offset: [0.05, 0.05, 0.28]
+    com_offset: [0.06, 0.06, 0.28]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.56]
+    side_lengths: [0.15, 0.15, 0.56]
 
   box2_2:
     mass: 1
-    com_offset: [0.05, -0.05, 0.28]
+    com_offset: [0.06, -0.06, 0.28]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.56]
+    side_lengths: [0.15, 0.15, 0.56]
 
   box2_3:
     mass: 1
-    com_offset: [-0.05, 0.05, 0.28]
+    com_offset: [-0.06, 0.06, 0.28]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.56]
+    side_lengths: [0.15, 0.15, 0.56]
 
   box2_4:
     mass: 1
-    com_offset: [-0.05, -0.05, 0.28]
+    com_offset: [-0.06, -0.06, 0.28]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.56]
+    side_lengths: [0.15, 0.15, 0.56]
 
   box2_5:
     mass: 1
-    com_offset: [0.05, 0.05, -0.28]
+    com_offset: [0.06, 0.06, -0.28]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.56]
+    side_lengths: [0.15, 0.15, 0.56]
 
   box2_6:
     mass: 1
-    com_offset: [0.05, -0.05, -0.28]
+    com_offset: [0.06, -0.06, -0.28]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.56]
+    side_lengths: [0.15, 0.15, 0.56]
 
   box2_7:
     mass: 1
-    com_offset: [-0.05, 0.05, -0.28]
+    com_offset: [-0.06, 0.06, -0.28]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.56]
+    side_lengths: [0.15, 0.15, 0.56]
 
   box2_8:
     mass: 1
-    com_offset: [-0.05, -0.05, -0.28]
+    com_offset: [-0.06, -0.06, -0.28]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.56]
+    side_lengths: [0.15, 0.15, 0.56]
 
   # box3
   box3_center:
     mass: 1
     com_offset: [0, 0, 0]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.84]
+    side_lengths: [0.15, 0.15, 0.84]
 
   box3_top:
     mass: 1
     # com_offset: [0, 0, 0.42]
     com_offset: [0, 0, 0.42]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.84]
+    side_lengths: [0.15, 0.15, 0.84]
 
   box3_1:
     mass: 1
-    com_offset: [0.05, 0.05, 0.42]
+    com_offset: [0.06, 0.06, 0.42]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.84]
+    side_lengths: [0.15, 0.15, 0.84]
 
   box3_2:
     mass: 1
-    com_offset: [0.05, -0.05, 0.42]
+    com_offset: [0.06, -0.06, 0.42]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.84]
+    side_lengths: [0.15, 0.15, 0.84]
 
   box3_3:
     mass: 1
-    com_offset: [-0.05, 0.05, 0.42]
+    com_offset: [-0.06, 0.06, 0.42]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.84]
+    side_lengths: [0.15, 0.15, 0.84]
 
   box3_4:
     mass: 1
-    com_offset: [-0.05, -0.05, 0.42]
+    com_offset: [-0.06, -0.06, 0.42]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.84]
+    side_lengths: [0.15, 0.15, 0.84]
 
   box3_5:
     mass: 1
-    com_offset: [0.05, 0.05, -0.42]
+    com_offset: [0.06, 0.06, -0.42]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.84]
+    side_lengths: [0.15, 0.15, 0.84]
 
   box3_6:
     mass: 1
-    com_offset: [0.05, -0.05, -0.42]
+    com_offset: [0.06, -0.06, -0.42]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.84]
+    side_lengths: [0.15, 0.15, 0.84]
 
   box3_7:
     mass: 1
-    com_offset: [-0.05, 0.05, -0.42]
+    com_offset: [-0.06, 0.06, -0.42]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.84]
+    side_lengths: [0.15, 0.15, 0.84]
 
   box3_8:
     mass: 1
-    com_offset: [-0.05, -0.05, -0.42]
+    com_offset: [-0.06, -0.06, -0.42]
     shape: cuboid
-    side_lengths: [0.155, 0.155, 0.84]
+    side_lengths: [0.15, 0.15, 0.84]
 

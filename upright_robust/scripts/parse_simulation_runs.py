@@ -2,6 +2,7 @@
 """Parse simulated trajectory data from an npz file to determine appropriate
 bounds for relaxed problem."""
 import argparse
+import datetime
 import glob
 from pathlib import Path
 import yaml
@@ -60,16 +61,16 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
     model = ctrl.manager.ControllerModel.from_config(ctrl_config)
     robot = model.robot
 
-    # no approx_inertia because we want the actual realizable bounds
-    objects, contacts = rob.parse_objects_and_contacts(
-        ctrl_config,
-        model=model,
-        compute_bounds=True,
-        approx_inertia=False,
-        mu=mu,
-    )
-
     if check_constraints:
+        # no approx_inertia because we want the actual realizable bounds
+        objects, contacts = rob.parse_objects_and_contacts(
+            ctrl_config,
+            model=model,
+            compute_bounds=True,
+            approx_inertia=False,
+            mu=mu,
+        )
+
         obj0 = list(objects.values())[0]
         mass = obj0.body.mass
         com_box = obj0.com_box
@@ -120,7 +121,9 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
 
         constraints_ell = (
             rg.pim_psd(J_ell)
-            + bounding_ell.moment_constraints(J_ell)  # only difference from poly problem
+            + bounding_ell.moment_constraints(
+                J_ell
+            )  # only difference from poly problem
             + com_box.must_contain(c_ell)
             + [m_ell == mass]
         )
@@ -133,7 +136,6 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
     ts = data["ts"]
     xs = data["xs"]
     fs = data["contact_forces"]
-    # odcs = data["object_dynamics_constraints"]
     xds = data["xds"]
 
     r_ew_ws = data["r_ew_ws"]
@@ -155,13 +157,21 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
     for i in tqdm.trange(ts.shape[0]):
         x = xs[i, :]
         robot.forward_xu(x=x)
-
         r_ew_w, C_we = robot.link_pose(rotation_matrix=True)
 
         # compute distance to goal
         run_data.dists.append(np.linalg.norm(rd - r_ew_w))
 
+        # compute object position w.r.t. EE
+        C_we = core.math.quat_to_rot(Q_wes[i, :])
+        r_oe_e = C_we.T @ (r_ow_ws[i, 0, :] - r_ew_ws[i, :])
+        r_oe_es.append(r_oe_e)
+
         if check_constraints:
+            # check the *planned* state, rather than the actual one
+            xd = xds[i, :]
+            robot.forward_xu(x=xd)
+
             V_e = np.concatenate(robot.link_velocity(frame="local"))
             G_e = rob.body_gravity6(C_ew=C_we.T)
             A_e = np.concatenate(robot.link_spatial_acceleration(frame="local"))
@@ -193,13 +203,8 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
                     run_data.max_constraint_violation_ell = max(
                         objective_ell.value, run_data.max_constraint_violation_ell
                     )
-            # print(f"poly = {run_data.max_constraint_violation_poly}")
+            print(f"{i}: poly = {run_data.max_constraint_violation_poly}")
             # print(f"ell = {run_data.max_constraint_violation_ell}")
-
-        # compute object position w.r.t. EE
-        C_we = core.math.quat_to_rot(Q_wes[i, :])
-        r_oe_e = C_we.T @ (r_ow_ws[i, 0, :] - r_ew_ws[i, :])
-        r_oe_es.append(r_oe_e)
 
     # compute maximum *change* from initial object position w.r.t. to EE
     r_oe_es = np.array(r_oe_es)
@@ -299,17 +304,22 @@ def main():
         if run_data.max_obj_dist >= FAILURE_DIST_THRESHOLD:
             print(f"{Path(d).name} failed!")
             num_failures += 1
-            return
+            # return
+
+    # worst-case position error at the end of any run
+    max_final_position_error = np.max(np.array(data.dists)[:, -1])
 
     outfile = Path(args.directory) / results_file_name
     with open(outfile, "w") as f:
         yaml.dump(
             data={
+                "timestamp": datetime.datetime.now().isoformat(),
                 "total_runs": total_runs,
                 "num_failures": num_failures,
                 "max_obj_dist": float(data.max_obj_dist),
                 "max_constraint_violation_poly": data.max_constraint_violation_poly,
                 "max_constraint_violation_ell": data.max_constraint_violation_ell,
+                "max_final_position_error": float(max_final_position_error),
             },
             stream=f,
         )

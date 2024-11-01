@@ -334,7 +334,7 @@ class ObjectBounds:
 
 
 class UncertainObject:
-    def __init__(self, body, bounds=None):
+    def __init__(self, body, bounding_box=None, com_box=None):
         self.body = body
 
         # inertial quantities are taken w.r.t./about the EE origin (i.e.,
@@ -354,16 +354,19 @@ class UncertainObject:
         ])
         # fmt: on
 
-        # polytopic parameter uncertainty: Pθ <= p
-        if bounds is not None:
-            self.P, self.p = bounds.polytope(m, c, I)
-            self.bounding_box = bounds.bounding_box
-            self.com_box = bounds.com_box
+        self.bounding_box = bounding_box
+        self.com_box = com_box
 
-            # use a fixed inertia value for approx_inertia case
-            self.unit_vec2_max = bounds.unit_vec2_max(m, c, I)
-            if bounds.approx_inertia:
-                self.unit_vec2_max[-6:] = rg.vech(I)
+        # polytopic parameter uncertainty: Pθ <= p
+        # if bounds is not None:
+        #     self.P, self.p = bounds.polytope(m, c, I)
+        #     self.bounding_box = bounds.bounding_box
+        #     self.com_box = bounds.com_box
+        #
+        #     # use a fixed inertia value for approx_inertia case
+        #     self.unit_vec2_max = bounds.unit_vec2_max(m, c, I)
+        #     if bounds.approx_inertia:
+        #         self.unit_vec2_max[-6:] = rg.vech(I)
 
     def bias(self, V):
         """Compute Coriolis and centrifugal terms."""

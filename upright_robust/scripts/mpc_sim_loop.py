@@ -111,6 +111,8 @@ def run_simulation(config, video, logname, use_gui=True):
     v_cmd = np.zeros_like(v)
     a_est = np.zeros_like(a)
 
+    Kp = np.eye(dims.robot.v)
+
     # make the plan
     mpc.setObservation(t, x, u)
     mpc.advanceMpc()
@@ -142,11 +144,15 @@ def run_simulation(config, video, logname, use_gui=True):
                 IPython.embed()
                 break
 
+            qd = xd_robot[: dims.robot.q]
+            vd = xd_robot[dims.robot.q : dims.robot.q + dims.robot.v]
+            v_cmd = Kp @ (qd - q_noisy) + vd
+
             # integrate the command
             # it appears to be desirable to open-loop integrate velocity like this
             # to avoid PyBullet not handling velocity commands accurately at very
             # small values
-            v_cmd = v_cmd + env.timestep * a_est + 0.5 * env.timestep**2 * u_cmd
+            # v_cmd = v_cmd + env.timestep * a_est + 0.5 * env.timestep**2 * u_cmd
             a_est = a_est + env.timestep * u_cmd
         else:
             # TODO could just make this some local controller that tries to
@@ -431,22 +437,23 @@ def main():
     h_cm = args.height
     h_m = args.height / 100
     h2_m = 0.5 * h_m
+    b = 0.06  # 0.04
 
-    # TODO make inertia large?
-    # TODO need to compute inertia to properly account for CoM offset
     ctrl_obj_config = {
         "mass": 1.0,
         "shape": "cuboid",
-        "side_lengths": [0.1, 0.1, h_m],
+        # "side_lengths": [0.1, 0.1, h_m],
+        "side_lengths": [0.15, 0.15, h_m],
+        # "side_lengths": [0.03, 0.03, h_m],
         "color": [1, 0, 0, 1],
         "bounds": {
             "approx": {
-                "com_lower": [-0.04, -0.04, -h2_m],
-                "com_upper": [0.04, 0.04, h2_m],
+                "com_lower": [-b, -b, -h2_m],
+                "com_upper": [b, b, h2_m],
             },
             "realizable": {
-                "com_lower": [-0.04, -0.04, -h2_m],
-                "com_upper": [0.04, 0.04, h2_m],
+                "com_lower": [-b, -b, -h2_m],
+                "com_upper": [b, b, h2_m],
             },
         },
     }
@@ -456,10 +463,12 @@ def main():
         # "mass": 1.0,
         "shape": "cuboid",
         "side_lengths": ctrl_obj_config["side_lengths"],
+        "side_lengths": [0.15, 0.15, h_m],
         "color": [1, 0, 0, 1],
     }
 
-    box = rg.Box.from_side_lengths(ctrl_obj_config["side_lengths"])
+    # box = rg.Box.from_side_lengths(ctrl_obj_config["side_lengths"])
+    box = rg.Box.from_side_lengths(sim_obj_config["side_lengths"])
     sim_com_box = rg.Box.from_two_vertices(
         ctrl_obj_config["bounds"]["realizable"]["com_lower"],
         ctrl_obj_config["bounds"]["realizable"]["com_upper"],
@@ -557,16 +566,6 @@ def main():
                 sim_obj_config["com_offset"] = np.array(com_offset).tolist()
                 sim_obj_config["inertia_diag"] = (s * inertia_diag).tolist()
                 config["simulation"]["objects"][OBJECT_NAME] = sim_obj_config
-
-                # in the exact case, we match the simulated CoM exactly
-                # if args.com == "exact":
-                #     ctrl_obj_config["inertia"] = max_trace_inertia(
-                #         box, com_offset
-                #     ).tolist()
-                #     ctrl_com_offset = com_offset.copy()
-                #     ctrl_com_offset[2] = max_com_z_offset
-                #     ctrl_obj_config["com_offset"] = np.array(ctrl_com_offset).tolist()
-                #     config["controller"]["objects"][OBJECT_NAME] = ctrl_obj_config
 
                 # if run != 82:
                 #     run += 1

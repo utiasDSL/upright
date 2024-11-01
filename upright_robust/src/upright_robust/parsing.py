@@ -73,20 +73,22 @@ def parse_objects_and_contacts(
             obj_config["side_lengths"], center=center
         )
 
+        com_box = None
         if compute_bounds:
             bounds_config = obj_config["bounds"][bounds_name]
-
             com_lower = center + bounds_config["com_lower"]
             com_upper = center + bounds_config["com_upper"]
             com_box = rg.Box.from_two_vertices(com_lower, com_upper)
-
-            bounds = mdl.ObjectBounds(
-                bounding_box=bounding_box,
-                com_box=com_box,
-                approx_inertia=approx_inertia,
-            )
-            uncertain_objects[obj_name] = mdl.UncertainObject(body=body, bounds=bounds)
-        else:
-            uncertain_objects[obj_name] = mdl.UncertainObject(body=body)
+        #
+        #     bounds = mdl.ObjectBounds(
+        #         bounding_box=bounding_box,
+        #         com_box=com_box,
+        #         approx_inertia=approx_inertia,
+        #     )
+        #     uncertain_objects[obj_name] = mdl.UncertainObject(body=body, bounds=bounds)
+        # else:
+        uncertain_objects[obj_name] = mdl.UncertainObject(
+            body=body, bounding_box=bounding_box, com_box=com_box
+        )
 
     return uncertain_objects, contacts

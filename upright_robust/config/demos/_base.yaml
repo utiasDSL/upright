@@ -16,7 +16,7 @@ logging:
   log_dir: /media/adam/Data/PhD/Data/upright/robust/heins-ral24/simulations
 
 simulation:
-  duration: 12.0
+  duration: 10.0
   extra_gui: false
   robot:
     urdf:
@@ -57,6 +57,7 @@ controller:
   sqp:
     sqp_iteration: 1
     init_sqp_iteration: 3
+    use_feedback_policy: false
     hpipm:
       iter_max: 30
       warm_start: 1
@@ -65,15 +66,10 @@ controller:
         input_box: false
         state_box: true
         poly_ineq: true
-        # upper_L2_penalty: 1
-        # lower_L2_penalty: 1
-        # upper_L1_penalty: 1
-        # lower_L1_penalty: 1
 
   balancing:
     enabled: true
     frictionless: true
-    # force_weight: 0.001
     force_weight: 0.0
 
   weights:
@@ -86,10 +82,3 @@ controller:
     end_effector:
       scale: 1
       diag: [1, 1, 1, 0, 0, 0]
-
-  # waypoints:
-  #   -
-  #     time: 0
-  #     # position: [-2.0, 1.0, 0]  # point 1
-  #     position: [0.0, -2.0, 0.25]  # point 3
-  #     orientation: [0, 0, 0, 1]
