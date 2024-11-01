@@ -117,21 +117,8 @@ int main(int argc, char** argv) {
     const ocs2::scalar_t dt0 = 1 / settings.tracking.rate;
     const ocs2::scalar_t dt_warn = 1.5 / settings.tracking.rate;
 
-    // Estimation
-    mm::kf::GaussianEstimate estimate;
-    estimate.x = x0.head(r.q);
-    estimate.P =
-        settings.estimation.robot_init_variance * MatXd::Identity(r.q, r.q);
-
-    const MatXd I = MatXd::Identity(r.q, r.q);
-    const MatXd A = I;
-    const MatXd C = I;
-
-    const MatXd Q0 = settings.estimation.robot_process_variance * I;
-    const MatXd R0 = settings.estimation.robot_measurement_variance * I;
-
     // Position gain
-    const MatXd Kp = I;
+    const MatXd Kp = MatXd::Identity(r.q, r.q);
 
     // Commands
     VecXd v_cmd = VecXd::Zero(r.v);
@@ -177,18 +164,6 @@ int main(int argc, char** argv) {
         // TODO maybe filter a bit if needed?
         VecXd q = robot_ptr->q();
 
-        // // Build KF matrices
-        // MatXd B = dt * I;
-        // MatXd Q = B * Q0 * B.transpose();
-        //
-        // // Estimate current state from joint position and jerk input using
-        // // Kalman filter
-        // estimate = mm::kf::predict(estimate, A, Q, B * v_cmd);
-        //
-        // // TODO: we should actually only do this if/when measurements are
-        // // received, in case e.g. Vicon fails
-        // estimate = mm::kf::correct(estimate, C, R0, q);
-
         // Compute optimal state and input using current policy.
         // Note that we evaluate w.r.t. t = 0.
         if (t - t0 <= settings.mpc.timeHorizon_) {
@@ -197,11 +172,6 @@ int main(int argc, char** argv) {
             VecXd qd = xd.head(r.q);
             VecXd vd = xd.segment(r.q, r.v);
             v_cmd = Kp * (qd - q) + vd;
-
-            // Double integrate the commanded jerk to get commanded velocity
-            // u_cmd = u.head(r.u);
-            // v_cmd = x.segment(r.q, r.v) + dt * x.segment(r.q + r.v, r.v) +
-            //         0.5 * dt * dt * u_cmd;
         } else {
             // After the plan expires, we just send zero commands.
             std::cout << "outside plan horizon" << std::endl;
