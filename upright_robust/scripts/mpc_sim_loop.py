@@ -40,30 +40,8 @@ def run_simulation(config, video, logname, use_gui=True):
         extra_gui=sim_config.get("extra_gui", False),
     )
 
-    # settle sim to make sure everything is touching comfortably
-    # env.settle(5.0)
-
     # fixture all objects
     env.fixture_objects(do_all=False)
-
-    # env.robot.reset_joint_configuration(env.robot.home)
-
-    # drive back to home position
-    # for _ in range(10000):
-    #     q = env.robot.joint_states(add_noise=False)[0]
-    #     err = env.robot.home - q
-    #     v_cmd = 10 * err
-    #     env.robot.command_velocity(v_cmd, bodyframe=False)
-    #     env.step(0, step_robot=False)
-
-    # q = env.robot.joint_states(add_noise=False)[0]
-    # err = env.robot.home - q
-    # IPython.embed()
-
-    # now unfixture the ones that should be unconstrained
-    # for name, uid in env.fixtures.items():
-    #     if not env.objects[name].fixture:
-    #         pyb.removeConstraint(uid)
 
     # brake the robot
     env.robot.command_velocity(np.zeros(env.robot.nv), bodyframe=False)
@@ -144,27 +122,20 @@ def run_simulation(config, video, logname, use_gui=True):
                 IPython.embed()
                 break
 
+            # simple P controller + feedforward
             qd = xd_robot[: dims.robot.q]
             vd = xd_robot[dims.robot.q : dims.robot.q + dims.robot.v]
             v_cmd = Kp @ (qd - q_noisy) + vd
 
-            # integrate the command
-            # it appears to be desirable to open-loop integrate velocity like this
-            # to avoid PyBullet not handling velocity commands accurately at very
-            # small values
-            # v_cmd = v_cmd + env.timestep * a_est + 0.5 * env.timestep**2 * u_cmd
+            # estimated acceleration
             a_est = a_est + env.timestep * u_cmd
         else:
-            # TODO could just make this some local controller that tries to
-            # achieve a particular pose...
             v_cmd = np.zeros(dims.robot.u)
-            # v_cmd = 0.5 * v_cmd
 
         # generated velocity is in the world frame
         env.robot.command_velocity(v_cmd, bodyframe=False)
 
         # TODO more logger reforms to come
-        # if logger.ready(t):
         if step % 10 == 0:
             # log sim stuff
             r_ew_w, Q_we = env.robot.link_pose()
@@ -411,7 +382,7 @@ def main():
     )
     parser.add_argument(
         "--com",
-        choices=["center", "top", "bottom", "exact", "robust"],
+        choices=["center", "top", "bottom", "robust"],
         required=True,
         help="Where the controller should put the CoM.",
     )
@@ -424,9 +395,6 @@ def main():
     args = parser.parse_args()
 
     use_robust = args.com == "robust"
-
-    if use_robust:
-        assert args.com != "exact", "cannot use exact CoM with robust constraints"
 
     # load configuration
     master_config = core.parsing.load_config(args.config)
@@ -444,7 +412,6 @@ def main():
         "shape": "cuboid",
         # "side_lengths": [0.1, 0.1, h_m],
         "side_lengths": [0.15, 0.15, h_m],
-        # "side_lengths": [0.03, 0.03, h_m],
         "color": [1, 0, 0, 1],
         "bounds": {
             "approx": {
@@ -459,11 +426,9 @@ def main():
     }
 
     sim_obj_config = {
-        "mass": 0.5,
-        # "mass": 1.0,
+        "mass": 1.0,
         "shape": "cuboid",
         "side_lengths": ctrl_obj_config["side_lengths"],
-        "side_lengths": [0.15, 0.15, h_m],
         "color": [1, 0, 0, 1],
     }
 
@@ -498,7 +463,6 @@ def main():
     if use_robust:
         # make a config for each CoM we care about
         x, y, z = ctrl_com_box.half_extents.tolist()
-        # ctrl_com_offsets = np.array([[x, y, z], [-x, y, z], [-x, -y, z], [x, -y, z]])
         ctrl_com_offsets = ctrl_com_box.vertices
 
         object_names = [OBJECT_NAME + f"_{i+1}" for i in range(len(ctrl_com_offsets))]
@@ -541,9 +505,7 @@ def main():
     max_com_z_offset = np.max(sim_com_offsets, axis=0)[2]
 
     # mass-normalized inertias (about the CoM)
-    # NOTE: 0.5 to match the mass
-    sim_inertias_diag = [0.5 * max_min_eig_inertia(box, c, diag=True) for c in sim_com_offsets]
-    # sim_inertias_diag = [1.0 * max_min_eig_inertia(box, c, diag=True) for c in sim_com_offsets]
+    sim_inertias_diag = [1.0 * max_min_eig_inertia(box, c, diag=True) for c in sim_com_offsets]
     sim_inertia_scales = [1.0, 0.5, 0.1]
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
