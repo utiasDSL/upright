@@ -1,6 +1,7 @@
 pybullet >= 3.2.0
-git+https://github.com/adamheins/pyb_utils@main#egg=pyb_utils
 numpy >= 1.21.5
 scipy >= 1.10.0
 spatialmath-python >= 1.0.0
 xacrodoc >= 0.4.0
+pyb_utils >= 2.2.0
+git+https://github.com/utiasDSL/rigeo@main#egg=rigeo

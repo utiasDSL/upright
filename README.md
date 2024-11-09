@@ -27,6 +27,7 @@ and avoiding dynamic obstacles like thrown balls:
 * `upright_ros_interface`: Tools for ROS communication. These can be useful in
   simulation for multi-processing, or to support real hardware.
 * `upright_sim`: (PyBullet) simulation environments for balancing objects.
+* `upright_robust`: Robust planning for balancing objects with uncertain inertial parameters. See [here](upright_robust/README.md) for more details.
 
 ## Setup and Installation
 
@@ -149,10 +150,12 @@ You may wish to record the results in a bag file using the
 Some packages contain tests. Python tests use [pytest](https://pytest.org/).
 Run `pytest .` inside a package's `tests` directory to run the Python tests.
 
-## Citation
+## Citations
 
-If you find this work useful, feel free to cite the accompanying
-[paper](https://doi.org/10.1109/LRA.2023.3324520):
+If you find this work useful, feel free to cite (one of) the accompanying
+papers.
+
+The [original paper](https://doi.org/10.1109/LRA.2023.3324520) is:
 ```
 @article{heins2023upright,
   title={Keep It Upright: Model Predictive Control for Nonprehensile Object Transportation With Obstacle Avoidance on a Mobile Manipulator}, 
@@ -165,6 +168,9 @@ If you find this work useful, feel free to cite the accompanying
   doi={10.1109/LRA.2023.3324520}
 }
 ```
+
+We have also recently developed a follow-up work on robust planning under
+inertial parameter uncertainty (link coming soon).
 
 ## License
 
