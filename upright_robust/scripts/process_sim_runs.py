@@ -87,8 +87,7 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
         contacts0 = [c for c in contacts if c.contact.object2_name == name]
         name_index = rob.compute_object_name_index([name])
         H = rob.compute_cwc_face_form(name_index, contacts0)
-        G = rob.compute_contact_force_to_wrench_map(name_index, contacts0)
-        F = block_diag(*[c.F for c in contacts0])
+        G = rob.compute_grasp_matrix(name_index, contacts0)
 
         # TODO swapped angular and linear components
         H2 = H.copy()
@@ -167,7 +166,8 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
         r_oe_e = C_we.T @ (r_ow_ws[i, 0, :] - r_ew_ws[i, :])
         r_oe_es.append(r_oe_e)
 
-        if check_constraints:
+        # no need to check the planned states after the time horizon
+        if check_constraints and ts[i] <= model.settings.mpc.time_horizon:
             # check the *planned* state, rather than the actual one
             xd = xds[i, :]
             robot.forward_xu(x=xd)
@@ -203,7 +203,7 @@ def compute_run_data(directory, check_constraints=True, exact_com=False, mu=None
                     run_data.max_constraint_violation_ell = max(
                         objective_ell.value, run_data.max_constraint_violation_ell
                     )
-            print(f"{i}: poly = {run_data.max_constraint_violation_poly}")
+            # print(f"{i}: poly = {run_data.max_constraint_violation_poly}")
             # print(f"ell = {run_data.max_constraint_violation_ell}")
 
     # compute maximum *change* from initial object position w.r.t. to EE
@@ -263,6 +263,8 @@ def main():
     results_file_name = f"results_mu{args.mu}.yaml" if args.mu else "results.yaml"
     data_file_name = f"data_mu{args.mu}.npz" if args.mu else "data.npz"
 
+    max_obj_dist_idx = None
+
     for i, d in enumerate(dirs):
         print(Path(d).name)
         check = i < args.check_constraints
@@ -273,6 +275,8 @@ def main():
         data.dists.append(run_data.dists)
         data.solve_times.append(run_data.solve_times)
         data.max_obj_dist = max(data.max_obj_dist, run_data.max_obj_dist)
+        if run_data.max_obj_dist >= data.max_obj_dist:
+            max_obj_dist_idx = i
 
         if run_data.max_constraint_violation_poly is not None:
             if data.max_constraint_violation_poly is None:
@@ -305,6 +309,9 @@ def main():
             print(f"{Path(d).name} failed!")
             num_failures += 1
             # return
+
+    # print(f"max_obj_dist_idx = {max_obj_dist_idx}")
+    # return
 
     # worst-case position error at the end of any run
     max_final_position_error = np.max(np.array(data.dists)[:, -1])

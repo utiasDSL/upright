@@ -189,8 +189,6 @@ def run_simulation(config, video, logname, use_gui=True):
     if env.video_manager.save:
         print(f"Saved video to {env.video_manager.path}")
 
-    pyb.disconnect(env.client_id)
-
     # visualize data
     if PLOT:
         DataPlotter.from_logger(logger).plot_all(show=False)
@@ -261,6 +259,8 @@ def run_simulation(config, video, logname, use_gui=True):
 
         plt.show()
 
+    pyb.disconnect(env.client_id)
+
 
 def box_face_centers(box):
     x, y, z = box.half_extents
@@ -272,21 +272,17 @@ def max_min_eig_inertia(box, com, diag=True):
 
     The masses are places at the vertices of the box.
     """
-    μ = cp.Variable(8)
-    # J = cp.Variable((4, 4), PSD=True)
-    # H = J[:3, :3]
-    H = cp.Variable((3, 3), PSD=True)
-    Hc = H - np.outer(com, com)  # Hc is about the CoM
+    μs = cp.Variable(8)
+    vs = [np.append(v, 1) for v in box.vertices]
+    J = cp.sum([μ * np.outer(v, v) for μ, v in zip(μs, vs)])
+
+    Hc = J[:3, :3] - np.outer(com, com)  # Hc is about the CoM
     λ = cp.Variable(1)
     objective = cp.Maximize(λ)
     drip_constraints = [
-        H << cp.sum([m * np.outer(v, v) for m, v in zip(μ, box.vertices)]),
-        com == cp.sum([m * v for m, v in zip(μ, box.vertices)]),
-        # J[3, 3] == 1,
-        # J[:3, 3] == com,
         Hc >> 0,
-        1 == cp.sum(μ),
-        μ >= 0,
+        cp.sum(μs) == 1,
+        μs >= 0,
         λ >= 0,
     ]
 
@@ -317,6 +313,7 @@ def max_trace_inertia(box, com, about_com=True):
 
     The masses are places at the vertices of the box.
     """
+    raise NotImplementedError()
     μ = cp.Variable(8)
     I = cp.Variable((3, 3))
     H = cp.Variable((3, 3))
@@ -482,7 +479,9 @@ def main():
         rob_ctrl_arrangement_config = make_arrangement_config(
             object_names, x_offset=x_offset, mu=MU
         )
-        master_config["controller"]["arrangements"]["robust"] = rob_ctrl_arrangement_config
+        master_config["controller"]["arrangements"][
+            "robust"
+        ] = rob_ctrl_arrangement_config
         master_config["controller"]["balancing"]["arrangement"] = "robust"
     else:
         master_config["controller"]["balancing"]["arrangement"] = "nominal"
@@ -505,15 +504,14 @@ def main():
     max_com_z_offset = np.max(sim_com_offsets, axis=0)[2]
 
     # mass-normalized inertias (about the CoM)
-    sim_inertias_diag = [1.0 * max_min_eig_inertia(box, c, diag=True) for c in sim_com_offsets]
+    sim_inertias_diag = [
+        sim_obj_config["mass"] * max_min_eig_inertia(box, c, diag=True)
+        for c in sim_com_offsets
+    ]
     sim_inertia_scales = [1.0, 0.5, 0.1]
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-    if use_robust:
-        dirname = f"robust_h{h_cm}_{timestamp}"
-    else:
-        dirname = f"nominal_h{h_cm}_com_{args.com}_{timestamp}"
+    dirname = f"{args.com}_h{h_cm}_{timestamp}"
 
     run = 1
     for com_offset, inertia_diag in zip(sim_com_offsets, sim_inertias_diag):
@@ -529,7 +527,8 @@ def main():
                 sim_obj_config["inertia_diag"] = (s * inertia_diag).tolist()
                 config["simulation"]["objects"][OBJECT_NAME] = sim_obj_config
 
-                # if run != 82:
+                # inspect a particular run
+                # if run != 70:
                 #     run += 1
                 #     continue
                 # IPython.embed()

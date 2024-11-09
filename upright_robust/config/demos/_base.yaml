@@ -16,7 +16,9 @@ logging:
   log_dir: /media/adam/Data/PhD/Data/upright/robust/heins-ral24/simulations
 
 simulation:
-  duration: 10.0
+  # we keep it at 12 in case there are any failures to the transition to
+  # v_cmd=0 at t=10
+  duration: 12.0
   extra_gui: false
   robot:
     urdf:
