@@ -4,7 +4,8 @@ Nonprehensile object transportation that is robust to uncertainty in the
 inertial parameters (mass, center of mass, inertia matrix). We use the same
 optimal control problem formulation as the original work in this repository,
 but instead solve the problem once offline with a long time horizon. The plan
-is then tracked online.
+is then tracked online. More details can be found in the
+[paper](https://arxiv.org/abs/2411.07079).
 
 ## Simulations
 

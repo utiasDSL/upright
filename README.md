@@ -1,14 +1,15 @@
 # Upright
 
-Code for solving the waiter's problem with model predictive control on a mobile
-manipulator. The waiter's problem refers to moving while keeping objects
-balanced on a tray-like end effector (like a waiter in a restaurant), which is
-an example of *nonprehensile* manipulation.
+Code for solving the waiter's problem with online (MPC) or offline planning on
+a mobile manipulator. The waiter's problem refers to moving while keeping
+objects balanced on a tray-like end effector (like a waiter in a restaurant),
+which is an example of *nonprehensile* manipulation.
 
-The code in this repository accompanies [this
-paper](https://arxiv.org/abs/2305.17484). A full video can be found
-[here](http://tiny.cc/keep-it-upright). Some examples include reacting to
-sudden changes in the environment:
+The code in this repository accompanies two papers
+([first](https://arxiv.org/abs/2305.17484),
+[second](https://arxiv.org/abs/2411.07079)). A full video from the first paper
+can be found [here](http://tiny.cc/keep-it-upright). Some examples include
+reacting to sudden changes in the environment:
 
 ![Sudden obstacle avoidance](https://static.adamheins.com/upright/sudden.gif)
 
@@ -169,8 +170,9 @@ The [original paper](https://doi.org/10.1109/LRA.2023.3324520) is:
 }
 ```
 
-We have also recently developed a follow-up work on robust planning under
-inertial parameter uncertainty (link coming soon).
+We have also recently developed a [follow-up
+work](https://arxiv.org/abs/2411.07079) on robust planning under inertial
+parameter uncertainty.
 
 ## License
 
