@@ -119,9 +119,9 @@ class ControllerSettings(bindings.ControllerSettings):
         self.sqp.hpipm.warm_start = config["sqp"]["hpipm"]["warm_start"]
         self.sqp.hpipm.iter_max = config["sqp"]["hpipm"]["iter_max"]
         self.sqp.hpipm.slacks.enabled = config["sqp"]["hpipm"]["slacks"]["enabled"]
-        self.sqp.hpipm.slacks.input_box = config["sqp"]["hpipm"]["slacks"]["input_box"]
-        self.sqp.hpipm.slacks.state_box = config["sqp"]["hpipm"]["slacks"]["state_box"]
-        self.sqp.hpipm.slacks.poly_ineq = config["sqp"]["hpipm"]["slacks"]["poly_ineq"]
+        self.sqp.hpipm.slacks.input_box = config["sqp"]["hpipm"]["slacks"].get("input_box", True)
+        self.sqp.hpipm.slacks.state_box = config["sqp"]["hpipm"]["slacks"].get("state_box", True)
+        self.sqp.hpipm.slacks.poly_ineq = config["sqp"]["hpipm"]["slacks"].get("poly_ineq", True)
 
         self.sqp.hpipm.slacks.upper_L2_penalty = config["sqp"]["hpipm"]["slacks"].get(
             "upper_L2_penalty", 100

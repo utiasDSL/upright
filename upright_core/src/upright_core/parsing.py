@@ -409,6 +409,14 @@ def parse_control_objects(ctrl_conf):
     obj_type_confs = ctrl_conf["objects"]
     contact_conf = arrangement["contacts"]
 
+    # NOTE: for backward compatibility with previous config format version
+    for obj_type_conf in obj_type_confs.values():
+        shape = obj_type_conf["shape"]
+        if isinstance(shape, dict):
+            obj_type_conf["shape"] = shape["type"]
+            del shape["type"]
+            obj_type_conf.update(shape)
+
     # placeholder end effector object
     ee_conf = obj_type_confs["ee"]
     ee_box = parse_box(ee_conf, np.array(ee_conf["position"]))
@@ -445,6 +453,7 @@ def parse_control_objects(ctrl_conf):
         )
 
         fixture = "fixture" in obj_instance_conf and obj_instance_conf["fixture"]
+
         body, box = _parse_rigid_body_and_box(obj_type_conf, position, quat)
         wrappers[obj_name] = _BalancedObjectWrapper(body, box, parent_name, fixture)
 
