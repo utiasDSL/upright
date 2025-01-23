@@ -89,14 +89,15 @@ ObjectDynamicsConstraints::ObjectDynamicsConstraints(
     num_constraints_ =
         settings_.bodies.size() * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT;
 
-    const size_t num_params = settings_.bodies.size() * 10;  // TODO unhardcode
-                                                             //
+    const size_t n = RigidBody<ocs2::scalar_t>::num_parameters();
+    const size_t num_params = settings_.bodies.size() * n;
+
     size_t i = 0;
     VecXd parameters(num_params);
     for (const auto& kv : settings_.bodies) {
         auto& body = kv.second;
-        parameters.segment(i, 10) = body.get_parameters();
-        i += body.num_parameters();
+        parameters.segment(i, n) = body.get_parameters();
+        i += n;
     }
     parameters_ = parameters;
 
@@ -140,14 +141,16 @@ VecXad ObjectDynamicsConstraints::constraintFunction(
     // Normalizing by the number of constraints appears to improve the
     // convergence of the controller (cost landscape is better behaved)
     // TODO
-    ocs2::ad_scalar_t n(sqrt(6 * ad_bodies.size()));
+    ocs2::ad_scalar_t n(
+        sqrt(NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT * ad_bodies.size()));
     // ocs2::ad_scalar_t n(ad_bodies.size());
     // ocs2::ad_scalar_t n(sqrt(ad_bodies.size()));
     // ocs2::ad_scalar_t n(sqrt(6 * 8));
     return compute_object_dynamics_constraints(ad_bodies, ad_contacts, forces,
                                                X, ad_gravity) /
            n;
-    // return compute_object_dynamics_constraints(ad_bodies, ad_contacts, forces,
+    // return compute_object_dynamics_constraints(ad_bodies, ad_contacts,
+    // forces,
     //                                            X, ad_gravity);
 }
 

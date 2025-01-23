@@ -42,7 +42,7 @@ struct RigidBody {
         return RigidBody(mass, inertia, com);
     }
 
-    size_t num_parameters() const { return 10; }
+    static size_t num_parameters() { return 10; }
 
     VecX<Scalar> get_parameters() const {
         VecX<Scalar> p(num_parameters());
