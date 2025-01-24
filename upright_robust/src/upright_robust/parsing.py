@@ -39,12 +39,12 @@ def parse_objects_and_contacts(
 
     # make EE origin the reference point for all contacts
     bodies = model.settings.balancing_settings.bodies
-    for c in model.settings.balancing_settings.contacts:
-        if c.object1_name != "ee":
-            b1 = bodies[c.object1_name]
-            c.r_co_o1 = c.r_co_o1 + b1.com
-        b2 = bodies[c.object2_name]
-        c.r_co_o2 = c.r_co_o2 + b2.com
+    # for c in model.settings.balancing_settings.contacts:
+    #     if c.object1_name != "ee":
+    #         b1 = bodies[c.object1_name]
+    #         c.r_co_o1 = c.r_co_o1 + b1.com
+    #     b2 = bodies[c.object2_name]
+    #     c.r_co_o2 = c.r_co_o2 + b2.com
 
     # update friction coefficient if one was passed in
     contacts = []

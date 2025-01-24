@@ -105,6 +105,7 @@ Wrench<Scalar> compute_object_dynamics_constraint(
 // points.
 template <typename Scalar>
 std::map<std::string, Wrench<Scalar>> compute_object_wrenches(
+    const std::map<std::string, RigidBody<Scalar>>& bodies,
     const std::vector<ContactPoint<Scalar>>& contacts,
     const VecX<Scalar>& forces) {
     const bool frictionless = (forces.size() == contacts.size());
@@ -119,27 +120,37 @@ std::map<std::string, Wrench<Scalar>> compute_object_wrenches(
         }
 
         // TODO this relies on object frame having same orientation as EE frame
-        if (object_wrenches.find(contact.object1_name) ==
-            object_wrenches.end()) {
-            object_wrenches[contact.object1_name].force = f;
-            object_wrenches[contact.object1_name].torque =
-                contact.r_co_o1.cross(f);
-        } else {
-            object_wrenches[contact.object1_name].force += f;
-            object_wrenches[contact.object1_name].torque +=
-                contact.r_co_o1.cross(f);
+
+        // The first object may be the EE, which we do not store in the bodies
+        // map because we do not need to compute a wrench or constraints for it
+        if (bodies.find(contact.object1_name) != bodies.end()) {
+            Vec3<Scalar> com1 = bodies.at(contact.object1_name).com;
+            Vec3<Scalar> lever1 = contact.r_co_o1 - com1;
+
+            if (object_wrenches.find(contact.object1_name) ==
+                object_wrenches.end()) {
+                object_wrenches[contact.object1_name].force = f;
+                object_wrenches[contact.object1_name].torque = lever1.cross(f);
+            } else {
+                object_wrenches[contact.object1_name].force += f;
+                object_wrenches[contact.object1_name].torque += lever1.cross(f);
+            }
         }
 
-        // For the second object, the forces are negative
-        if (object_wrenches.find(contact.object2_name) ==
-            object_wrenches.end()) {
-            object_wrenches[contact.object2_name].force = -f;
-            object_wrenches[contact.object2_name].torque =
-                contact.r_co_o2.cross(-f);
-        } else {
-            object_wrenches[contact.object2_name].force -= f;
-            object_wrenches[contact.object2_name].torque +=
-                contact.r_co_o2.cross(-f);
+        {
+            Vec3<Scalar> com2 = bodies.at(contact.object2_name).com;
+            Vec3<Scalar> lever2 = contact.r_co_o2 - com2;
+
+            // For the second object, the forces are negative
+            if (object_wrenches.find(contact.object2_name) ==
+                object_wrenches.end()) {
+                object_wrenches[contact.object2_name].force = -f;
+                object_wrenches[contact.object2_name].torque = lever2.cross(-f);
+            } else {
+                object_wrenches[contact.object2_name].force -= f;
+                object_wrenches[contact.object2_name].torque +=
+                    lever2.cross(-f);
+            }
         }
     }
     return object_wrenches;
@@ -153,8 +164,8 @@ VecX<Scalar> compute_object_dynamics_constraints(
     const std::vector<ContactPoint<Scalar>>& contacts,
     const VecX<Scalar>& forces, const RigidBodyState<Scalar>& state,
     const Vec3<Scalar>& gravity) {
-    std::map<std::string, Wrench<Scalar>> object_wrenches =
-        compute_object_wrenches(contacts, forces);
+    const std::map<std::string, Wrench<Scalar>> object_wrenches =
+        compute_object_wrenches(bodies, contacts, forces);
 
     VecX<Scalar> constraints(NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT *
                              bodies.size());
@@ -170,7 +181,7 @@ VecX<Scalar> compute_object_dynamics_constraints(
         auto& name = kv.first;
         auto& body = kv.second;
 
-        Wrench<Scalar> wrench = object_wrenches[name];
+        Wrench<Scalar> wrench = object_wrenches.at(name);
         Wrench<Scalar> constraint = compute_object_dynamics_constraint(
             body, wrench, state, gravity, force_scale);
         constraints.segment(i * NUM_DYNAMICS_CONSTRAINTS_PER_OBJECT,

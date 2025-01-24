@@ -32,6 +32,7 @@ def run_simulation(config, video, logname, use_gui=True):
     # start the simulation
     print("starting sim")
     timestamp = datetime.datetime.now()
+    # sim_config["timestep"] = 0.00001
     env = sim.simulation.UprightSimulation(
         config=sim_config,
         timestamp=timestamp,
@@ -96,6 +97,12 @@ def run_simulation(config, video, logname, use_gui=True):
     mpc.advanceMpc()
     print("Ready to start.")
 
+    # compute initial object offset from tray
+    r_ew_w, Q_we = env.robot.link_pose()
+    r_ow_ws, Q_wos = env.object_poses()
+    C_we = core.math.quat_to_rot(Q_we)
+    r_oe_e0 = C_we.T @ (r_ow_ws[0] - r_ew_w)
+
     # simulation loop
     step = 0
     while t <= env.duration:
@@ -136,7 +143,7 @@ def run_simulation(config, video, logname, use_gui=True):
         env.robot.command_velocity(v_cmd, bodyframe=False)
 
         # TODO more logger reforms to come
-        if step % 10 == 0:
+        if step % 100 == 0:
             # log sim stuff
             r_ew_w, Q_we = env.robot.link_pose()
             v_ew_w, ω_ew_w = env.robot.link_velocity()
@@ -160,6 +167,12 @@ def run_simulation(config, video, logname, use_gui=True):
             logger.append("Q_we_ds", Q_we_d)
 
             logger.append("solve_times", ctrl_manager.mpc.getLastSolveTime())
+
+            # compute current object offset from tray
+            C_we = core.math.quat_to_rot(Q_we)
+            r_oe_e = C_we.T @ (r_ow_ws[0] - r_ew_w)
+            obj_err = np.linalg.norm(r_oe_e - r_oe_e0)
+            # print(f"obj_err = {obj_err}")
 
             if model.settings.balancing_settings.enabled:
                 model.update(x, u)
@@ -379,7 +392,7 @@ def main():
     )
     parser.add_argument(
         "--com",
-        choices=["center", "top", "bottom", "robust"],
+        choices=["center", "top", "bottom", "robust", "exact"],
         required=True,
         help="Where the controller should put the CoM.",
     )
@@ -392,6 +405,7 @@ def main():
     args = parser.parse_args()
 
     use_robust = args.com == "robust"
+    use_exact = args.com == "exact"
 
     # load configuration
     master_config = core.parsing.load_config(args.config)
@@ -402,12 +416,11 @@ def main():
     h_cm = args.height
     h_m = args.height / 100
     h2_m = 0.5 * h_m
-    b = 0.06  # 0.04
+    b = 0.06  # 12cm x 12cm bounding box for the CoM
 
     ctrl_obj_config = {
         "mass": 1.0,
         "shape": "cuboid",
-        # "side_lengths": [0.1, 0.1, h_m],
         "side_lengths": [0.15, 0.15, h_m],
         "color": [1, 0, 0, 1],
         "bounds": {
@@ -442,7 +455,9 @@ def main():
 
     # build the nominal arrangement
     # this is even built in the robust case for later post-processing
-    x_offset = 0
+    # NOTE: we do not require a deepcopy here unless we were changing values in
+    # the nested dicts (i.e., the bounds), or directly modifying elements of
+    # the nested lists
     nom_ctrl_obj_config = ctrl_obj_config.copy()
     if args.com == "center" or use_robust:
         nom_ctrl_obj_config["com_offset"] = [0, 0, 0]
@@ -450,8 +465,11 @@ def main():
         nom_ctrl_obj_config["com_offset"] = [0, 0, -float(ctrl_com_box.half_extents[2])]
     elif args.com == "top":
         nom_ctrl_obj_config["com_offset"] = [0, 0, float(ctrl_com_box.half_extents[2])]
+    elif not use_exact:
+        raise ValueError("unexpected value for --com")
     master_config["controller"]["objects"][OBJECT_NAME] = nom_ctrl_obj_config
 
+    x_offset = 0
     nom_ctrl_arrangement_config = make_arrangement_config(
         [OBJECT_NAME], x_offset=x_offset, mu=MU
     )
@@ -468,10 +486,6 @@ def main():
 
         # add to the main config
         for name, com in zip(object_names, ctrl_com_offsets):
-            # params_com = params_center.transform(translation=com)
-            # IPython.embed()
-            # return
-
             config = ctrl_obj_config.copy()
             config["com_offset"] = com.tolist()
             master_config["controller"]["objects"][name] = config
@@ -501,7 +515,7 @@ def main():
         + box_face_centers(sim_com_box)
         + [list(v) for v in sim_com_box.vertices]
     )
-    max_com_z_offset = np.max(sim_com_offsets, axis=0)[2]
+    # max_com_z_offset = np.max(sim_com_offsets, axis=0)[2]
 
     # mass-normalized inertias (about the CoM)
     sim_inertias_diag = [
@@ -523,12 +537,21 @@ def main():
                     {"time": 0, "position": waypoint, "orientation": [0, 0, 0, 1]}
                 ]
 
+                # NOTE: no need to copy since we update every changing field
+                # for each run
                 sim_obj_config["com_offset"] = np.array(com_offset).tolist()
                 sim_obj_config["inertia_diag"] = (s * inertia_diag).tolist()
                 config["simulation"]["objects"][OBJECT_NAME] = sim_obj_config
 
+                # when using the exact inertial parameters, we need to update
+                # them for each run
+                if use_exact:
+                    nom_ctrl_obj_config["com_offset"] = np.array(com_offset).tolist()
+                    nom_ctrl_obj_config["inertia"] = (s * inertia_diag).tolist()
+                    config["controller"]["objects"][OBJECT_NAME] = nom_ctrl_obj_config
+
                 # inspect a particular run
-                # if run != 70:
+                # if run != 30:
                 #     run += 1
                 #     continue
                 # IPython.embed()
@@ -536,6 +559,9 @@ def main():
                 # only compile at most once
                 if run > 1:
                     config["controller"]["recompile_libraries"] = False
+
+                # TODO recompiling the constraints does not work properly!!
+                # config["controller"]["recompile_libraries"] = True
 
                 if args.log:
                     name = f"{dirname}/run_{run}"

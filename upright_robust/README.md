@@ -9,9 +9,18 @@ is then tracked online. More details can be found in the
 
 ## Simulations
 
-* Run the simulation experiments with `scripts/planning_sim_loop.py`.
-* Process the results (i.e., verify robustness) using
-  `scripts/process_sim_runs.py`.
+Run the simulation experiments with `scripts/planning_sim_loop.py`. For
+example, to collect the data with the box of height 30cm using the proposed
+robust constraints, do:
+```
+./planning_sim_loop.py --config $(rospack find upright_robust)/config/demos/sim.yaml --height 30 --com robust
+```
+To see the simulation visually, use the `--gui` flag. To log the results, use
+`--log`.
+
+After running the simulations, they can be processed (e.g., to verify
+robustness) using `scripts/process_sim_runs.py`. You need to provide the
+directory where the simulation results were logged.
 
 ## Experiments
 

@@ -192,7 +192,8 @@ def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-7):
 
             span = math.plane_span(normal)
 
-            r1 = points[i, :] - body1.com
+            # r1 = points[i, :] - body1.com
+            r1 = points[i, :]
 
             # it doesn't make sense to inset w.r.t. fixtures (EE or otherwise),
             # because we don't have to worry about their dynamics
@@ -207,7 +208,8 @@ def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-7):
                 # unproject the inset back into 3D space
                 r1_inset = r1 + (r1_t_inset - r1_t) @ span
 
-            r2 = points[i, :] - body2.com
+            # r2 = points[i, :] - body2.com
+            r2 = points[i, :]
             r2_t = span @ r2
             r2_t_inset = math.inset_vertex(r2_t, inset)
             r2_inset = r2 + (r2_t_inset - r2_t) @ span
@@ -250,59 +252,6 @@ def parse_box(obj_type_conf, position=None, rotation=None):
         box = polyhedron.ConvexPolyhedron.box(local_half_extents)
 
     return box.transform(translation=position, rotation=rotation)
-
-
-def compute_support_area(box, parent_box, com_offset, inset, tol=1e-6):
-    """Compute the support area.
-
-    Currently only a rectangular support area is supported, due to the need to
-    compute a value for r_tau.
-
-    Parameters:
-        box: the collision box of the current object
-        parent_box: the collision box of the parent
-        inset: positive scalar denoting how much to reduce the support area
-
-    Returns:
-        support area, r_tau
-    """
-    # NOTE this approach is not completely general for cylinders, where we may
-    # want contacts with more than just their boxes
-    support_points, normal = polyhedron.axis_aligned_contact(box, parent_box)
-    assert inset >= 0, "Support area inset must be non-negative."
-
-    # check all points are coplanar:
-    assert np.all(np.abs((support_points - support_points[0, :]) @ normal) < tol)
-
-    # r_tau assumes rectangular for now, check:
-    n = support_points.shape[0]
-    assert n == 4, f"Support area has {n} points, not 4!"
-    lengths = []
-    for i in range(-1, 3):
-        lengths.append(np.linalg.norm(support_points[i + 1, :] - support_points[i, :]))
-    assert (
-        abs(lengths[0] - lengths[2]) < tol and abs(lengths[1] - lengths[3]) < tol
-    ), f"Support area is not rectangular!"
-
-    # translate points to be relative to the CoM position
-    com_position = box.position + com_offset
-    local_support_points = support_points - com_position
-
-    # project points into the tangent plane
-    span = math.plane_span(normal)
-    local_support_points_t = (span @ local_support_points.T).T
-
-    # apply inset
-    local_support_points_t_inset = np.zeros_like(local_support_points_t)
-    for i in range(local_support_points_t.shape[0]):
-        local_support_points_t_inset[i, :] = math.inset_vertex(
-            local_support_points_t[i, :], inset
-        )
-        # local_points_xy[i, :] = math.inset_vertex_abs(local_points_xy[i, :], inset)
-
-    support_area = PolygonSupportArea(list(local_support_points_t_inset), normal, span)
-    r_tau = math.rectangle_r_tau(lengths[0], lengths[1])
-    return support_area, r_tau
 
 
 def parse_mu_dict(contact_conf, apply_margin):

@@ -4,6 +4,7 @@ include:
     path: config/demos/_base.yaml
 
 simulation:
+  timestep: 0.0001
   robot:
     urdf:
       args:
