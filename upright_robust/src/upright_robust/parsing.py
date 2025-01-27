@@ -1,3 +1,6 @@
+import numpy as np
+
+from upright_core.parsing import parse_support_offset
 import upright_control as ctrl
 import upright_robust.modelling as mdl
 
@@ -65,20 +68,32 @@ def parse_objects_and_contacts(
     for conf in arrangement_config["objects"]:
         obj_name = conf["name"]
         obj_type = conf["type"]
-        body = bodies[obj_name]
 
+        # for now we only support objects directly placed on the EE; otherwise
+        # we would need more complex parsing logic for their bounding boxes
+        assert conf["parent"] == "ee"
+
+        # center of the bounding box is the horizontal offset relative to the
+        # parent (EE) at half the vertical height of the box
+        xy = parse_support_offset(conf["offset"])
         obj_config = ctrl_config["objects"][obj_type]
-        center = body.com
+        z = obj_config["side_lengths"][2] / 2
+        center = np.append(xy, z)
+
         bounding_box = rg.Box.from_side_lengths(
             obj_config["side_lengths"], center=center
         )
 
+        # bounding box for the CoM may be smaller than the object's overall
+        # bounding box
         com_box = None
         if compute_bounds:
             bounds_config = obj_config["bounds"][bounds_name]
             com_lower = center + bounds_config["com_lower"]
             com_upper = center + bounds_config["com_upper"]
             com_box = rg.Box.from_two_vertices(com_lower, com_upper)
+
+        body = bodies[obj_name]
         uncertain_objects[obj_name] = mdl.UncertainObject(
             body=body, bounding_box=bounding_box, com_box=com_box
         )
