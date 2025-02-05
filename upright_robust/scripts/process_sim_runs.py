@@ -30,11 +30,11 @@ class RunData:
     """Summary of a single run."""
 
     def __init__(self):
-        self.max_obj_dist = 0
+        # timesteps
         self.times = []
 
         # distances to goal
-        self.dists = []
+        self.dists_to_goal = []
 
         # times to solve the planning problem
         self.solve_times = []
@@ -42,9 +42,22 @@ class RunData:
         # times to solve a single verification problem
         self.verify_times = []
 
-        self.max_constraint_violation_poly = None
-        self.max_constraint_violation_ell = None
+        # maximum displacement of the object relative to its initial position
+        # with respect to the EE across the run
+        self.max_obj_err = 0
 
+        self.obj_errs = []
+
+        # constraint violations using the polyhedral moment conditions
+        # necessary
+        self.constraint_violations_poly = []
+
+        # the inertial parameters corresponding to the worst-case constraint
+        # violation
+        self.worst_case_params = []
+
+        # height of the CoM (relative to centroid) for the run; this is useful
+        # for tracking how height impacts run success
         self.z_offset = 0
 
 
@@ -176,7 +189,6 @@ def compute_run_data(directory, check_constraints=True, exact_params=False, mu=N
 
     run_data = RunData()
 
-    # TODO
     run_data.z_offset = config["simulation"]["objects"]["sim_block"]["com_offset"][2]
 
     for i in tqdm.trange(ts.shape[0]):
@@ -185,7 +197,7 @@ def compute_run_data(directory, check_constraints=True, exact_params=False, mu=N
         r_ew_w, C_we = robot.link_pose(rotation_matrix=True)
 
         # compute distance to goal
-        run_data.dists.append(np.linalg.norm(rd - r_ew_w))
+        run_data.dists_to_goal.append(np.linalg.norm(rd - r_ew_w))
 
         # compute object position w.r.t. EE
         C_we = core.math.quat_to_rot(Q_wes[i, :])
@@ -207,24 +219,34 @@ def compute_run_data(directory, check_constraints=True, exact_params=False, mu=N
             Y = rg.RigidBody.regressor(V=V, A=A)
 
             if exact_params:
+                max_violation = None
                 for h in H:
                     violation_poly = h @ Y @ θ0
-                    run_data.max_constraint_violation_poly = max_or_init(
-                        run_data.max_constraint_violation_poly, violation_poly
-                    )
+                    max_violation = max_or_init(max_violation, violation_poly)
+                run_data.constraint_violations_poly.append(max_violation)
             else:
+                max_violation = None
+                # worst_case_params = None
                 t0 = time.time()
                 for h in H:
                     hY_poly.value = h @ Y
                     problem_poly.solve(solver=cp.MOSEK)
                     assert problem_poly.status == "optimal"
 
-                    run_data.max_constraint_violation_poly = max_or_init(
-                        run_data.max_constraint_violation_poly, objective_poly.value
-                    )
+                    # if max_violation is None or objective_poly.value > max_violation:
+                    #     worst_case_params = θ_poly.value
+                    max_violation = max_or_init(max_violation, objective_poly.value)
+
+                    # if objective_poly.value > 7:
+                    #     print("big violation!")
+                    #     IPython.embed()
+
+                run_data.constraint_violations_poly.append(max_violation)
                 t1 = time.time()
+                # run_data.worst_case_params.append(worst_case_params)
                 run_data.verify_times.append(t1 - t0)
 
+                # we can also check the ellipsoid constraints, if desired
                 if SOLVE_ELLIPSOID_VERIFICATION:
                     for h in H:
                         hY_ell.value = h @ Y
@@ -238,8 +260,10 @@ def compute_run_data(directory, check_constraints=True, exact_params=False, mu=N
     # compute maximum *change* from initial object position w.r.t. to EE
     r_oe_es = np.array(r_oe_es)
     r_oe_e_err = r_oe_es - r_oe_es[0, :]
-    distances = np.linalg.norm(r_oe_e_err, axis=1)
-    run_data.max_obj_dist = np.max(distances)
+    obj_errs = np.linalg.norm(r_oe_e_err, axis=1)
+
+    run_data.max_obj_err = np.max(obj_errs)
+    run_data.obj_errs = obj_errs
     run_data.times = ts
     run_data.solve_times = data["solve_times"]  # these are in millseconds
 
@@ -285,62 +309,61 @@ def main():
     dirs = glob.glob(args.directory + "/*/")
     dirs.sort(key=sort_dir_key)
 
-    total_runs = 0
-    num_failures = 0
-    data = RunData()
-
     results_file_name = f"results_mu{args.mu}.yaml" if args.mu else "results.yaml"
     data_file_name = f"data_mu{args.mu}.npz" if args.mu else "data.npz"
 
-    max_obj_dist_idx = None
-    max_obj_dists = []
+    total_runs = 0
+    num_failures = 0
+
+    times = []
+    dists_to_goal = []
+    solve_times = []
+    verify_times = []
+    constraint_violations_poly = []
+
+    # maximum object displacement error for each run
+    max_obj_errs = []
+
+    obj_errs = []
 
     # height of the CoM during failed runs
     failure_z_offsets = {}
+    failure_waypoints = [0, 0, 0]
 
     for i, d in enumerate(dirs):
         print(Path(d).name)
+
         check = i < args.check_constraints
         run_data = compute_run_data(
             d, check_constraints=check, exact_params=args.exact, mu=args.mu
         )
-        data.times.append(run_data.times)
-        data.dists.append(run_data.dists)
-        data.solve_times.append(run_data.solve_times)
-        data.max_obj_dist = max(data.max_obj_dist, run_data.max_obj_dist)
 
-        # keep track of the maximum object distance for each run
-        max_obj_dists.append(float(run_data.max_obj_dist))
+        times.append(run_data.times)
+        dists_to_goal.append(run_data.dists_to_goal)
+        solve_times.append(run_data.solve_times)
 
-        # record time to solve verification problem per trajectory (if we are
-        # checking)
-        if check and not args.exact:
-            data.verify_times.append(run_data.verify_times)
+        # keep track of the maximum object displacement for each run
+        max_obj_errs.append(run_data.max_obj_err)
+        obj_errs.append(run_data.obj_errs)
 
-        if run_data.max_obj_dist >= data.max_obj_dist:
-            max_obj_dist_idx = i
-
-        if run_data.max_constraint_violation_poly is not None:
-            data.max_constraint_violation_poly = max_or_init(
-                data.max_constraint_violation_poly,
-                run_data.max_constraint_violation_poly,
-            )
-            data.max_constraint_violation_poly = float(
-                data.max_constraint_violation_poly
-            )
-
-        if run_data.max_constraint_violation_ell is not None:
-            data.max_constraint_violation_ell = max_or_init(
-                data.max_constraint_violation_ell,
-                run_data.max_constraint_violation_ell,
-            )
-            data.max_constraint_violation_ell = float(data.max_constraint_violation_ell)
+        # record verification results and time to solve verification problem
+        # per trajectory (if we are checking)
+        if check:
+            constraint_violations_poly.append(run_data.constraint_violations_poly)
+            if not args.exact:
+                verify_times.append(run_data.verify_times)
 
         total_runs += 1
-        if run_data.max_obj_dist >= FAILURE_DIST_THRESHOLD:
-            print(f">>> constraint violation = {run_data.max_constraint_violation_poly}")
+        if run_data.max_obj_err >= FAILURE_DIST_THRESHOLD:
+            if check:
+                print(
+                    f">>> constraint violation = {np.max(run_data.constraint_violations_poly)}"
+                )
             print(f"{Path(d).name} failed!")
             num_failures += 1
+
+            # keep track of which waypoints are failing
+            failure_waypoints[i % 3] += 1
 
             # keep track of what the height of the CoM was
             if run_data.z_offset in failure_z_offsets:
@@ -349,17 +372,38 @@ def main():
                 failure_z_offsets[run_data.z_offset] = 1
 
     # worst-case position error at the end of any run
-    max_final_position_error = np.max(np.array(data.dists)[:, -1])
+    dists_to_goal = np.array(dists_to_goal)
+    final_dists_to_goal = dists_to_goal[:, -1]
+    # TODO argmax?
+    max_final_dist_to_goal = float(np.max(final_dists_to_goal))
 
-    verify_times = np.array(data.verify_times)
-    verify_time_avg = np.mean(verify_times, axis=1) if len(verify_times) > 0 else None
-    verify_time_avg_no_first = np.mean(verify_times[:, 1:], axis=1) if len(verify_times) > 0 else None
+    # maximum constraint violation across all runs
+    constraint_violations_poly = np.array(constraint_violations_poly)
+    if constraint_violations_poly.size > 0:
+        max_constraint_violation_poly = float(np.max(constraint_violations_poly))
+    else:
+        max_constraint_violation_poly = None
 
-    # convert to regular list of floats for yaml export
-    if verify_time_avg is not None:
+    # average verification times
+    # we also compute the average without the first run, since the first run
+    # may take longer to do the first problem compilation step
+    verify_times = np.array(verify_times)
+    if verify_times.size > 0:
+        verify_time_avg = np.mean(verify_times, axis=1)
+        verify_time_avg_no_first = np.mean(verify_times[:, 1:], axis=1)
+
+        # convert to regular list of floats for yaml export
         verify_time_avg = verify_time_avg.tolist()
         verify_time_avg_no_first = verify_time_avg_no_first.tolist()
+    else:
+        verify_time_avg = None
+        verify_time_avg_no_first = None
 
+    # highest object displacement error across all runs
+    max_obj_err_idx = int(np.argmax(max_obj_errs))
+    max_obj_err = float(max_obj_errs[max_obj_err_idx])
+
+    # summary of results
     outfile = Path(args.directory) / results_file_name
     with open(outfile, "w") as f:
         yaml.dump(
@@ -367,27 +411,30 @@ def main():
                 "timestamp": datetime.datetime.now().isoformat(),
                 "total_runs": total_runs,
                 "num_failures": num_failures,
-                "max_obj_dist": float(data.max_obj_dist),
-                "max_constraint_violation_poly": data.max_constraint_violation_poly,
-                "max_constraint_violation_ell": data.max_constraint_violation_ell,
-                "max_final_position_error": float(max_final_position_error),
-                "max_obj_dist_idx": max_obj_dist_idx,
+                "max_obj_err": max_obj_err,
+                "max_constraint_violation_poly": max_constraint_violation_poly,
+                "max_final_dist_to_goal": max_final_dist_to_goal,
+                "max_obj_err_idx": max_obj_err_idx,
                 "failure_z_offsets": failure_z_offsets,
+                "failure_waypoints": failure_waypoints,
                 "verify_time_avg": verify_time_avg,
                 "verify_time_avg_no_first": verify_time_avg_no_first,
             },
             stream=f,
         )
-    print(f"Dumped results to {outfile}")
+    print(f"Wrote results to {outfile}")
 
+    # more detailed data dump
     outfile = Path(args.directory) / data_file_name
     np.savez(
         outfile,
-        times=np.array(data.times),
-        dists=np.array(data.dists),
-        solve_times=np.array(data.solve_times),
+        times=np.array(times),
+        dists_to_goal=np.array(dists_to_goal),
+        solve_times=np.array(solve_times),
         verify_times=np.array(verify_times),
-        max_obj_dists=np.array(max_obj_dists),
+        max_obj_errs=np.array(max_obj_errs),
+        obj_errs=np.array(obj_errs),
+        constraint_violations_poly=np.array(constraint_violations_poly),
     )
     print(f"Dumped data to {outfile}")
 

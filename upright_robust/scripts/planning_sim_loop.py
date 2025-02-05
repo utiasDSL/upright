@@ -25,6 +25,42 @@ PLOT = False
 MU = 0.2
 
 
+def compute_trajectory(config):
+    """Compute and unroll the planned trajectory."""
+    ctrl_config = config["controller"]
+    ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config)
+    mpc = ctrl_manager.mpc
+    model = ctrl_manager.model
+    dims = model.settings.dims
+    ref = ctrl_manager.ref
+
+    dt = config["simulation"]["timestep"]
+
+    x0 = model.settings.initial_state
+    target = ref.get_desired_pose(model.settings.mpc.time_horizon)[0]
+
+    t = 0.0
+    x = x0
+    xd = np.zeros_like(x)
+    u = np.zeros(dims.u())
+
+    mpc.setObservation(t, x, u)
+    mpc.advanceMpc()
+
+    step = 0
+    xds = []
+    while t <= model.settings.mpc.time_horizon:
+        if step % 100 == 0:
+            mpc.evaluateMpcSolution(t, x, xd, u)
+            xds.append(xd.copy())
+        step += 1
+        t = step * dt
+    model.update(xds[-1], u)
+    rd = model.robot.link_pose()[0]
+    err = np.linalg.norm(target - rd)
+    return np.array(xds), err
+
+
 def run_simulation(config, video, logname, use_gui=True):
     sim_config = config["simulation"]
     ctrl_config = config["controller"]
@@ -32,7 +68,6 @@ def run_simulation(config, video, logname, use_gui=True):
     # start the simulation
     print("starting sim")
     timestamp = datetime.datetime.now()
-    # sim_config["timestep"] = 0.00001
     env = sim.simulation.UprightSimulation(
         config=sim_config,
         timestamp=timestamp,
@@ -53,8 +88,6 @@ def run_simulation(config, video, logname, use_gui=True):
     a = np.zeros(env.robot.nv)
     x_obs = env.dynamic_obstacle_state()
     x = np.concatenate((q, v, a, x_obs))
-    u = np.zeros(env.robot.nu)
-    xd = np.zeros_like(x)
 
     # controller
     ctrl_manager = ctrl.manager.ControllerManager.from_config(ctrl_config, x0=x)
@@ -62,6 +95,9 @@ def run_simulation(config, video, logname, use_gui=True):
     model = ctrl_manager.model
     dims = model.settings.dims
     ref = ctrl_manager.ref
+
+    u = np.zeros(dims.u())
+    xd = np.zeros_like(x)
 
     # make sure PyBullet (simulation) and Pinocchio (controller) models agree
     r_pyb, Q_pyb = env.robot.link_pose()
@@ -174,6 +210,8 @@ def run_simulation(config, video, logname, use_gui=True):
             obj_err = np.linalg.norm(r_oe_e - r_oe_e0)
             # print(f"obj_err = {obj_err}")
 
+            logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
+
             if model.settings.balancing_settings.enabled:
                 model.update(x, u)
                 logger.append("contact_forces", f)
@@ -185,15 +223,11 @@ def run_simulation(config, video, logname, use_gui=True):
                 logger.append(
                     "object_dynamics_constraints", object_dynamics_constraints
                 )
-                logger.append("cost", ctrl_manager.mpc.cost(t, x, u))
 
         # NOTE I am now manually incrementing time for more accuracy
         env.step(t, step_robot=False)
         step += 1
         t = step * env.timestep
-
-    # logger.add("replanning_times", ctrl_manager.replanning_times)
-    # logger.add("replanning_durations", ctrl_manager.replanning_durations)
 
     # save logged data
     if logname is not None:
@@ -402,6 +436,7 @@ def main():
         type=int,
         help="Height of the balanced object, in centimeters.",
     )
+    parser.add_argument("--video", action="store_true", help="Record a video.")
     args = parser.parse_args()
 
     use_robust = args.com == "robust"
@@ -515,7 +550,6 @@ def main():
         + box_face_centers(sim_com_box)
         + [list(v) for v in sim_com_box.vertices]
     )
-    # max_com_z_offset = np.max(sim_com_offsets, axis=0)[2]
 
     # mass-normalized inertias (about the CoM)
     sim_inertias_diag = [
@@ -527,11 +561,61 @@ def main():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     dirname = f"{args.com}_h{h_cm}_{timestamp}"
 
+    # video
+    if args.video:
+        com_idx = 9  # similar to real experiment
+        com_offset = sim_com_offsets[com_idx]
+        inertia_diag = sim_inertia_scales[0] * sim_inertias_diag[com_idx]
+        waypoint = waypoints[0]
+
+        config = copy.deepcopy(master_config)
+        config["controller"]["waypoints"] = [
+            {"time": 0, "position": waypoint, "orientation": [0, 0, 0, 1]}
+        ]
+        sim_obj_config["com_offset"] = np.array(com_offset).tolist()
+        sim_obj_config["inertia_diag"] = inertia_diag.tolist()
+        config["simulation"]["objects"][OBJECT_NAME] = sim_obj_config
+
+        # config["simulation"]["extra_gui"] = True
+        run_simulation(
+            # config=config, video=f"{args.com}_h{h_cm}", logname=None, use_gui=True
+            config=config, video=None, logname=None, use_gui=True
+        )
+        return
+
+    # desired = {0 : [], 1: [], 2: []}
+    # ee_errs = {0: [], 1: [], 2: []}
+    # for iter in range(1, 11):
+    #     for i, waypoint in enumerate(waypoints):
+    #         config = copy.deepcopy(master_config)
+    #         config["controller"]["sqp"]["init_sqp_iteration"] = iter
+    #         config["controller"]["waypoints"] = [
+    #             {"time": 0, "position": waypoint, "orientation": [0, 0, 0, 1]}
+    #         ]
+    #         # config["simulation"]["objects"][OBJECT_NAME] = sim_obj_config
+    #
+    #         if i > 0:
+    #             config["controller"]["recompile_libraries"] = False
+    #
+    #         xds, err = compute_trajectory(config=config)
+    #         desired[i].append(xds)
+    #         ee_errs[i].append(err)
+    #
+    # deltas = {0: [], 1: [], 2: []}
+    # for i in range(3):
+    #     for j in range(len(desired[i]) - 1):
+    #         err = np.sum(np.linalg.norm(desired[i][j+1] - desired[i][j], axis=1))
+    #         deltas[i].append(err)
+    #
+    # IPython.embed()
+    # return
+
     run = 1
     for com_offset, inertia_diag in zip(sim_com_offsets, sim_inertias_diag):
         for s in sim_inertia_scales:
-            for i, waypoint in enumerate(waypoints):
+            for waypoint in waypoints:
                 print(f"run = {run}")
+
                 config = copy.deepcopy(master_config)
                 config["controller"]["waypoints"] = [
                     {"time": 0, "position": waypoint, "orientation": [0, 0, 0, 1]}
@@ -551,7 +635,7 @@ def main():
                     config["controller"]["objects"][OBJECT_NAME] = nom_ctrl_obj_config
 
                 # inspect a particular run
-                # if run != 30:
+                # if run != 2:
                 #     run += 1
                 #     continue
                 # IPython.embed()
@@ -559,9 +643,6 @@ def main():
                 # only compile at most once
                 if run > 1:
                     config["controller"]["recompile_libraries"] = False
-
-                # TODO recompiling the constraints does not work properly!!
-                # config["controller"]["recompile_libraries"] = True
 
                 if args.log:
                     name = f"{dirname}/run_{run}"

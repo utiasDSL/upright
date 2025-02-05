@@ -30,4 +30,5 @@ contained in one place. To run it, do
 ```
 roslaunch upright_ros_interface track_plan.launch config:=<path to yaml file>
 ```
-The plan is generated and then tracked online the robot.
+The plan is generated and then tracked online the robot. Make the sure
+`upright_cmd/scripts/record.py` is running at the same time to record a rosbag.

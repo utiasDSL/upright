@@ -13,7 +13,7 @@ include:
 
 logging:
   timestep: 0.010
-  log_dir: /media/adam/Data/PhD/Data/upright/robust/heins-ral24/simulations
+  log_dir: /media/adam/Data/PhD/Data/upright/heins-ral25/simulations
 
 simulation:
   # we keep it at 12 in case there are any failures to the transition to
@@ -31,15 +31,20 @@ simulation:
 
   cameras:
     camera1:
-      target: [1.04, 2.26, 0.92]
+      # target: [1.04, 2.26, 0.92]
+      # distance: 1
+      # roll: 0
+      # pitch: -17.8
+      # yaw: 91.2
+      target: [0.33, 2.30, 1.21]
       distance: 1
       roll: 0
-      pitch: -17.8
-      yaw: 91.2
+      pitch: -27.8
+      yaw: 133.6
 
   video:
     save_frames: true
-    dir: /media/adam/Data/PhD/Data/upright/robust/videos
+    dir: /media/adam/Data/PhD/Data/upright/heins-ral25/videos
     timestep: 0.040
     views:
       -
@@ -59,6 +64,9 @@ controller:
   sqp:
     sqp_iteration: 1
     init_sqp_iteration: 3
+    # init_sqp_iteration: 6
+    # init_sqp_iteration: 10
+    # init_sqp_iteration: 20
     use_feedback_policy: false
     hpipm:
       iter_max: 30

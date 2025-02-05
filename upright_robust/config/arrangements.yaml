@@ -233,6 +233,21 @@ arrangements:
         mu: 0.2
         support_area_inset: 0.0
 
+  box2_exact:
+    objects:
+      -
+        name: box
+        type: box2_exact
+        parent: ee
+        offset:
+          x: 0.065
+    contacts:
+      -
+        first: ee
+        second: box
+        mu: 0.2
+        support_area_inset: 0.0
+
   box2_robust:
     objects:
       -
