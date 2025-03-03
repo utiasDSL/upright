@@ -23,7 +23,6 @@ set(CATKIN_PACKAGE_DEPENDENCIES
   ocs2_robotic_tools
   ocs2_pinocchio_interface
   ocs2_self_collision
-  ocs2_self_collision_visualization
   upright_core
   ocs2_python_interface
 )

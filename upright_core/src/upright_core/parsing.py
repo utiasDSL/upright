@@ -11,8 +11,6 @@ import mobile_manipulation_central as mm
 from upright_core.bindings import RigidBody, ContactPoint
 from upright_core import math, polyhedron
 
-import IPython
-
 
 # This is from <https://github.com/Maples7/dict-recursive-update/blob/07204cdab891ac4123b19fe3fa148c3dd1c93992/dict_recursive_update/__init__.py>
 def recursive_dict_update(default, custom):

@@ -1,0 +1,5 @@
+# this directory contains URDFs compiled from xacro files
+# ignore everything in this directory
+*
+# except this file
+!.gitignore

@@ -17,6 +17,8 @@ find_package(catkin REQUIRED COMPONENTS
   pybind11_catkin
   mobile_manipulation_central
 )
+# find_package(pinocchio REQUIRED)
+# find_package(hpp-fcl REQUIRED)
 
 # hack to resolve pinocchio error, see
 # <https://github.com/epfl-lasa/control-libraries/issues/120>
@@ -47,6 +49,9 @@ catkin_package(
 ## Build ##
 ###########
 
+# this is needed to set the pinocchio preprocessor flag that includes HPP FCL
+set(FLAGS -DPINOCCHIO_WITH_HPP_FCL)
+
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -67,16 +72,20 @@ add_executable(mpc_node src/mpc_node.cpp)
 target_link_libraries(mpc_node
   ${catkin_LIBRARIES}
 )
+target_compile_options(mpc_node PUBLIC ${FLAGS})
 
 add_executable(mrt_node src/mrt_node.cpp)
 target_link_libraries(mrt_node
   ${catkin_LIBRARIES}
 )
+target_compile_options(mrt_node PUBLIC ${FLAGS})
 
 add_executable(track_plan_node src/track_plan_node.cpp)
 target_link_libraries(track_plan_node
   ${catkin_LIBRARIES}
 )
+target_compile_options(track_plan_node PUBLIC ${FLAGS})
 
 add_executable(python_cpp src/python_cpp.cpp)
 target_link_libraries(python_cpp ${PYTHON_LIBRARIES} ${upright_control_LIBRARIES})
+target_compile_options(python_cpp PUBLIC ${FLAGS})

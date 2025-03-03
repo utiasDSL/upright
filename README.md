@@ -36,59 +36,18 @@ The code is designed to run on ROS Noetic under Ubuntu 20.04. For experiments
 on real hardware, it is highly recommended to use a real-time system like Linux
 with the PREEMPT_RT patch.
 
-Install eigenpy (a Pinocchio dependency) from apt:
-```
-sudo apt install ros-noetic-eigenpy
-```
+First, follow the instructions to setup the
+[mobile_manipulation_central](https://github.com/utiasDSL/mobile_manipulation_central)
+repo in your catkin workspace.
 
-Clone and build [hpp-fcl](https://github.com/humanoid-path-planner/hpp-fcl)
-from source. Unfortunately the master branch and the version available on apt
-under the name `ros-noetic-hpp-fcl` has a
-[bug](https://github.com/humanoid-path-planner/hpp-fcl/issues/344) which causes
-contact normals to contain NaN values. However, that is fixed on the more
-recent `hppfcl3x` branch. Do:
+Next, clone our custom fork of [OCS2](https://github.com/utiasDSL/ocs2):
 ```
-# get the code with the bug fixed
-git clone https://github.com/humanoid-path-planner/hpp-fcl
-cd hpp-fcl
-git checkout hppfcl3x
-
-# build and install it
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j4
-sudo make install
+git clone -b upright https://github.com/utiasDSL/ocs2
 ```
+Install dependencies as listed
+[here](https://leggedrobotics.github.io/ocs2/installation.html).
 
-Clone and build [Pinocchio](https://github.com/stack-of-tasks/pinocchio) in a
-separate folder outside of the catkin workspace. It can be built with catkin,
-but I prefer not to because (1) if you ever clean and rebuild the workspace,
-compiling Pinocchio takes ages, and (2) I ran into an issue where it would
-cause sourcing `devel/setup.bash` not to work properly (`ROS_PACKAGE_PATH`
-wasn't set). Follow the installation directions
-[here](https://stack-of-tasks.github.io/pinocchio/download.html) (under the
-"Build from Source" tab), using the cmake command:
-```
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DPYTHON_EXECUTABLE=/usr/bin/python3 -DBUILD_WITH_COLLISION_SUPPORT=ON
-```
-Ensure that you also modify `$PYTHONPATH` to include the location of
-Pinocchio's Python bindings.
-
-Clone catkin package dependencies into the `src` folder of your catkin
-workspace (I like to put them in a subfolder called `tps` for "third-party
-software"):
-* Our custom fork of [OCS2](https://github.com/utiasDSL/ocs2). Install
-  dependencies as listed
-  [here](https://leggedrobotics.github.io/ocs2/installation.html) and then
-  clone:
-  ```
-  git clone -b upright https://github.com/utiasDSL/ocs2
-  ```
-* [mobile_manipulation_central](https://github.com/utiasDSL/mobile_manipulation_central)
-  and its dependenices.
-
-Clone this repo into the catkin workspace:
+Now you can clone this repo into the catkin workspace:
 ```
 git clone https://github.com/utiasDSL/upright catkin_ws/src/upright
 ```
@@ -98,17 +57,22 @@ Install Python dependencies:
 python3 -m pip install -r catkin_ws/src/upright/requirements.txt
 ```
 
-Build the workspace:
+There are many OCS2 packages that can be skipped. You can use the catkin
+[config.yaml](https://github.com/utiasDSL/mobile_manipulation_central/blob/main/catkin/config/yaml)
+file; place it under `catkin_ws/.catkin_tools/profiles/default/`.
+
+Finally, build the workspace:
 ```
-catkin build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+catkin build
 ```
+
 
 ## Simulation Experiments
 
 Simulation scripts are in `upright_cmd/scripts/simulations`. For example, to
 run a simulation without ROS, do something like:
 ```
-upright_cmd/scripts/simulations
+cd upright_cmd/scripts/simulations
 ./mpc_sim --config <path to yaml file>
 
 # for example
