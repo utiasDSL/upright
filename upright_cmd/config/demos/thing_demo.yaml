@@ -27,10 +27,15 @@ controller:
   mpc:
     time_horizon: 2.0
 
+  sqp:
+    hpipm:
+      slacks:
+        enabled: true
+
   balancing:
     enabled: true
     use_force_constraints: true
-    frictionless: false
+    frictionless: true
     arrangement: pink_bottle
     constraint_type: hard
 
@@ -47,6 +52,6 @@ controller:
   waypoints:
     -
       time: 0
-      # position: [-0.25, 0.5, 0.25]
-      position: [0, 0, 0]
+      position: [-0.25, 0.5, 0.25]
+      # position: [0, 0, 0]
       orientation: [0, 0, 0, 1]
