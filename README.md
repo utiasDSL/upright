@@ -1,6 +1,8 @@
-# Upright
+<p align="center">
+<img src="https://static.adamheins.com//upright/logo.svg" alt="Robot waiter." width="15%"/>
+</p>
 
-Code for solving the waiter's problem with online (MPC) or offline planning on
+Code for solving the *waiter's problem* with online (MPC) or offline planning on
 a mobile manipulator. The waiter's problem refers to moving while keeping
 objects balanced on a tray-like end effector (like a waiter in a restaurant),
 which is an example of *nonprehensile* manipulation.
