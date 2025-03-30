@@ -10,9 +10,9 @@ which is an example of *nonprehensile* manipulation.
 The code in this repository accompanies two papers:
 * [Keep It Upright: Model Predictive Control for Nonprehensile Object Transportation With Obstacle Avoidance on a Mobile Manipulator](https://arxiv.org/abs/2305.17484),
 * [Robust Nonprehensile Object Transportation with Uncertain Inertial Parameters](https://arxiv.org/abs/2411.07079).
+Full citations can be found [below](#citations).
 
-A full video from the first paper can be found
-[here](http://tiny.cc/keep-it-upright).
+Videos from the two papers can be found [here](http://tiny.cc/keep-it-upright) and [here](http://tiny.cc/upright-robust).
 
 Some examples include reacting to sudden changes in the environment:
 
