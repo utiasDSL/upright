@@ -5,11 +5,14 @@ a mobile manipulator. The waiter's problem refers to moving while keeping
 objects balanced on a tray-like end effector (like a waiter in a restaurant),
 which is an example of *nonprehensile* manipulation.
 
-The code in this repository accompanies two papers
-([first](https://arxiv.org/abs/2305.17484),
-[second](https://arxiv.org/abs/2411.07079)). A full video from the first paper
-can be found [here](http://tiny.cc/keep-it-upright). Some examples include
-reacting to sudden changes in the environment:
+The code in this repository accompanies two papers:
+* [Keep It Upright: Model Predictive Control for Nonprehensile Object Transportation With Obstacle Avoidance on a Mobile Manipulator](https://arxiv.org/abs/2305.17484),
+* [Robust Nonprehensile Object Transportation with Uncertain Inertial Parameters](https://arxiv.org/abs/2411.07079).
+
+A full video from the first paper can be found
+[here](http://tiny.cc/keep-it-upright).
+
+Some examples include reacting to sudden changes in the environment:
 
 ![Sudden obstacle avoidance](https://static.adamheins.com/upright/sudden.gif)
 
@@ -120,23 +123,35 @@ Run `pytest .` inside a package's `tests` directory to run the Python tests.
 If you find this work useful, feel free to cite (one of) the accompanying
 papers.
 
-The [original paper](https://doi.org/10.1109/LRA.2023.3324520) is:
+The [original paper](https://doi.org/10.1109/LRA.2023.3324520) on fast MPC for
+the waiter's problem is:
 ```
 @article{heins2023upright,
-  title={Keep It Upright: Model Predictive Control for Nonprehensile Object Transportation With Obstacle Avoidance on a Mobile Manipulator}, 
-  author={Adam Heins and Angela P. Schoellig},
-  journal={{IEEE Robotics and Automation Letters}}, 
-  year={2023},
-  volume={8},
-  number={12},
-  pages={7986-7993},
-  doi={10.1109/LRA.2023.3324520}
+  title = {Keep It Upright: Model Predictive Control for Nonprehensile Object Transportation With Obstacle Avoidance on a Mobile Manipulator},
+  author = {Adam Heins and Angela P. Schoellig},
+  journal = {{IEEE Robotics and Automation Letters}},
+  number = {12},
+  volume = {8},
+  pages = {7986--7993},
+  doi = {10.1109/LRA.2023.3324520},
+  year = {2023},
 }
 ```
 
-We have also recently developed a [follow-up
-work](https://arxiv.org/abs/2411.07079) on robust planning under inertial
-parameter uncertainty.
+The [follow-up paper](https://arxiv.org/abs/2411.07079) on robust planning for
+the waiter's problem under inertial parameter uncertainty:
+```
+@article{heins2025robust,
+  title = {Robust Nonprehensile Object Transportation with Uncertain Inertial Parameters},
+  author = {Adam Heins and Angela P. Schoellig},
+  journal = {{IEEE Robotics and Automation Letters}},
+  number = {5},
+  volume = {10},
+  pages = {4492--4499},
+  doi = {10.1109/LRA.2025.3551067},
+  year = {2025},
+}
+```
 
 ## License
 
