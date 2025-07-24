@@ -101,15 +101,14 @@ def test_parse_box():
     points1 = np.array([c.r_co_o1 for c in contacts])
     points2 = np.array([c.r_co_o2 for c in contacts])
 
-    points1_expected = np.array(
-        [[0.1, 0.1, 0.01], [0.1, -0.1, 0.01], [-0.1, -0.1, 0.01], [-0.1, 0.1, 0.01]]
-    )
-    points2_expected = np.array(
-        [[0.1, 0.1, -0.1], [0.1, -0.1, -0.1], [-0.1, -0.1, -0.1], [-0.1, 0.1, -0.1]]
+    points_expected = np.array(
+        [[0.1, 0.1, 0], [0.1, -0.1, 0], [-0.1, -0.1, 0], [-0.1, 0.1, 0]]
     )
 
-    assert allclose_unordered(points1, points1_expected)
-    assert allclose_unordered(points2, points2_expected)
+    # both sets of points should be the same since we use a common reference
+    # point
+    assert allclose_unordered(points1, points_expected)
+    assert allclose_unordered(points2, points_expected)
 
 
 def test_parse_cylinder_box():
@@ -131,14 +130,14 @@ def test_parse_cylinder_box():
 
     # fmt: off
     ee_points_expected = np.array([
-        [0, 0, 0.01], [-0.03, 0.03, 0.01], [-0.06, 0, 0.01], [-0.03, -0.03, 0.01],
-        [0, -0.1, 0.01], [0.2, -0.1, 0.01], [0.2, 0.1, 0.01], [0, 0.1, 0.01]])
+        [0, 0, 0], [-0.03, 0.03, 0], [-0.06, 0, 0], [-0.03, -0.03, 0],  # cylinder
+        [0, -0.1, 0], [0.2, -0.1, 0], [0.2, 0.1, 0], [0, 0.1, 0]])  # box
     box_points_expected = np.array([
-        [-0.1, -0.1, -0.1], [0.1, -0.1, -0.1], [0.1, 0.1, -0.1], [-0.1, 0.1, -0.1],
-        [-0.1, 0, -0.1], [-0.1, 0, 0.1]])
+        [0, -0.1, 0], [0.2, -0.1, 0], [0.2, 0.1, 0], [0, 0.1, 0],
+        [0, 0, 0], [0, 0, 0.2]])
     cylinder_points_expected = np.array([
-        [0.03, 0, -0.15], [0, 0.03, -0.15], [-0.03, 0, -0.15], [0, -0.03, -0.15],
-        [0.03, 0, -0.15], [0.03, 0, 0.05]])
+        [0, 0, 0], [-0.03, 0.03, 0], [-0.06, 0, 0], [-0.03, -0.03, 0],
+        [0, 0, 0], [0, 0, 0.2]])
     # fmt: on
 
     assert allclose_unordered(points["ee"], ee_points_expected)
@@ -172,11 +171,11 @@ def test_parse_wedge_box():
 
     # fmt: off
     wedge_points_expected = np.array([
-        [0.2, 0.15, -0.1], [0.2, -0.15, -0.1], [-0.1, -0.15, -0.1], [-0.1, 0.15, -0.1],
-        [0.05, 0.1, 0.05], [0.05, -0.1, 0.05], [0.05 - a, 0.1, 0.05 + a],
-        [0.05 - a, -0.1, 0.05 + a]])
+        [0.15, 0.15, 0], [0.15, -0.15, 0], [-0.15, -0.15, 0], [-0.15, 0.15, 0],
+        [0, 0.1, 0.15], [0, -0.1, 0.15], [-a, 0.1, 0.15 + a],
+        [-a, -0.1, 0.15 + a]])
     box_points_expected = np.array([
-        [0, 0.1, -a], [0, -0.1, -a], [-a, -0.1, 0], [-a, 0.1, 0]])
+        [0, 0.1, 0.15], [0, -0.1, 0.15], [-a, -0.1, 0.15 + a], [-a, 0.1, 0.15 + a]])
     # fmt: on
 
     assert allclose_unordered(points["wedge"], wedge_points_expected)

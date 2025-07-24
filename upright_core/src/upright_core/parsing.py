@@ -190,7 +190,6 @@ def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-7):
 
             span = math.plane_span(normal)
 
-            # r1 = points[i, :] - body1.com
             r1 = points[i, :]
 
             # it doesn't make sense to inset w.r.t. fixtures (EE or otherwise),
@@ -199,16 +198,16 @@ def _parse_objects_with_contacts(wrappers, contact_conf, tol=1e-7):
                 r1_inset = r1
             else:
                 # project point into tangent plane and inset the tangent part
+                # wrt to the box's center
                 # NOTE this does not make sense for non-planar contacts
-                r1_t = span @ r1
+                r1_t = span @ (r1 - box1.position)
                 r1_t_inset = math.inset_vertex(r1_t, inset)
 
                 # unproject the inset back into 3D space
                 r1_inset = r1 + (r1_t_inset - r1_t) @ span
 
-            # r2 = points[i, :] - body2.com
             r2 = points[i, :]
-            r2_t = span @ r2
+            r2_t = span @ (r2 - box2.position)
             r2_t_inset = math.inset_vertex(r2_t, inset)
             r2_inset = r2 + (r2_t_inset - r2_t) @ span
 

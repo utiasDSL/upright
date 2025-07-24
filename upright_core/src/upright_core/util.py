@@ -1,4 +1,5 @@
 import numpy as np
+
 from upright_core import math
 
 
@@ -11,12 +12,6 @@ def sort_canonical(A):
 
 
 def allclose_unordered(A, B):
-    """Helper to compare two nd-arrays where each array should have the same
-    rows, but they may be in different orders.
-
-    Returns True if the arrays are the same (but possibly with rows in a
-    different order), False otherwise.
-    """
     assert A.shape == B.shape
     n = A.shape[0]
     B_checked = np.zeros(n, dtype=bool)
