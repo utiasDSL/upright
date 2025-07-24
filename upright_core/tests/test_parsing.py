@@ -84,10 +84,10 @@ def test_parse_box():
     ctrl_objects, contacts = core.parsing.parse_control_objects(ctrl_config)
 
     box = ctrl_objects["box"]
-    assert np.isclose(box.body.mass, 1.0)
-    assert np.allclose(box.body.com, [0, 0, 0.1])
+    assert np.isclose(box.mass, 1.0)
+    assert np.allclose(box.com, [0, 0, 0.1])
     assert np.allclose(
-        box.body.inertia, core.math.cuboid_inertia_matrix(1.0, [0.2, 0.2, 0.2])
+        box.inertia, core.math.cuboid_inertia_matrix(1.0, [0.2, 0.2, 0.2])
     )
 
     assert len(contacts) == 4
@@ -152,7 +152,7 @@ def test_parse_wedge_box():
     ctrl_objects, contacts = core.parsing.parse_control_objects(ctrl_config)
 
     # check that wedge has CoM computed correctly
-    assert np.allclose(ctrl_objects["wedge"].body.com, [-0.05, 0, 0.1])
+    assert np.allclose(ctrl_objects["wedge"].com, [-0.05, 0, 0.1])
 
     assert len(contacts) == 8
     z = np.array([0, 0, 1])

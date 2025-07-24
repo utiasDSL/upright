@@ -64,7 +64,7 @@ python3 -m pip install -r catkin_ws/src/upright/requirements.txt
 ```
 
 There are many OCS2 packages that can be skipped. You can use the catkin
-[config.yaml](https://github.com/utiasDSL/mobile_manipulation_central/blob/main/catkin/config/yaml)
+[config.yaml](https://github.com/utiasDSL/mobile_manipulation_central/blob/main/catkin/config.yaml)
 file; place it under `catkin_ws/.catkin_tools/profiles/default/`.
 
 Finally, build the workspace:
@@ -79,12 +79,12 @@ Simulation scripts are in `upright_cmd/scripts/simulations`. For example, to
 run a simulation without ROS, do something like:
 ```
 cd upright_cmd/scripts/simulations
-./mpc_sim --config <path to yaml file>
+./mpc_sim.py --config <path to yaml file>
 
 # for example
 # thing_demo.yaml uses the entire mobile manipulator
 # ur10_demo.yaml uses only the arm
-./mpc_sim --config $(rospack find upright_cmd)/config/demos/thing_demo.yaml
+./mpc_sim.py --config $(rospack find upright_cmd)/config/demos/thing_demo.yaml
 ```
 All experiments, whether simulated or real, are specified by configuration
 files in the YAML format, which are stored under `upright_cmd/config`. Configuration parameters are documented [here](docs/configuration.md).

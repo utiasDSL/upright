@@ -11,7 +11,7 @@ differences. This is done using the `include` key, the value of which is block
 sequence; each element of the sequence contains `package`, the name of the ROS
 package, and `path`, the relative path to the YAML file from that package. The
 element can also contain the `key` key, which specifies the key that included
-YAML parameters should be placed in the overall configuration hierarchy.
+YAML parameters should be placed under in the overall configuration hierarchy.
 
 For example, suppose I have my YAML file `mine.yaml` and I want to include the
 parameters from `shared.yaml` located at `upright_cmd/config/shared.yaml`,
@@ -119,7 +119,7 @@ tracking:
   ee_position_violation_margin: float, non-negative
 
   # set to `true` when doing projectile experiments
-  use_projective: bool
+  use_projectile: bool
 
 # settings for the sequential quadratic programming solver
 sqp:
@@ -278,7 +278,6 @@ operating_points:
 # list of the balanced object parameters from the perspective of the controller
 objects:
   object_name: # name of the object
-
     # type of shape
     shape: cuboid | cylinder | wedge
 
@@ -338,7 +337,7 @@ arrangements:
         # contact points are pulled in by this amount so that the balancing
         # constraints are more conservative
         support_area_inset: float, non-negative
-          
+
 # parameters of the robot
 robot:
   x0: list of float  # initial state
@@ -407,7 +406,6 @@ arrangements:
 ### Simulation
 Nested under `simulation` are the following keys:
 ```yaml
-
 timestep: float, non-negative     # simulation timestep [s]
 duration: float, non-negative     # duration of the simuation [s]
 gravity: list of float, length 3  # gravity vector
