@@ -2,4 +2,5 @@
 *.pdf
 *.npz
 *.bag
+*.pyc
 artifacts/
