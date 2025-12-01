@@ -6,12 +6,32 @@
   <maintainer email="adam.heins@robotics.utias.utoronto.ca">Adam Heins</maintainer>
   <license>MIT</license>
 
-  <depend>std_msgs</depend>
-  <depend>geometry_msgs</depend>
-  <depend>upright_msgs</depend>
-  <depend>upright_control</depend>
-  <depend>controller_manager</depend>
-  <depend>hardware_interface</depend>
-  <depend>mobile_manipulation_central</depend>
   <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- System dependencies -->
+  <build_depend>libboost-system-dev</build_depend>
+  <build_depend>python3-dev</build_depend>
+
+  <!-- ROS dependencies -->
+  <build_depend>std_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>pybind11_catkin</build_depend>
+  <build_depend>realtime_tools</build_depend>
+  <build_depend>ocs2_msgs</build_depend>
+
+  <!-- Internal dependencies -->
+  <build_depend>upright_control</build_depend>
+  <build_depend>controller_manager</build_depend>
+  <build_depend>hardware_interface</build_depend>
+  <build_depend>mobile_manipulation_central</build_depend>
+
+  <!-- Execution dependencies -->
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>realtime_tools</exec_depend>
+  <exec_depend>ocs2_msgs</exec_depend>
+  <exec_depend>upright_control</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>hardware_interface</exec_depend>
+  <exec_depend>mobile_manipulation_central</exec_depend>
 </package>

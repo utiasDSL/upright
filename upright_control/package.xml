@@ -6,30 +6,65 @@
 
   <maintainer email="adam.heins@robotics.utias.utoronto.ca">Adam Heins</maintainer>
 
-  <license>TODO</license>
+  <license>MIT</license>
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>cmake_clang_tools</build_depend>
 
-  <depend>tf</depend>
-  <depend>urdf</depend>
-  <depend>kdl_parser</depend>
-  <depend>robot_state_publisher</depend>
-  <depend>pybind11_catkin</depend>
-  <depend>visualization_msgs</depend>
-  <depend>geometry_msgs</depend>
-  <depend>ocs2_core</depend>
-  <depend>ocs2_ddp</depend>
-  <depend>ocs2_mpc</depend>
-  <depend>ocs2_oc</depend>
-  <depend>ocs2_sqp</depend>
-  <depend>ocs2_robotic_tools</depend>
-  <depend>ocs2_ros_interfaces</depend>
-  <depend>ocs2_pinocchio_interface</depend>
-  <depend>ocs2_self_collision</depend>
-  <depend>ocs2_self_collision_visualization</depend>
-  <depend>pinocchio</depend>
-  <depend>upright_core</depend>
-  <depend>ocs2_python_interface</depend>
+  <!-- System dependencies -->
+  <build_depend>libeigen3-dev</build_depend>
+  <build_depend>libboost-system-dev</build_depend>
+  <build_depend>libboost-filesystem-dev</build_depend>
+
+  <!-- ROS dependencies -->
+  <build_depend>tf</build_depend>
+  <build_depend>urdf</build_depend>
+  <build_depend>kdl_parser</build_depend>
+  <build_depend>robot_state_publisher</build_depend>
+  <build_depend>pybind11_catkin</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>roslib</build_depend>
+
+  <!-- OCS2 dependencies -->
+  <build_depend>ocs2_core</build_depend>
+  <build_depend>ocs2_ddp</build_depend>
+  <build_depend>ocs2_mpc</build_depend>
+  <build_depend>ocs2_oc</build_depend>
+  <build_depend>ocs2_sqp</build_depend>
+  <build_depend>ocs2_robotic_tools</build_depend>
+  <build_depend>ocs2_ros_interfaces</build_depend>
+  <build_depend>ocs2_pinocchio_interface</build_depend>
+  <build_depend>ocs2_self_collision</build_depend>
+  <build_depend>ocs2_self_collision_visualization</build_depend>
+  <build_depend>ocs2_python_interface</build_depend>
+
+  <!-- Pinocchio -->
+  <build_depend>pinocchio</build_depend>
+
+  <!-- Internal dependencies -->
+  <build_depend>upright_core</build_depend>
+
+  <!-- Execution dependencies -->
+  <exec_depend>tf</exec_depend>
+  <exec_depend>urdf</exec_depend>
+  <exec_depend>kdl_parser</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>pybind11_catkin</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>ocs2_core</exec_depend>
+  <exec_depend>ocs2_ddp</exec_depend>
+  <exec_depend>ocs2_mpc</exec_depend>
+  <exec_depend>ocs2_oc</exec_depend>
+  <exec_depend>ocs2_sqp</exec_depend>
+  <exec_depend>ocs2_robotic_tools</exec_depend>
+  <exec_depend>ocs2_ros_interfaces</exec_depend>
+  <exec_depend>ocs2_pinocchio_interface</exec_depend>
+  <exec_depend>ocs2_self_collision</exec_depend>
+  <exec_depend>ocs2_self_collision_visualization</exec_depend>
+  <exec_depend>pinocchio</exec_depend>
+  <exec_depend>upright_core</exec_depend>
+  <exec_depend>ocs2_python_interface</exec_depend>
 
 </package>

@@ -4,3 +4,5 @@
 *.bag
 *.pyc
 artifacts/
+
+.vscode/

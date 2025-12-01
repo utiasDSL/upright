@@ -6,8 +6,9 @@
   <maintainer email="adam.heins@robotics.utias.utoronto.ca">Adam Heins</maintainer>
   <license>MIT</license>
 
-  <depend>upright_core</depend>
   <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>upright_core</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

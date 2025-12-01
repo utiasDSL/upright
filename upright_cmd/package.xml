@@ -6,10 +6,10 @@
   <maintainer email="adam.heins@robotics.utias.utoronto.ca">Adam Heins</maintainer>
   <license>MIT</license>
 
-  <!-- TODO add the rest -->
-  <depend>rospy</depend>
-  <depend>roscpp</depend>
-  <depend>upright_sim</depend>
-
   <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>upright_sim</exec_depend>
+
 </package>

@@ -157,7 +157,7 @@ sqp:
       upper_L1_penalty: float, non-negative  # L1 penalty on upper slacks (default: 0)
       lower_L1_penalty: float, non-negative  # L1 penalty on lower slacks (default: 0)
       upper_low_bound: float  # lower bound on the upper slacks (default: 0)
-      lower_low_bound: foat  # lower bound on the lower slacks (default: 0)
+      lower_low_bound: float  # lower bound on the lower slacks (default: 0)
 
 # settings for the balancing constraints
 balancing:
@@ -177,6 +177,9 @@ balancing:
 
   # weight on the contact forces in the objective function
   force_weight: float, non-negative
+
+  # Whether to do frictionless constraints
+  frictionless: bool
 
 # settings for the inertial alignment method, an alternative to the balancing
 # constraints
@@ -383,7 +386,7 @@ weights:
     diag: list of float, non-negative
   end_effector:  # EE pose weight
     scale: float, non-negative
-    diag: list of float, non-negative, length 3  # 3 position DOFs, 3 orientation DOFs
+    diag: list of float, non-negative, length 6  # 3 position DOFs, 3 orientation DOFs
 
 # state and input limits
 limits:
