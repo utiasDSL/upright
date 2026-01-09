@@ -2,6 +2,11 @@
 <img src="https://static.adamheins.com//upright/logo.svg" alt="Robot waiter." width="15%"/>
 </p>
 
+_**New in 2026**_: A much simpler alternative implementation of the core ideas of this work is now available [here](https://github.com/adamheins/uplite),
+which may be better starting point for those wishing to work on the waiter's problem than the original implementation in this repository.
+
+## Introduction
+
 Code for solving the *waiter's problem* with online (MPC) or offline planning on
 a mobile manipulator. The waiter's problem refers to moving while keeping
 objects balanced on a tray-like end effector (like a waiter in a restaurant),
