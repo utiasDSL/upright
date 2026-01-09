@@ -3,7 +3,7 @@
 </p>
 
 _**New in 2026**_: A much simpler alternative implementation of the core ideas of this work is now available [here](https://github.com/adamheins/uplite),
-which may be better starting point for those wishing to work on the waiter's problem than the original implementation in this repository.
+which may be a better starting point for those wishing to work on the waiter's problem than the original implementation in this repository.
 
 ## Introduction
 
